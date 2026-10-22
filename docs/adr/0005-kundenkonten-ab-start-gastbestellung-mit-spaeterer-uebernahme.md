@@ -4,7 +4,7 @@ Status: angenommen · 22.10.2026
 
 ## Kontext
 
-Der Auftraggeber hat am 21.10.2026 entschieden (Konzept §12, Nr. 3): Kundenkonten gibt es ab
+Der Auftraggeber hat am 21.10.2026 entschieden (Konzept §13, Nr. 3): Kundenkonten gibt es ab
 dem ersten Tag, eine Bestellung als Gast bleibt trotzdem möglich. Gastbestellungen sollen im
 Konto auftauchen, sobald sich der Kunde registriert. Würde allein die gleiche E-Mail-Adresse
 genügen, könnte jemand mit einer fremden Adresse ein Konto anlegen und fremde Bestellungen

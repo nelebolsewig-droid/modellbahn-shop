@@ -2,7 +2,7 @@
 
 > **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritt 2 (Fundament) in Arbeit
 > **Umfang:** Domänenmodell (DDD), Systemarchitektur, Tech-Stack, Datenmodell (ERD),
-> Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Fahrplan
+> Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Gestaltung, Fahrplan
 > **Geprüft:** Das Datenmodell wurde gegen PostgreSQL 17 geprüft
 > (siehe [5.8](#58-was-die-datenbank-erzwingt-und-wie-das-geprüft-wurde)).
 
@@ -344,7 +344,7 @@ Verkauf bleiben zusammen, solange kein Grund dagegen spricht.
 | Baustein | Wahl | Warum |
 | --- | --- | --- |
 | Framework | **Next.js 16** (App Router) + **React 19** + **TypeScript** (strict) | Server Components: Shop-Seiten statisch und SEO-stark; der Admin-Bereich als reaktive Client-App im selben Projekt. |
-| Gestaltung | **Tailwind CSS v4** + **shadcn/ui** (Radix) | Eigenes Designsystem ohne Template-Optik, barrierearm durch Radix. |
+| Gestaltung | **Tailwind CSS v4** mit Design-Tokens (§11) + **Radix**-Primitives | Eigenes, helles Designsystem ohne Template-Optik; Radix sorgt für Tastatur und ARIA. |
 | Serverzustand | **TanStack Query v5** | Optimistische Updates beim Scannen, gezielte Invalidierung per SSE. |
 | API-Client | **Orval** aus OpenAPI | Typisierte Hooks und Zod-Schemas, erzeugt aus dem Backend-Vertrag. |
 | Scan-Sitzung | **XState v5** | Der Scanablauf ist ein Zustandsautomat; XState macht ihn explizit, testbar und darstellbar. |
@@ -1322,7 +1322,113 @@ erneut zu buchen.
 
 ---
 
-## 11 · Fahrplan
+## 11 · Gestaltung
+
+Hell, ruhig und präzise. Der Shop ist eine Galerie, in der die Modelle ausgestellt sind, und
+eine Werkstatt, in der jedes Maß stimmt. Vorbild ist die minimalistische Präzision großer
+Produktseiten, verbunden mit dem Strich einer Architekturzeichnung. Festgelegt am 22.10.2026
+(ADR 0007). Das Designsystem mit allen Tokens und einer Live-Vorschau jeder Komponente liegt
+als eigenes Artefakt „Modellbahn-Shop Designsystem“ vor; dieser Abschnitt ist die verbindliche
+Kurzfassung.
+
+### 11.1 Leitlinien
+
+1. **Hell, nie duster.** Grund ist ein mattes Lichtgrau (`canvas`) mit Galerie-Charakter. Kein
+   reines Schwarz, kein dunkler Seitengrund, auch nicht im Stellwerk.
+2. **Produktfotos im Fokus.** Fotos stehen in rahmenlosen Bühnen (`stage`) mit viel Leerraum;
+   das Modell füllt etwa drei Viertel der Fläche, damit die Details des Drucks wirken.
+3. **Zeichnungen wie Architekturpläne.** Technische Ansichten in feinen 1-px-Linien in
+   Preußischblau oder Anthrazit auf hellem Raster, mit Maßlinien und Schriftfeld.
+4. **Bedienelemente minimal.** Spurweite und Ausführung („unbemalt · grundiert · bemalt“) als
+   Pills oder Kacheln mit hauchdünner, hellgrauer Kontur. Aktiv: Mattschwarz oder dezentes
+   Preußischblau.
+5. **Große, dünne, serifenlose Schrift.** Eine Familie (Geist). Kennzeilen wie
+   „H0 · 1:87 · Resin“ in 22 px, Gewicht 300, mit tabellarischen Ziffern.
+6. **Präzise auch bei Barrierefreiheit.** Jede Schrift erreicht mindestens 4,5 : 1 auf ihrem
+   Grund. Haarlinien sind Zierde und nie der einzige Hinweis auf einen Zustand.
+
+### 11.2 Design-Tokens in drei Ebenen
+
+```
+Rohwerte      gray-50 #F4F4F1, prussian-800 #003153 …     nennen nur Farben
+   ↓
+Bedeutungen   canvas, stage, ink, accent, selected, line   sagen, wofür eine Farbe steht
+   ↓
+Komponenten   OptionPill, ScaleTile, ProductStage …        verwenden nur Bedeutungen
+```
+
+Ein neuer Farbton ändert einen Rohwert; eine neue Rolle eine Bedeutung. Komponenten kennen
+keine Hex-Werte.
+
+| Bedeutung | Rohwert | Wert | Wofür | Kontrast |
+| --- | --- | --- | --- | --- |
+| `canvas` | gray-50 | #F4F4F1 | Seitengrund in Shop und Stellwerk | |
+| `stage` | gray-25 | #FAFAF8 | Produktbühne, Zeichnungen | |
+| `surface` | gray-0 | #FFFFFF | Felder, Dialoge, Listen | |
+| `sunken` | gray-100 | #ECECE8 | vertiefte Flächen, Deaktiviertes | |
+| `ink` | gray-900 | #1E2124 | Text, Anthrazit | 14,7 : 1 auf `canvas` |
+| `ink-secondary` | gray-700 | #4E5357 | Beschreibungen | 7,1 : 1 |
+| `ink-tertiary` | gray-600 | #666B70 | Metadaten, Trennpunkte | ≥ 4,5 : 1 auf allen Gründen |
+| `line` | gray-200 | #DEDFDB | Haarlinien, Konturen von Pills | Zierde |
+| `line-control` | gray-500 | #80858A | Rahmen von Eingabefeldern | 3,4 : 1 |
+| `selected` | gray-900 | #1E2124 | aktive Option, primärer Knopf (Mattschwarz) | Schrift darauf 16,2 : 1 |
+| `accent` | prussian-800 | #003153 | Links, Fokusring, Akzent-Auswahl | 12,2 : 1 |
+| `drawing-line` | prussian-800 | #003153 | Konturen in Zeichnungen | |
+| `drawing-grid` | prussian-100 | #D9E4EE | Raster hinter Zeichnungen | Zierde |
+| `success`, `warning`, `danger` | green-700, amber-700, red-700 | #2E7046, #8A5A00, #A8322B | Zustände, immer mit Wort | ≥ 5,0 : 1 |
+
+| Schriftstil | Größe / Zeile | Gewicht | Einsatz |
+| --- | --- | --- | --- |
+| `display-xl` | 80 / 84 px | 200 | einmal pro Seite |
+| `display` | 56 / 60 px | 200 | Seitentitel |
+| `title` | 40 / 46 px | 300 | Abschnittstitel |
+| `heading` | 28 / 34 px | 400 | Überschriften im Text |
+| `spec` | 22 / 30 px | 300 | Kennzeile „H0 · 1:87 · Resin“ |
+| `body-large`, `body`, `small` | 19, 16, 14 px | 400 | Text |
+| `label` | 12 / 16 px | 500 | Großbuchstaben über Optionsgruppen |
+| `mono` (Geist Mono) | 13 / 20 px | 400 | EAN, Teilenummern, Maßzahlen |
+
+Abstände im 4-px-Raster von 4 bis 160 px; Abschnitte trennt 96 px, Produktreihen 48 px.
+Radien: 8 px (Felder), 14 px (Kacheln), 24 px (Bühne), Pill. Linien 1 px, Fokusring 2 px.
+Schatten nur für Dialoge und Popover.
+
+### 11.3 Komponenten
+
+| Komponente | Zweck | Aktiv / Zustände |
+| --- | --- | --- |
+| `Button` | Aktion: primär, sekundär, Textlink | primär Mattschwarz; deaktiviert nur mit Grund daneben |
+| `OptionPill` | Spurweite, Ausführung, Technik | Mattschwarz oder Preußischblau; nicht lieferbar gestrichelt |
+| `ScaleTile` | große Spurweiten-Wahl: „H0 · 1:87 · 16,5 mm“ | Kontur in Mattschwarz |
+| `ProductStage` | rahmenlose Fotobühne, 4:5, 1:1, 16:10 | Bildwechsel 320 ms |
+| `BlueprintDrawing` | technische Ansicht mit Maßen und Schriftfeld | Linien zoomunabhängig 1 px |
+| `SpecLine` | Kennzeile, groß und klein | |
+| `StatusBadge` | Am Lager · Wird für dich gedruckt · nicht lieferbar | Punkt plus Wort |
+| `TextField` | Formulareingabe | Fehler in `danger`, Text nennt die Lösung |
+| `ProductCard` | Modell im Katalog, ganze Karte ein Link | kein Knopf auf der Karte |
+| `EventFeed` | Live-Ereignisse im Stellwerk | neues Ereignis auf `accent-subtle` |
+
+Optionsgruppen sind Radiogruppen (Radix Radio Group): Pfeiltasten wechseln, Tab verlässt die
+Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
+
+### 11.4 Umsetzung im Code
+
+- `frontend/src/styles/tokens.css` hält Rohwerte und Bedeutungen als CSS-Variablen; `@theme` in
+  `globals.css` macht daraus Tailwind-Klassen (`bg-canvas`, `text-ink-secondary`,
+  `border-line`). Komponenten verwenden nur diese Klassen.
+- Die Komponenten liegen unter `frontend/src/components/ui/` und heißen wie im Designsystem.
+- Ein Vitest-Test liest `tokens.css` und prüft die Kontrastpaare aus 11.2. Wer eine Farbe so
+  ändert, dass Text unlesbar wird, bricht den Build.
+- Das Stellwerk nutzt dieselben Tokens mit `data-density="werkstatt"`: Knöpfe, Pills und
+  Felder eine Stufe kompakter.
+- Geist und Geist Mono werden über `next/font` selbst gehostet; Besucher laden nichts von Google.
+- Einen dunklen Modus gibt es nicht. Weil Komponenten nur Bedeutungen kennen, ließe er sich
+  später als zweites Thema ergänzen, ohne eine Komponente anzufassen.
+- Die Umstellung des Frontends gehört zu Schritt 3. Bis dahin zeigt Schritt 2 noch die erste
+  Gestaltung (warmes Grau, Bernstein, dunkles Stellwerk).
+
+---
+
+## 12 · Fahrplan
 
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
@@ -1331,7 +1437,7 @@ das man anfassen kann.
 | --- | --- | --- |
 | 1 | **Konzept** (dieses Dokument) | Freigabe |
 | 2 | **Fundament:** Repository-Struktur, Docker Compose, CI, Plattform-Kern (Outbox, Unit of Work, Fehlerformat, IDs, Echtzeit), Identität mit **Kundenkonten** und Mitarbeiterzugang, Architekturregeln | Registrieren, E-Mail bestätigen, anmelden; der Mitarbeiter sieht die Registrierung live im Admin-Bereich |
-| 3 | **Katalog + Medien** inklusive Pipeline | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live |
+| 3 | **Katalog + Medien** inklusive Pipeline; Frontend auf das helle Designsystem (§11) umgestellt | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken, mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen |
 | 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |
@@ -1340,7 +1446,7 @@ das man anfassen kann.
 
 ---
 
-## 12 · Entscheidungen
+## 13 · Entscheidungen
 
 Am 21.10.2026 mit dem Auftraggeber geklärt:
 
@@ -1351,6 +1457,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 3 | Kundenkonten ab Start? | **Ja.** Gastbestellung bleibt möglich; Gastbestellungen werden ins Konto übernommen, sobald die E-Mail-Adresse bestätigt ist |
 | 4 | Sprache im Code | Bezeichner Englisch, Oberfläche und Dokumentation Deutsch |
 | 5 | Wo liegt der Code? | Eigenes Repository |
+| 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
 
 Noch offen:
 
