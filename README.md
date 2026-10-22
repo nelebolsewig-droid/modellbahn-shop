@@ -250,7 +250,7 @@ secrets:
 
 ## Weiterlesen
 
-- [Architekturkonzept](docs/KONZEPT.md): Domäne, Datenmodell, API, Fahrplan
+- [Architekturkonzept](docs/KONZEPT.md): Domäne, Datenmodell, API, Gestaltung, Fahrplan
 - Architekturentscheidungen:
   - [0001 Modularer Monolith mit Schema je Modul](docs/adr/0001-modularer-monolith-mit-schema-je-modul.md)
   - [0002 Outbox in PostgreSQL statt Broker](docs/adr/0002-outbox-in-postgresql-statt-broker.md)
@@ -258,3 +258,4 @@ secrets:
   - [0004 CSRF-Schutz über eigenen Header](docs/adr/0004-csrf-schutz-ueber-eigenen-header.md)
   - [0005 Kundenkonten ab Start, Gastbestellung mit späterer Übernahme](docs/adr/0005-kundenkonten-ab-start-gastbestellung-mit-spaeterer-uebernahme.md)
   - [0006 UUIDv7 als Kennungen](docs/adr/0006-uuidv7-als-kennungen.md)
+  - [0007 Helles Präzisionsdesign](docs/adr/0007-helles-praezisionsdesign.md)
