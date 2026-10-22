@@ -9,7 +9,7 @@ PostgreSQL als Datenbank und Warteschlange. Das Gesamtbild steht in
 ```bash
 uv sync                                    # Abhängigkeiten inkl. Entwicklungswerkzeuge
 make dev-db                                # im Projektwurzelverzeichnis: PostgreSQL + Mailpit
-export MB_DATABASE_URL=postgresql+asyncpg://modellbahn:modellbahn-dev@localhost:5432/modellbahn
+export MB_DATABASE_URL=postgresql+asyncpg://modellbahn:modellbahn@localhost:5432/modellbahn  # = Voreinstellung
 export MB_COOKIE_SECURE=false              # nur für http://localhost ohne Caddy
 uv run alembic upgrade head                # Schema anlegen
 uv run uvicorn modellbahn.main:app --reload

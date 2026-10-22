@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 
 /**
- * - connecting: first connection is being opened
+ * - connecting: a connection is being opened
  * - open: connected, events arrive live
  * - reconnecting: connection lost; the browser retries on its own and sends
  *   Last-Event-ID, so the API replays what was missed
- * - closed: the browser gave up (e.g. the API answered 401); only a new
- *   EventSource helps
+ * - closed: the browser gave up (the API answered with an error, e.g. 401 or a 502
+ *   from the proxy while the API restarts); a new EventSource is opened after a pause
  */
 export type StreamState = "connecting" | "open" | "reconnecting" | "closed";
+
+/** Pause before a new connection once the browser has given up. */
+export const RETRY_AFTER_CLOSE_MS = 15_000;
 
 type EventStreamOptions = {
   url: string;
@@ -29,31 +32,36 @@ export function useEventStream({ url, eventTypes, onMessage, onClosed }: EventSt
   const handleClosed = useEffectEvent(() => onClosed?.());
   const typesKey = eventTypes.join("\n");
 
+  const reconnect = useCallback(() => {
+    setState("connecting");
+    setAttempt((current) => current + 1);
+  }, []);
+
   useEffect(() => {
     // Same origin, so the session cookie is sent without withCredentials.
     const source = new EventSource(url);
-    const types = typesKey.split("\n").filter(Boolean);
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const listener = (event: MessageEvent<string>) => handleMessage(event);
 
     source.addEventListener("open", () => setState("open"));
     source.addEventListener("error", () => {
       if (source.readyState === EventSource.CLOSED) {
         setState("closed");
         handleClosed();
+        retryTimer = setTimeout(reconnect, RETRY_AFTER_CLOSE_MS);
       } else {
         setState("reconnecting");
       }
     });
-    for (const type of types) {
-      source.addEventListener(type, handleMessage);
+    for (const type of typesKey.split("\n").filter(Boolean)) {
+      source.addEventListener(type, listener);
     }
-    return () => source.close();
-  }, [url, typesKey, attempt]);
 
-  /** Opens a new connection after the browser has given up. */
-  function reconnect() {
-    setState("connecting");
-    setAttempt((current) => current + 1);
-  }
+    return () => {
+      clearTimeout(retryTimer);
+      source.close();
+    };
+  }, [url, typesKey, attempt, reconnect]);
 
   return { state, reconnect };
 }

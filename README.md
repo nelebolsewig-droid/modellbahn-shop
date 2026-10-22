@@ -23,6 +23,7 @@ Kunde sieht „Mein Konto“. Ein Mitarbeiter sieht die Registrierung im Admin-B
 | Stack starten | Docker Engine mit Compose v2 (`docker compose`), GNU Make |
 | Freie Ports | 80 und 443 (Caddy); nur auf 127.0.0.1: 5432 (PostgreSQL), 8025 und 1025 (Mailpit) |
 | Entwicklung ohne Container, `make test`, `make check` | Python 3.13 und [uv](https://docs.astral.sh/uv/) 0.11, Node.js 22 mit npm 10 |
+| `make smoke` | Python 3.13 (`python3`, nur Standardbibliothek) |
 
 Die Backend-Tests starten PostgreSQL selbst per Testcontainers und brauchen dafür Docker.
 
@@ -31,11 +32,21 @@ Die Backend-Tests starten PostgreSQL selbst per Testcontainers und brauchen daf�
 ```bash
 make up                                                   # baut und startet alles
 make staff EMAIL=chef@example.de NAME="Vorname Nachname"  # Mitarbeiterkonto, Rolle owner
+make smoke                                                # spielt die Vorführung automatisch durch
 ```
 
 `make up` legt beim ersten Aufruf `.env` aus `.env.example` an, baut die Images, wendet die
 Migrationen an und wartet, bis alle Dienste gesund sind. `make staff` fragt das Passwort
 verdeckt zweimal ab; mit `ROLE=staff` oder `ROLE=packer` entsteht ein Konto mit anderer Rolle.
+
+`make smoke` prüft den laufenden Stack von außen, über Caddy und Mailpit, so wie ein Browser:
+Startseite, Registrierung, Bestätigungs-E-Mail, Bestätigung mit Anmeldung, Abmelden, erneutes
+Anmelden, Passwort zurücksetzen, Anmeldung im Stellwerk, Ereignisstrom (Nachlieferung per
+`Last-Event-ID` und live) sowie die Grenzen zwischen Shop- und Admin-Sitzung und den
+CSRF-Header. Jeder Schritt erscheint mit ✓ oder ✗; beim ersten Fehler endet der Lauf mit
+Exit-Code 1. Für jeden Lauf legt das Ziel ein Wegwerf-Mitarbeiterkonto (Rolle `staff`) mit
+Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. Das Skript
+[`scripts/smoke_e2e.py`](scripts/smoke_e2e.py) braucht nur Python 3.13 ohne Zusatzpakete.
 
 | Adresse | Was |
 | --- | --- |
@@ -72,6 +83,7 @@ Zertifikaten löschen: `docker compose down --volumes`.
 | `make dev-db` | Nur PostgreSQL und Mailpit starten, für die Entwicklung ohne Container |
 | `make migrate` | Migrationen mit dem Backend-Image auf die Datenbank des Stacks anwenden |
 | `make staff EMAIL=… NAME="…" [ROLE=owner\|staff\|packer]` | Mitarbeiterkonto anlegen |
+| `make smoke` | End-to-End-Test gegen den laufenden Stack (siehe Schnellstart) |
 | `make test` | Tests von Backend (pytest) und Frontend (Vitest) |
 | `make lint` | Ruff, Formatprüfung, Architekturregeln (import-linter), ESLint |
 | `make fmt` | Formatieren und automatisch behebbare Lint-Fehler beheben |
@@ -121,6 +133,7 @@ modellbahn-shop/
 ├── Caddyfile                   HTTPS; /api/* an die API, alles andere an Next.js
 ├── .env.example                jede Variable des Stacks mit Entwicklungswert
 ├── .github/workflows/ci.yml
+├── scripts/smoke_e2e.py        End-to-End-Test des laufenden Stacks (make smoke)
 ├── docs/
 │   ├── KONZEPT.md              Architekturkonzept
 │   └── adr/                    Architekturentscheidungen

@@ -150,6 +150,27 @@
   border-left-width: 1.5px;
 }
 
+/*
+ * Two rails on their sleepers, seen from above: the decorative strip under the header
+ * and above the footer.
+ */
+@utility track-rule {
+  height: 0.75rem;
+  background-image:
+    linear-gradient(var(--color-line-strong), var(--color-line-strong)),
+    linear-gradient(var(--color-line-strong), var(--color-line-strong)),
+    repeating-linear-gradient(90deg, var(--color-line) 0 4px, transparent 4px 18px);
+  background-size:
+    100% 1.5px,
+    100% 1.5px,
+    100% 100%;
+  background-position:
+    0 2px,
+    0 calc(100% - 2px),
+    0 0;
+  background-repeat: no-repeat;
+}
+
 /* Small uppercase mono caption, e.g. "KUNDENKONTO" above a heading. */
 @utility label-caps {
   font-family: var(--font-mono);

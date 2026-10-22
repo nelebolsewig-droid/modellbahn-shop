@@ -12,6 +12,8 @@ const PUBLIC_CUSTOMER_PAGES: ReadonlySet<string> = new Set([
   "/konto/bestaetigung-erneut",
   "/konto/passwort-vergessen",
   "/konto/passwort-zuruecksetzen",
+  // Shown right after the account (and with it the session) was deleted.
+  "/konto/geloescht",
 ]);
 
 const PUBLIC_STAFF_PAGES: ReadonlySet<string> = new Set(["/admin/anmelden"]);

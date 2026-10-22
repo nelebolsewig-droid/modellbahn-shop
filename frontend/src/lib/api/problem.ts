@@ -110,9 +110,12 @@ export function isApiProblem(error: unknown): error is ApiProblem {
   return error instanceof ApiProblem;
 }
 
-/** True for "no valid session": the caller should treat the visitor as logged out. */
-export function isUnauthenticated(error: unknown): boolean {
-  return isApiProblem(error) && error.status === 401;
+/**
+ * True when the API answered "no valid session" (missing, expired or revoked cookie).
+ * Deliberately not every 401: a failed login is a 401 `invalid_credentials`.
+ */
+export function isSessionMissing(error: unknown): boolean {
+  return isApiProblem(error) && error.code === "not_authenticated";
 }
 
 async function readJson(response: Response): Promise<unknown> {

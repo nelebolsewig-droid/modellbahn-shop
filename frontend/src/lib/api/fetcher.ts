@@ -6,7 +6,7 @@ import { ApiProblem } from "./problem";
  * cross-site only after a CORS preflight, which the API never approves.
  */
 export const CLIENT_HEADER = "X-Modellbahn-Client";
-export const CLIENT_HEADER_VALUE = "web";
+const CLIENT_HEADER_VALUE = "web";
 
 const UNSAFE_METHODS: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const ACCEPT = "application/json, application/problem+json";
@@ -16,7 +16,6 @@ const ACCEPT = "application/json, application/problem+json";
  * error body, the fetcher throws an {@link ApiProblem}. Orval picks this export up
  * from the mutator file.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature required by Orval
 export type ErrorType<_DeclaredBody> = ApiProblem;
 
 /**

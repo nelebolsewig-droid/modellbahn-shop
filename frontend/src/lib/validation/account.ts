@@ -8,14 +8,14 @@ import { z } from "zod";
  */
 
 export const PASSWORD_MIN_LENGTH = 10;
-export const PASSWORD_MAX_LENGTH = 256;
-export const DISPLAY_NAME_MAX_LENGTH = 80;
+const PASSWORD_MAX_LENGTH = 256;
+const DISPLAY_NAME_MAX_LENGTH = 80;
 
 // Like Python's len(): code points, not UTF-16 units (an emoji counts once).
 const codePoints = (value: string): number => Array.from(value).length;
 
 // C0/C1 control characters and the bidi overrides the backend rejects in names.
-const FORBIDDEN_NAME_CHARACTERS = /[\p{Cc}‪-‮⁦-⁩]/u;
+const FORBIDDEN_NAME_CHARACTERS = /[\p{Cc}\u202A-\u202E\u2066-\u2069]/u;
 
 const email = z
   .string()
@@ -23,10 +23,12 @@ const email = z
   .min(1, "Bitte gib deine E-Mail-Adresse ein.")
   .pipe(z.email("Bitte gib eine gültige E-Mail-Adresse ein."));
 
+// An empty field gets only "please enter", hence `value === ""` in the length rule.
+// (No `abort: true` here: zod would then skip the form-level rule below entirely.)
 const newPassword = z
   .string()
   .min(1, "Bitte gib ein Passwort ein.")
-  .refine((value) => codePoints(value) >= PASSWORD_MIN_LENGTH, {
+  .refine((value) => value === "" || codePoints(value) >= PASSWORD_MIN_LENGTH, {
     error: `Das Passwort muss mindestens ${PASSWORD_MIN_LENGTH} Zeichen lang sein.`,
   })
   .refine((value) => codePoints(value) <= PASSWORD_MAX_LENGTH, {
@@ -61,12 +63,19 @@ const PASSWORD_EQUALS_EMAIL = "Das Passwort darf nicht deine E-Mail-Adresse sein
 const differsFromEmail = (password: string, address: string): boolean =>
   password.toLocaleLowerCase("de") !== address.toLocaleLowerCase("de");
 
-export const registrationSchema = z
-  .object({ display_name: displayName, email, password: newPassword })
-  .refine((value) => differsFromEmail(value.password, value.email), {
+const registrationFields = z.object({ display_name: displayName, email, password: newPassword });
+const credentialFields = registrationFields.pick({ email: true, password: true });
+
+export const registrationSchema = registrationFields.refine(
+  (value) => differsFromEmail(value.password, value.email),
+  {
     path: ["password"],
     error: PASSWORD_EQUALS_EMAIL,
-  });
+    // Checked as soon as address and password are valid themselves, even while the
+    // name is still missing, so that one submission shows every problem.
+    when: (payload) => credentialFields.safeParse(payload.value).success,
+  },
+);
 
 export const loginSchema = z.object({ email, password: currentPassword });
 
@@ -84,5 +93,6 @@ export const displayNameSchema = z.object({ display_name: displayName });
 
 export const accountDeletionSchema = z.object({ password: currentPassword });
 
-export type RegistrationValues = z.input<typeof registrationSchema>;
-export type LoginValues = z.input<typeof loginSchema>;
+export type LoginValues = z.output<typeof loginSchema>;
+export type EmailValues = z.output<typeof emailSchema>;
+export type PasswordChangeValues = z.output<typeof passwordChangeSchema>;

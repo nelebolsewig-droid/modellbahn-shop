@@ -1,33 +1,33 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+
+import type { AccountOut } from "@/lib/api/generated/model";
+import { getCustomerAccount } from "@/lib/api/generated/store-account/store-account";
+import type { ApiProblem } from "@/lib/api/problem";
 
 import {
-  getGetCustomerAccountQueryKey,
-  useGetCustomerAccount,
-} from "@/lib/api/generated/store-account/store-account";
-import type { AccountOut } from "@/lib/api/generated/model";
+  accountOrNull,
+  SESSION_QUERY_ROOT,
+  sessionFromQuery,
+  useSessionCache,
+  type Session,
+  type SessionCache,
+} from "./session";
 
-import { sessionFromQuery, type Session } from "./session";
-
-export const customerAccountQueryKey = getGetCustomerAccountQueryKey();
+export const customerSessionQueryKey = [...SESSION_QUERY_ROOT, "customer"] as const;
 
 /** The logged-in customer, as far as the API confirms it. */
 export function useCustomerSession(): Session<AccountOut> {
-  return sessionFromQuery(useGetCustomerAccount({ query: { staleTime: 60_000 } }));
+  const query = useQuery<AccountOut | null, ApiProblem>({
+    queryKey: customerSessionQueryKey,
+    queryFn: ({ signal }) => accountOrNull(getCustomerAccount({ signal })),
+    staleTime: 60_000,
+  });
+  return sessionFromQuery(query);
 }
 
 /** Keeps the cached customer in step with logins, logouts and changes. */
-export function useCustomerSessionCache() {
-  const queryClient = useQueryClient();
-  return {
-    /** After login, verification or a change: the API's answer is the new state. */
-    store(account: AccountOut) {
-      queryClient.setQueryData(customerAccountQueryKey, account);
-    },
-    /** After logout or deletion: forget the account and ask the API again. */
-    async reset() {
-      await queryClient.resetQueries({ queryKey: customerAccountQueryKey });
-    },
-  };
+export function useCustomerSessionCache(): SessionCache<AccountOut> {
+  return useSessionCache<AccountOut>(customerSessionQueryKey);
 }

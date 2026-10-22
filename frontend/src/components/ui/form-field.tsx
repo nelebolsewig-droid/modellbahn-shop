@@ -1,7 +1,5 @@
 import { useId, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
-
 import { Label } from "./label";
 
 /** Attributes that tie a control to its label, hint and error message. */
@@ -23,9 +21,11 @@ type FormFieldProps = {
 /**
  * Label, control, hint and error message of one form field.
  *
- * The error paragraph is always in the DOM and a polite live region, so that screen
- * readers announce a message as soon as it appears; the control references it via
- * aria-describedby only while there is one.
+ * The error paragraph is always rendered (empty when there is no error) and is a
+ * polite live region, so screen readers announce a message as soon as it appears.
+ * It is never display:none: some screen readers ignore live regions that were not
+ * in the accessibility tree before. The control references it only while it has
+ * content.
  */
 export function FormField({ label, hint, error, className, children }: FormFieldProps) {
   const id = useId();
@@ -36,19 +36,25 @@ export function FormField({ label, hint, error, className, children }: FormField
     .join(" ");
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={className}>
       <Label htmlFor={id}>{label}</Label>
-      {children({
-        id,
-        ...(describedBy && { "aria-describedby": describedBy }),
-        ...(error && { "aria-invalid": true }),
-      })}
+      <div className="mt-1.5">
+        {children({
+          id,
+          ...(describedBy && { "aria-describedby": describedBy }),
+          ...(error && { "aria-invalid": true }),
+        })}
+      </div>
       {hint ? (
-        <p id={hintId} className="text-sm text-ink-muted">
+        <p id={hintId} className="mt-1.5 text-sm text-ink-muted">
           {hint}
         </p>
       ) : null}
-      <p id={errorId} aria-live="polite" className="text-sm font-medium text-danger empty:hidden">
+      <p
+        id={errorId}
+        aria-live="polite"
+        className="text-sm font-medium text-danger not-empty:mt-1.5"
+      >
         {error}
       </p>
     </div>

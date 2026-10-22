@@ -17,7 +17,7 @@ export const PROBLEM_MESSAGES: Messages = {
     "Bitte bestätige zuerst deine E-Mail-Adresse. Den Link dazu haben wir dir per E-Mail geschickt.",
   invalid_token: INVALID_LINK,
   invalid_password: "Das Passwort ist nicht richtig.",
-  not_authenticated: "Du bist nicht angemeldet. Bitte melde dich an.",
+  not_authenticated: "Du bist nicht mehr angemeldet. Bitte melde dich erneut an.",
 
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",

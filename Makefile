@@ -9,6 +9,7 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 COMPOSE ?= docker compose
+PYTHON ?= python3
 BACKEND := backend
 FRONTEND := frontend
 OPENAPI := $(FRONTEND)/openapi.json
@@ -24,7 +25,7 @@ SERVICE ?=
 # make staff EMAIL=... NAME="..." [ROLE=owner|staff|packer]
 ROLE ?= owner
 
-.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff check \
+.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -69,6 +70,21 @@ staff: .env ## Mitarbeiterkonto anlegen: make staff EMAIL=... NAME="..." [ROLE=o
 	$(if $(and $(EMAIL),$(NAME)),,$(error Aufruf: make staff EMAIL=chef@example.de NAME="Vorname Nachname" [ROLE=owner|staff|packer]))
 	$(COMPOSE) run --rm api python -m modellbahn.cli create-staff \
 		--email "$$STAFF_EMAIL" --name "$$STAFF_NAME" --role "$$STAFF_ROLE"
+
+# Drives the demo through Caddy (scripts/smoke_e2e.py). Each run creates a throwaway staff
+# account with a random password, and HTTPS is verified against Caddy's internal root CA.
+smoke: .env ## End-to-End-Test gegen den laufenden Stack (vorher: make up)
+	@workdir="$$(mktemp -d)"; trap 'rm -rf "$$workdir"' EXIT; \
+	if ! $(COMPOSE) exec -T caddy cat /data/caddy/pki/authorities/local/root.crt \
+		> "$$workdir/caddy-root.crt" 2>/dev/null; then \
+		echo "Kein Zertifikat von Caddy: Läuft der Stack (make up) mit CADDY_TLS=internal?" >&2; \
+		exit 1; \
+	fi; \
+	export SMOKE_STAFF_EMAIL="smoke-$$(date +%s)-$$RANDOM@example.com"; \
+	export SMOKE_STAFF_PASSWORD="$$($(PYTHON) -c 'import secrets; print(secrets.token_urlsafe(24))')"; \
+	printf '%s\n' "$$SMOKE_STAFF_PASSWORD" | $(COMPOSE) exec -T api python -m modellbahn.cli \
+		create-staff --email "$$SMOKE_STAFF_EMAIL" --name "Smoke-Test" --role staff --password-stdin; \
+	$(PYTHON) scripts/smoke_e2e.py --ca-file "$$workdir/caddy-root.crt"
 
 # --- Code quality -----------------------------------------------------------------------
 

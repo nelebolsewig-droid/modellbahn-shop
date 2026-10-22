@@ -10,13 +10,17 @@ const BACKEND_PATHS = ["/api/:path*", "/healthz", "/readyz"] as const;
 
 export default function nextConfig(phase: string): NextConfig {
   const isDevServer = phase === PHASE_DEVELOPMENT_SERVER;
-  const apiOrigin = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
+  const apiOrigin = process.env.API_INTERNAL_URL || "http://localhost:8000";
 
   return {
     output: "standalone",
     poweredByHeader: false,
     reactStrictMode: true,
     typedRoutes: true,
+    // Caddy compresses everything it forwards from Next.js (`encode` in ../Caddyfile).
+    // Next's own gzip would also hold back the SSE stream of the admin feed that
+    // `next dev` forwards to the API: the events would sit in the compressor's buffer.
+    compress: false,
     ...(isDevServer && {
       async rewrites() {
         return BACKEND_PATHS.map((source) => ({
