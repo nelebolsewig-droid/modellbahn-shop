@@ -87,3 +87,14 @@ class AccountDeleted(DomainEvent):
 
     event_type: ClassVar[str] = "identity.account.deleted"
     aggregate_type: ClassVar[str] = ACCOUNT_AGGREGATE
+
+
+MAIL_REQUEST_EVENT_TYPES: Final = frozenset(
+    {
+        CustomerRegistered.event_type,
+        RegistrationAttemptedForExistingAccount.event_type,
+        VerificationMailRequested.event_type,
+        PasswordResetRequested.event_type,
+    }
+)
+"""Events that each send an e-mail to the account's address on someone's request."""

@@ -84,7 +84,8 @@ class TestVerification:
         await register(client)
         await deliver()
         response = await client.post(
-            f"{STORE}/email-verification", json={"token": token_from(mailer.sent[-1])}
+            f"{STORE}/email-verification",
+            json={"token": token_from(mailer.sent[-1]), "password": PASSWORD},
         )
         assert response.status_code == 200
         body = response.json()
@@ -103,8 +104,46 @@ class TestVerification:
         me = await client.get(f"{STORE}/me")
         assert me.json() == body
 
+    async def test_a_stranger_cannot_take_over_an_address_through_the_link(
+        self, make_client: ClientFactory, deliver: Deliver, mailer: InMemoryMailer
+    ) -> None:
+        stranger_password = "Passwort eines Fremden"
+        async with make_client() as stranger, make_client() as owner:
+            # A stranger registers the owner's address with a password of their own.
+            await register(stranger, password=stranger_password)
+            await deliver()
+            link = token_from(mailer.sent[-1])  # lands in the owner's mailbox
+
+            # The owner clicks, but the link alone is not enough.
+            response = await owner.post(
+                f"{STORE}/email-verification", json={"token": link, "password": PASSWORD}
+            )
+            assert_problem(response, 400, "invalid_password")
+
+            # The owner resets the password instead, which also verifies the address.
+            reset = await owner.post(f"{STORE}/password-reset", json={"email": EMAIL})
+            assert reset.status_code == 202
+            await deliver()
+            confirm = await owner.post(
+                f"{STORE}/password-reset/confirm",
+                json={"token": token_from(mailer.sent[-1]), "new_password": NEW_PASSWORD},
+            )
+            assert confirm.status_code == 204
+
+            stranger_login = await stranger.post(
+                f"{STORE}/session", json={"email": EMAIL, "password": stranger_password}
+            )
+            assert_problem(stranger_login, 401, "invalid_credentials")
+            owner_login = await owner.post(
+                f"{STORE}/session", json={"email": EMAIL, "password": NEW_PASSWORD}
+            )
+            assert owner_login.status_code == 200
+            assert owner_login.json()["email_verified"] is True
+
     async def test_invalid_token(self, client: AsyncClient) -> None:
-        response = await client.post(f"{STORE}/email-verification", json={"token": "abc"})
+        response = await client.post(
+            f"{STORE}/email-verification", json={"token": "abc", "password": PASSWORD}
+        )
         assert_problem(response, 400, "invalid_token")
 
     async def test_resend_answers_alike(

@@ -7,6 +7,7 @@ evaluate the very same contracts against small hand-made import graphs.
 
 import pkgutil
 import tomllib
+from collections.abc import Collection, Mapping
 from typing import Any, Final
 
 import grimp
@@ -30,7 +31,8 @@ _CONTRACT_CLASSES: Final[dict[str, type[Contract]]] = {
     "forbidden": ForbiddenContract,
 }
 _SESSION: Final = {"root_packages": ["modellbahn"], "include_external_packages": True}
-LAYERS: Final = ("api", "application", "domain", "infrastructure", "contracts")
+FULL_MODULE: Final = ("api", "application", "domain", "infrastructure", "contracts")
+EXTERNAL: Final = ("fastapi", "pydantic", "sqlalchemy")
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -84,38 +86,50 @@ def test_contracts_cover_every_module_package() -> None:
     assert resolve(contract("pure-domain").source_modules) == {f"{m}.domain" for m in modules}
 
 
-def graph_with(*imports: tuple[str, str], modules: tuple[str, ...] = ("a", "b")) -> Any:
+def graph_with(
+    *imports: tuple[str, str], modules: Mapping[str, Collection[str]] | None = None
+) -> Any:
     """An import graph of well-behaved modules plus the given ``(importer, imported)`` edges.
 
-    Names are relative to ``modellbahn``; ``fastapi`` and ``pydantic`` are external.
+    ``modules`` maps module names to the layers they have; by default ``a`` and ``b``
+    have all of them. Names are relative to ``modellbahn``; the frameworks are external.
     """
     graph = grimp.ImportGraph()
     for name in ("modellbahn", "modellbahn.modules", "modellbahn.platform"):
         graph.add_module(name)
     for platform_module in ("events", "http", "outbox"):
         graph.add_module(f"modellbahn.platform.{platform_module}")
-    for external in ("fastapi", "pydantic"):
+    for external in EXTERNAL:
         graph.add_module(external, is_squashed=True)
     graph.add_import(importer="modellbahn.platform.http", imported="fastapi")
 
     def full(name: str) -> str:
-        return name if name in {"fastapi", "pydantic"} else f"modellbahn.{name}"
+        return name if name in EXTERNAL else f"modellbahn.{name}"
 
     healthy: list[tuple[str, str]] = []
-    for module in modules:
+    for module, layers in (modules or {"a": FULL_MODULE, "b": FULL_MODULE}).items():
         package = f"modules.{module}"
         graph.add_module(full(package))
-        for layer in LAYERS:
+        for layer in layers:
             graph.add_module(full(f"{package}.{layer}"))
+        if "contracts" in layers:
+            for part in ("events", "accounts"):
+                graph.add_module(full(f"{package}.contracts.{part}"))
         healthy += [
-            (f"{package}.api", f"{package}.application"),
-            (f"{package}.api", "platform.http"),
-            (f"{package}.application", f"{package}.domain"),
-            (f"{package}.infrastructure", f"{package}.application"),
-            (f"{package}.infrastructure", f"{package}.domain"),
-            (f"{package}.domain", "platform.events"),
-            (f"{package}.contracts", f"{package}.infrastructure"),
-            (f"{package}.contracts", f"{package}.domain"),
+            (importer, imported)
+            for importer, imported in [
+                (f"{package}.api", f"{package}.application"),
+                (f"{package}.api", "platform.http"),
+                (f"{package}.application", f"{package}.domain"),
+                (f"{package}.infrastructure", f"{package}.application"),
+                (f"{package}.infrastructure", f"{package}.domain"),
+                (f"{package}.infrastructure", "sqlalchemy"),
+                (f"{package}.domain", "platform.events"),
+                (f"{package}.contracts.events", f"{package}.domain"),
+                (f"{package}.contracts.accounts", f"{package}.infrastructure"),
+                (f"{package}.contracts.accounts", "sqlalchemy"),
+            ]
+            if full(importer) in graph.modules and full(imported) in graph.modules
         ]
     for importer, imported in [*healthy, *imports]:
         graph.add_import(importer=full(importer), imported=full(imported))
@@ -175,15 +189,36 @@ def test_healthy_modules_keep_every_contract() -> None:
             set(),
         ),
         (
+            "an application may use another module's database facade",
+            [("modules.a.application", "modules.b.contracts.accounts")],
+            set(),
+        ),
+        (
+            "a domain may react to another module's events",
+            [("modules.a.domain", "modules.b.contracts.events")],
+            set(),
+        ),
+        (
+            "a domain must not use another module's database facade",
+            [("modules.a.domain", "modules.b.contracts.accounts")],
+            {"pure-domain"},
+        ),
+        (
             "the platform imports a module",
             [("platform.outbox", "modules.a.contracts")],
             {"platform-knows-no-modules"},
         ),
         (
             "the platform imports a module that domains depend on",
-            [("platform.events", "modules.a.contracts")],
-            # Every domain imports platform.events, so this also creates illegal chains.
-            {"platform-knows-no-modules", "module-layers", "module-boundaries"},
+            [("platform.events", "modules.a.contracts.accounts")],
+            # Every domain imports platform.events, so this also creates illegal chains,
+            # and the facade's SQLAlchemy reaches every domain.
+            {
+                "platform-knows-no-modules",
+                "module-layers",
+                "module-boundaries",
+                "pure-domain",
+            },
         ),
         (
             "a domain imports a web framework",
@@ -210,7 +245,10 @@ def test_contracts_catch_violations(
 
 def test_a_new_module_is_covered_without_configuration() -> None:
     def graph() -> Any:
-        return graph_with(("modules.c.domain", "modules.a.domain"), modules=("a", "b", "c"))
+        return graph_with(
+            ("modules.c.domain", "modules.a.domain"),
+            modules={"a": FULL_MODULE, "b": FULL_MODULE, "c": FULL_MODULE},
+        )
 
     assert broken_contracts(graph) == {"module-boundaries"}
 
@@ -220,5 +258,24 @@ def test_every_package_of_a_module_must_be_a_known_layer() -> None:
         graph = graph_with()
         graph.add_module("modellbahn.modules.a.helpers")
         return graph
+
+    assert broken_contracts(graph) == {"module-layers"}
+
+
+def test_a_module_needs_no_more_than_a_domain() -> None:
+    def graph() -> Any:
+        return graph_with(
+            modules={"a": FULL_MODULE, "b": ("domain", "application"), "c": ("domain",)}
+        )
+
+    assert broken_contracts(graph) == set()
+
+
+def test_the_rules_still_bite_in_a_smaller_module() -> None:
+    def graph() -> Any:
+        return graph_with(
+            ("modules.b.domain", "modules.b.application"),
+            modules={"a": FULL_MODULE, "b": ("domain", "application")},
+        )
 
     assert broken_contracts(graph) == {"module-layers"}

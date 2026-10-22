@@ -108,11 +108,25 @@ class TestHandlerRegistry:
             received.append(event)
 
         registry.register(SampleHappened, handler)
-        (typed,) = registry.handlers_for(SampleHappened.event_type)
+        typed = registry.handler_for(SampleHappened.event_type)
+        assert typed is not None
         event = sample()
         await typed(event)
         assert received == [event]
-        assert registry.handlers_for("test.other") == ()
+        assert registry.handler_for("test.other") is None
+
+    def test_a_second_handler_for_one_type_is_refused(self) -> None:
+        # A retry after the second one failed would run the first one again.
+        registry = HandlerRegistry()
+
+        async def first(event: SampleHappened) -> None: ...
+
+        async def second(event: SampleHappened) -> None: ...
+
+        registry.register(SampleHappened, first)
+
+        with pytest.raises(ValueError, match="already has a handler"):
+            registry.register(SampleHappened, second)
 
 
 class TestRealtimeNotification:

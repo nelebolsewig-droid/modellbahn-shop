@@ -17,6 +17,7 @@ from modellbahn.modules.identity.domain.model import (
 from modellbahn.platform.config import Settings
 from modellbahn.platform.errors import UnauthorizedError
 from modellbahn.platform.http import app_state
+from modellbahn.platform.ratelimit import rate_limit
 
 
 def get_identity_service(request: Request) -> IdentityService:
@@ -29,6 +30,13 @@ def get_settings(request: Request) -> Settings:
 
 IdentityServiceDep = Annotated[IdentityService, Depends(get_identity_service)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+AUTH_RATE_LIMITER = "auth_rate_limiter"
+"""Name on ``app.state`` of the limiter shared by login, registration and reset routes."""
+
+# Logins, registrations, verifications and reset requests of one client address
+# count together: guessing passwords on many accounts and mass-mailing both show up.
+limit_auth_requests = rate_limit(AUTH_RATE_LIMITER)
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,3 +128,15 @@ async def current_staff(
 
 CurrentCustomer = Annotated[Authentication, Depends(current_customer)]
 CurrentStaff = Annotated[Authentication, Depends(current_staff)]
+
+
+async def staff_session_is_valid(request: Request) -> bool:
+    """Whether the admin session of ``request`` is still valid (re-checked by open streams)."""
+    token = request.cookies.get(STAFF_COOKIE.name)
+    if not token:
+        return False
+    try:
+        await get_identity_service(request).authenticate(kind=STAFF_COOKIE.kind, token=token)
+    except NotAuthenticatedError:
+        return False
+    return True

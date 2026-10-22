@@ -12,7 +12,8 @@ from typer.testing import CliRunner
 
 from modellbahn.cli import app as cli
 from modellbahn.modules.identity.application.services import IdentityService, UnitOfWorkFactory
-from modellbahn.modules.identity.domain.model import AccountKind, StaffRole
+from modellbahn.modules.identity.domain.errors import InvalidCredentialsError
+from modellbahn.modules.identity.domain.model import LOCKOUT_THRESHOLD, AccountKind, StaffRole
 from modellbahn.platform.config import Settings
 from modellbahn.platform.mail import InMemoryMailer
 from modellbahn.worker import run_worker
@@ -37,6 +38,42 @@ def create_staff(*args: str, password: str = PASSWORD) -> tuple[int, str]:
         input=f"{password}\n",
     )
     return result.exit_code, result.output
+
+
+@pytest.mark.usefixtures("cli_env")
+class TestUnlockStaff:
+    async def test_lifts_the_lock_of_a_staff_account(self, identity: IdentityService) -> None:
+        await identity.create_staff(
+            email="chefin@example.com",
+            display_name="Chefin",
+            role=StaffRole.OWNER,
+            password=PASSWORD,
+        )
+        for _ in range(LOCKOUT_THRESHOLD):
+            with pytest.raises(InvalidCredentialsError):
+                await identity.login(
+                    kind=AccountKind.STAFF,
+                    email="chefin@example.com",
+                    password="falsches Passwort",
+                    user_agent=None,
+                )
+
+        result = await asyncio.to_thread(
+            CliRunner().invoke, cli, ["unlock-staff", "--email", "chefin@example.com"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Sperre aufgehoben: chefin@example.com" in result.output
+        started = await identity.login(
+            kind=AccountKind.STAFF, email="chefin@example.com", password=PASSWORD, user_agent=None
+        )
+        assert started.account.failed_login_count == 0
+
+    async def test_an_unknown_address_fails(self) -> None:
+        result = await asyncio.to_thread(
+            CliRunner().invoke, cli, ["unlock-staff", "--email", "niemand@example.com"]
+        )
+        assert result.exit_code == 1
+        assert "kein aktives Mitarbeiterkonto" in result.output
 
 
 @pytest.mark.usefixtures("cli_env")
@@ -150,7 +187,7 @@ async def test_worker_sends_the_verification_mail(
             return token_from(mailer.sent[0]) if mailer.sent else None
 
         token = await eventually(mail)
-        started = await identity.verify_email(token=token, user_agent=None)
+        started = await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
         assert started.account.email_verified
     finally:
         stop.set()

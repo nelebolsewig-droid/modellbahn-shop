@@ -146,9 +146,10 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 id = "module-layers"
 name = "Layers inside a module: api | infrastructure -> application -> domain"
+# Only the domain is mandatory: a module may lack an API, persistence or use cases.
 type = "layers"
 containers = ["modellbahn.modules.*"]
-layers = ["api | infrastructure", "application", "domain"]
+layers = ["(api) | (infrastructure)", "(application)", "domain"]
 # Every subpackage of a module is one of the layers, except its public contracts.
 exhaustive = true
 exhaustive_ignores = ["contracts"]
@@ -158,7 +159,10 @@ id = "module-boundaries"
 name = "Modules use each other only through their contracts"
 type = "independence"
 modules = ["modellbahn.modules.*"]
-ignore_imports = ["modellbahn.modules.** -> modellbahn.modules.*.contracts"]
+ignore_imports = [
+    "modellbahn.modules.** -> modellbahn.modules.*.contracts",
+    "modellbahn.modules.** -> modellbahn.modules.*.contracts.**",
+]
 # No module imports another one's contracts yet.
 unmatched_ignore_imports_alerting = "none"
 

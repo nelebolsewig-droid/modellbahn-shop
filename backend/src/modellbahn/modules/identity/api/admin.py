@@ -1,6 +1,6 @@
 """Staff login for the admin area: ``/api/v1/admin/auth``. There is no self-registration."""
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from modellbahn.modules.identity.api.deps import (
     STAFF_COOKIE,
@@ -8,6 +8,7 @@ from modellbahn.modules.identity.api.deps import (
     IdentityServiceDep,
     SettingsDep,
     StaffSessionToken,
+    limit_auth_requests,
 )
 from modellbahn.modules.identity.api.errors import password_field, problems
 from modellbahn.modules.identity.api.schemas import LoginIn, PasswordChangeIn, StaffOut
@@ -22,7 +23,8 @@ _NOT_AUTHENTICATED = {401: ["not_authenticated"]}
     "/session",
     operation_id="staffLogin",
     summary="Log in to the admin area",
-    responses=problems({401: ["invalid_credentials"]}),
+    responses=problems({401: ["invalid_credentials"]}, rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def staff_login(
     body: LoginIn,

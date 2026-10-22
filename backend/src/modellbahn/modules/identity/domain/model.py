@@ -49,6 +49,11 @@ VERIFY_EMAIL_TOKEN_LIFETIME: Final = timedelta(hours=24)
 RESET_PASSWORD_TOKEN_LIFETIME: Final = timedelta(hours=1)
 
 DELETED_DISPLAY_NAME: Final = "Gelöschtes Konto"
+
+# Requests that make the shop send an e-mail to an address (registration, resend,
+# reset) are throttled per account: otherwise anyone could flood a mailbox.
+MAIL_REQUEST_WINDOW: Final = timedelta(hours=1)
+MAIL_REQUESTS_PER_WINDOW: Final = 5
 # Not an Argon2 hash, so no password can ever match it.
 UNUSABLE_PASSWORD_HASH: Final = "!unusable"  # noqa: S105
 
@@ -116,6 +121,16 @@ def lockout_duration(failed_login_count: int) -> timedelta | None:
     lockouts = failed_login_count // LOCKOUT_THRESHOLD
     # Beyond 2^7 the cap applies anyway; bounding the exponent avoids huge numbers.
     return min(LOCKOUT_BASE_DURATION * (1 << min(lockouts - 1, 16)), LOCKOUT_MAX_DURATION)
+
+
+def mail_request_allowed(recent_requests: int) -> bool:
+    """Whether another e-mail may go to an account that triggered ``recent_requests``.
+
+    ``recent_requests`` counts the mail-sending requests within :data:`MAIL_REQUEST_WINDOW`.
+    A request beyond the limit is answered as usual but sends nothing, so the
+    answer still does not reveal whether the address has an account.
+    """
+    return recent_requests < MAIL_REQUESTS_PER_WINDOW
 
 
 def anonymised_email(account_id: UUID) -> str:
@@ -243,6 +258,15 @@ class Account:
 
     def record_correct_password(self, now: datetime) -> None:
         """The password was right, even if the login cannot complete (unverified address)."""
+        self.unlock(now)
+
+    def unlock(self, now: datetime) -> None:
+        """Lift a lock and forget earlier failed logins.
+
+        Customers unlock themselves by resetting their password; staff accounts are
+        unlocked by the shop owner on the server (``cli unlock-staff``), because
+        anyone who knows a staff address could otherwise keep it locked out.
+        """
         if self.failed_login_count or self.locked_until is not None:
             self.failed_login_count = 0
             self.locked_until = None
@@ -400,8 +424,15 @@ class AccountToken:
             source_event_id=source_event_id,
         )
 
-    def redeem(self, purpose: TokenPurpose, now: datetime) -> None:
-        """Use the token up; raise :class:`InvalidTokenError` if that is not possible."""
+    def check(self, purpose: TokenPurpose, now: datetime) -> None:
+        """Raise :class:`InvalidTokenError` unless the token could be redeemed for ``purpose``.
+
+        Leaves the token unused, e.g. while a password still has to be confirmed.
+        """
         if self.purpose is not purpose or self.used_at is not None or now >= self.expires_at:
             raise InvalidTokenError
+
+    def redeem(self, purpose: TokenPurpose, now: datetime) -> None:
+        """Use the token up; raise :class:`InvalidTokenError` if that is not possible."""
+        self.check(purpose, now)
         self.used_at = now

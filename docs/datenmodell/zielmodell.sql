@@ -296,6 +296,9 @@ CREATE TABLE platform.outbox (
   payload jsonb NOT NULL, occurred_at timestamptz NOT NULL DEFAULT now(), published_at timestamptz,
   attempts smallint NOT NULL DEFAULT 0, next_attempt_at timestamptz NOT NULL DEFAULT now(), last_error text);
 CREATE INDEX outbox_pending ON platform.outbox (next_attempt_at) WHERE published_at IS NULL;
+-- SSE-Nachholen in Veröffentlichungsreihenfolge und Aufräumen nach 30 Tagen; DSGVO-Schwärzung je Aggregat.
+CREATE INDEX outbox_published ON platform.outbox (published_at, id) WHERE published_at IS NOT NULL;
+CREATE INDEX outbox_aggregate ON platform.outbox (aggregate_id);
 CREATE TABLE platform.idempotency_keys (
   key uuid NOT NULL, scope text NOT NULL, request_hash char(64) NOT NULL, response_status smallint NOT NULL, response jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (scope, key));

@@ -18,7 +18,7 @@ from modellbahn.platform.db import asyncpg_dsn, create_engine
 from modellbahn.platform.events import EventRegistry, event_registry
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher, outbox_table
 from modellbahn.platform.uow import UnitOfWork
-from tests.support import NOW, SampleHappened, eventually, sample
+from tests.support import NOW, DatabaseProxy, SampleHappened, eventually, sample
 
 
 @pytest.fixture
@@ -243,25 +243,150 @@ async def test_run_wakes_up_on_notify_and_stops_gracefully(
         await task
 
 
-async def test_run_survives_an_unreachable_database(settings: Settings) -> None:
-    unreachable = "postgresql+asyncpg://nobody:secret@127.0.0.1:1/nothing"
-    engine = create_engine(unreachable)
-    dispatcher = OutboxDispatcher(
-        engine=engine,
-        listen_dsn=asyncpg_dsn(unreachable),
-        events=EventRegistry(),
-        handlers=HandlerRegistry(),
-        poll_seconds=0.05,
-        max_attempts=3,
-    )
+async def test_run_survives_a_database_outage_and_resumes(
+    settings: Settings,
+    events: EventRegistry,
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+) -> None:
+    handled: list[UUID] = []
+
+    async def handler(event: SampleHappened) -> None:
+        handled.append(event.event_id)
+
+    handlers = HandlerRegistry()
+    handlers.register(SampleHappened, handler)
+    async with DatabaseProxy(settings.database_url) as proxy:
+        engine = create_engine(proxy.url)
+        dispatcher = OutboxDispatcher(
+            engine=engine,
+            listen_dsn=asyncpg_dsn(proxy.url),
+            events=events,
+            handlers=handlers,
+            poll_seconds=0.1,
+            max_attempts=3,
+        )
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatcher.run(stop))
+        try:
+            (before,) = await publish(1)
+            await eventually(lambda: _contains(handled, before.event_id))
+
+            await proxy.cut()
+            (during,) = await publish(1)
+            await asyncio.sleep(0.5)
+            assert during.event_id not in handled
+            assert not task.done()
+
+            await proxy.restore()
+            await eventually(lambda: _contains(handled, during.event_id))
+        finally:
+            stop.set()
+            async with asyncio.timeout(5):
+                await task
+            await engine.dispose()
+
+
+async def _contains(items: list[UUID], item: UUID) -> bool | None:
+    return True if item in items else None
+
+
+async def test_a_lost_listener_is_replaced_at_once(
+    make_dispatcher: Callable[..., OutboxDispatcher],
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+    engine: AsyncEngine,
+) -> None:
+    handled = asyncio.Event()
+
+    async def handler(event: SampleHappened) -> None:
+        handled.set()
+
+    handlers = HandlerRegistry()
+    handlers.register(SampleHappened, handler)
+    # Polling alone would take a minute; only a working LISTEN can make this fast.
+    dispatcher = make_dispatcher(handlers, poll_seconds=60)
     stop = asyncio.Event()
     task = asyncio.create_task(dispatcher.run(stop))
-    await asyncio.sleep(0.3)
-    assert not task.done()
-    stop.set()
-    async with asyncio.timeout(5):
-        await task
-    await engine.dispose()
+    try:
+        # Let the first batch pass, so that only a notification can bring the event.
+        await asyncio.sleep(0.3)
+        await eventually(lambda: _terminate_listener(engine))
+        await asyncio.sleep(0.3)
+        await publish(1)
+        async with asyncio.timeout(5):
+            await handled.wait()
+    finally:
+        stop.set()
+        async with asyncio.timeout(5):
+            await task
+
+
+async def _terminate_listener(engine: AsyncEngine) -> bool | None:
+    async with engine.begin() as connection:
+        terminated = await connection.scalar(
+            text(
+                "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity "
+                "WHERE datname = current_database() AND query = 'LISTEN \"mb_outbox\"'"
+            )
+        )
+    return True if terminated else None
+
+
+async def test_stop_lets_the_running_handler_finish_and_leaves_the_rest_pending(
+    make_dispatcher: Callable[..., OutboxDispatcher],
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+    engine: AsyncEngine,
+) -> None:
+    stop = asyncio.Event()
+    started: list[UUID] = []
+
+    async def slow(event: SampleHappened) -> None:
+        started.append(event.event_id)
+        stop.set()
+        await asyncio.sleep(0.3)
+
+    handlers = HandlerRegistry()
+    handlers.register(SampleHappened, slow)
+    published = await publish(6)
+    dispatcher = make_dispatcher(handlers, poll_seconds=60)
+
+    async with asyncio.timeout(1.5):
+        await dispatcher.run(stop)
+
+    assert started == [published[0].event_id]
+    stored = [await row(engine, event.event_id) for event in published]
+    assert [r["status"] for r in stored] == ["published"] + ["pending"] * 5
+    assert [r["attempts"] for r in stored] == [0] * 6
+
+
+async def test_purge_deletes_only_old_published_events(
+    make_dispatcher: Callable[..., OutboxDispatcher],
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+    engine: AsyncEngine,
+) -> None:
+    old, recent, waiting, dead = await publish(4)
+    await make_dispatcher(HandlerRegistry()).dispatch_batch()
+    async with engine.begin() as connection:
+        await connection.execute(
+            update(outbox_table)
+            .where(outbox_table.c.id == old.event_id)
+            .values(published_at=func.now() - timedelta(days=31))
+        )
+        await connection.execute(
+            update(outbox_table)
+            .where(outbox_table.c.id.in_([waiting.event_id, dead.event_id]))
+            .values(
+                status="pending", published_at=None, occurred_at=func.now() - timedelta(days=90)
+            )
+        )
+        await connection.execute(
+            update(outbox_table).where(outbox_table.c.id == dead.event_id).values(status="dead")
+        )
+
+    assert await make_dispatcher(HandlerRegistry()).purge_published() == 1
+
+    async with engine.connect() as connection:
+        remaining = set(await connection.scalars(select(outbox_table.c.id)))
+    assert remaining == {recent.event_id, waiting.event_id, dead.event_id}
 
 
 async def test_published_staff_events_are_forwarded_to_the_api(

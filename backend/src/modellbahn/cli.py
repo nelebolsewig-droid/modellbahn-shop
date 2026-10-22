@@ -3,6 +3,7 @@
 import asyncio
 import json
 import sys
+from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -13,6 +14,7 @@ from pydantic import EmailStr, TypeAdapter, ValidationError
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.identity.domain.errors import (
     AccountAlreadyExistsError,
+    AccountNotFoundError,
     InvalidDisplayNameError,
     PasswordPolicyViolationError,
     PasswordRule,
@@ -62,7 +64,14 @@ def create_staff(
         _fail(f"Keine gültige E-Mail-Adresse: {email}")
     password = _read_password_stdin() if password_stdin else _prompt_password()
     try:
-        asyncio.run(_create_staff(Settings(), address, name, role, password))
+        asyncio.run(
+            _with_service(
+                Settings(),
+                lambda service: service.create_staff(
+                    email=address, display_name=name, role=role, password=password
+                ),
+            )
+        )
     except PasswordPolicyViolationError as exc:
         _fail(_PASSWORD_RULES[exc.rule])
     except InvalidDisplayNameError:
@@ -70,6 +79,23 @@ def create_staff(
     except AccountAlreadyExistsError:
         _fail(f"Es gibt schon ein Mitarbeiterkonto mit der Adresse {address}.")
     typer.echo(f"Mitarbeiterkonto angelegt: {address} ({role.value})")
+
+
+@app.command("unlock-staff")
+def unlock_staff(
+    email: Annotated[str, typer.Option(help="E-Mail-Adresse des gesperrten Mitarbeiterkontos.")],
+) -> None:
+    """Sperre eines Mitarbeiterkontos nach zu vielen Fehlversuchen aufheben.
+
+    Kunden heben eine Sperre selbst auf, indem sie ihr Passwort zurücksetzen. Für
+    Mitarbeiterkonten gibt es das nicht, weil sonst jeder, der die Adresse kennt,
+    den Admin-Zugang dauerhaft sperren könnte.
+    """
+    try:
+        asyncio.run(_with_service(Settings(), lambda service: service.unlock_staff(email=email)))
+    except AccountNotFoundError:
+        _fail(f"Es gibt kein aktives Mitarbeiterkonto mit der Adresse {email}.")
+    typer.echo(f"Sperre aufgehoben: {email}")
 
 
 @app.command("export-openapi")
@@ -90,9 +116,10 @@ def export_openapi(
     typer.echo(f"OpenAPI-Schema geschrieben: {output}")
 
 
-async def _create_staff(
-    settings: Settings, email: str, name: str, role: StaffRole, password: str
+async def _with_service(
+    settings: Settings, action: Callable[[IdentityService], Awaitable[object]]
 ) -> None:
+    """Run ``action`` with an identity service on its own engine, then close the engine."""
     engine = create_engine(settings.database_url)
     start_mappers()
     service = IdentityService(
@@ -101,7 +128,7 @@ async def _create_staff(
         clock=SystemClock(),
     )
     try:
-        await service.create_staff(email=email, display_name=name, role=role, password=password)
+        await action(service)
     finally:
         await engine.dispose()
 

@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 PROBLEM_MEDIA_TYPE: Final = "application/problem+json"
+# An outage of the database is usually a restart; clients may try again soon.
+DATABASE_RETRY_AFTER_SECONDS: Final = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +110,13 @@ class ValidationFailedError(AppError):
     def __init__(self, errors: Sequence[FieldError], detail: str | None = None) -> None:
         super().__init__(detail or "The request contains invalid fields.")
         self.errors = list(errors)
+
+
+class TooManyRequestsError(AppError):
+    """429: the client sent too many requests of a kind; ``Retry-After`` says when to retry."""
+
+    status = 429
+    default_code = "too_many_requests"
 
 
 class ServiceUnavailableError(AppError):
@@ -225,11 +234,22 @@ def internal_error_response() -> JSONResponse:
     )
 
 
+def database_unavailable_response() -> JSONResponse:
+    """The answer when the database cannot be reached (503 ``database_unavailable``)."""
+    return problem_response(
+        status=503,
+        code="database_unavailable",
+        detail="The database is not reachable.",
+        headers={"Retry-After": str(DATABASE_RETRY_AFTER_SECONDS)},
+    )
+
+
 def install_exception_handlers(app: FastAPI) -> None:
     """Make every error the framework knows about answer with problem details.
 
-    Unexpected exceptions are handled by the request context middleware in
-    :mod:`modellbahn.platform.logging`, which knows the request id.
+    Unexpected exceptions, including an unreachable database, are handled by the
+    request context middleware in :mod:`modellbahn.platform.logging`, which knows
+    the request id.
     """
     app.add_exception_handler(AppError, _handle_app_error)
     app.add_exception_handler(RequestValidationError, _handle_validation_error)

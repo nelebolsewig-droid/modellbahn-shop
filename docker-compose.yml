@@ -33,6 +33,8 @@ x-backend-env: &backend-env
   MB_ARGON2_PARALLELISM:
   MB_OUTBOX_POLL_SECONDS:
   MB_OUTBOX_MAX_ATTEMPTS:
+  MB_AUTH_RATE_LIMIT:
+  MB_AUTH_RATE_WINDOW_SECONDS:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.
@@ -106,6 +108,8 @@ services:
       <<: *backend-env
       # The api port is not published, so only containers of this stack can connect.
       # Uvicorn may therefore take client IP and scheme from Caddy's X-Forwarded-* headers.
+      # Caddy replaces X-Forwarded-For with the address it saw, and the per-client limit
+      # of the login routes (MB_AUTH_RATE_LIMIT) counts by that address.
       FORWARDED_ALLOW_IPS: "*"
     depends_on:
       migrate:
@@ -118,6 +122,9 @@ services:
   worker:
     <<: *backend
     command: ["python", "-m", "modellbahn.worker"]
+    # A handler talking to the mail server may take up to the SMTP timeout (30 s);
+    # the dispatcher lets it finish on SIGTERM.
+    stop_grace_period: 40s
     depends_on:
       migrate:
         condition: service_completed_successfully

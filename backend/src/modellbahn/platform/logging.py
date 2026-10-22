@@ -10,7 +10,8 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from modellbahn.platform.config import Environment
-from modellbahn.platform.errors import internal_error_response
+from modellbahn.platform.db import is_database_unavailable
+from modellbahn.platform.errors import database_unavailable_response, internal_error_response
 from modellbahn.platform.ids import new_id
 
 REQUEST_ID_HEADER: Final = "X-Request-ID"
@@ -25,7 +26,8 @@ def configure_logging(*, environment: Environment, level: str) -> None:
     """Route structlog and stdlib logging (uvicorn, SQLAlchemy) through one formatter.
 
     Production writes one JSON object per line; development and tests get the
-    human-readable console renderer.
+    human-readable console renderer. Neither renders the local variables of a
+    traceback.
     """
     shared: list[structlog.typing.Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -34,11 +36,24 @@ def configure_logging(*, environment: Environment, level: str) -> None:
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
     ]
+    # Tracebacks never show local variables: they would put passwords, session tokens
+    # and connection parameters into the logs. structlog renders them by default.
     final: list[structlog.typing.Processor]
     if environment is Environment.PRODUCTION:
-        final = [structlog.processors.dict_tracebacks, structlog.processors.JSONRenderer()]
+        final = [
+            structlog.processors.ExceptionRenderer(
+                structlog.tracebacks.ExceptionDictTransformer(show_locals=False)
+            ),
+            structlog.processors.JSONRenderer(),
+        ]
     else:
-        final = [structlog.dev.ConsoleRenderer(colors=False)]
+        # The plain formatter rather than rich's: it is fast, which matters because
+        # logging runs on the event loop.
+        final = [
+            structlog.dev.ConsoleRenderer(
+                colors=False, exception_formatter=structlog.dev.plain_traceback
+            )
+        ]
 
     structlog.configure(
         processors=[*shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
@@ -72,7 +87,8 @@ class RequestContextMiddleware:
     The id is taken from a well-formed incoming ``X-Request-ID`` (set by a proxy)
     or generated, bound to the structlog context and echoed in the response.
     Exceptions nobody handled are logged with that id and answered with a generic
-    500 problem, so no internals leak to the client.
+    500 problem, so no internals leak to the client. An unreachable database is
+    answered with 503 ``database_unavailable`` and logged without a traceback.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -99,16 +115,29 @@ class RequestContextMiddleware:
         with structlog.contextvars.bound_contextvars(request_id=request_id):
             try:
                 await self.app(scope, receive, send_with_request_id)
-            except Exception:
-                _access_logger.exception(
-                    "request.failed", method=scope["method"], path=scope["path"]
-                )
+            except Exception as exc:
                 if response_started:
+                    _access_logger.exception(
+                        "request.failed", method=scope["method"], path=scope["path"]
+                    )
                     raise
-                response = internal_error_response()
+                if is_database_unavailable(exc):
+                    # An outage, not a bug: no traceback, and the client may try again.
+                    _access_logger.warning(
+                        "request.database_unavailable",
+                        method=scope["method"],
+                        path=scope["path"],
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                    response = database_unavailable_response()
+                else:
+                    _access_logger.exception(
+                        "request.failed", method=scope["method"], path=scope["path"]
+                    )
+                    response = internal_error_response()
                 response.headers[REQUEST_ID_HEADER] = request_id
                 await response(scope, receive, send)
-                status_code = 500
+                status_code = response.status_code
             finally:
                 duration_ms = round((time.perf_counter() - started) * 1000, 1)
                 log = _access_logger.debug if scope["path"] in _QUIET_PATHS else _access_logger.info

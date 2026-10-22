@@ -12,7 +12,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface TokenIn {
+/**
+ * The token from the verification mail and the password chosen at registration.
+ */
+export interface EmailVerificationIn {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  password: string;
   /**
      * @minLength 1
      * @maxLength 128

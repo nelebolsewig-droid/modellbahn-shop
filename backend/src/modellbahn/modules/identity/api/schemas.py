@@ -39,8 +39,11 @@ class EmailIn(_Request):
     email: EmailStr
 
 
-class TokenIn(_Request):
+class EmailVerificationIn(_Request):
+    """The token from the verification mail and the password chosen at registration."""
+
     token: OneTimeToken
+    password: CurrentPassword
 
 
 class LoginIn(_Request):

@@ -1,9 +1,13 @@
 """Unit of work: one database transaction plus the domain events it produced."""
 
+from collections.abc import Collection, Mapping
+from datetime import datetime
 from types import TracebackType
 from typing import Final, Self
+from uuid import UUID
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, literal, select, update
+from sqlalchemy.dialects.postgresql import JSONB, array
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.exc import StaleDataError
@@ -128,6 +132,43 @@ class UnitOfWork:
         """Discard the changes and events so far; the unit of work stays usable."""
         await self.session.rollback()
         self._pending = []
+
+    async def count_recent_events(
+        self, aggregate_id: UUID, event_types: Collection[str], *, since: datetime
+    ) -> int:
+        """How many events of ``event_types`` the aggregate produced from ``since`` on.
+
+        Counts every stored event regardless of its delivery status, e.g. to throttle
+        requests that each send an e-mail.
+        """
+        count = await self.session.scalar(
+            select(func.count())
+            .select_from(outbox_table)
+            .where(
+                outbox_table.c.aggregate_id == aggregate_id,
+                outbox_table.c.event_type.in_(list(event_types)),
+                outbox_table.c.occurred_at >= since,
+            )
+        )
+        return count or 0
+
+    async def redact_events(self, aggregate_id: UUID, replacements: Mapping[str, str]) -> None:
+        """Overwrite fields in the stored events of an aggregate, e.g. personal data on erasure.
+
+        Only events that carry one of the fields are changed. The outbox keeps
+        published events for the realtime replay, so without this a deleted
+        customer's name would keep reaching the admin area. Events published in this
+        unit of work are written afterwards and are not affected.
+        """
+        payload = outbox_table.c.payload
+        await self.session.execute(
+            update(outbox_table)
+            .where(
+                outbox_table.c.aggregate_id == aggregate_id,
+                payload.has_any(array(list(replacements))),
+            )
+            .values(payload=payload.op("||")(literal(dict(replacements), JSONB)))
+        )
 
 
 def _unique_violation(exc: IntegrityError) -> UniqueViolationError | None:

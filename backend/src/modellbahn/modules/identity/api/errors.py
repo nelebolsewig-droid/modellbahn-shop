@@ -39,20 +39,30 @@ _CSRF_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {
     415: ["unsupported_media_type"],
 }
 _VALIDATION_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {422: ["validation_failed"]}
+# Every identity route reads or writes the database (if only to check the session).
+_DATABASE_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {503: ["database_unavailable"]}
+_RATE_LIMIT_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {429: ["too_many_requests"]}
 
 
 def problems(
-    codes: Mapping[int, Sequence[str]] | None = None, *, unsafe: bool = True, validated: bool = True
+    codes: Mapping[int, Sequence[str]] | None = None,
+    *,
+    unsafe: bool = True,
+    validated: bool = True,
+    rate_limited: bool = False,
 ) -> dict[int | str, dict[str, Any]]:
     """OpenAPI ``responses`` of a route: its own problem codes plus the common ones.
 
     ``unsafe`` routes (POST, PUT, PATCH, DELETE) pass the CSRF guard; ``validated``
-    routes have a body or parameters that can fail validation.
+    routes have a body or parameters that can fail validation; ``rate_limited`` routes
+    use ``limit_auth_requests``. Every route can find the database unavailable.
     """
     merged: defaultdict[int, list[str]] = defaultdict(list)
     sources = (
         _CSRF_PROBLEMS if unsafe else {},
         _VALIDATION_PROBLEMS if validated else {},
+        _RATE_LIMIT_PROBLEMS if rate_limited else {},
+        _DATABASE_PROBLEMS,
         codes or {},
     )
     for source in sources:

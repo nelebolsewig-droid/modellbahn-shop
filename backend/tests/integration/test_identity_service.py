@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from modellbahn.modules.identity.application.services import IdentityService, UnitOfWorkFactory
 from modellbahn.modules.identity.domain.errors import (
     AccountAlreadyExistsError,
+    AccountNotFoundError,
     EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidPasswordError,
@@ -17,12 +18,23 @@ from modellbahn.modules.identity.domain.errors import (
     NotAuthenticatedError,
     PasswordPolicyViolationError,
 )
-from modellbahn.modules.identity.domain.model import Account, AccountKind, AccountStatus, StaffRole
+from modellbahn.modules.identity.domain.model import (
+    DELETED_DISPLAY_NAME,
+    LOCKOUT_THRESHOLD,
+    MAIL_REQUEST_WINDOW,
+    MAIL_REQUESTS_PER_WINDOW,
+    Account,
+    AccountKind,
+    AccountStatus,
+    AccountToken,
+    StaffRole,
+    TokenPurpose,
+)
 from modellbahn.modules.identity.infrastructure.tables import account_tokens
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.mail import InMemoryMailer
 from modellbahn.platform.outbox import outbox_table
-from modellbahn.platform.security import Argon2PasswordHasher
+from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
 from tests.conftest import Deliver
 from tests.support import token_from
 
@@ -59,7 +71,9 @@ async def verified(identity: IdentityService, deliver: Deliver, mailer: InMemory
     """A registered and verified customer; the value is its session token."""
     await identity.register_customer(email=EMAIL, password=PASSWORD, display_name="Erika")
     await deliver()
-    started = await identity.verify_email(token=token_from(mailer.sent[-1]), user_agent="pytest")
+    started = await identity.verify_email(
+        token=token_from(mailer.sent[-1]), password=PASSWORD, user_agent="pytest"
+    )
     return started.token
 
 
@@ -113,13 +127,13 @@ class TestVerification:
         await deliver()
         token = token_from(mailer.sent[-1])
 
-        started = await identity.verify_email(token=token, user_agent="pytest")
+        started = await identity.verify_email(token=token, password=PASSWORD, user_agent="pytest")
         assert started.account.email_verified
         auth = await identity.authenticate(kind=AccountKind.CUSTOMER, token=started.token)
         assert auth.account.id == started.account.id
         assert (await event_types(engine))[-1] == "identity.account.email_verified"
         with pytest.raises(InvalidTokenError):
-            await identity.verify_email(token=token, user_agent=None)
+            await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
 
     async def test_verifying_invalidates_the_other_links(
         self, identity: IdentityService, deliver: Deliver, mailer: InMemoryMailer
@@ -128,10 +142,10 @@ class TestVerification:
         await identity.request_verification_mail(email=EMAIL)
         await deliver()
         first, second = (token_from(mail) for mail in mailer.sent)
-        await identity.verify_email(token=second, user_agent=None)
+        await identity.verify_email(token=second, password=PASSWORD, user_agent=None)
         # Each link logs in, so the unused one must not keep working.
         with pytest.raises(InvalidTokenError):
-            await identity.verify_email(token=first, user_agent=None)
+            await identity.verify_email(token=first, password=PASSWORD, user_agent=None)
 
     async def test_expired_or_unknown_tokens_are_rejected(
         self,
@@ -144,9 +158,11 @@ class TestVerification:
         await deliver()
         clock.advance(timedelta(hours=24))
         with pytest.raises(InvalidTokenError):
-            await identity.verify_email(token=token_from(mailer.sent[-1]), user_agent=None)
+            await identity.verify_email(
+                token=token_from(mailer.sent[-1]), password=PASSWORD, user_agent=None
+            )
         with pytest.raises(InvalidTokenError):
-            await identity.verify_email(token="unknown", user_agent=None)
+            await identity.verify_email(token="unknown", password=PASSWORD, user_agent=None)
 
     async def test_resend_only_for_unverified_customers(
         self, identity: IdentityService, verified: str, engine: AsyncEngine
@@ -323,7 +339,9 @@ class TestPasswords:
         await login(identity, NEW_PASSWORD)
         # The verification link from the first mail died with the reset.
         with pytest.raises(InvalidTokenError):
-            await identity.verify_email(token=token_from(mailer.sent[0]), user_agent=None)
+            await identity.verify_email(
+                token=token_from(mailer.sent[0]), password=PASSWORD, user_agent=None
+            )
 
     async def test_reset_token_cannot_verify_and_vice_versa(
         self, identity: IdentityService, deliver: Deliver, mailer: InMemoryMailer
@@ -396,3 +414,129 @@ class TestDeletionAndStaff:
                 password=PASSWORD,
                 user_agent=None,
             )
+
+
+class TestVerificationNeedsTheRegistrationPassword:
+    async def test_a_wrong_password_keeps_the_link_and_counts_as_a_failure(
+        self,
+        identity: IdentityService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        uow_factory: UnitOfWorkFactory,
+    ) -> None:
+        await identity.register_customer(email=EMAIL, password=PASSWORD, display_name="Erika")
+        await deliver()
+        token = token_from(mailer.sent[-1])
+
+        with pytest.raises(InvalidPasswordError):
+            await identity.verify_email(token=token, password=WRONG, user_agent=None)
+        account = await load(uow_factory)
+        assert not account.email_verified
+        assert account.failed_login_count == 1
+
+        started = await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
+        assert started.account.email_verified
+        assert started.account.failed_login_count == 0
+
+
+class TestMailRequestsAreThrottled:
+    async def test_an_address_gets_a_limited_number_of_mails_per_hour(
+        self,
+        identity: IdentityService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        clock: FixedClock,
+        verified: str,
+    ) -> None:
+        # The registration of the ``verified`` customer sent the first mail of the hour.
+        before = len(mailer.sent)
+        for _ in range(MAIL_REQUESTS_PER_WINDOW + 3):
+            await identity.request_password_reset(email=EMAIL)
+            await identity.request_verification_mail(email=EMAIL)  # verified: never a mail
+        await deliver()
+        assert len(mailer.sent) - before == MAIL_REQUESTS_PER_WINDOW - 1
+
+        # Past the window (which includes its first instant), mails flow again.
+        clock.advance(MAIL_REQUEST_WINDOW + timedelta(seconds=1))
+        await identity.request_password_reset(email=EMAIL)
+        await deliver()
+        assert len(mailer.sent) - before == MAIL_REQUESTS_PER_WINDOW
+
+    async def test_registering_an_existing_address_counts_too(
+        self, identity: IdentityService, deliver: Deliver, mailer: InMemoryMailer, verified: str
+    ) -> None:
+        before = len(mailer.sent)
+        for _ in range(MAIL_REQUESTS_PER_WINDOW + 3):
+            await identity.register_customer(email=EMAIL, password=PASSWORD, display_name="X")
+        await deliver()
+        assert len(mailer.sent) - before == MAIL_REQUESTS_PER_WINDOW - 1
+
+
+class TestDeletionErasesTheNameFromStoredEvents:
+    async def test_the_name_leaves_the_outbox_with_the_account(
+        self,
+        identity: IdentityService,
+        engine: AsyncEngine,
+        uow_factory: UnitOfWorkFactory,
+        verified: str,
+    ) -> None:
+        account = await load(uow_factory)
+        await identity.delete_account(account_id=account.id, password=PASSWORD)
+
+        async with engine.connect() as connection:
+            payloads = list(
+                await connection.scalars(
+                    select(outbox_table.c.payload).where(outbox_table.c.aggregate_id == account.id)
+                )
+            )
+        named = [payload["display_name"] for payload in payloads if "display_name" in payload]
+        # Registered and verified carried the name; both are rewritten.
+        assert named == [DELETED_DISPLAY_NAME, DELETED_DISPLAY_NAME]
+        assert all("Erika" not in str(payload) for payload in payloads)
+
+
+class TestStaffUnlock:
+    async def test_the_owner_can_lift_a_lock_on_the_server(self, identity: IdentityService) -> None:
+        email = "chefin@example.com"
+        await identity.create_staff(
+            email=email, display_name="Chefin", role=StaffRole.OWNER, password=PASSWORD
+        )
+        for _ in range(LOCKOUT_THRESHOLD):
+            with pytest.raises(InvalidCredentialsError):
+                await identity.login(
+                    kind=AccountKind.STAFF, email=email, password=WRONG, user_agent=None
+                )
+        with pytest.raises(InvalidCredentialsError):  # locked: even the right password fails
+            await identity.login(
+                kind=AccountKind.STAFF, email=email, password=PASSWORD, user_agent=None
+            )
+
+        await identity.unlock_staff(email=email)
+        started = await identity.login(
+            kind=AccountKind.STAFF, email=email, password=PASSWORD, user_agent=None
+        )
+        assert started.account.failed_login_count == 0
+
+        with pytest.raises(AccountNotFoundError):
+            await identity.unlock_staff(email="niemand@example.com")
+
+
+async def test_a_login_does_not_wait_while_a_mail_is_being_sent(
+    identity: IdentityService, uow_factory: UnitOfWorkFactory, clock: FixedClock, verified: str
+) -> None:
+    account = await load(uow_factory)
+    async with uow_factory() as uow:
+        # Like the mail handler: the token row is flushed before the mail goes out, so
+        # its foreign key holds FOR KEY SHARE on the account until the mail is sent.
+        uow.tokens.add(
+            AccountToken.issue(
+                token_hash=hash_token(generate_token()),
+                account_id=account.id,
+                purpose=TokenPurpose.RESET_PASSWORD,
+                now=clock.now(),
+                source_event_id=None,
+            )
+        )
+        await uow.flush()
+        started = await asyncio.wait_for(login(identity), timeout=5)
+    assert started

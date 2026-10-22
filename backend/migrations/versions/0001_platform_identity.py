@@ -61,6 +61,16 @@ def upgrade() -> None:
         schema="platform",
         postgresql_where=sa.text("status = 'pending'"),
     )
+    # Replay to reconnecting SSE clients (in publication order) and the retention purge.
+    op.create_index(
+        "outbox_published_idx",
+        "outbox",
+        ["published_at", "id"],
+        schema="platform",
+        postgresql_where=sa.text("status = 'published'"),
+    )
+    # The events of one aggregate: erasing personal data, throttling repeated requests.
+    op.create_index("outbox_aggregate_idx", "outbox", ["aggregate_id"], schema="platform")
 
     op.create_table(
         "accounts",

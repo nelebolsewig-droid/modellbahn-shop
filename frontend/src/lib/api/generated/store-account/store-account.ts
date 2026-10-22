@@ -35,6 +35,7 @@ import type {
   AccountOut,
   DisplayNameIn,
   EmailIn,
+  EmailVerificationIn,
   LoginIn,
   PasswordChangeIn,
   PasswordResetConfirmIn,
@@ -42,7 +43,6 @@ import type {
   RegistrationAcceptedOut,
   RegistrationIn,
   RequestAcceptedOut,
-  TokenIn,
   ValidationProblem
 } from '../model';
 
@@ -79,9 +79,13 @@ export const getVerifyCustomerEmailUrl = () => {
 
 /**
  * Redeem the token from the verification mail; sets the ``mb_session`` cookie.
+ *
+ * Needs the password chosen at registration as well, so that a verification link
+ * clicked by someone who did not register cannot hand the account to the person
+ * who did. A wrong password (``invalid_password``) leaves the link usable.
  * @summary Verify the e-mail address and log in
  */
-export const verifyCustomerEmail = async (tokenIn: TokenIn, options?: Parameters<typeof apiFetch>[1]): Promise<AccountOut> => {
+export const verifyCustomerEmail = async (emailVerificationIn: EmailVerificationIn, options?: Parameters<typeof apiFetch>[1]): Promise<AccountOut> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -102,7 +106,7 @@ return apiFetch<AccountOut>(getVerifyCustomerEmailUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(tokenIn)
+    body: JSON.stringify(emailVerificationIn)
   }
 );}
 
@@ -140,9 +144,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type VerifyCustomerEmailMutationResult = NonNullable<Awaited<ReturnType<typeof verifyCustomerEmail>>>
-    export type VerifyCustomerEmailMutationBody = TokenIn
+    export type VerifyCustomerEmailMutationBody = EmailVerificationIn
     export type VerifyCustomerEmailMutationError = ErrorType<Problem | ValidationProblem>
-    export type VerifyCustomerEmailMutationVariables = {data: TokenIn}
+    export type VerifyCustomerEmailMutationVariables = {data: EmailVerificationIn}
 
     /**
  * @summary Verify the e-mail address and log in
@@ -166,7 +170,9 @@ export const useVerifyCustomerEmail = <TError = ErrorType<Problem | ValidationPr
 }
 
 /**
- * Always 202; only unverified customer accounts get a mail.
+ * Always 202, right away; only unverified customer accounts get a mail.
+ *
+ * The lookup happens after the answer, so its timing reveals nothing either.
  * @summary Send the verification mail again
  */
 export const resendVerificationEmail = async (emailIn: EmailIn, options?: Parameters<typeof apiFetch>[1]): Promise<RequestAcceptedOut> => {
@@ -617,7 +623,9 @@ export const useChangeCustomerPassword = <TError = ErrorType<Problem | Validatio
 }
 
 /**
- * Always 202; only active customer accounts get a mail.
+ * Always 202, right away; only active customer accounts get a mail.
+ *
+ * The lookup happens after the answer, so its timing reveals nothing either.
  * @summary Request a password reset link
  */
 export const requestPasswordReset = async (emailIn: EmailIn, options?: Parameters<typeof apiFetch>[1]): Promise<RequestAcceptedOut> => {

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from modellbahn.modules.identity.application.services import UnitOfWorkFactory
-from modellbahn.modules.identity.contracts import AccountKind, get_account_summary
+from modellbahn.modules.identity.contracts.accounts import AccountKind, get_account_summary
 from modellbahn.modules.identity.domain.model import (
     Account,
     AccountToken,

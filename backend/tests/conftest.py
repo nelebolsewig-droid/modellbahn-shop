@@ -81,6 +81,9 @@ def settings(database_url: str) -> Settings:
         argon2_parallelism=1,
         outbox_poll_seconds=0.2,
         outbox_max_attempts=3,
+        # Tests log in and register far more often than a person; test_rate_limit
+        # switches the limit on for itself.
+        auth_rate_limit=0,
         log_level="WARNING",
     )
 

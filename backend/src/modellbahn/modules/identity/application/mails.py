@@ -26,7 +26,9 @@ def verification_mail(
         paragraphs=(
             f"willkommen bei {shop_name}! Bitte bestätige deine E-Mail-Adresse, "
             "damit wir dein Kundenkonto freischalten können.",
-            "Der Link ist 24 Stunden gültig und meldet dich gleich an.",
+            "Der Link ist 24 Stunden gültig. Zur Sicherheit fragen wir dort noch einmal "
+            "nach dem Passwort, das du bei der Registrierung gewählt hast; danach bist du "
+            "gleich angemeldet.",
         ),
         action=MailAction(
             label="E-Mail-Adresse bestätigen", url=link(base_url, VERIFY_PATH, token=token)

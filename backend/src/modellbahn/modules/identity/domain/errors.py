@@ -44,8 +44,12 @@ class NotAuthenticatedError(IdentityError):
 
 
 class InvalidPasswordError(IdentityError):
-    """The password confirming a sensitive action of a logged-in account was wrong."""
+    """The password confirming a sensitive action was wrong (e.g. deletion, verification)."""
 
 
 class AccountAlreadyExistsError(IdentityError):
     """An account of this kind already uses the e-mail address."""
+
+
+class AccountNotFoundError(IdentityError):
+    """No account of this kind uses the e-mail address (used by the server's CLI only)."""

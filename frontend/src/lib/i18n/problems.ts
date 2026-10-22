@@ -30,6 +30,8 @@ export const PROBLEM_MESSAGES: Messages = {
   not_found: "Die angefragte Adresse gibt es nicht.",
   method_not_allowed: "Diese Aktion ist an dieser Stelle nicht möglich.",
   conflict: "Die Daten wurden inzwischen geändert. Bitte lade die Seite neu.",
+  too_many_requests:
+    "Zu viele Versuche in kurzer Zeit. Bitte warte ein paar Minuten und versuche es dann noch einmal.",
   database_unavailable:
     "Die Datenbank ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.",
   service_unavailable:

@@ -10,7 +10,11 @@ from fastapi import APIRouter, Depends, FastAPI
 from modellbahn import __version__
 from modellbahn.modules.identity.api import admin as identity_admin
 from modellbahn.modules.identity.api import store as identity_store
-from modellbahn.modules.identity.api.deps import current_staff
+from modellbahn.modules.identity.api.deps import (
+    AUTH_RATE_LIMITER,
+    current_staff,
+    staff_session_is_valid,
+)
 from modellbahn.modules.identity.api.errors import install_error_translations, problems
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.identity.infrastructure.mapping import start_mappers
@@ -21,7 +25,9 @@ from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
 from modellbahn.platform.errors import add_problem_schemas, install_exception_handlers
 from modellbahn.platform.events import event_registry
+from modellbahn.platform.lifecycle import on_exit_signal
 from modellbahn.platform.logging import RequestContextMiddleware, configure_logging
+from modellbahn.platform.ratelimit import RateLimiter
 from modellbahn.platform.realtime import RealtimeHub, create_event_stream_router
 from modellbahn.platform.security import Argon2PasswordHasher, csrf_guard
 
@@ -68,7 +74,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await hub.start()
         try:
-            yield
+            # Open event streams end at once on SIGTERM, so the server need not wait
+            # for them until its graceful-shutdown timeout cancels them.
+            with on_exit_signal(hub.close_streams):
+                yield
         finally:
             await hub.stop()
             await engine.dispose()
@@ -90,6 +99,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.identity_service = identity_service
     app.state.realtime_hub = hub
+    setattr(
+        app.state,
+        AUTH_RATE_LIMITER,
+        RateLimiter(
+            limit=settings.auth_rate_limit, window_seconds=settings.auth_rate_window_seconds
+        ),
+    )
 
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)
@@ -108,6 +124,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             operation_id="streamAdminEvents",
             tags=["admin-realtime"],
             dependencies=[Depends(current_staff)],
+            authorize=staff_session_is_valid,
             responses=problems({401: ["not_authenticated"]}, unsafe=False),
         )
     )

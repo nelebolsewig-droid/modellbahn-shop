@@ -18,11 +18,16 @@ RabbitMQ, NATS oder Kafka wäre außerdem ein weiterer Dienst zum Betreiben, Sic
   mit `pg_notify('mb_outbox', '')`.
 - Der Worker lauscht per `LISTEN` und fragt zusätzlich alle `MB_OUTBOX_POLL_SECONDS` nach. Er
   holt fällige Zeilen mit `FOR UPDATE SKIP LOCKED`, sortiert nach der UUIDv7-ID (ADR 0006),
-  und ruft alle für den Ereignistyp registrierten Handler auf.
+  und ruft den für den Ereignistyp registrierten Handler auf. Je Ereignistyp gibt es höchstens
+  einen Handler: Der Zustellstatus gilt je Ereignis, eine Wiederholung nach dem Fehlschlag
+  eines zweiten Handlers ließe den ersten erneut laufen. Braucht ein zweites Modul dasselbe
+  Ereignis, bekommt die Outbox zuerst einen Zustellstatus je Handler; bis dahin lehnt die
+  Registrierung einen zweiten Handler ab.
 - Fehlschläge werden mit 30 s · 2^(Versuche − 1), höchstens einer Stunde, wiederholt; nach
   `MB_OUTBOX_MAX_ATTEMPTS` Versuchen wird die Zeile `dead` und bleibt zur Untersuchung stehen.
 - Nach Erfolg meldet der Worker Ereignisse mit Zielgruppe über `pg_notify('mb_events', …)`
-  an die API-Instanzen, die sie per Server-Sent Events weiterreichen.
+  an die API-Instanzen, die sie per Server-Sent Events weiterreichen. Ein Ereignis ohne
+  Handler gilt sofort als veröffentlicht.
 
 ## Folgen
 
@@ -32,6 +37,7 @@ RabbitMQ, NATS oder Kafka wäre außerdem ein weiterer Dienst zum Betreiben, Sic
   `source_event_id` an erzeugten Tokens). Eine globale Reihenfolge ist nicht zugesichert.
 - `NOTIFY` speichert nichts und fasst knapp 8000 Byte. Echtzeitdaten werden daher gekürzt,
   und ein SSE-Client holt nach einem Abbruch Verpasstes mit `Last-Event-ID` aus der Outbox.
-- Die Tabelle wächst. Aufräumen oder monatliches Partitionieren (Konzept §3.5) steht aus.
+- Veröffentlichte Zeilen löscht der Worker nach 30 Tagen; so lange reicht auch das Nachholen
+  per `Last-Event-ID`. Tote Zeilen bleiben zur Untersuchung stehen.
 - Wird ein Modul herausgelöst, wechselt nur der Transport (z. B. auf NATS JetStream);
   Ereignistypen und JSON-Nutzdaten bleiben.

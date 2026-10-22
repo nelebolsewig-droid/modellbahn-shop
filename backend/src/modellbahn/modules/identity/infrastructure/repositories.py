@@ -24,8 +24,13 @@ from modellbahn.platform.uow import UnitOfWork
 def _locked[*Ts](statement: Select[*Ts], for_update: bool) -> Select[*Ts]:
     if not for_update:
         return statement
-    # Refresh an object already in the identity map with the row we now hold locked.
-    return statement.with_for_update().execution_options(populate_existing=True)
+    # FOR NO KEY UPDATE, not FOR UPDATE: no use case changes a primary key, and this
+    # lock does not wait for the FOR KEY SHARE that a foreign key takes. The mail
+    # handler holds such a lock on the account (through its token row) while it talks
+    # to the mail server; FOR UPDATE would make a login wait for that.
+    # populate_existing refreshes an object already in the identity map with the row
+    # now held locked.
+    return statement.with_for_update(key_share=True).execution_options(populate_existing=True)
 
 
 class SqlAccountRepository:

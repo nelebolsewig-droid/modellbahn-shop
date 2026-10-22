@@ -3,8 +3,11 @@
 from enum import StrEnum
 from typing import Any, Final
 
+import asyncpg
 from sqlalchemy import MetaData, Text
 from sqlalchemy.engine import Dialect, make_url
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -55,7 +58,9 @@ class StrEnumType[E: StrEnum](TypeDecorator[E]):
 
 def create_engine(database_url: str) -> AsyncEngine:
     """Create the async engine (asyncpg). Connections are opened lazily."""
-    return create_async_engine(database_url, pool_pre_ping=True)
+    # hide_parameters: error messages show the statement but never its values, so
+    # e-mail addresses and token hashes cannot end up in a log line.
+    return create_async_engine(database_url, pool_pre_ping=True, hide_parameters=True)
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -70,3 +75,37 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 def asyncpg_dsn(database_url: str) -> str:
     """Turn an SQLAlchemy URL (``postgresql+asyncpg://``) into a plain asyncpg DSN."""
     return make_url(database_url).set(drivername="postgresql").render_as_string(hide_password=False)
+
+
+# Driver errors that mean "no usable connection", as opposed to an error in a statement.
+# TimeoutError (a failed connect) and ConnectionRefusedError are OSErrors.
+_CONNECTION_FAILURES: Final = (
+    PoolTimeoutError,  # every pooled connection is busy
+    OSError,
+    asyncpg.PostgresConnectionError,  # SQLSTATE class 08
+    asyncpg.CannotConnectNowError,  # the server is starting up
+    asyncpg.AdminShutdownError,  # the server is shutting down
+    asyncpg.CrashShutdownError,
+    asyncpg.TooManyConnectionsError,
+)
+# How far to follow __cause__/__context__; the drivers wrap at most a few levels deep.
+_MAX_CAUSE_DEPTH: Final = 5
+
+
+def is_database_unavailable(error: BaseException) -> bool:
+    """True if ``error`` means the database cannot be reached, not that a query failed.
+
+    SQLAlchemy passes a failed connect through unwrapped (e.g. ``ConnectionRefusedError``)
+    and wraps errors on an existing connection; the driver's error is then found
+    in the chain of causes.
+    """
+    current: BaseException | None = error
+    for _ in range(_MAX_CAUSE_DEPTH):
+        if current is None:
+            return False
+        if isinstance(current, _CONNECTION_FAILURES):
+            return True
+        if isinstance(current, DBAPIError) and current.connection_invalidated:
+            return True
+        current = current.__cause__ or current.__context__
+    return False

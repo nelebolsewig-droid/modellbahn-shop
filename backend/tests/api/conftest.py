@@ -72,7 +72,8 @@ async def customer(client: AsyncClient, deliver: Deliver, mailer: InMemoryMailer
     assert (await register(client)).status_code == 202
     await deliver()
     response = await client.post(
-        f"{STORE}/email-verification", json={"token": token_from(mailer.sent[-1])}
+        f"{STORE}/email-verification",
+        json={"token": token_from(mailer.sent[-1]), "password": PASSWORD},
     )
     assert response.status_code == 200, response.text
     body: dict[str, Any] = response.json()

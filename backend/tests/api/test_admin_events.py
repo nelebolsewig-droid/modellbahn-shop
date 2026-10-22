@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 from modellbahn.platform.realtime import RealtimeHub
-from tests.api.helpers import EMAIL, assert_problem, register
+from tests.api.helpers import ADMIN, EMAIL, assert_problem, register
 from tests.conftest import Deliver
 from tests.support import EventStream, SseMessage, eventually
 
@@ -91,6 +91,47 @@ async def test_reconnect_replays_what_was_missed(
         "Dritte",
         "Vierte",
     ]
+
+
+async def test_a_new_event_source_resumes_with_the_query_parameter(
+    app: FastAPI, staff_client: AsyncClient, client: AsyncClient, deliver: Deliver
+) -> None:
+    # A browser that gave up and opens a new EventSource cannot send Last-Event-ID;
+    # the frontend passes the last id it saw as a query parameter instead.
+    hub: RealtimeHub = app.state.realtime_hub
+    async with EventStream(app, EVENTS, staff_headers(staff_client)) as stream:
+        await subscribed(hub, 1)
+        await register(client, email="erste@example.com", name="Erste")
+        await deliver()
+        first = await stream.next_event()
+
+    await register(client, email="zweite@example.com", name="Zweite")
+    await deliver()
+
+    assert first.id is not None
+    path = f"{EVENTS}?last_event_id={first.id}"
+    async with EventStream(app, path, staff_headers(staff_client)) as stream:
+        replayed = await stream.next_event()
+
+    payload = data(replayed)["data"]
+    assert isinstance(payload, dict)
+    assert payload["display_name"] == "Zweite"
+
+
+async def test_logout_ends_an_open_stream(
+    app: FastAPI, staff_client: AsyncClient, client: AsyncClient, deliver: Deliver
+) -> None:
+    hub: RealtimeHub = app.state.realtime_hub
+    async with EventStream(app, EVENTS, staff_headers(staff_client)) as stream:
+        await subscribed(hub, 1)
+        assert (await staff_client.delete(f"{ADMIN}/session")).status_code == 204
+
+        # The next event would reach a client whose session is gone: the stream ends
+        # instead of delivering it.
+        await register(client, name="Nach der Abmeldung")
+        await deliver()
+        await stream.wait_closed()
+        assert stream.received_events() == []
 
 
 async def test_invalid_last_event_id_is_ignored(

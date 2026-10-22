@@ -3,6 +3,7 @@
 The infrastructure layer implements them; tests may substitute their own.
 """
 
+from collections.abc import Collection, Mapping
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
@@ -90,6 +91,16 @@ class IdentityUnitOfWork(Protocol):
     async def flush(self) -> None: ...
 
     async def commit(self) -> None: ...
+
+    async def count_recent_events(
+        self, aggregate_id: UUID, event_types: Collection[str], *, since: datetime
+    ) -> int:
+        """How many events of ``event_types`` the account produced from ``since`` on."""
+        ...
+
+    async def redact_events(self, aggregate_id: UUID, replacements: Mapping[str, str]) -> None:
+        """Overwrite fields in the account's stored events (personal data on deletion)."""
+        ...
 
 
 class PasswordHasher(Protocol):

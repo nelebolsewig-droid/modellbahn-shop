@@ -20,6 +20,10 @@ Zeit, und das spätere Herauslösen rechenintensiver Teile (Medien, Planung) wü
   reines Python ohne Framework.
 - Andere Module sehen nur das Paket `contracts` eines Moduls: Ereignisklassen, DTOs,
   Abfragefunktionen. Reaktionen auf fremde Vorgänge laufen über Ereignisse (ADR 0002).
+  Ereignisse und Typen liegen in `contracts.events` ohne Framework, die Abfragen in
+  eigenen Untermodulen. So bleibt eine Domäne rein, die auf fremde Ereignisse reagiert.
+- Nur die Schicht `domain` ist Pflicht; ein Modul darf `api`, `infrastructure` und
+  `application` weglassen.
 - Fremdschlüssel über Modulgrenzen zeigen nur auf Aggregatwurzeln und löschen nie kaskadierend.
 - import-linter prüft die Import-Regeln in jedem CI-Lauf. Die Verträge verwenden Platzhalter;
   ein Test schlägt fehl, wenn ein neues Modul von ihnen nicht erfasst wird.

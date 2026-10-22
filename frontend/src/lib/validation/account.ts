@@ -93,6 +93,9 @@ export const displayNameSchema = z.object({ display_name: displayName });
 
 export const accountDeletionSchema = z.object({ password: currentPassword });
 
+/** The password chosen at registration, asked for when the e-mail link is redeemed. */
+export const emailVerificationSchema = z.object({ password: currentPassword });
+
 export type LoginValues = z.output<typeof loginSchema>;
 export type EmailValues = z.output<typeof emailSchema>;
 export type PasswordChangeValues = z.output<typeof passwordChangeSchema>;

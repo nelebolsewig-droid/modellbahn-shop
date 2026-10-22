@@ -17,9 +17,10 @@ einsehen. Außerdem darf die Registrierung nicht verraten, welche Adressen schon
 - Kunden und Mitarbeiter stehen in `identity.accounts`, unterschieden durch `kind`. Die
   E-Mail-Adresse ist je Kontoart eindeutig, ohne Groß- und Kleinschreibung (`citext`).
 - Kunden melden sich erst mit bestätigter Adresse an. Die Bestätigung erzeugt das Ereignis
-  `identity.account.email_verified`, öffentlich in den `contracts` des Moduls.
+  `identity.account.email_verified`, öffentlich in `contracts.events` des Moduls.
 - Ab Schritt 4 ordnet der Verkauf auf dieses Ereignis hin alle Gastbestellungen mit derselben
-  Adresse dem Konto zu. Bis dahin ist der Handler bewusst leer.
+  Adresse dem Konto zu. Bis dahin hat das Ereignis keinen Handler; der Dispatcher markiert
+  es als veröffentlicht und meldet es dem Stellwerk.
 - Registrierung, Passwort-Reset und erneuter Versand antworten immer gleich. Wer sich mit
   einer vergebenen Adresse registriert, bekommt eine E-Mail statt einer Fehlermeldung.
 - Löschen (DSGVO) anonymisiert die Zeile statt sie zu entfernen: Adresse

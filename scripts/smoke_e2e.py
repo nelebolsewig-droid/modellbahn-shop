@@ -38,6 +38,7 @@ import uuid
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from email.message import Message
+from http import HTTPStatus
 from http.cookies import Morsel, SimpleCookie
 from typing import IO, Any, Final
 
@@ -110,8 +111,16 @@ class Response:
 
 def expect_status(response: Response, status: int, what: str) -> None:
     if response.status != status:
+        hint = ""
+        if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+            # Each run logs in and registers about 15 times from the same address.
+            hint = (
+                " (Anmeldebremse: mehrere Läufe kurz hintereinander. Warten, "
+                "MB_AUTH_RATE_LIMIT in .env erhöhen oder die API neu starten.)"
+            )
         raise SmokeCheckError(
-            f"{what}: erwartet HTTP {status}, erhalten {response.status}: {response.text[:300]}"
+            f"{what}: erwartet HTTP {status}, erhalten {response.status}{hint}: "
+            f"{response.text[:300]}"
         )
 
 
@@ -504,12 +513,15 @@ class Demo:
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
-            ("Startseite antwortet (200, deutsch)", self.home_page),
+            ("Startseite antwortet (200, deutsch, mit Content-Security-Policy)", self.home_page),
             ("Health-Checks /healthz und /readyz über Caddy", self.health),
             ("Kunde registriert sich (202)", self.register),
             ("Zweite Registrierung derselben Adresse: identische Antwort", self.register_again),
             ("Bestätigungsmail ist in Mailpit angekommen", self.verification_mail),
-            ("Bestätigung per Token: 200, angemeldet mit mb_session", self.verify),
+            (
+                "Bestätigung nur mit Passwort: falsches 400, richtiges 200 mit mb_session",
+                self.verify,
+            ),
             ("GET /me liefert das bestätigte Konto", self.me),
             ("„Mein Konto“ nur mit Sitzung, sonst Umleitung zur Anmeldung", self.account_page),
             ("Abmelden: 204, Cookie gelöscht, Sitzung ungültig", self.logout),
@@ -536,6 +548,9 @@ class Demo:
         expect_status(response, 200, "GET /")
         expect('<html lang="de"' in response.text, 'Startseite ohne <html lang="de">')
         expect("Hier entsteht" in response.text, "Startseite ohne „Hier entsteht …“")
+        policy = response.headers.get("content-security-policy", "")
+        for directive in ("default-src 'self'", "frame-ancestors 'none'", "object-src 'none'"):
+            expect(directive in policy, f"Content-Security-Policy ohne {directive!r}: {policy!r}")
         return None
 
     def health(self) -> str | None:
@@ -584,8 +599,19 @@ class Demo:
         return "Link führt auf /konto/bestaetigen"
 
     def verify(self) -> str | None:
+        # Whoever clicks the link must also know the password chosen at registration;
+        # otherwise a stranger could register someone else's address and take over
+        # the account as soon as its owner clicks. A wrong password keeps the link.
+        wrong = self.visitor.api(
+            "POST",
+            f"{STORE}/email-verification",
+            {"token": self._verify_token, "password": "Falsches Passwort 123"},
+        )
+        expect_problem(wrong, 400, "invalid_password", "Bestätigung mit falschem Passwort")
         response = self.customer_browser.api(
-            "POST", f"{STORE}/email-verification", {"token": self._verify_token}
+            "POST",
+            f"{STORE}/email-verification",
+            {"token": self._verify_token, "password": self.customer.password},
         )
         expect_status(response, 200, "E-Mail-Bestätigung")
         expect_session_cookie(
@@ -596,7 +622,9 @@ class Demo:
         expect(account.get("email_verified") is True, "Konto ist nicht als bestätigt markiert")
         self.customer.account_id = account["id"]
         again = self.visitor.api(
-            "POST", f"{STORE}/email-verification", {"token": self._verify_token}
+            "POST",
+            f"{STORE}/email-verification",
+            {"token": self._verify_token, "password": self.customer.password},
         )
         expect_problem(again, 400, "invalid_token", "Zweite Einlösung desselben Tokens")
         return f"Konto {self.customer.account_id}"

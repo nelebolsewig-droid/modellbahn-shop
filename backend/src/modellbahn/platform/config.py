@@ -32,7 +32,11 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="MB_", frozen=True, extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://modellbahn:modellbahn@localhost:5432/modellbahn"
+    # Left out of repr(): the URL contains the database password.
+    database_url: str = Field(
+        default="postgresql+asyncpg://modellbahn:modellbahn@localhost:5432/modellbahn",
+        repr=False,
+    )
     environment: Environment = Environment.DEVELOPMENT
     public_base_url: str = "http://localhost:3000"
     cookie_secure: bool = True
@@ -50,6 +54,11 @@ class Settings(BaseSettings):
 
     outbox_poll_seconds: float = Field(default=5.0, gt=0)
     outbox_max_attempts: int = Field(default=10, ge=1, le=32767)
+
+    # Requests per client address to login, registration, verification and reset
+    # routes within the window; 0 switches the limit off.
+    auth_rate_limit: int = Field(default=30, ge=0)
+    auth_rate_window_seconds: float = Field(default=600.0, gt=0)
 
     log_level: LogLevel = "INFO"
 

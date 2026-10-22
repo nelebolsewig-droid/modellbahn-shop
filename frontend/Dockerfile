@@ -48,11 +48,13 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
+# The application is owned by root and read-only for the "node" user that runs it,
+# so a compromised server process cannot rewrite its own code or static assets.
 COPY --from=builder /app/public ./public
-# Owned by the unprivileged "node" user from the base image: Next.js writes its
-# ISR and image caches below .next at runtime.
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+# The one place Next.js writes at runtime: its ISR and image caches.
+RUN mkdir -p .next/cache && chown node:node .next/cache
 
 USER node
 

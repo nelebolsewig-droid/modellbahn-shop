@@ -1,8 +1,10 @@
 """Identity use cases: registration, verification, login, sessions, passwords, deletion.
 
 Every public method runs in its own unit of work. Answers that could reveal whether
-an address has an account (registration, resend, reset) are identical either way,
-and so is their timing as far as it matters (password hashing).
+an address has an account (registration, resend, reset) are identical either way.
+Registration also matches its timing (it hashes the password either way); resend
+and reset leave their timing to the API, which answers before running them.
+Requests that send a mail are throttled per address (``mail_request_allowed``).
 """
 
 from collections.abc import Callable
@@ -13,19 +15,24 @@ from uuid import UUID
 from modellbahn.modules.identity.application.ports import IdentityUnitOfWork, PasswordHasher
 from modellbahn.modules.identity.domain.errors import (
     AccountAlreadyExistsError,
+    AccountNotFoundError,
     EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidPasswordError,
     InvalidTokenError,
     NotAuthenticatedError,
 )
+from modellbahn.modules.identity.domain.events import MAIL_REQUEST_EVENT_TYPES
 from modellbahn.modules.identity.domain.model import (
+    DELETED_DISPLAY_NAME,
+    MAIL_REQUEST_WINDOW,
     Account,
     AccountKind,
     LoginSession,
     StaffRole,
     TokenPurpose,
     check_password_policy,
+    mail_request_allowed,
     normalize_display_name,
 )
 from modellbahn.platform.clock import Clock
@@ -84,7 +91,8 @@ class IdentityService:
             now = self._clock.now()
             existing = await uow.accounts.get_by_email(AccountKind.CUSTOMER, email)
             if existing is not None:
-                uow.publish(existing.note_registration_attempt(now))
+                if await self._may_send_mail(uow, existing, now):
+                    uow.publish(existing.note_registration_attempt(now))
             else:
                 account, registered = Account.register_customer(
                     email=email, display_name=display_name, password_hash=password_hash, now=now
@@ -93,17 +101,30 @@ class IdentityService:
                 uow.publish(registered)
             await uow.commit()
 
-    async def verify_email(self, *, token: str, user_agent: str | None) -> StartedSession:
-        """Redeem a verification token: the address counts as verified and a session starts."""
+    async def verify_email(
+        self, *, token: str, password: str, user_agent: str | None
+    ) -> StartedSession:
+        """Redeem a verification token: the address counts as verified and a session starts.
+
+        The link alone is not enough; the password chosen at registration is required
+        too. Otherwise someone could register with another person's address and a
+        password of their own: as soon as that person clicked the link out of
+        curiosity, the stranger would own a verified account with that address (and,
+        from step 4 on, see its guest orders). A wrong password leaves the token
+        unused; the owner of the address who never registered uses the reset instead,
+        which replaces the stranger's password.
+        """
         async with self._uow() as uow:
             now = self._clock.now()
             account_token = await uow.tokens.get(hash_token(token), for_update=True)
             if account_token is None:
                 raise InvalidTokenError
-            account_token.redeem(TokenPurpose.VERIFY_EMAIL, now)
+            account_token.check(TokenPurpose.VERIFY_EMAIL, now)
             account = await uow.accounts.get(account_token.account_id, for_update=True)
             if account is None or not account.is_active or not account.is_customer:
                 raise InvalidTokenError
+            await self._confirm_password(uow, account, password, now)
+            account_token.redeem(TokenPurpose.VERIFY_EMAIL, now)
             verified = account.verify_email(now)
             if verified is not None:
                 uow.publish(verified)
@@ -116,9 +137,10 @@ class IdentityService:
     async def request_verification_mail(self, *, email: str) -> None:
         """Send a new verification mail if the address belongs to an unverified customer."""
         async with self._uow() as uow:
+            now = self._clock.now()
             account = await uow.accounts.get_by_email(AccountKind.CUSTOMER, email)
-            event = account.request_verification_mail(self._clock.now()) if account else None
-            if event is not None:
+            event = account.request_verification_mail(now) if account else None
+            if account and event is not None and await self._may_send_mail(uow, account, now):
                 uow.publish(event)
                 await uow.commit()
 
@@ -213,9 +235,10 @@ class IdentityService:
     async def request_password_reset(self, *, email: str) -> None:
         """Send a reset link if the address belongs to an active customer."""
         async with self._uow() as uow:
+            now = self._clock.now()
             account = await uow.accounts.get_by_email(AccountKind.CUSTOMER, email)
-            event = account.request_password_reset(self._clock.now()) if account else None
-            if event is not None:
+            event = account.request_password_reset(now) if account else None
+            if account and event is not None and await self._may_send_mail(uow, account, now):
                 uow.publish(event)
                 await uow.commit()
 
@@ -248,6 +271,9 @@ class IdentityService:
             deleted = account.delete(now)
             await uow.sessions.delete_for_account(account.id)
             await uow.tokens.delete_for_account(account.id)
+            # The outbox keeps published events for the admin feed's replay; the name
+            # must leave them in the same transaction as it leaves the account.
+            await uow.redact_events(account.id, {"display_name": DELETED_DISPLAY_NAME})
             uow.publish(deleted)
             await uow.commit()
 
@@ -277,7 +303,24 @@ class IdentityService:
                 raise AccountAlreadyExistsError from exc
         return account
 
+    async def unlock_staff(self, *, email: str) -> None:
+        """Lift the login lock of a staff account (used by the CLI on the server)."""
+        async with self._uow() as uow:
+            account = await uow.accounts.get_by_email(AccountKind.STAFF, email, for_update=True)
+            if account is None or not account.is_active:
+                raise AccountNotFoundError
+            account.unlock(self._clock.now())
+            await uow.commit()
+
     # --- Helpers ---------------------------------------------------------------------
+
+    async def _may_send_mail(
+        self, uow: IdentityUnitOfWork, account: Account, now: datetime
+    ) -> bool:
+        recent = await uow.count_recent_events(
+            account.id, MAIL_REQUEST_EVENT_TYPES, since=now - MAIL_REQUEST_WINDOW
+        )
+        return mail_request_allowed(recent)
 
     def _start_session(
         self, uow: IdentityUnitOfWork, account: Account, now: datetime, user_agent: str | None

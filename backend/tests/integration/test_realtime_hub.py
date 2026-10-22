@@ -15,7 +15,13 @@ from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn
 from modellbahn.platform.events import event_registry
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher, RealtimeEvent
-from modellbahn.platform.realtime import RealtimeHub, Subscription, replay_events
+from modellbahn.platform.realtime import (
+    BEGINNING,
+    RealtimeHub,
+    Subscription,
+    latest_event_id,
+    replay_events,
+)
 from tests.support import NOW, eventually
 
 
@@ -149,6 +155,73 @@ async def test_replay_returns_published_audience_events_after_an_id(
         "display_name": "Kunde 1",
     }
     assert await replay_events(engine, event_registry, audience="nobody", after=uuid4()) == []
+
+
+async def insert_published(
+    engine: AsyncEngine, event_id: UUID, *, published_minutes_ago: int, name: str
+) -> None:
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO platform.outbox (id, event_type, aggregate_type, aggregate_id, "
+                "payload, occurred_at, status, published_at) VALUES (:id, "
+                "'identity.customer.registered', 'identity.account', :account, "
+                "CAST(:payload AS jsonb), now(), 'published', "
+                "now() - make_interval(mins => :minutes))"
+            ),
+            {
+                "id": event_id,
+                "account": uuid4(),
+                "payload": json.dumps({"account_id": str(uuid4()), "display_name": name}),
+                "minutes": published_minutes_ago,
+            },
+        )
+
+
+async def test_replay_follows_publication_order_not_the_ids(engine: AsyncEngine) -> None:
+    # The event with the smaller id was published later, e.g. after a retry. A client
+    # that already saw the other one must still get it.
+    older_id, newer_id = UUID(int=1), UUID(int=2)
+    await insert_published(engine, newer_id, published_minutes_ago=5, name="Zuerst veröffentlicht")
+    await insert_published(engine, older_id, published_minutes_ago=1, name="Später veröffentlicht")
+
+    after_newer = await replay_events(engine, event_registry, audience="staff", after=newer_id)
+    assert [event.id for event in after_newer] == [older_id]
+    assert await replay_events(engine, event_registry, audience="staff", after=older_id) == []
+    # An id the outbox does not know (e.g. purged) falls back to comparing ids.
+    from_start = await replay_events(engine, event_registry, audience="staff", after=BEGINNING)
+    assert [event.id for event in from_start] == [newer_id, older_id]
+
+    assert await latest_event_id(engine, event_registry, audience="staff") == older_id
+    assert await latest_event_id(engine, event_registry, audience="nobody") == BEGINNING
+
+
+async def test_subscriptions_go_live_once_the_hub_listens(settings: Settings) -> None:
+    hub = RealtimeHub(asyncpg_dsn(settings.database_url), reconnect_delay_seconds=0.05)
+    async with hub.subscribe("staff") as subscription:
+        # Not listening yet: events published now would pass the subscription by,
+        # so the stream must replay them once the hub listens.
+        assert not subscription.live.is_set()
+        assert not await subscription.wait_live(within=0.05)
+        await hub.start()
+        assert await subscription.wait_live(within=5)
+        async with hub.subscribe("staff") as later:
+            assert later.live.is_set()
+    await hub.stop()
+
+
+async def test_close_streams_ends_open_streams_and_refuses_new_ones(hub: RealtimeHub) -> None:
+    async with hub.subscribe("staff") as subscription:
+        hub.close_streams()
+        assert subscription.closed
+        assert [event async for event in subscription] == []
+        # Closing twice is harmless, and events offered afterwards are ignored.
+        subscription.close()
+        subscription.offer(staff_event())
+        assert subscription.queue.empty()
+    async with hub.subscribe("staff") as late:
+        assert late.closed
+        assert await late.next(within=1) is None
 
 
 async def test_replay_skips_rows_it_cannot_read(engine: AsyncEngine) -> None:

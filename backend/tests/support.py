@@ -106,6 +106,79 @@ def downgrade(database_url: str, revision: str = "base") -> None:
     command.downgrade(alembic_config(database_url), revision)
 
 
+class DatabaseProxy:
+    """A TCP proxy in front of the test database that can simulate an outage.
+
+    ``url`` points at the proxy. :meth:`cut` drops every connection and refuses new
+    ones, as a restarting server would; :meth:`restore` accepts them again on the
+    same port.
+    """
+
+    def __init__(self, database_url: str) -> None:
+        url = make_url(database_url)
+        self._target = (url.host or "127.0.0.1", url.port or 5432)
+        self._database_url = database_url
+        self._port = 0
+        self._server: asyncio.Server | None = None
+        self._writers: set[asyncio.StreamWriter] = set()
+
+    @property
+    def url(self) -> str:
+        return (
+            make_url(self._database_url)
+            .set(host="127.0.0.1", port=self._port)
+            .render_as_string(hide_password=False)
+        )
+
+    async def __aenter__(self) -> Self:
+        await self.restore()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self.cut()
+
+    async def restore(self) -> None:
+        self._server = await asyncio.start_server(self._forward, "127.0.0.1", self._port)
+        self._port = self._server.sockets[0].getsockname()[1]
+
+    async def cut(self) -> None:
+        if self._server is None:
+            return
+        self._server.close()
+        for writer in tuple(self._writers):
+            writer.transport.abort()
+        await self._server.wait_closed()
+        self._server = None
+
+    async def _forward(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        try:
+            upstream_reader, upstream_writer = await asyncio.open_connection(*self._target)
+        except OSError:
+            writer.transport.abort()
+            return
+        self._writers |= {writer, upstream_writer}
+        try:
+            await asyncio.gather(_pipe(reader, upstream_writer), _pipe(upstream_reader, writer))
+        finally:
+            self._writers -= {writer, upstream_writer}
+
+
+async def _pipe(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    try:
+        while data := await reader.read(65536):
+            writer.write(data)
+            await writer.drain()
+    except OSError:
+        pass
+    finally:
+        writer.transport.abort()
+
+
 # --- Mails --------------------------------------------------------------------------------
 
 
@@ -205,17 +278,33 @@ class EventStream:
                 pass
         return message
 
+    async def wait_closed(self, *, within: float = 5.0) -> None:
+        """Wait until the server has ended the stream on its own."""
+        assert self._task is not None
+        async with asyncio.timeout(within):
+            await asyncio.shield(self._task)
+
+    def received_events(self) -> list[SseMessage]:
+        """The messages received so far that are not heartbeat comments."""
+        messages: list[SseMessage] = []
+        while not self._messages.empty():
+            message = self._messages.get_nowait()
+            if message.event is not None:
+                messages.append(message)
+        return messages
+
     async def _run(self) -> None:
+        path, _, query = self.path.partition("?")
         scope = {
             "type": "http",
             "asgi": {"version": "3.0", "spec_version": "2.3"},
             "http_version": "1.1",
             "method": "GET",
             "scheme": "https",
-            "path": self.path,
-            "raw_path": self.path.encode(),
+            "path": path,
+            "raw_path": path.encode(),
             "root_path": "",
-            "query_string": b"",
+            "query_string": query.encode(),
             "headers": [(k.lower().encode(), v.encode()) for k, v in self.headers.items()],
             "client": ("127.0.0.1", 50000),
             "server": ("shop.test", 443),

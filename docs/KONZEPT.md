@@ -254,13 +254,17 @@ backend/src/modellbahn/
         ├── infrastructure/    SQLAlchemy-Repositories, Adapter für Speicher, Drucker, LLM
         ├── api/               FastAPI-Router, Anfrage- und Antwortmodelle
         └── contracts/         das Einzige, was andere Module importieren dürfen:
-                               Fassade + Ereignisschemas
+            ├── events.py      Ereignisse und ihre Typen, frameworkfrei
+            └── <fassade>.py   Abfragen für fremde Anwendungsfälle (mit SQL)
 ```
 
 **Abhängigkeitsregel:** `api → application → domain` und `infrastructure → application`.
-Die Domäne hängt von nichts ab. Fremde Module sieht ein Modul nur über deren
-`contracts`. Das ist keine Konvention auf Papier: **import-linter** prüft es in jedem
-CI-Lauf, und ein verbotener Import bricht den Build.
+Die Domäne hängt von nichts ab. Pflicht ist nur `domain`: Ein Modul ohne eigene
+Oberfläche oder Tabellen lässt die übrigen Schichten weg. Fremde Module sieht ein Modul
+nur über deren `contracts`. Eine fremde Domäne darf auf die Ereignisse reagieren, die
+Fassaden aber nur Anwendungsfälle und Infrastruktur nutzen, weil sie SQL ausführen. Das
+ist keine Konvention auf Papier: **import-linter** prüft es in jedem CI-Lauf, und ein
+verbotener Import bricht den Build.
 
 Die Domänenobjekte sind einfache Dataclasses. SQLAlchemy bildet sie über *imperatives
 Mapping* auf Tabellen ab, ohne dass die Domäne von einer ORM-Basisklasse erbt. So

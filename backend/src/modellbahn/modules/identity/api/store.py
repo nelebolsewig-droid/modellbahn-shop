@@ -1,6 +1,9 @@
 """Customer account API of the shop: ``/api/v1/store/account``."""
 
-from fastapi import APIRouter, Request, Response, status
+from collections.abc import Awaitable, Callable
+
+import structlog
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 
 from modellbahn.modules.identity.api.deps import (
     CUSTOMER_COOKIE,
@@ -8,6 +11,7 @@ from modellbahn.modules.identity.api.deps import (
     CustomerSessionToken,
     IdentityServiceDep,
     SettingsDep,
+    limit_auth_requests,
 )
 from modellbahn.modules.identity.api.errors import password_field, problems
 from modellbahn.modules.identity.api.schemas import (
@@ -15,13 +19,13 @@ from modellbahn.modules.identity.api.schemas import (
     AccountOut,
     DisplayNameIn,
     EmailIn,
+    EmailVerificationIn,
     LoginIn,
     PasswordChangeIn,
     PasswordResetConfirmIn,
     RegistrationAcceptedOut,
     RegistrationIn,
     RequestAcceptedOut,
-    TokenIn,
 )
 from modellbahn.modules.identity.domain.model import AccountKind
 
@@ -29,13 +33,28 @@ router = APIRouter(prefix="/store/account", tags=["store-account"])
 
 _NOT_AUTHENTICATED = {401: ["not_authenticated"]}
 
+_logger = structlog.get_logger(__name__)
+
+
+async def _after_answer(action: Callable[[], Awaitable[None]], *, name: str) -> None:
+    """Run ``action`` after the response has been sent; log instead of raising.
+
+    Used where the work depends on whether an address has an account: done before
+    the answer, its duration would tell (a known address writes to the database).
+    """
+    try:
+        await action()
+    except Exception:
+        _logger.exception("identity.background_request_failed", request=name)
+
 
 @router.post(
     "/register",
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="registerCustomer",
     summary="Register a customer account",
-    responses=problems(),
+    responses=problems(rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def register_customer(
     body: RegistrationIn, service: IdentityServiceDep
@@ -56,18 +75,24 @@ async def register_customer(
     "/email-verification",
     operation_id="verifyCustomerEmail",
     summary="Verify the e-mail address and log in",
-    responses=problems({400: ["invalid_token"]}),
+    responses=problems({400: ["invalid_token", "invalid_password"]}, rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def verify_customer_email(
-    body: TokenIn,
+    body: EmailVerificationIn,
     request: Request,
     response: Response,
     service: IdentityServiceDep,
     settings: SettingsDep,
 ) -> AccountOut:
-    """Redeem the token from the verification mail; sets the ``mb_session`` cookie."""
+    """Redeem the token from the verification mail; sets the ``mb_session`` cookie.
+
+    Needs the password chosen at registration as well, so that a verification link
+    clicked by someone who did not register cannot hand the account to the person
+    who did. A wrong password (``invalid_password``) leaves the link usable.
+    """
     started = await service.verify_email(
-        token=body.token, user_agent=request.headers.get("user-agent")
+        token=body.token, password=body.password, user_agent=request.headers.get("user-agent")
     )
     CUSTOMER_COOKIE.set(response, started.token, secure=settings.cookie_secure)
     return AccountOut.from_account(started.account)
@@ -78,13 +103,21 @@ async def verify_customer_email(
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="resendVerificationEmail",
     summary="Send the verification mail again",
-    responses=problems(),
+    responses=problems(rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def resend_verification_email(
-    body: EmailIn, service: IdentityServiceDep
+    body: EmailIn, service: IdentityServiceDep, background: BackgroundTasks
 ) -> RequestAcceptedOut:
-    """Always 202; only unverified customer accounts get a mail."""
-    await service.request_verification_mail(email=body.email)
+    """Always 202, right away; only unverified customer accounts get a mail.
+
+    The lookup happens after the answer, so its timing reveals nothing either.
+    """
+    background.add_task(
+        _after_answer,
+        lambda: service.request_verification_mail(email=body.email),
+        name="resend_verification_email",
+    )
     return RequestAcceptedOut()
 
 
@@ -92,7 +125,10 @@ async def resend_verification_email(
     "/session",
     operation_id="loginCustomer",
     summary="Log in",
-    responses=problems({401: ["invalid_credentials"], 403: ["email_not_verified"]}),
+    responses=problems(
+        {401: ["invalid_credentials"], 403: ["email_not_verified"]}, rate_limited=True
+    ),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def login_customer(
     body: LoginIn,
@@ -184,11 +220,21 @@ async def change_customer_password(
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="requestPasswordReset",
     summary="Request a password reset link",
-    responses=problems(),
+    responses=problems(rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
-async def request_password_reset(body: EmailIn, service: IdentityServiceDep) -> RequestAcceptedOut:
-    """Always 202; only active customer accounts get a mail."""
-    await service.request_password_reset(email=body.email)
+async def request_password_reset(
+    body: EmailIn, service: IdentityServiceDep, background: BackgroundTasks
+) -> RequestAcceptedOut:
+    """Always 202, right away; only active customer accounts get a mail.
+
+    The lookup happens after the answer, so its timing reveals nothing either.
+    """
+    background.add_task(
+        _after_answer,
+        lambda: service.request_password_reset(email=body.email),
+        name="request_password_reset",
+    )
     return RequestAcceptedOut()
 
 
@@ -198,7 +244,8 @@ async def request_password_reset(body: EmailIn, service: IdentityServiceDep) -> 
     response_class=Response,
     operation_id="confirmPasswordReset",
     summary="Set a new password with a reset link",
-    responses=problems({400: ["invalid_token"]}),
+    responses=problems({400: ["invalid_token"]}, rate_limited=True),
+    dependencies=[Depends(limit_auth_requests)],
 )
 async def confirm_password_reset(body: PasswordResetConfirmIn, service: IdentityServiceDep) -> None:
     """Ends every session of the account; the worker mails a notice."""
