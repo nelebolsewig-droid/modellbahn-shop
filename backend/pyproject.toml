@@ -1,0 +1,177 @@
+[project]
+name = "modellbahn"
+version = "0.1.0"
+description = "Backend des Modellbahn-Shops: modularer Monolith mit FastAPI, PostgreSQL und Outbox-Worker."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi>=0.159.1,<0.160",
+    "uvicorn[standard]>=0.54.0,<0.55",
+    "sqlalchemy[asyncio]>=2.1.6,<2.2",
+    "asyncpg>=0.32.0,<0.33",
+    "alembic>=1.20.1,<1.21",
+    "pydantic>=2.14.1,<2.15",
+    "pydantic-settings>=2.16.1,<2.17",
+    "email-validator>=2.3.0,<2.4",
+    "argon2-cffi>=25.1.0,<25.2",
+    "structlog>=26.1.0,<26.2",
+    "uuid-utils>=1.1.0,<1.2",
+    "typer>=0.27.3,<0.28",
+    "aiosmtplib>=5.1.3,<5.2",
+]
+
+[project.scripts]
+modellbahn = "modellbahn.cli:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.1,<0.18",
+    "mypy>=2.4.0,<2.5",
+    "pytest>=9.1.1,<9.2",
+    "pytest-asyncio>=1.4.0,<1.5",
+    "pytest-cov>=7.1.0,<7.2",
+    "httpx>=0.28.1,<0.29",
+    "import-linter>=2.15,<2.16",
+    "testcontainers[postgres]>=4.15.0,<4.16",
+    "asgi-lifespan>=2.1.0,<2.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12"]
+build-backend = "uv_build"
+
+# --- Ruff -------------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "F",     # pyflakes
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # bugbear
+    "A",     # shadowed builtins
+    "C4",    # comprehensions
+    "DTZ",   # naive datetimes
+    "T20",   # print statements
+    "PT",    # pytest style
+    "RET",   # return statements
+    "SIM",   # simplifications
+    "PTH",   # pathlib
+    "ERA",   # commented-out code
+    "PL",    # pylint
+    "RUF",   # ruff-specific
+    "S",     # bandit (security)
+    "ASYNC", # async pitfalls
+    "PIE",   # misc. lints
+    "LOG",   # logging pitfalls
+]
+ignore = [
+    "PLR0913", # keyword-only parameters keep long signatures readable
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",    # assert is how pytest works
+    "S105",    # hard-coded test passwords
+    "S106",
+    "PLR2004", # literal values are the point of a test
+    "PLR0917", # pytest passes fixtures as positional arguments
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.isort]
+known-first-party = ["modellbahn", "tests"]
+
+# --- mypy -------------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+# asyncpg ships no type information.
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --- pytest -----------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "--cov", "--cov-report=term-missing:skip-covered"]
+asyncio_mode = "auto"
+# One event loop for the whole run, so session-scoped engines can be shared by all tests.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["modellbahn"]
+# SQLAlchemy's asyncio layer runs the ORM in greenlets; without this, coverage loses
+# track of every line after an awaited database call.
+concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "if __name__ == .__main__.:"]
+
+# --- import-linter ----------------------------------------------------------------------
+# The architecture rules of docs/KONZEPT.md §3.2. All contracts use wildcards, so a new
+# module under modellbahn.modules is covered without touching this file;
+# tests/architecture/test_import_contracts.py keeps it that way.
+
+[tool.importlinter]
+root_package = "modellbahn"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "module-layers"
+name = "Layers inside a module: api | infrastructure -> application -> domain"
+type = "layers"
+containers = ["modellbahn.modules.*"]
+layers = ["api | infrastructure", "application", "domain"]
+# Every subpackage of a module is one of the layers, except its public contracts.
+exhaustive = true
+exhaustive_ignores = ["contracts"]
+
+[[tool.importlinter.contracts]]
+id = "module-boundaries"
+name = "Modules use each other only through their contracts"
+type = "independence"
+modules = ["modellbahn.modules.*"]
+ignore_imports = ["modellbahn.modules.** -> modellbahn.modules.*.contracts"]
+# No module imports another one's contracts yet.
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+id = "platform-knows-no-modules"
+name = "The platform kernel does not depend on any module"
+type = "forbidden"
+source_modules = ["modellbahn.platform"]
+forbidden_modules = ["modellbahn.modules"]
+
+[[tool.importlinter.contracts]]
+id = "pure-domain"
+name = "Domain layers are framework-free Python"
+type = "forbidden"
+source_modules = ["modellbahn.modules.*.domain"]
+forbidden_modules = ["fastapi", "sqlalchemy", "pydantic", "starlette"]

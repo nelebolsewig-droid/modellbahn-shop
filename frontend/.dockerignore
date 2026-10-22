@@ -1,0 +1,11 @@
+# Build context of frontend/Dockerfile: dependencies and build output are recreated inside.
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+.env
+.env*.local
+Dockerfile
+.dockerignore

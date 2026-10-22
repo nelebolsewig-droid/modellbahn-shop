@@ -1,0 +1,168 @@
+# Quality gates for every pull request and every push to main. `make check` runs the same
+# checks locally.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes a running check of the same branch obsolete. On main every commit is
+# checked to the end, so a red build can always be traced to its commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: modellbahn
+          POSTGRES_PASSWORD: modellbahn
+          POSTGRES_DB: modellbahn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username=modellbahn --dbname=modellbahn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The test suite creates its own database on this server and migrates it.
+      TEST_DATABASE_URL: postgresql+asyncpg://modellbahn:modellbahn@localhost:5432/modellbahn
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.x"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: uv.lock matches pyproject.toml
+        run: uv lock --check
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Ruff (lint)
+        run: uv run --no-sync ruff check --output-format=github
+      - name: Ruff (format)
+        run: uv run --no-sync ruff format --check
+      - name: mypy (strict)
+        run: uv run --no-sync mypy src tests
+      - name: Architecture rules (import-linter)
+        run: uv run --no-sync lint-imports
+      - name: Tests
+        run: uv run --no-sync pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Tests (Vitest)
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  # The OpenAPI schema and the generated client are committed. Both must be exactly what
+  # the current backend produces, otherwise frontend and API have drifted apart.
+  contract:
+    name: API contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.x"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen --no-dev
+      - name: Export OpenAPI schema
+        working-directory: backend
+        run: uv run --no-sync python -m modellbahn.cli export-openapi --output ../frontend/openapi.json
+      - name: frontend/openapi.json is up to date
+        run: |
+          git diff --exit-code -- frontend/openapi.json || {
+            echo "::error file=frontend/openapi.json::Out of date. Run 'make openapi' and commit the result."
+            exit 1
+          }
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Generate API client
+        working-directory: frontend
+        run: npm run client
+      - name: Generated client is up to date
+        run: |
+          generated=frontend/src/lib/api/generated
+          git diff --exit-code -- "$generated" || {
+            echo "::error::$generated is out of date. Run 'make client' and commit the result."
+            exit 1
+          }
+          # git diff does not see files the generator added for a new tag.
+          untracked="$(git ls-files --others --exclude-standard -- "$generated")"
+          if [ -n "$untracked" ]; then
+            echo "::error::'npm run client' created files that are not committed:"
+            echo "$untracked"
+            exit 1
+          fi
+
+  compose:
+    name: Compose and images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      # .env is not committed; the example file supplies every variable the stack needs.
+      - name: Validate docker-compose.yml
+        run: docker compose --env-file .env.example config --quiet
+      - name: Validate Caddyfile
+        run: >-
+          docker run --rm --volume "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Build images
+        run: docker compose --env-file .env.example build
