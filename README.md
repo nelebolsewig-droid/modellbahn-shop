@@ -6,15 +6,28 @@ Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Ca
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
 die tragenden Entscheidungen in [docs/adr/](docs/adr/).
 
-**Stand: Schritt 2 – Fundament.** Enthalten sind Plattform-Kern (Outbox, Unit of Work, IDs,
-Fehlerformat, Echtzeit), das Modul *Identität* mit Kundenkonten und Mitarbeiterzugang sowie
-Docker Compose, CI und Architekturregeln. Katalog, Medien und Bestellungen folgen ab Schritt 3.
+**Stand: Schritt 3 – Katalog und Medien.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
+mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit Kundenkonten
+und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln) stehen jetzt die Module
+*Katalog* und *Medien*, ein S3-Objektspeicher (Garage) und die Bild-Pipeline im Worker.
+Warenkorb und Bestellungen folgen mit Schritt 4.
 
-Was sich vorführen lässt: Ein Besucher registriert sich, der Worker verschickt die
-Bestätigungs-E-Mail (sichtbar in Mailpit), der Link bestätigt das Konto und meldet an, der
-Kunde sieht „Mein Konto“. Ein Mitarbeiter sieht die Registrierung im Admin-Bereich
-„Stellwerk“ live erscheinen, ohne die Seite neu zu laden. Passwort zurücksetzen, Passwort
-ändern, Abmelden und Konto löschen funktionieren ebenfalls.
+Was sich vorführen lässt:
+
+- **Konten.** Ein Besucher registriert sich, der Worker verschickt die Bestätigungs-E-Mail
+  (sichtbar in Mailpit), der Link bestätigt das Konto und meldet an, der Kunde sieht „Mein
+  Konto“. Ein Mitarbeiter sieht die Registrierung im Admin-Bereich „Stellwerk“ live
+  erscheinen, ohne die Seite neu zu laden. Passwort zurücksetzen, Passwort ändern, Abmelden
+  und Konto löschen funktionieren ebenfalls.
+- **Katalog.** Im Stellwerk unter „Katalog“ legt ein Mitarbeiter Kategorien und ein Produkt
+  an, ergänzt Spurweiten (H0, TT, N) mit Maßen und je Ausführung eine Variante mit Preis;
+  Artikelnummer und interne EAN vergibt das System. Fotos gehen per Ziehen und Ablegen direkt
+  in den Objektspeicher, der Worker rechnet alle Bildstufen, und das Vorschaubild erscheint
+  nach wenigen Sekunden ohne Neuladen. Sind die Regeln erfüllt (Kategorie, aktive Variante,
+  fertiges Hauptbild), wird das Produkt veröffentlicht.
+- **Shop.** Veröffentlichte Produkte stehen auf der Startseite, im Katalog mit Filtern nach
+  Kategorie und Spurweite sowie Volltextsuche und auf ihrer Produktseite mit Fotobühne, Wahl
+  von Spurweite und Ausführung, Preis und Maßen. Bestellen geht ab Schritt 4.
 
 ## Voraussetzungen
 
@@ -35,15 +48,18 @@ make staff EMAIL=chef@example.de NAME="Vorname Nachname"  # Mitarbeiterkonto, Ro
 make smoke                                                # spielt die Vorführung automatisch durch
 ```
 
-`make up` legt beim ersten Aufruf `.env` aus `.env.example` an, baut die Images, wendet die
-Migrationen an und wartet, bis alle Dienste gesund sind. `make staff` fragt das Passwort
+`make up` legt beim ersten Aufruf `.env` aus `.env.example` an, baut die Images, richtet den
+Objektspeicher ein (Buckets und Zugangsschlüssel, idempotent), wendet die Migrationen an und
+wartet, bis alle Dienste gesund sind. `make staff` fragt das Passwort
 verdeckt zweimal ab; mit `ROLE=staff` oder `ROLE=packer` entsteht ein Konto mit anderer Rolle.
 
 `make smoke` prüft den laufenden Stack von außen, über Caddy und Mailpit, so wie ein Browser:
 Startseite, Registrierung, Bestätigungs-E-Mail, Bestätigung mit Anmeldung, Abmelden, erneutes
 Anmelden, Passwort zurücksetzen, Anmeldung im Stellwerk, Ereignisstrom (Nachlieferung per
-`Last-Event-ID` und live) sowie die Grenzen zwischen Shop- und Admin-Sitzung und den
-CSRF-Header. Jeder Schritt erscheint mit ✓ oder ✗; beim ersten Fehler endet der Lauf mit
+`Last-Event-ID` und live), dann den Katalog: Produktentwurf mit `If-Match`, Spurweite mit zwei
+Varianten, ein Foto über die signierte Upload-URL, die Bildstufen live und öffentlich unter
+`/medien`, Veröffentlichen, die Shop-Ansicht und Archivieren. Zum Schluss die Grenzen zwischen
+Shop- und Admin-Sitzung und den CSRF-Header. Jeder Schritt erscheint mit ✓ oder ✗; beim ersten Fehler endet der Lauf mit
 Exit-Code 1. Für jeden Lauf legt das Ziel ein Wegwerf-Mitarbeiterkonto (Rolle `staff`) mit
 Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. Das Skript
 [`scripts/smoke_e2e.py`](scripts/smoke_e2e.py) braucht nur Python 3.13 ohne Zusatzpakete.
@@ -51,8 +67,10 @@ Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. 
 | Adresse | Was |
 | --- | --- |
 | <https://localhost> | Shop |
+| <https://localhost/katalog> | Shop-Katalog; Produktseiten unter `/produkte/{adresse}` |
 | <https://localhost/konto/registrieren> | Kundenkonto anlegen |
 | <https://localhost/admin> | Admin-Bereich „Stellwerk“ (Anmeldung mit dem Konto aus `make staff`) |
+| <https://localhost/admin/katalog> | Produkte anlegen und pflegen; Kategorien unter `/admin/katalog/kategorien` |
 | <http://localhost:8025> | Mailpit: hier landet jede E-Mail des Stacks |
 | <https://localhost/healthz>, <https://localhost/readyz> | Lebenszeichen der API, Bereitschaft inkl. Datenbank |
 
@@ -68,8 +86,12 @@ docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ~/modellbahn-
 
 Die Zertifizierungsstelle liegt im Volume `caddy-data` und bleibt über Neustarts erhalten.
 
-Stoppen mit `make down`; die Daten bleiben erhalten. Alles inklusive Datenbank und
+Stoppen mit `make down`; die Daten bleiben erhalten. Alles inklusive Datenbank, Fotos und
 Zertifikaten löschen: `docker compose down --volumes`.
+
+**Bestehende `.env` aus Schritt 2:** Der Objektspeicher braucht neue Werte. Den Block
+„Object storage“ aus [`.env.example`](.env.example) in die eigene `.env` übernehmen; fehlt er,
+bricht `make up` mit einem Hinweis auf die fehlende Variable ab.
 
 ## Make-Ziele
 
@@ -77,7 +99,7 @@ Zertifikaten löschen: `docker compose down --volumes`.
 
 | Ziel | Wirkung |
 | --- | --- |
-| `make up` | Stack bauen und starten: db, mailpit, migrate, api, worker, web, caddy |
+| `make up` | Stack bauen und starten: db, mailpit, storage, storage-init, migrate, api, worker, web, caddy |
 | `make down` | Stack stoppen, Daten bleiben erhalten |
 | `make logs` | Logs aller Dienste verfolgen; ein Dienst: `make logs SERVICE=worker` |
 | `make dev-db` | Nur PostgreSQL und Mailpit starten, für die Entwicklung ohne Container |
@@ -116,7 +138,9 @@ cd frontend && npm ci && npm run dev                 # Frontend auf http://local
 ```
 
 Im Entwicklungsmodus leitet Next.js `/api/*` an die API weiter, sodass Cookies auf demselben
-Ursprung bleiben. Das Backend liest seine Einstellungen nur aus `MB_*`-Umgebungsvariablen,
+Ursprung bleiben. Der Objektspeicher läuft nur im Compose-Stack: Ohne Container
+funktionieren Katalog und Shop, Fotos lassen sich aber nicht hochladen; dafür `make up`
+verwenden. Das Backend liest seine Einstellungen nur aus `MB_*`-Umgebungsvariablen,
 nicht aus `.env`. Sitzungscookies sind standardmäßig `Secure`; Chrome und Firefox nehmen sie
 auf `http://localhost` trotzdem an, Safari nicht. Dort hilft `MB_COOKIE_SECURE=false` (in
 Produktion verweigert das Backend diese Einstellung).
@@ -129,8 +153,10 @@ PostgreSQL-Container (`TEST_POSTGRES_IMAGE`, Standard `postgres:17-alpine`).
 ```text
 modellbahn-shop/
 ├── Makefile                    Einstiegspunkte, siehe oben
-├── docker-compose.yml          db, mailpit, migrate, api, worker, web, caddy
-├── Caddyfile                   HTTPS; /api/* an die API, alles andere an Next.js
+├── docker-compose.yml          db, mailpit, storage, storage-init, migrate, api, worker, web, caddy
+├── Caddyfile                   HTTPS; /api/* an die API, Uploads und /medien an den Speicher,
+│                               alles andere an Next.js
+├── infra/garage/garage.toml    Objektspeicher (Garage, ein Knoten)
 ├── .env.example                jede Variable des Stacks mit Entwicklungswert
 ├── .github/workflows/ci.yml
 ├── scripts/smoke_e2e.py        End-to-End-Test des laufenden Stacks (make smoke)
@@ -142,17 +168,20 @@ modellbahn-shop/
 │   ├── migrations/             Alembic, handgeschrieben
 │   ├── src/modellbahn/
 │   │   ├── main.py             FastAPI-Anwendung
-│   │   ├── worker.py           Outbox-Dispatcher (python -m modellbahn.worker)
-│   │   ├── cli.py              create-staff, export-openapi
+│   │   ├── worker.py           Outbox-Dispatcher und Bild-Pipeline (python -m modellbahn.worker)
+│   │   ├── cli.py              create-staff, unlock-staff, init-storage, export-openapi
 │   │   ├── platform/           gemeinsamer Kern ohne Fachlogik
-│   │   └── modules/identity/   domain, application, infrastructure, api, contracts
+│   │   └── modules/            je Modul domain, application, infrastructure, api, contracts
+│   │       ├── identity/       Kundenkonten, Mitarbeiter, Sitzungen
+│   │       ├── media/          Uploads, Bildstufen, Objektspeicher
+│   │       └── catalog/        Produkte, Spurweiten, Varianten, Kategorien, Galerie
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
     ├── Dockerfile
     ├── openapi.json            aus dem Backend exportiert, committet
     └── src/
-        ├── app/                Seiten: Startseite, /konto/…, /admin/…
-        ├── components/ui/
+        ├── app/                Seiten: Startseite, /katalog, /produkte/…, /konto/…, /admin/…
+        ├── components/ui/      Bausteine des Designsystems (Konzept §11.3)
         └── lib/api/generated/  von Orval erzeugter API-Client, committet
 ```
 
@@ -162,7 +191,8 @@ Die Regeln stammen aus [Konzept §3](docs/KONZEPT.md#3--systemarchitektur). Was 
 automatisch prüfen lässt, prüft die CI; ein Verstoß bricht den Build.
 
 **Module.** Jedes fachliche Modul liegt unter `backend/src/modellbahn/modules/<name>/` und
-besitzt ein eigenes PostgreSQL-Schema (heute nur `identity`; dazu `platform` für die Outbox).
+besitzt ein eigenes PostgreSQL-Schema (heute `identity`, `media` und `catalog`; dazu
+`platform` für die Outbox).
 Fremdschlüssel über Modulgrenzen zeigen nur auf Aggregatwurzeln und löschen nie kaskadierend.
 
 **Schichten im Modul.** `api` und `infrastructure` → `application` → `domain`. Die Domäne
@@ -220,8 +250,11 @@ Alle Einstellungen des Stacks kommen aus `.env`; [`.env.example`](.env.example) 
 jede Variable und taugt unverändert für die lokale Entwicklung. `.env` ist von Git
 ausgeschlossen. Für eine öffentliche Domain mindestens `SITE_ADDRESS`, `CADDY_TLS` (eine
 E-Mail-Adresse schaltet auf Let's Encrypt), `MB_PUBLIC_BASE_URL`, `MB_ENVIRONMENT=production`,
-`POSTGRES_PASSWORD` und die `MB_SMTP_*`-Werte eines echten Mailservers setzen. Der
-Produktionsbetrieb (Sicherungen, HSTS, ohne Mailpit) ist noch nicht Teil von Schritt 2.
+`POSTGRES_PASSWORD`, die `MB_SMTP_*`-Werte eines echten Mailservers und eigene Werte für
+`GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `MB_S3_ACCESS_KEY_ID` und `MB_S3_SECRET_ACCESS_KEY`
+setzen (`.env.example` zeigt, wie man sie erzeugt; in Produktion verweigert das Backend den
+Entwicklungsschlüssel). Der Produktionsbetrieb (Sicherungen von Datenbank und Objektspeicher,
+HSTS, ohne Mailpit) ist noch nicht Teil von Schritt 3.
 
 ### Hinter einem TLS-Proxy
 
@@ -239,6 +272,7 @@ x-build-ca: &build-ca
 
 services:
   migrate: *build-ca
+  storage-init: *build-ca
   api: *build-ca
   worker: *build-ca
   web: *build-ca
@@ -259,3 +293,4 @@ secrets:
   - [0005 Kundenkonten ab Start, Gastbestellung mit späterer Übernahme](docs/adr/0005-kundenkonten-ab-start-gastbestellung-mit-spaeterer-uebernahme.md)
   - [0006 UUIDv7 als Kennungen](docs/adr/0006-uuidv7-als-kennungen.md)
   - [0007 Helles Präzisionsdesign](docs/adr/0007-helles-praezisionsdesign.md)
+  - [0008 Objektspeicher und Medien-Pipeline](docs/adr/0008-objektspeicher-und-medien-pipeline.md)

@@ -6,6 +6,7 @@ Every error response has the media type ``application/problem+json`` and the bod
 part: the frontend translates it, titles and details stay English.
 """
 
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -94,6 +95,13 @@ class ConflictError(AppError):
     default_code = "conflict"
 
 
+class PreconditionFailedError(AppError):
+    """412: ``If-Match`` names a version that is no longer current."""
+
+    status = 412
+    default_code = "precondition_failed"
+
+
 class UnsupportedMediaTypeError(AppError):
     """415: the body is not JSON."""
 
@@ -102,14 +110,27 @@ class UnsupportedMediaTypeError(AppError):
 
 
 class ValidationFailedError(AppError):
-    """422: invalid input; ``errors`` names each offending field."""
+    """422: invalid input; ``errors`` names each offending field.
+
+    A more specific ``code`` marks a rule rather than plain input validation, e.g.
+    ``not_publishable`` with one entry per missing piece.
+    """
 
     status = 422
     default_code = "validation_failed"
 
-    def __init__(self, errors: Sequence[FieldError], detail: str | None = None) -> None:
-        super().__init__(detail or "The request contains invalid fields.")
+    def __init__(
+        self, errors: Sequence[FieldError], detail: str | None = None, *, code: str | None = None
+    ) -> None:
+        super().__init__(detail or "The request contains invalid fields.", code=code)
         self.errors = list(errors)
+
+
+class PreconditionRequiredError(AppError):
+    """428: the route overwrites state and needs ``If-Match`` with the version read."""
+
+    status = 428
+    default_code = "precondition_required"
 
 
 class TooManyRequestsError(AppError):
@@ -178,6 +199,44 @@ def problem_responses(codes: Mapping[int, Iterable[str]]) -> dict[int | str, dic
             },
         }
     return responses
+
+
+_CSRF_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {
+    403: ["csrf_header_missing"],
+    415: ["unsupported_media_type"],
+}
+_VALIDATION_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {422: ["validation_failed"]}
+# Every route of the modules reads or writes the database (if only to check the session).
+_DATABASE_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {503: ["database_unavailable"]}
+_RATE_LIMIT_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {429: ["too_many_requests"]}
+
+
+def problems(
+    codes: Mapping[int, Sequence[str]] | None = None,
+    *,
+    unsafe: bool = True,
+    validated: bool = True,
+    rate_limited: bool = False,
+) -> dict[int | str, dict[str, Any]]:
+    """OpenAPI ``responses`` of a module route: its own problem codes plus the common ones.
+
+    ``unsafe`` routes (POST, PUT, PATCH, DELETE) pass the CSRF guard; ``validated``
+    routes have a body or parameters that can fail validation; ``rate_limited`` routes
+    use a :func:`~modellbahn.platform.ratelimit.rate_limit` dependency. Every route can
+    find the database unavailable.
+    """
+    merged: defaultdict[int, list[str]] = defaultdict(list)
+    sources = (
+        _CSRF_PROBLEMS if unsafe else {},
+        _VALIDATION_PROBLEMS if validated else {},
+        _RATE_LIMIT_PROBLEMS if rate_limited else {},
+        _DATABASE_PROBLEMS,
+        codes or {},
+    )
+    for source in sources:
+        for status, status_codes in source.items():
+            merged[status].extend(status_codes)
+    return problem_responses(merged)
 
 
 def add_problem_schemas(openapi_schema: dict[str, Any]) -> dict[str, Any]:

@@ -13,7 +13,14 @@ export const ADMIN_EVENTS_URL = "/api/v1/admin/events";
 export const STAFF_EVENT_LABELS = {
   "identity.customer.registered": "Neue Registrierung",
   "identity.account.email_verified": "E-Mail-Adresse bestätigt",
+  "catalog.product.published": "Produkt veröffentlicht",
+  "catalog.product.archived": "Produkt archiviert",
+  "media.asset.ready": "Foto verarbeitet",
+  "media.asset.failed": "Foto unbrauchbar",
 } as const satisfies Record<string, string>;
+
+/** The media events, for pages that wait for their uploads (the product editor). */
+export const MEDIA_EVENT_TYPES = ["media.asset.ready", "media.asset.failed"] as const;
 
 export type StaffEventType = keyof typeof STAFF_EVENT_LABELS;
 
@@ -34,6 +41,12 @@ const accountPayloadSchema = z.object({
   display_name: z.string(),
 });
 
+/** Public payload of the catalogue events. */
+const productPayloadSchema = z.object({ product_id: z.string(), name: z.string() });
+
+/** Public payload of the media events: the page fetches the asset itself. */
+const assetPayloadSchema = z.object({ asset_id: z.string() });
+
 export type FeedEntry = {
   id: string;
   type: string;
@@ -41,6 +54,8 @@ export type FeedEntry = {
   occurredAt: Date;
   /** Who the event is about, when the payload names an account. */
   account?: { id: string; displayName: string };
+  /** What the event is about otherwise, e.g. the product's name. */
+  subject?: string;
   truncated: boolean;
 };
 
@@ -63,17 +78,35 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
     return null;
   }
   const event = parsed.data;
-  const payload = accountPayloadSchema.safeParse(event.data);
+  const account = accountPayloadSchema.safeParse(event.data);
+  const product = productPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
     label: labelFor(event.type),
     occurredAt: new Date(event.occurred_at),
-    ...(payload.success && {
-      account: { id: payload.data.account_id, displayName: payload.data.display_name },
+    ...(account.success && {
+      account: { id: account.data.account_id, displayName: account.data.display_name },
     }),
+    ...(product.success && { subject: product.data.name }),
     truncated: event.truncated,
   };
+}
+
+/** The asset an SSE message of the media events is about; null for anything else. */
+export function assetIdOf(raw: string): string | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const parsed = realtimeEventSchema.safeParse(json);
+  if (!parsed.success) {
+    return null;
+  }
+  const payload = assetPayloadSchema.safeParse(parsed.data.data);
+  return payload.success ? payload.data.asset_id : null;
 }
 
 /** Newest first, without duplicates (a replay after reconnecting may repeat events). */

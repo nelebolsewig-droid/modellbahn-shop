@@ -12,7 +12,18 @@ from modellbahn.modules.identity.domain.model import AccountKind, AccountStatus,
 from modellbahn.modules.identity.infrastructure.tables import accounts
 from modellbahn.platform.uow import UnitOfWork
 
-__all__ = ["AccountKind", "AccountSummary", "StaffRole", "get_account_summary"]
+__all__ = [
+    "ACCOUNT_REFERENCE",
+    "AccountKind",
+    "AccountSummary",
+    "StaffRole",
+    "get_account_summary",
+]
+
+ACCOUNT_REFERENCE = "identity.accounts.id"
+"""Target for another module's foreign key to an account (``ON DELETE SET NULL`` or
+``RESTRICT``). Importing it also puts the accounts table on the shared metadata, which
+SQLAlchemy needs to resolve the key."""
 
 
 @dataclass(frozen=True, slots=True)

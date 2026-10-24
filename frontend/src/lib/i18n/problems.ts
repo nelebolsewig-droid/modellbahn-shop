@@ -19,6 +19,33 @@ export const PROBLEM_MESSAGES: Messages = {
   invalid_password: "Das Passwort ist nicht richtig.",
   not_authenticated: "Du bist nicht mehr angemeldet. Bitte melde dich erneut an.",
 
+  // Roles
+  insufficient_role: "Deine Rolle erlaubt das nicht. Bitte wende dich an den Inhaber.",
+
+  // Catalogue
+  product_not_found: "Dieses Produkt gibt es nicht (mehr).",
+  product_scale_not_found: "Diese Spurweite gibt es an dem Produkt nicht mehr.",
+  variant_not_found: "Diese Variante gibt es nicht mehr.",
+  category_not_found: "Diese Kategorie gibt es nicht.",
+  slug_taken: "Diese Adresse ist schon vergeben. Bitte wähle eine andere.",
+  slug_locked: "Die Adresse eines veröffentlichten Produkts bleibt fest, weil Links darauf zeigen.",
+  scale_exists: "Das Produkt gibt es schon in dieser Spurweite.",
+  variant_exists: "Diese Ausführung gibt es in der Spurweite schon.",
+  invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
+  product_not_deletable:
+    "Nur Entwürfe, die nie im Shop waren, lassen sich löschen. Archiviere das Produkt stattdessen.",
+  not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
+  precondition_failed:
+    "Jemand hat das Produkt inzwischen geändert. Lade den aktuellen Stand und übernimm deine Änderung dann erneut.",
+  precondition_required: "Die Änderung braucht den gelesenen Stand. Bitte lade die Seite neu.",
+
+  // Media
+  asset_not_found: "Dieses Bild gibt es nicht mehr.",
+  upload_missing: "Die Datei ist nicht im Speicher angekommen. Bitte lade sie erneut hoch.",
+  upload_size_mismatch: "Die Datei kam unvollständig an. Bitte lade sie erneut hoch.",
+  invalid_asset_state: "Das ist im aktuellen Zustand des Bildes nicht möglich.",
+  asset_in_use: "Das Bild wird noch verwendet, zum Beispiel in einer Galerie.",
+
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",
   csrf_header_missing:
@@ -61,6 +88,16 @@ export const FIELD_MESSAGES: Messages = {
   invalid_json: "Die Anfrage war fehlerhaft. Bitte lade die Seite neu.",
   unknown_field: "Die Anfrage enthielt ein unbekanntes Feld. Bitte lade die Seite neu.",
   equals_email: "Das Passwort darf nicht deine E-Mail-Adresse sein.",
+  unknown: "Diesen Eintrag gibt es nicht.",
+  out_of_range: "Der Wert liegt außerhalb des erlaubten Bereichs.",
+  duplicate: "Dieser Eintrag ist doppelt.",
+  cycle: "Eine Kategorie kann nicht unter sich selbst liegen.",
+  not_above_price: "Der frühere Preis muss über dem Preis liegen.",
+  not_uploaded: "Das Bild ist noch nicht vollständig hochgeladen.",
+  gallery_full: "Die Galerie ist voll (höchstens 40 Bilder).",
+  unsupported_type: "Bilder bitte als JPEG, PNG, WebP, AVIF oder HEIC.",
+  too_large: "Die Datei ist größer als 50 MB.",
+  invalid_filename: "Der Dateiname ist leer oder zu lang.",
 };
 
 const PASSWORD_MESSAGES: Messages = {
@@ -82,6 +119,11 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
   password: PASSWORD_MESSAGES,
   new_password: PASSWORD_MESSAGES,
   token: { too_short: INVALID_LINK, too_long: INVALID_LINK, invalid: INVALID_LINK },
+  slug: {
+    invalid: "Nur Kleinbuchstaben, Ziffern und einzelne Bindestriche, z. B. stellwerk-altenau.",
+    too_long: "Die Adresse darf höchstens 80 Zeichen lang sein.",
+  },
+  name: { required: "Bitte gib einen Namen ein.", too_long: "Der Name ist zu lang." },
 };
 
 function lookup(messages: Messages | undefined, key: string): string | undefined {

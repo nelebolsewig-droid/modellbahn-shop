@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -200,6 +201,8 @@ async def test_worker_process_stops_gracefully_on_sigterm(settings: Settings) ->
         **os.environ,
         "MB_DATABASE_URL": settings.database_url,
         "MB_ENVIRONMENT": "production",
+        # Production refuses the development key of .env.example.
+        "MB_S3_ACCESS_KEY_ID": "GK000000000000000000000001",
         "MB_LOG_LEVEL": "INFO",
     }
     process = await asyncio.create_subprocess_exec(
@@ -214,8 +217,12 @@ async def test_worker_process_stops_gracefully_on_sigterm(settings: Settings) ->
     assert process.stdout is not None
     try:
         async with asyncio.timeout(20):
-            while b"outbox.dispatcher.started" not in await process.stdout.readline():
-                pass
+            while True:
+                line = await process.stdout.readline()
+                # At end of output readline returns at once, so the timeout would never fire.
+                assert line, "the worker exited before the dispatcher started"
+                if b"outbox.dispatcher.started" in line:
+                    break
         process.send_signal(signal.SIGTERM)
         async with asyncio.timeout(10):
             remaining = await process.stdout.read()
@@ -230,3 +237,26 @@ async def test_worker_process_stops_gracefully_on_sigterm(settings: Settings) ->
     events = [line["event"] for line in lines]
     assert "worker.stopping" in events
     assert "outbox.dispatcher.stopped" in events
+
+
+def test_the_worker_knows_every_event_type_of_the_api() -> None:
+    # Separate interpreters: in this one the tests have imported every module already.
+    def event_types(module: str) -> list[str]:
+        script = (
+            f"import {module}\n"
+            "from modellbahn.platform.events import event_registry\n"
+            "print('\\n'.join(event_registry.event_types()))\n"
+        )
+        result = subprocess.run(  # noqa: S603
+            [sys.executable, "-c", script],
+            cwd=BACKEND_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "MB_LOG_LEVEL": "WARNING"},
+        )
+        return result.stdout.split()
+
+    api = event_types("modellbahn.main")
+    assert "catalog.product.published" in api
+    assert event_types("modellbahn.worker") == api

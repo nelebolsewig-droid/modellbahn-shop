@@ -13,16 +13,17 @@ from httpx import ASGITransport, AsyncClient
 from modellbahn.main import create_app
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.identity.domain.model import StaffRole
+from modellbahn.modules.media.application.services import MediaService
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.mail import InMemoryMailer
 from tests.api.helpers import (
-    ADMIN,
     PASSWORD,
     STAFF_EMAIL,
     STORE,
     ClientFactory,
     register,
+    staff_login,
 )
 from tests.conftest import PUBLIC_BASE_URL, Deliver
 from tests.support import CSRF_HEADERS, token_from
@@ -40,8 +41,10 @@ def clock() -> FixedClock:
 
 
 @pytest.fixture
-async def app(settings: Settings) -> AsyncIterator[FastAPI]:
+async def app(settings: Settings, media: MediaService) -> AsyncIterator[FastAPI]:
     app = create_app(settings)
+    # Uploads go to the test's in-memory storage instead of an S3 server.
+    app.state.media_service = media
     async with LifespanManager(app):
         yield app
 
@@ -89,8 +92,18 @@ async def staff_client(
         email=STAFF_EMAIL, display_name="Chefin", role=StaffRole.OWNER, password=PASSWORD
     )
     async with make_client() as client:
-        response = await client.post(
-            f"{ADMIN}/session", json={"email": STAFF_EMAIL, "password": PASSWORD}
-        )
-        assert response.status_code == 200, response.text
+        await staff_login(client, STAFF_EMAIL)
+        yield client
+
+
+@pytest.fixture
+async def packer_client(
+    make_client: ClientFactory, identity: IdentityService
+) -> AsyncIterator[AsyncClient]:
+    """A client logged in to the admin area as packer, who may only scan and pack."""
+    await identity.create_staff(
+        email="packer@example.com", display_name="Paul", role=StaffRole.PACKER, password=PASSWORD
+    )
+    async with make_client() as client:
+        await staff_login(client, "packer@example.com")
         yield client

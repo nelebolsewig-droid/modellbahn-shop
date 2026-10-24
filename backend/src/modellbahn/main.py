@@ -8,6 +8,16 @@ from typing import Any, Final
 from fastapi import APIRouter, Depends, FastAPI
 
 from modellbahn import __version__
+from modellbahn.modules.catalog.api import admin as catalog_admin
+from modellbahn.modules.catalog.api import store as catalog_store
+from modellbahn.modules.catalog.api.errors import (
+    install_error_translations as install_catalog_error_translations,
+)
+from modellbahn.modules.catalog.application.services import CatalogService
+from modellbahn.modules.catalog.infrastructure.mapping import (
+    start_mappers as start_catalog_mappers,
+)
+from modellbahn.modules.catalog.infrastructure.repositories import catalog_uow_factory
 from modellbahn.modules.identity.api import admin as identity_admin
 from modellbahn.modules.identity.api import store as identity_store
 from modellbahn.modules.identity.api.deps import (
@@ -15,15 +25,31 @@ from modellbahn.modules.identity.api.deps import (
     current_staff,
     staff_session_is_valid,
 )
-from modellbahn.modules.identity.api.errors import install_error_translations, problems
+from modellbahn.modules.identity.api.errors import (
+    install_error_translations as install_identity_error_translations,
+)
 from modellbahn.modules.identity.application.services import IdentityService
-from modellbahn.modules.identity.infrastructure.mapping import start_mappers
+from modellbahn.modules.identity.infrastructure.mapping import (
+    start_mappers as start_identity_mappers,
+)
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.media.api import admin as media_admin
+from modellbahn.modules.media.api.errors import (
+    install_error_translations as install_media_error_translations,
+)
+from modellbahn.modules.media.application.services import MediaService
+from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
+from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
+from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.platform import http
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
-from modellbahn.platform.errors import add_problem_schemas, install_exception_handlers
+from modellbahn.platform.errors import (
+    add_problem_schemas,
+    install_exception_handlers,
+    problems,
+)
 from modellbahn.platform.events import event_registry
 from modellbahn.platform.lifecycle import on_exit_signal
 from modellbahn.platform.logging import RequestContextMiddleware, configure_logging
@@ -43,8 +69,11 @@ API of the Modellbahn-Shop.
 """
 
 _TAGS: Final = [
+    {"name": "store-catalog", "description": "Products of the shop, public."},
     {"name": "store-account", "description": "Customer accounts of the shop."},
     {"name": "admin-auth", "description": "Staff login for the admin area."},
+    {"name": "admin-catalog", "description": "Products, gauges, variants, galleries."},
+    {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -62,11 +91,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     engine = create_engine(settings.database_url)
     session_factory = create_session_factory(engine)
-    start_mappers()
+    start_identity_mappers()
+    start_media_mappers()
+    start_catalog_mappers()
+    clock = SystemClock()
     identity_service = IdentityService(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
         hasher=Argon2PasswordHasher.from_settings(settings),
-        clock=SystemClock(),
+        clock=clock,
+    )
+    media_service = MediaService(
+        uow_factory=partial(SqlMediaUnitOfWork, session_factory),
+        storage=S3MediaStorage.from_settings(settings),
+        clock=clock,
+    )
+    catalog_service = CatalogService(
+        uow_factory=catalog_uow_factory(
+            session_factory, public_base_url=settings.media_public_base_url
+        ),
+        clock=clock,
     )
     hub = RealtimeHub(asyncpg_dsn(settings.database_url))
 
@@ -98,6 +141,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.identity_service = identity_service
+    app.state.media_service = media_service
+    app.state.catalog_service = catalog_service
     app.state.realtime_hub = hub
     setattr(
         app.state,
@@ -109,11 +154,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)
-    install_error_translations(app)
+    install_identity_error_translations(app)
+    install_media_error_translations(app)
+    install_catalog_error_translations(app)
 
     api = APIRouter(prefix=API_PREFIX)
+    api.include_router(catalog_store.router)
     api.include_router(identity_store.router)
     api.include_router(identity_admin.router)
+    api.include_router(catalog_admin.router)
+    api.include_router(media_admin.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,

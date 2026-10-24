@@ -18,10 +18,22 @@ from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from modellbahn.modules.catalog.application.services import CatalogService
+from modellbahn.modules.catalog.application.services import (
+    UnitOfWorkFactory as CatalogUnitOfWorkFactory,
+)
+from modellbahn.modules.catalog.infrastructure.repositories import catalog_uow_factory
 from modellbahn.modules.identity.application.handlers import IdentityMailHandlers
 from modellbahn.modules.identity.application.services import IdentityService, UnitOfWorkFactory
 from modellbahn.modules.identity.infrastructure.mapping import start_mappers
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
+from modellbahn.modules.media.application.services import MediaService
+from modellbahn.modules.media.application.services import (
+    UnitOfWorkFactory as MediaUnitOfWorkFactory,
+)
+from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
+from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.config import Environment, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -29,11 +41,13 @@ from modellbahn.platform.events import event_registry
 from modellbahn.platform.mail import InMemoryMailer
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher
 from modellbahn.platform.security import Argon2PasswordHasher
+from tests.media_support import InMemoryMediaStorage
 from tests.support import create_database, drop_database, migrate
 
 DEFAULT_POSTGRES_IMAGE = "postgres:17-alpine"
 PUBLIC_BASE_URL = "https://shop.test"
 SHOP_NAME = "Modellbahn-Shop"
+MEDIA_BASE_URL = "/medien"
 
 
 @pytest.fixture(scope="session")
@@ -84,6 +98,7 @@ def settings(database_url: str) -> Settings:
         # Tests log in and register far more often than a person; test_rate_limit
         # switches the limit on for itself.
         auth_rate_limit=0,
+        media_public_base_url=MEDIA_BASE_URL,
         log_level="WARNING",
     )
 
@@ -101,16 +116,30 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return create_session_factory(engine)
 
 
+# Every table a test can write to. The catalogue's reference data (gauges, finishes,
+# epochs) comes from the migration and stays.
+WRITABLE_TABLES = (
+    "platform.outbox",
+    "catalog.product_media",
+    "catalog.variants",
+    "catalog.product_scales",
+    "catalog.product_epochs",
+    "catalog.products",
+    "catalog.categories",
+    "media.renditions",
+    "media.image_details",
+    "media.assets",
+    "identity.account_tokens",
+    "identity.sessions",
+    "identity.accounts",
+)
+
+
 @pytest.fixture
 async def clean_database(engine: AsyncEngine) -> None:
     """Empty every table, so that each test starts from scratch."""
     async with engine.begin() as connection:
-        await connection.execute(
-            text(
-                "TRUNCATE platform.outbox, identity.account_tokens, identity.sessions, "
-                "identity.accounts"
-            )
-        )
+        await connection.execute(text(f"TRUNCATE {', '.join(WRITABLE_TABLES)}"))
 
 
 @pytest.fixture
@@ -153,16 +182,66 @@ def mail_handlers(
     )
 
 
+@pytest.fixture
+def media_storage() -> InMemoryMediaStorage:
+    return InMemoryMediaStorage()
+
+
+@pytest.fixture
+def media_uow_factory(session_factory: async_sessionmaker[AsyncSession]) -> MediaUnitOfWorkFactory:
+    return partial(SqlMediaUnitOfWork, session_factory)
+
+
+@pytest.fixture
+def media(
+    media_uow_factory: MediaUnitOfWorkFactory,
+    media_storage: InMemoryMediaStorage,
+    clock: FixedClock,
+) -> MediaService:
+    return MediaService(uow_factory=media_uow_factory, storage=media_storage, clock=clock)
+
+
+@pytest.fixture(scope="session")
+def image_processor() -> PillowImageProcessor:
+    return PillowImageProcessor()
+
+
+@pytest.fixture
+def media_handlers(
+    media_uow_factory: MediaUnitOfWorkFactory,
+    media_storage: InMemoryMediaStorage,
+    image_processor: PillowImageProcessor,
+    clock: FixedClock,
+) -> MediaProcessingHandlers:
+    return MediaProcessingHandlers(
+        uow_factory=media_uow_factory, storage=media_storage, processor=image_processor, clock=clock
+    )
+
+
+@pytest.fixture
+def catalog_uow(session_factory: async_sessionmaker[AsyncSession]) -> CatalogUnitOfWorkFactory:
+    return catalog_uow_factory(session_factory, public_base_url=MEDIA_BASE_URL)
+
+
+@pytest.fixture
+def catalog(catalog_uow: CatalogUnitOfWorkFactory, clock: FixedClock) -> CatalogService:
+    return CatalogService(uow_factory=catalog_uow, clock=clock)
+
+
 type Deliver = Callable[[], Awaitable[int]]
 
 
 @pytest.fixture
 def deliver(
-    engine: AsyncEngine, settings: Settings, mail_handlers: IdentityMailHandlers
+    engine: AsyncEngine,
+    settings: Settings,
+    mail_handlers: IdentityMailHandlers,
+    media_handlers: MediaProcessingHandlers,
 ) -> Deliver:
-    """Run one batch of the real outbox dispatcher with the identity handlers."""
+    """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
     mail_handlers.register(handlers)
+    media_handlers.register(handlers)
     dispatcher = OutboxDispatcher(
         engine=engine,
         listen_dsn=asyncpg_dsn(settings.database_url),

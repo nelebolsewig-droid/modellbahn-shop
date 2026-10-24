@@ -1,7 +1,6 @@
 """How identity errors appear in the API: status, problem code and documentation."""
 
-from collections import defaultdict
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any, Final
 
@@ -25,7 +24,6 @@ from modellbahn.platform.errors import (
     UnauthorizedError,
     ValidationFailedError,
     add_error_translation,
-    problem_responses,
 )
 
 _PASSWORD_RULE_MESSAGES: Final = {
@@ -33,42 +31,6 @@ _PASSWORD_RULE_MESSAGES: Final = {
     PasswordRule.TOO_LONG: "The password is too long.",
     PasswordRule.EQUALS_EMAIL: "The password must not be the e-mail address.",
 }
-
-_CSRF_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {
-    403: ["csrf_header_missing"],
-    415: ["unsupported_media_type"],
-}
-_VALIDATION_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {422: ["validation_failed"]}
-# Every identity route reads or writes the database (if only to check the session).
-_DATABASE_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {503: ["database_unavailable"]}
-_RATE_LIMIT_PROBLEMS: Final[Mapping[int, Sequence[str]]] = {429: ["too_many_requests"]}
-
-
-def problems(
-    codes: Mapping[int, Sequence[str]] | None = None,
-    *,
-    unsafe: bool = True,
-    validated: bool = True,
-    rate_limited: bool = False,
-) -> dict[int | str, dict[str, Any]]:
-    """OpenAPI ``responses`` of a route: its own problem codes plus the common ones.
-
-    ``unsafe`` routes (POST, PUT, PATCH, DELETE) pass the CSRF guard; ``validated``
-    routes have a body or parameters that can fail validation; ``rate_limited`` routes
-    use ``limit_auth_requests``. Every route can find the database unavailable.
-    """
-    merged: defaultdict[int, list[str]] = defaultdict(list)
-    sources = (
-        _CSRF_PROBLEMS if unsafe else {},
-        _VALIDATION_PROBLEMS if validated else {},
-        _RATE_LIMIT_PROBLEMS if rate_limited else {},
-        _DATABASE_PROBLEMS,
-        codes or {},
-    )
-    for source in sources:
-        for status, status_codes in source.items():
-            merged[status].extend(status_codes)
-    return problem_responses(merged)
 
 
 def password_policy_problem(

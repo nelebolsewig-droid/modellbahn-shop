@@ -56,6 +56,8 @@
 
   --animate-lamp-pulse: lamp-pulse 1.6s ease-in-out infinite;
   --animate-feed-in: feed-in 320ms ease-out;
+  /* The product stage swaps its photo by cross-fading (§11.3: 320 ms). */
+  --animate-stage-in: stage-in 320ms ease-out;
 
   @keyframes lamp-pulse {
     0%,
@@ -64,6 +66,15 @@
     }
     50% {
       opacity: 0.35;
+    }
+  }
+
+  @keyframes stage-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 

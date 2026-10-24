@@ -110,6 +110,10 @@ class EventRegistry:
         except KeyError:
             raise UnknownEventTypeError(event_type) from None
 
+    def event_types(self) -> list[str]:
+        """Every registered event type."""
+        return sorted(self._classes)
+
     def event_types_for(self, audience: str) -> list[str]:
         """All registered event types that are delivered to ``audience``."""
         return sorted(name for name, cls in self._classes.items() if audience in cls.audience)

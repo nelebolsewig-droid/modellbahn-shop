@@ -12,6 +12,8 @@ from modellbahn.platform.errors import _field_error
 from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
 
+OWN_KEY = "GK0123456789abcdef01234567"
+
 
 class TestSettings:
     def test_reads_prefixed_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -29,8 +31,24 @@ class TestSettings:
 
     def test_production_refuses_insecure_cookies(self) -> None:
         with pytest.raises(ValidationError, match="MB_COOKIE_SECURE"):
-            Settings(environment=Environment.PRODUCTION, cookie_secure=False)
-        assert Settings(environment=Environment.PRODUCTION).is_production
+            Settings(
+                environment=Environment.PRODUCTION, cookie_secure=False, s3_access_key_id=OWN_KEY
+            )
+        assert Settings(environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY).is_production
+
+    def test_production_refuses_the_development_storage_key(self) -> None:
+        with pytest.raises(ValidationError, match="development storage key"):
+            Settings(environment=Environment.PRODUCTION)
+
+    def test_normalises_storage_urls(self) -> None:
+        settings = Settings(
+            s3_endpoint_url="http://storage:3900/",
+            s3_public_endpoint_url="https://shop.example/",
+            media_public_base_url="https://cdn.example/medien/",
+        )
+        assert settings.s3_endpoint_url == "http://storage:3900"
+        assert settings.s3_public_endpoint_url == "https://shop.example"
+        assert settings.media_public_base_url == "https://cdn.example/medien"
 
     @pytest.mark.parametrize(
         ("field", "value"),

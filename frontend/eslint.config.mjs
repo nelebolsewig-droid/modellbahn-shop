@@ -13,7 +13,14 @@ export default defineConfig([
     // rules as warnings; the shop has to be accessible, so the full recommended set applies.
     name: "modellbahn/accessibility",
     files: ["**/*.tsx"],
-    rules: jsxA11y.flatConfigs.recommended.rules,
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // Our form controls render a native <input>, <select> or <textarea> inside.
+      "jsx-a11y/label-has-associated-control": [
+        "error",
+        { controlComponents: ["Input", "Select", "Textarea", "PasswordInput"], depth: 3 },
+      ],
+    },
   },
   {
     name: "modellbahn/rules",

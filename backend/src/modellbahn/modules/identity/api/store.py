@@ -13,7 +13,7 @@ from modellbahn.modules.identity.api.deps import (
     SettingsDep,
     limit_auth_requests,
 )
-from modellbahn.modules.identity.api.errors import password_field, problems
+from modellbahn.modules.identity.api.errors import password_field
 from modellbahn.modules.identity.api.schemas import (
     AccountDeletionIn,
     AccountOut,
@@ -28,6 +28,7 @@ from modellbahn.modules.identity.api.schemas import (
     RequestAcceptedOut,
 )
 from modellbahn.modules.identity.domain.model import AccountKind
+from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/store/account", tags=["store-account"])
 
