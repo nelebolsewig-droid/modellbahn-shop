@@ -239,6 +239,7 @@ x-build-ca: &build-ca
 
 services:
   migrate: *build-ca
+  storage-init: *build-ca
   api: *build-ca
   worker: *build-ca
   web: *build-ca

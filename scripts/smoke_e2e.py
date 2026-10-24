@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """End-to-end smoke test of the running stack: ``make smoke`` (after ``make up``).
 
-Drives the demo of step 2 through Caddy the way the browser does: start page,
+Drives the demos of steps 2 and 3 through Caddy the way the browser does: start page,
 registration, verification mail in Mailpit, verification with login, logout, password
-reset, staff login and the live event stream of the "Stellwerk" - plus the boundaries
-that keep it safe: shop and admin sessions do not mix, and state-changing requests
-without the CSRF header are refused.
+reset, staff login and the live event stream of the "Stellwerk"; then a product with
+gauge and variants, a photo uploaded straight into the object storage with a signed
+URL, its sizes appearing live, publishing and the shop's pages - plus the boundaries
+that keep it safe: shop and admin sessions do not mix, state-changing requests without
+the CSRF header are refused, and the storage takes only signed uploads.
 
 Every step prints one German line with ✓ or ✗. The first failure ends the run with
 exit code 1, because later steps build on earlier ones.
@@ -20,6 +22,7 @@ internal root certificate with --ca-file.
 # ruff: noqa: T201
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import os
@@ -27,6 +30,7 @@ import queue
 import re
 import secrets
 import ssl
+import struct
 import sys
 import threading
 import time
@@ -35,6 +39,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+import zlib
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from email.message import Message
@@ -46,6 +51,8 @@ API: Final = "/api/v1"
 STORE: Final = f"{API}/store/account"
 ADMIN_AUTH: Final = f"{API}/admin/auth"
 ADMIN_EVENTS: Final = f"{API}/admin/events"
+ADMIN: Final = f"{API}/admin"
+SHOP: Final = f"{API}/store"
 
 CLIENT_HEADER: Final = "X-Modellbahn-Client"
 CUSTOMER_COOKIE: Final = "mb_session"
@@ -53,6 +60,9 @@ STAFF_COOKIE: Final = "mb_admin"
 
 REGISTERED: Final = "identity.customer.registered"
 EMAIL_VERIFIED: Final = "identity.account.email_verified"
+ASSET_READY: Final = "media.asset.ready"
+PRODUCT_PUBLISHED: Final = "catalog.product.published"
+SMOKE_CATEGORY: Final = "smoke-test"
 
 HTTP_TIMEOUT: Final = 15.0
 MAIL_TIMEOUT: Final = 30.0
@@ -237,6 +247,22 @@ class Browser:
         return self._send(
             method, path, accept=JSON_ACCEPT, body=body, headers=headers, cookies=cookies
         )
+
+    def upload(self, url: str, data: bytes, headers: Mapping[str, str]) -> Response:
+        """PUT raw bytes to a signed storage URL, as the admin area's upload does."""
+        parts = urllib.parse.urlsplit(url)
+        expect(
+            f"{parts.scheme}://{parts.netloc}" == self.base_url,
+            f"Upload-URL zeigt nicht auf {self.base_url}: {url[:120]}",
+        )
+        path = parts.path + (f"?{parts.query}" if parts.query else "")
+        request = self._request("PUT", path, headers=dict(headers), cookies={}, data=data)
+        try:
+            with self._opener.open(request, timeout=HTTP_TIMEOUT) as raw:
+                return Response(raw.status, raw.headers, raw.read())
+        except urllib.error.HTTPError as error:
+            with error:
+                return Response(error.code, error.headers, error.read())
 
     def open_stream(self, path: str, *, last_event_id: str | None = None) -> "EventStream":
         headers = {"Accept": "text/event-stream", "Cache-Control": "no-cache"}
@@ -470,6 +496,43 @@ def _unique(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(5)}"
 
 
+def sample_png(width: int = 640, height: int = 480) -> bytes:
+    """A small photo-like PNG (gradient with a stripe), written with zlib alone."""
+    seed = secrets.randbelow(200)
+    rows = bytearray()
+    for y in range(height):
+        rows.append(0)  # filter type "none"
+        for x in range(width):
+            stripe = width // 3 < x < width // 3 + 40
+            rows += (
+                bytes((20, 20, 20))
+                if stripe
+                else bytes(((x * 255) // width, (y * 255) // height, seed))
+            )
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        crc = zlib.crc32(kind + payload) & 0xFFFFFFFF
+        return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", crc)
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(bytes(rows), 6))
+        + chunk(b"IEND", b"")
+    )
+
+
+EAN13_LENGTH: Final = 13
+
+
+def ean13_valid(gtin: str) -> bool:
+    if len(gtin) != EAN13_LENGTH or not gtin.isdigit():
+        return False
+    total = sum(int(digit) * (3 if index % 2 else 1) for index, digit in enumerate(gtin[:12]))
+    return (10 - total % 10) % 10 == int(gtin[12])
+
+
 @dataclass
 class Customer:
     email: str
@@ -510,6 +573,10 @@ class Demo:
         self._verify_token = ""
         self._reset_token = ""
         self._old_password = ""
+        self._product: dict[str, Any] = {}
+        self._etag = ""
+        self._asset: dict[str, Any] = {}
+        self._product_name = f"Smoke-Stellwerk {tag[-6:]}"
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -534,6 +601,15 @@ class Demo:
             ("Stellwerk /admin nur mit Admin-Sitzung", self.admin_page),
             ("Ereignisstrom mit Last-Event-ID spielt die Registrierung nach", self.replay),
             ("Neue Registrierung erscheint live im Ereignisstrom", self.live_event),
+            ("Katalog: Produktentwurf mit ETag, PATCH nur mit If-Match", self.product_draft),
+            ("Spurweite H0 mit zwei Varianten, SKU und interner EAN", self.variants),
+            ("Speicher nimmt nur signierte Uploads an (403)", self.unsigned_upload),
+            ("Foto: Ticket, signierter PUT über Caddy, Abschluss", self.upload_photo),
+            ("Bildstufen erscheinen live (media.asset.ready)", self.photo_ready),
+            ("Bildstufen öffentlich unter /medien, Cache-Control immutable", self.renditions),
+            ("Veröffentlichen mit If-Match, Ereignis im Stellwerk", self.publish),
+            ("Shop: Liste, Produktdaten und Produktseite", self.shop),
+            ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
             ("Kunden-Sitzung wird im Admin-Bereich abgelehnt (401)", self.customer_on_admin),
             ("Admin-Sitzung wird im Shop abgelehnt (401)", self.staff_on_store),
             ("Ohne X-Modellbahn-Client: 403 problem+json", self.csrf),
@@ -779,6 +855,218 @@ class Demo:
             what=f"Live-Ereignis für „{name}“",
         )
         return f"nach {time.monotonic() - sent_at:.1f} s ({event.id})"
+
+    # Catalogue and media --------------------------------------------------------------
+
+    def _staff(
+        self,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+        *,
+        if_match: str | None = None,
+    ) -> Response:
+        if if_match is None:
+            return self.staff_browser.api(method, path, body)
+        return self.staff_browser._send(  # one extra header
+            method,
+            path,
+            accept=JSON_ACCEPT,
+            body=body,
+            headers={CLIENT_HEADER: "web", "If-Match": if_match},
+            cookies=None,
+        )
+
+    def _remember(self, response: Response) -> dict[str, Any]:
+        product: dict[str, Any] = response.json()
+        self._product = product
+        self._etag = response.headers.get("ETag", "")
+        expect(self._etag == f'"{product["version"]}"', f"ETag {self._etag!r} passt nicht")
+        return product
+
+    def _category_id(self) -> str:
+        listed = self._staff("GET", f"{ADMIN}/categories")
+        expect_status(listed, 200, "Kategorien lesen")
+        for category in listed.json():
+            if category["slug"] == SMOKE_CATEGORY:
+                return str(category["id"])
+        created = self._staff(
+            "POST", f"{ADMIN}/categories", {"name": "Smoke-Test", "slug": SMOKE_CATEGORY}
+        )
+        expect_status(created, 201, "Kategorie anlegen")
+        return str(created.json()["id"])
+
+    def product_draft(self) -> str | None:
+        category_id = self._category_id()
+        created = self._staff("POST", f"{ADMIN}/products", {"name": self._product_name})
+        expect_status(created, 201, "Produkt anlegen")
+        product = self._remember(created)
+        expect(product["status"] == "draft", f"Neues Produkt ist {product['status']}")
+        path = f"{ADMIN}/products/{product['id']}"
+        changes = {
+            "summary": "Hebelstellwerk aus dem Smoke-Test",
+            "primary_category_id": category_id,
+            "epoch_codes": ["III"],
+        }
+        expect_problem(
+            self._staff("PATCH", path, changes), 428, "precondition_required", "PATCH ohne If-Match"
+        )
+        expect_problem(
+            self._staff("PATCH", path, changes, if_match='"999"'),
+            412,
+            "precondition_failed",
+            "PATCH mit veralteter Version",
+        )
+        changed = self._staff("PATCH", path, changes, if_match=self._etag)
+        expect_status(changed, 200, "PATCH mit If-Match")
+        self._remember(changed)
+        return f"{product['slug']} · ETag {self._etag}"
+
+    def variants(self) -> str | None:
+        product_id = self._product["id"]
+        scale = self._staff(
+            "POST",
+            f"{ADMIN}/products/{product_id}/scales",
+            {"scale_code": "H0", "length_mm": 112.5, "weight_g": 85},
+        )
+        expect_status(scale, 201, "Spurweite H0")
+        scale_id = scale.json()["scales"][0]["id"]
+        for finish, price in (("unpainted", 3490), ("painted", 7990)):
+            variant = self._staff(
+                "POST",
+                f"{ADMIN}/product-scales/{scale_id}/variants",
+                {"finish_code": finish, "price_cents": price},
+            )
+            expect_status(variant, 201, f"Variante {finish}")
+        product = self._remember(variant)
+        skus = [v["sku"] for v in product["scales"][0]["variants"]]
+        prefix = f"MB-{product['number']:06d}-H0-"
+        expect(sorted(skus) == [prefix + "B", prefix + "U"], f"SKUs {skus}")
+        gtins = [v["gtin"] for v in product["scales"][0]["variants"]]
+        expect(all(g.startswith("2") and ean13_valid(g) for g in gtins), f"EANs {gtins}")
+        return ", ".join(skus)
+
+    def unsigned_upload(self) -> str | None:
+        response = self.visitor.upload(
+            f"{self.base_url}/mb-media-private/incoming/{uuid.uuid4()}/original",
+            b"kein Bild",
+            {"Content-Type": "image/png"},
+        )
+        expect(response.status == HTTPStatus.FORBIDDEN, f"Unsignierter PUT: HTTP {response.status}")
+        return None
+
+    def upload_photo(self) -> str | None:
+        data = sample_png()
+        ticket = self._staff(
+            "POST",
+            f"{ADMIN}/media/uploads",
+            {
+                "filename": "smoke.png",
+                "mime_type": "image/png",
+                "size_bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            },
+        )
+        expect_status(ticket, 200, "Upload-Ticket")
+        body = ticket.json()
+        upload = body["upload"]
+        expect(upload is not None, "Upload-Ticket ohne URL (Datei schon bekannt?)")
+        wrong = self.visitor.upload(upload["url"], data, {"Content-Type": "image/jpeg"})
+        expect(wrong.status == HTTPStatus.FORBIDDEN, f"PUT mit anderem Typ: HTTP {wrong.status}")
+        stored = self.visitor.upload(upload["url"], data, upload["headers"])
+        expect_status(stored, 200, "Signierter PUT in den Speicher")
+        self._asset = body["asset"]
+        completed = self._staff("POST", f"{ADMIN}/media/{self._asset['id']}/complete")
+        expect_status(completed, 200, "Upload abschließen")
+        expect(completed.json()["status"] == "uploaded", f"Asset ist {completed.json()['status']}")
+        return f"{len(data) // 1024} KiB · Asset {self._asset['id']}"
+
+    def photo_ready(self) -> str | None:
+        if self.stream is None:
+            raise SmokeCheckError("Der Ereignisstrom aus den vorigen Schritten fehlt")
+        asset_id = self._asset["id"]
+        started = time.monotonic()
+        self.stream.wait_for(
+            lambda e: (
+                e.event == ASSET_READY and e.json().get("data", {}).get("asset_id") == asset_id
+            ),
+            what=f"{ASSET_READY} für {asset_id}",
+        )
+        asset = self._staff("GET", f"{ADMIN}/media/{asset_id}")
+        expect_status(asset, 200, "Asset lesen")
+        self._asset = asset.json()
+        expect(self._asset["status"] == "ready", f"Asset ist {self._asset['status']}")
+        names = sorted({r["name"] for r in self._asset["renditions"]})
+        return f"nach {time.monotonic() - started:.1f} s · Stufen {', '.join(names)}"
+
+    def renditions(self) -> str | None:
+        thumb = next(
+            r for r in self._asset["renditions"] if r["name"] == "thumb" and r["format"] == "webp"
+        )
+        expect(thumb["url"].startswith("/medien/"), f"Stufen-URL {thumb['url']}")
+        response = self.visitor._send(  # binary body
+            "GET", thumb["url"], accept="image/webp", cookies={}
+        )
+        expect_status(response, 200, f"GET {thumb['url']}")
+        expect(response.content_type == "image/webp", f"Content-Type {response.content_type}")
+        expect(
+            "immutable" in response.headers.get("Cache-Control", ""),
+            f"Cache-Control {response.headers.get('Cache-Control')!r}",
+        )
+        expect(response.body[:4] == b"RIFF", "Thumbnail ist kein WebP")
+        return f"{thumb['width']} x {thumb['height']} px"
+
+    def publish(self) -> str | None:
+        product_id = self._product["id"]
+        attached = self._staff(
+            "POST",
+            f"{ADMIN}/products/{product_id}/media",
+            {"asset_id": self._asset["id"], "alt_text": "Ansicht von vorn"},
+        )
+        expect_status(attached, 200, "Foto in die Galerie")
+        product = self._remember(attached)
+        expect(product["publish_blockers"] == [], f"Noch blockiert: {product['publish_blockers']}")
+        published = self._staff(
+            "POST", f"{ADMIN}/products/{product_id}/publish", if_match=self._etag
+        )
+        expect_status(published, 200, "Veröffentlichen")
+        self._remember(published)
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == PRODUCT_PUBLISHED
+                    and e.json().get("data", {}).get("product_id") == product_id
+                ),
+                what=f"{PRODUCT_PUBLISHED} für {product_id}",
+            )
+        return None
+
+    def shop(self) -> str | None:
+        slug = self._product["slug"]
+        listing = self.visitor.api(
+            "GET", f"{SHOP}/products?{urllib.parse.urlencode({'q': self._product_name})}"
+        )
+        expect_status(listing, 200, "Shop-Liste")
+        slugs = [item["slug"] for item in listing.json()["items"]]
+        expect(slug in slugs, f"{slug} fehlt in der Shop-Liste {slugs}")
+        detail = self.visitor.api("GET", f"{SHOP}/products/{slug}")
+        expect_status(detail, 200, "Produktdaten im Shop")
+        product = detail.json()
+        expect(len(product["gallery"]) == 1, "Galerie im Shop ist leer")
+        expect("gtin" not in product["scales"][0]["variants"][0], "Shop verrät die EAN")
+        page = self.visitor.page(f"/produkte/{slug}")
+        expect_status(page, 200, f"Seite /produkte/{slug}")
+        expect(self._product_name in page.text, "Produktseite ohne Produktnamen")
+        expect("/medien/" in page.text, "Produktseite ohne Bild aus /medien")
+        return f"/produkte/{slug}"
+
+    def archive(self) -> str | None:
+        product_id = self._product["id"]
+        archived = self._staff("POST", f"{ADMIN}/products/{product_id}/archive")
+        expect_status(archived, 200, "Archivieren")
+        gone = self.visitor.api("GET", f"{SHOP}/products/{self._product['slug']}")
+        expect_problem(gone, 404, "product_not_found", "Archiviertes Produkt im Shop")
+        return None
 
     def customer_on_admin(self) -> str | None:
         session = self.customer_browser.cookies[CUSTOMER_COOKIE]

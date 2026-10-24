@@ -2,13 +2,27 @@
 
 import asyncio
 import signal
+from datetime import timedelta
 from functools import partial
+from typing import Final
 
 import structlog
 
+# Modules whose events the worker only forwards (no handler here) are imported for their
+# event classes: the dispatcher must deserialize every event type in the outbox.
+from modellbahn.modules.catalog.contracts import events as catalog_events
 from modellbahn.modules.identity.application.handlers import IdentityMailHandlers
-from modellbahn.modules.identity.infrastructure.mapping import start_mappers
+from modellbahn.modules.identity.infrastructure.mapping import (
+    start_mappers as start_identity_mappers,
+)
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
+from modellbahn.modules.media.application.ports import ImageProcessor, MediaStorage
+from modellbahn.modules.media.application.services import MediaService
+from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
+from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
+from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
+from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -16,27 +30,54 @@ from modellbahn.platform.events import event_registry
 from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.mail import Mailer, SmtpMailer
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher
+from modellbahn.platform.periodic import PeriodicJob, run_periodically
 
 # Named explicitly: under "python -m" this module is called __main__.
 _logger = structlog.get_logger("modellbahn.worker")
 
+STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
+FORWARDED_EVENT_MODULES: Final = (catalog_events,)
+
 
 async def run_worker(
-    settings: Settings, stop: asyncio.Event, *, mailer: Mailer | None = None
+    settings: Settings,
+    stop: asyncio.Event,
+    *,
+    mailer: Mailer | None = None,
+    media_storage: MediaStorage | None = None,
+    image_processor: ImageProcessor | None = None,
 ) -> None:
-    """Wire the handlers of all modules and dispatch until ``stop`` is set."""
+    """Wire the handlers and jobs of all modules and run them until ``stop`` is set."""
     engine = create_engine(settings.database_url)
     session_factory = create_session_factory(engine)
-    start_mappers()
+    start_identity_mappers()
+    start_media_mappers()
+    clock = SystemClock()
+    storage = media_storage or S3MediaStorage.from_settings(settings)
+    media_uow = partial(SqlMediaUnitOfWork, session_factory)
 
     handlers = HandlerRegistry()
     IdentityMailHandlers(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
         mailer=mailer or SmtpMailer(settings),
-        clock=SystemClock(),
+        clock=clock,
         public_base_url=settings.public_base_url,
         shop_name=settings.shop_name,
     ).register(handlers)
+    MediaProcessingHandlers(
+        uow_factory=media_uow,
+        storage=storage,
+        processor=image_processor or PillowImageProcessor(),
+        clock=clock,
+    ).register(handlers)
+    media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)
+    jobs = [
+        PeriodicJob(
+            name="media.purge_stale_uploads",
+            interval=STALE_UPLOAD_SWEEP_INTERVAL,
+            run=media_service.purge_stale_uploads,
+        )
+    ]
 
     dispatcher = OutboxDispatcher(
         engine=engine,
@@ -47,7 +88,10 @@ async def run_worker(
         max_attempts=settings.outbox_max_attempts,
     )
     try:
-        await dispatcher.run(stop)
+        async with asyncio.TaskGroup() as group:
+            group.create_task(dispatcher.run(stop))
+            for job in jobs:
+                group.create_task(run_periodically(job, stop))
     finally:
         await engine.dispose()
 

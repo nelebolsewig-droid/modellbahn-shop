@@ -11,12 +11,14 @@ from alembic.migration import MigrationContext
 from sqlalchemy import Connection, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
+from modellbahn.modules.media.infrastructure import tables as media_tables
 from modellbahn.platform import outbox
 from modellbahn.platform.db import create_engine, metadata
 from tests.support import create_database, downgrade, drop_database, migrate
 
-SCHEMAS = ("platform", "identity")
+SCHEMAS = ("platform", "identity", "media", "catalog")
 
 
 @pytest.fixture
@@ -36,7 +38,7 @@ async def _tables(database_url: str) -> set[str]:
             rows = await connection.execute(
                 text(
                     "SELECT table_schema || '.' || table_name FROM information_schema.tables "
-                    "WHERE table_schema IN ('platform', 'identity')"
+                    "WHERE table_schema IN ('platform', 'identity', 'media', 'catalog')"
                 )
             )
             return set(rows.scalars())
@@ -50,6 +52,18 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "identity.accounts",
         "identity.sessions",
         "identity.account_tokens",
+        "media.assets",
+        "media.image_details",
+        "media.renditions",
+        "catalog.scales",
+        "catalog.finishes",
+        "catalog.epochs",
+        "catalog.categories",
+        "catalog.products",
+        "catalog.product_epochs",
+        "catalog.product_scales",
+        "catalog.variants",
+        "catalog.product_media",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -73,9 +87,11 @@ def _differences(connection: Connection) -> list[Any]:
 
 
 async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
-    # Both modules' tables are registered on the shared metadata.
+    # Every module's tables are registered on the shared metadata.
     assert outbox.outbox_table.metadata is metadata
     assert identity_tables.accounts.metadata is metadata
+    assert media_tables.assets.metadata is metadata
+    assert catalog_tables.products.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 
@@ -85,7 +101,7 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         rows = await connection.execute(
             text(
                 "SELECT conname FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace "
-                "WHERE n.nspname IN ('platform', 'identity')"
+                "WHERE n.nspname IN ('platform', 'identity', 'media', 'catalog')"
             )
         )
         names = set(rows.scalars())
@@ -98,4 +114,10 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "fk_sessions_account_id_kind_accounts",
         "uq_account_tokens_source_event_id",
         "fk_account_tokens_account_id_accounts",
+        "uq_assets_id_kind",
+        "fk_image_details_asset_id_asset_kind_assets",
+        "uq_product_media_product_id_position",
+        "fk_product_media_asset_id_asset_kind_assets",
+        "uq_variants_product_scale_id_finish_code",
+        "ck_variants_gtin_format",
     } <= names

@@ -12,6 +12,10 @@ NEW_PASSWORD: Final = "Neues sicheres Passwort"
 STAFF_EMAIL: Final = "chefin@example.com"
 STORE: Final = "/api/v1/store/account"
 ADMIN: Final = "/api/v1/admin/auth"
+MEDIA: Final = "/api/v1/admin/media"
+PRODUCTS: Final = "/api/v1/admin/products"
+CATEGORIES: Final = "/api/v1/admin/categories"
+SHOP: Final = "/api/v1/store"
 
 type ClientFactory = Callable[..., AbstractAsyncContextManager[AsyncClient]]
 
@@ -22,6 +26,11 @@ async def register(
     return await client.post(
         f"{STORE}/register", json={"email": email, "password": password, "display_name": name}
     )
+
+
+async def staff_login(client: AsyncClient, email: str) -> None:
+    response = await client.post(f"{ADMIN}/session", json={"email": email, "password": PASSWORD})
+    assert response.status_code == 200, response.text
 
 
 def assert_problem(response: Response, status: int, code: str) -> dict[str, Any]:

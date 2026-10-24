@@ -48,10 +48,39 @@
 		import redact_tokens
 	}
 
+	# Uploads go from the browser straight into object storage, with a URL the API signed
+	# for this host (POST /api/v1/admin/media/uploads). Only PUT into the incoming area of
+	# the private bucket passes; the storage rejects anything unsigned or expired. The
+	# Host header stays as it is, because the signature covers it.
+	@upload {
+		method PUT
+		path /mb-media-private/incoming/*
+	}
+	handle @upload {
+		# A little above the largest image the API accepts (50 MiB).
+		request_body {
+			max_size 52MB
+		}
+		reverse_proxy storage:3900
+	}
+
+	# Rendered image sizes from the public bucket. Their names contain a content hash,
+	# and the storage returns the Cache-Control: immutable set at upload.
+	handle_path /medien/* {
+		@reading method GET HEAD
+		handle @reading {
+			reverse_proxy storage:3902 {
+				# The website endpoint picks the bucket by host name.
+				header_up Host mb-media-public.web.garage.localhost
+			}
+		}
+		respond 405
+	}
+
 	# /readyz feeds the system status in the admin area, so the browser must reach it too.
 	@api path /api/* /healthz /readyz
 	handle @api {
-		# JSON bodies only; uploads will go directly to object storage.
+		# JSON bodies only; uploads go directly to object storage (see above).
 		request_body {
 			max_size 1MB
 		}

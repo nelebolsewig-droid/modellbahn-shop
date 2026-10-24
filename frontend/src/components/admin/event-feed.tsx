@@ -19,12 +19,13 @@ import { Panel } from "./panel";
 const FEED_LIMIT = 50;
 
 function announcement(entry: FeedEntry): string {
-  return entry.account ? `${entry.label}: ${entry.account.displayName}` : entry.label;
+  const about = entry.account?.displayName ?? entry.subject;
+  return about ? `${entry.label}: ${about}` : entry.label;
 }
 
 /**
- * Live events for the staff (registrations, verified e-mail addresses), pushed by the
- * API as Server-Sent Events. Starts empty: it shows what happens while it is open,
+ * Live events for the staff (registrations, verified e-mail addresses, products going
+ * into or out of the shop, processed photos), pushed by the API as Server-Sent Events. Starts empty: it shows what happens while it is open,
  * plus whatever the browser's automatic reconnect replays.
  */
 export function EventFeed({ onStreamClosed }: { onStreamClosed: () => void }) {
@@ -89,7 +90,11 @@ function FeedItem({ entry, isNewest }: { entry: FeedEntry; isNewest: boolean }) 
             {formatEventTime(entry.occurredAt)}
           </time>
         </p>
-        {entry.account ? <p className="mt-1 break-words text-ink-secondary">{entry.account.displayName}</p> : null}
+        {entry.account || entry.subject ? (
+          <p className="mt-1 break-words text-ink-secondary">
+            {entry.account?.displayName ?? entry.subject}
+          </p>
+        ) : null}
         <p className="mt-1 font-mono text-hint break-all text-ink-tertiary">
           {entry.type}
           {entry.truncated ? " · gekürzt" : null}
@@ -104,8 +109,8 @@ function EmptyFeed() {
     <div className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center">
       <p className="label-caps text-ink-tertiary">Gleis frei</p>
       <p className="mx-auto mt-3 max-w-sm text-small text-ink-secondary">
-        Seit dem Öffnen dieser Seite ist nichts passiert. Neue Registrierungen und bestätigte
-        E-Mail-Adressen erscheinen hier sofort, ohne Neuladen.
+        Seit dem Öffnen dieser Seite ist nichts passiert. Neue Registrierungen, bestätigte
+        E-Mail-Adressen und veröffentlichte Produkte erscheinen hier sofort, ohne Neuladen.
       </p>
     </div>
   );

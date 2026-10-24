@@ -23,6 +23,12 @@ x-backend-env: &backend-env
   MB_SMTP_HOST: ${MB_SMTP_HOST:-mailpit}
   MB_SMTP_PORT: ${MB_SMTP_PORT:-1025}
   MB_SMTP_STARTTLS: ${MB_SMTP_STARTTLS:-false}
+  # Object storage (service "storage"). Browsers upload through Caddy on the site's own
+  # address, so presigned upload URLs are signed for that host.
+  MB_S3_ENDPOINT_URL: http://storage:3900
+  MB_S3_PUBLIC_ENDPOINT_URL: ${MB_PUBLIC_BASE_URL:-https://localhost}
+  MB_S3_ACCESS_KEY_ID: ${MB_S3_ACCESS_KEY_ID:?MB_S3_ACCESS_KEY_ID is not set - add it to .env from .env.example}
+  MB_S3_SECRET_ACCESS_KEY: ${MB_S3_SECRET_ACCESS_KEY:?MB_S3_SECRET_ACCESS_KEY is not set - add it to .env from .env.example}
   # Passed through only when set in .env; otherwise the backend's own default applies.
   MB_COOKIE_SECURE:
   MB_SMTP_FROM:
@@ -35,6 +41,7 @@ x-backend-env: &backend-env
   MB_OUTBOX_MAX_ATTEMPTS:
   MB_AUTH_RATE_LIMIT:
   MB_AUTH_RATE_WINDOW_SECONDS:
+  MB_MEDIA_PUBLIC_BASE_URL:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.
@@ -92,6 +99,44 @@ services:
     restart: unless-stopped
     logging: *logging
 
+  # S3-compatible object storage for media: the originals (private bucket) and the
+  # rendered image sizes (public bucket, served by Caddy under /medien).
+  storage:
+    <<: *hardening
+    image: dxflrs/garage:v2.1.0
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET is not set - add it to .env from .env.example}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is not set - add it to .env from .env.example}
+    volumes:
+      - ./infra/garage/garage.toml:/etc/garage.toml:ro
+      - storage-meta:/var/lib/garage/meta
+      - storage-data:/var/lib/garage/data
+    # Data lives in the volumes only.
+    read_only: true
+    # Caddy forwards uploads and public image requests; api and worker use the S3 API.
+    # No port is published.
+    networks:
+      - backend
+      - edge
+    restart: unless-stopped
+    logging: *logging
+
+  # One-shot: gives the storage node its role and creates buckets and the backend's
+  # access key (idempotent, so it runs on every `make up`).
+  storage-init:
+    <<: *backend
+    command: ["python", "-m", "modellbahn.cli", "init-storage"]
+    environment:
+      <<: *backend-env
+      GARAGE_ADMIN_URL: http://storage:3903
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is not set - add it to .env from .env.example}
+    depends_on:
+      storage:
+        condition: service_started
+    healthcheck:
+      disable: true
+    restart: "no"
+
   migrate:
     <<: *backend
     command: ["alembic", "upgrade", "head"]
@@ -114,6 +159,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
     networks:
       - backend
       - edge
@@ -127,6 +174,8 @@ services:
     stop_grace_period: 40s
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
     # The image's healthcheck probes the HTTP port, which only the api opens.
     healthcheck:
@@ -173,18 +222,22 @@ services:
         condition: service_healthy
       web:
         condition: service_healthy
+      storage:
+        condition: service_started
     networks:
       - edge
     restart: unless-stopped
     logging: *logging
 
 networks:
-  # Caddy, web and api. The database is deliberately not attached.
+  # Caddy, web, api and the object storage. The database is deliberately not attached.
   edge:
-  # Database, mail catcher and the backend processes.
+  # Database, mail catcher, object storage and the backend processes.
   backend:
 
 volumes:
   db-data:
+  storage-meta:
+  storage-data:
   caddy-data:
   caddy-config:

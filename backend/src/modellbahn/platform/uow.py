@@ -16,6 +16,7 @@ from modellbahn.platform.events import DomainEvent, EventRegistry, event_registr
 from modellbahn.platform.outbox import OUTBOX_CHANNEL, outbox_record, outbox_table
 
 _UNIQUE_VIOLATION: Final = "23505"
+_FOREIGN_KEY_VIOLATION: Final = "23503"
 
 
 class UniqueViolationError(Exception):
@@ -23,6 +24,18 @@ class UniqueViolationError(Exception):
 
     def __init__(self, constraint: str | None) -> None:
         super().__init__(f"unique constraint violated: {constraint}")
+        self.constraint = constraint
+
+
+class ForeignKeyViolationError(Exception):
+    """A FOREIGN KEY constraint rejected the changes, e.g. deleting a row still referred to.
+
+    Across module boundaries this is how the database answers "still in use": a
+    module cannot see who refers to its rows, but the ``RESTRICT`` keys can.
+    """
+
+    def __init__(self, constraint: str | None) -> None:
+        super().__init__(f"foreign key constraint violated: {constraint}")
         self.constraint = constraint
 
 
@@ -99,13 +112,14 @@ class UnitOfWork:
     async def flush(self) -> None:
         """Send pending changes to the database without committing.
 
-        Raises :class:`UniqueViolationError` or :class:`ConcurrentUpdateError`
-        so callers can react before doing irreversible things (like sending mail).
+        Raises :class:`UniqueViolationError`, :class:`ForeignKeyViolationError` or
+        :class:`ConcurrentUpdateError` so callers can react before doing irreversible
+        things (like sending mail).
         """
         try:
             await self.session.flush()
         except IntegrityError as exc:
-            violation = _unique_violation(exc)
+            violation = _constraint_violation(exc)
             if violation is None:
                 raise
             raise violation from exc
@@ -122,7 +136,8 @@ class UnitOfWork:
         try:
             await session.commit()
         except IntegrityError as exc:
-            violation = _unique_violation(exc)
+            # Deferred constraints are only checked here, at the end of the transaction.
+            violation = _constraint_violation(exc)
             if violation is None:
                 raise
             raise violation from exc
@@ -171,11 +186,16 @@ class UnitOfWork:
         )
 
 
-def _unique_violation(exc: IntegrityError) -> UniqueViolationError | None:
+def _constraint_violation(
+    exc: IntegrityError,
+) -> UniqueViolationError | ForeignKeyViolationError | None:
     original = exc.orig
-    if getattr(original, "sqlstate", None) != _UNIQUE_VIOLATION:
-        return None
+    sqlstate = getattr(original, "sqlstate", None)
     # SQLAlchemy's asyncpg adapter keeps the driver's exception as the cause;
     # that one knows the name of the violated constraint.
-    driver_error = getattr(original, "__cause__", None)
-    return UniqueViolationError(getattr(driver_error, "constraint_name", None))
+    constraint = getattr(getattr(original, "__cause__", None), "constraint_name", None)
+    if sqlstate == _UNIQUE_VIOLATION:
+        return UniqueViolationError(constraint)
+    if sqlstate == _FOREIGN_KEY_VIOLATION:
+        return ForeignKeyViolationError(constraint)
+    return None

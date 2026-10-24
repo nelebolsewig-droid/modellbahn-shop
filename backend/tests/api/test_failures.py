@@ -32,7 +32,12 @@ async def production_api(settings: Settings, **changes: object) -> AsyncIterator
     Use it inside the test itself: creating the app configures logging, and capsys only
     captures what is written to the stream that is current during the test.
     """
-    app = create_app(settings.model_copy(update={"environment": Environment.PRODUCTION, **changes}))
+    production = {
+        "environment": Environment.PRODUCTION,
+        "s3_access_key_id": "GK0123456789abcdef01234567",
+        **changes,
+    }
+    app = create_app(settings.model_copy(update=production))
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url=PUBLIC_BASE_URL, headers=CSRF_HEADERS
     ) as client:

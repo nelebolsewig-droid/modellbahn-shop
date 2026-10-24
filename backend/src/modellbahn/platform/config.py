@@ -12,6 +12,11 @@ type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 _ASYNC_DRIVER_PREFIX = "postgresql+asyncpg://"
 _DEFAULT_SHOP_NAME = "Modellbahn-Shop"
+# The development key of .env.example, which init-storage imports into the local storage.
+_DEVELOPMENT_S3_ACCESS_KEY_ID = "GKba9ff40c8a82b4ef09ebaf72"
+_DEVELOPMENT_S3_SECRET_ACCESS_KEY = (
+    "7f38e28c0803bd1400af0bea7463f260950bc644c40e3bdc2e19579fde50dbbf"  # noqa: S105
+)
 
 
 class Environment(StrEnum):
@@ -60,6 +65,20 @@ class Settings(BaseSettings):
     auth_rate_limit: int = Field(default=30, ge=0)
     auth_rate_window_seconds: float = Field(default=600.0, gt=0)
 
+    # Object storage (S3 API). The defaults reach the storage service of docker-compose.yml
+    # from the host, with the development key of .env.example.
+    s3_endpoint_url: str = "http://localhost:3900"
+    # Where browsers send uploads; presigned URLs are signed for this host.
+    s3_public_endpoint_url: str = "http://localhost:3900"
+    s3_region: str = "garage"
+    s3_access_key_id: str = _DEVELOPMENT_S3_ACCESS_KEY_ID
+    s3_secret_access_key: SecretStr = SecretStr(_DEVELOPMENT_S3_SECRET_ACCESS_KEY)
+    # Originals stay private; the rendered image sizes are public.
+    media_private_bucket: str = "mb-media-private"
+    media_public_bucket: str = "mb-media-public"
+    # Prefix of public image URLs. Relative by default: Caddy serves /medien on the site.
+    media_public_base_url: str = "/medien"
+
     log_level: LogLevel = "INFO"
 
     @field_validator("database_url")
@@ -76,6 +95,17 @@ class Settings(BaseSettings):
         # Links in e-mails are built by appending a path, so keep no trailing slash.
         return str(AnyHttpUrl(value)).rstrip("/")
 
+    @field_validator("s3_endpoint_url", "s3_public_endpoint_url")
+    @classmethod
+    def _normalise_endpoint(cls, value: str) -> str:
+        return str(AnyHttpUrl(value)).rstrip("/")
+
+    @field_validator("media_public_base_url")
+    @classmethod
+    def _strip_trailing_slash(cls, value: str) -> str:
+        # Image URLs are built by appending "/" and the storage key.
+        return value.rstrip("/")
+
     @field_validator("smtp_from")
     @classmethod
     def _require_sender_address(cls, value: str) -> str:
@@ -91,8 +121,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _refuse_insecure_production(self) -> Self:
-        if self.environment is Environment.PRODUCTION and not self.cookie_secure:
+        if self.environment is not Environment.PRODUCTION:
+            return self
+        if not self.cookie_secure:
             msg = "MB_COOKIE_SECURE=false is not allowed in production"
+            raise ValueError(msg)
+        if self.s3_access_key_id == _DEVELOPMENT_S3_ACCESS_KEY_ID:
+            msg = "the development storage key of .env.example is not allowed in production"
             raise ValueError(msg)
         return self
 

@@ -27,6 +27,12 @@ from modellbahn.modules.identity.domain.model import (
 )
 from modellbahn.modules.identity.infrastructure.mapping import start_mappers
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.media.infrastructure.garage import (
+    GarageAdmin,
+    GarageAdminError,
+    StorageLayout,
+    init_storage,
+)
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import create_engine, create_session_factory
@@ -96,6 +102,46 @@ def unlock_staff(
     except AccountNotFoundError:
         _fail(f"Es gibt kein aktives Mitarbeiterkonto mit der Adresse {email}.")
     typer.echo(f"Sperre aufgehoben: {email}")
+
+
+@app.command("init-storage")
+def init_storage_command(
+    admin_url: Annotated[
+        str, typer.Option(envvar="GARAGE_ADMIN_URL", help="Adresse der Admin-API von Garage.")
+    ] = "http://localhost:3903",
+    admin_token: Annotated[
+        str,
+        typer.Option(envvar="GARAGE_ADMIN_TOKEN", help="Token der Admin-API.", show_default=False),
+    ] = "",
+    wait_seconds: Annotated[
+        float, typer.Option(help="So lange auf den Speicher warten, der gerade startet.")
+    ] = 60.0,
+) -> None:
+    """Objektspeicher (Garage) einrichten: Layout, Zugangsschlüssel, Buckets.
+
+    Prüft jeden Schritt vorher und ändert nur, was fehlt; mehrfach ausführen schadet nicht.
+    Schlüssel und Bucket-Namen kommen aus den MB_S3_*- und MB_MEDIA_*-Einstellungen.
+    """
+    if not admin_token:
+        _fail("Kein Admin-Token: GARAGE_ADMIN_TOKEN setzen oder --admin-token angeben.")
+    settings = Settings()
+    admin = GarageAdmin(admin_url, admin_token)
+    layout = StorageLayout(
+        access_key_id=settings.s3_access_key_id,
+        secret_access_key=settings.s3_secret_access_key.get_secret_value(),
+        private_bucket=settings.media_private_bucket,
+        public_bucket=settings.media_public_bucket,
+    )
+    try:
+        admin.wait_until_reachable(timeout_seconds=wait_seconds)
+        changes = init_storage(admin, layout)
+    except (OSError, GarageAdminError) as exc:
+        _fail(f"Objektspeicher nicht eingerichtet: {exc}")
+    for change in changes:
+        typer.echo(change)
+    typer.echo(
+        "Objektspeicher ist eingerichtet." if changes else "Objektspeicher war schon eingerichtet."
+    )
 
 
 @app.command("export-openapi")
