@@ -1,6 +1,7 @@
 # Modellbahn-Shop · Architekturkonzept
 
-> **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritt 2 (Fundament) in Arbeit
+> **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritt 2 (Fundament) und Schritt 3
+> (Katalog + Medien) umgesetzt · als Nächstes Schritt 4 (Shop-Frontend + Verkauf)
 > **Umfang:** Domänenmodell (DDD), Systemarchitektur, Tech-Stack, Datenmodell (ERD),
 > Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Gestaltung, Fahrplan
 > **Geprüft:** Das Datenmodell wurde gegen PostgreSQL 17 geprüft
@@ -568,8 +569,8 @@ Foto nicht als Druckdatei. Beides ist getestet.
 
 ```
 privat/                                      nie öffentlich, nur über signierte Kurzzeit-URL
-└── incoming/0192f6c3-…/original.heic        Original, unverändert
-└── incoming/0192f6d0-…/original.stl
+└── incoming/0192f6c3-…/original             Original, unverändert (Typ steht am Asset)
+└── incoming/0192f6d0-…/original
 
 öffentlich/                                  per CDN, Cache-Control: immutable
 └── 0192f6c3-…/thumb-1a2b3c4d.webp           256 × 256, quadratisch
@@ -960,17 +961,22 @@ Browser                    API                     Objektspeicher        Worker
 | 2 Upload | Direkt in den privaten Speicher per signierter URL, 15 Minuten gültig. | Die API trägt keine Last; eine 200-MB-STL ist kein Sonderfall. |
 | 3 Abschluss | Die API prüft, dass das Objekt da ist und die Größe stimmt. Zustand und Outbox-Ereignis werden in einer Transaktion geschrieben. | Kein Upload geht verloren, keiner wird doppelt verarbeitet. |
 | 4 Prüfen | Magic Bytes statt Dateiendung; Pixelgrenze gegen Dekompressionsbomben; bei 3D Plausibilität der Geometrie. | Hochgeladene Dateien sind fremde Daten. |
-| 5a Bilder | EXIF-Drehung anwenden, dann alle EXIF-Daten entfernen (GPS!). Farbraum nach sRGB. Stufen in WebP (Qualität 80) und AVIF: `thumb` 256², `sm` 480, `md` 960, `lg` 1600, `xl` 2400, `og` 1200 × 630. Dazu ein 16-px-Platzhalter, die Dominanzfarbe und ein Wahrnehmungs-Hash. | Stufen nur bis zur Originalgröße, nie hochskaliert. |
-| 5b 3D | Dreiecke, Bounding Box, Volumen, Oberfläche, Wasserdichtheit. Ein isometrisches Vorschaubild wird gerendert und durchläuft als eigenes Bild-Asset dieselbe Pipeline. | Das Volumen liefert den Materialverbrauch, die Maße prüfen gegen den Bauraum des Druckers. |
+| 5a Bilder | EXIF-Drehung anwenden, dann alle EXIF-Daten entfernen (GPS!). Farbraum nach sRGB. Stufen in WebP (Qualität 80) und AVIF (Qualität 60): `thumb` 256², `sm` 480, `md` 960, `lg` 1600, `xl` 2400, `og` 1200 × 630. Dazu ein 16-px-Platzhalter, die Dominanzfarbe und ein Wahrnehmungs-Hash. | Stufen nur bis zur Originalgröße, nie hochskaliert. |
+| 5b 3D (ab Schritt 6) | Dreiecke, Bounding Box, Volumen, Oberfläche, Wasserdichtheit. Ein isometrisches Vorschaubild wird gerendert und durchläuft als eigenes Bild-Asset dieselbe Pipeline. | Das Volumen liefert den Materialverbrauch, die Maße prüfen gegen den Bauraum des Druckers. |
 | 6 Fertig | Zustand `ready`, Ereignis `media.asset.ready`. Die Oberfläche tauscht den Platzhalter gegen das Thumbnail, ohne Neuladen. | Der Admin lädt zehn Fotos hoch und arbeitet weiter. |
 
-**Fehlerfall:** drei Versuche mit wachsendem Abstand (30 s, 2 min, 10 min), danach
-`failed` mit Grund in der Oberfläche und der Möglichkeit, neu anzustoßen. Ein
-Aufräumjob entfernt Tickets, die nach 24 Stunden noch keinen Upload haben.
+**Fehlerfall:** Eine Datei, die kein brauchbares Bild ist (falsches Format, zu viele
+Pixel, zu klein, unlesbar), wird sofort `failed`; ein zweiter Versuch brächte nichts.
+Andere Fehler (der Speicher antwortet nicht) wiederholt die Outbox mit ihrem
+wachsenden Abstand, also nach 30 s und 1 min; der dritte Fehlschlag setzt `failed`.
+Der Grund erscheint in der Oberfläche, `reprocess` stößt neu an. Ein stündlicher
+Aufräumjob entfernt Tickets, deren Upload nach 24 Stunden nicht abgeschlossen ist.
 
-**Auslieferung im Shop:** `next/image` mit eigenem Loader auf die vorgerenderten
-Stufen, `srcset` für jede Bildschirmbreite, der Platzhalter blendet weich über.
-Es gibt keinen Bildoptimierer zur Laufzeit, denn die Arbeit ist schon getan.
+**Auslieferung im Shop:** ein `<picture>` mit AVIF- und WebP-`srcset` auf die
+vorgerenderten Stufen, darunter die Dominanzfarbe und der Platzhalter, der weich
+überblendet. Caddy reicht `/medien/…` an den öffentlichen Bucket durch. Es gibt keinen
+Bildoptimierer zur Laufzeit (`next/image` bleibt ungenutzt), denn die Arbeit ist schon
+getan. Speicher und Einrichtung: ADR 0008.
 
 ---
 
@@ -1190,10 +1196,10 @@ Zusammenstellung übernehmen die Next.js Server Components.
 | Methode | Pfad | Zweck |
 | --- | --- | --- |
 | GET | `/navigation` | Kategorienbaum, Spurweiten, Epochen für Menü und Startseite |
-| GET | `/products` | Liste mit Filtern `category`, `scale`, `epoch`, `finish`, `q`, `sort`, `cursor` |
-| GET | `/products/{slug}` | Produkt mit Varianten, Galerie, Fakten (statisch cachebar) |
-| GET | `/products/{slug}/availability` | Lieferbarkeit je Variante (dynamisch, kurz gecacht) |
-| GET | `/search/suggest` | Vorschläge beim Tippen |
+| GET | `/products` | Liste mit Filtern `category` (mit Unterkategorien), `scale`, `q` (deutsche Volltextsuche), `cursor`; `epoch`, `finish` und `sort` folgen mit Schritt 4 |
+| GET | `/products/{slug}` | Produkt mit Spurweiten, Varianten, Galerie, Fakten (60 s cachebar) |
+| GET | `/products/{slug}/availability` | Lieferbarkeit je Variante (dynamisch, kurz gecacht; ab Schritt 5) |
+| GET | `/search/suggest` | Vorschläge beim Tippen (ab Schritt 4) |
 | POST | `/carts` | Warenkorb anlegen |
 | GET | `/carts/{cartId}` | Warenkorb mit aktuellen Preisen |
 | PUT | `/carts/{cartId}/lines/{variantId}` | Menge setzen |
@@ -1226,20 +1232,23 @@ Zusammenstellung übernehmen die Next.js Server Components.
 | Identität | POST · DELETE | `/auth/session` | Anmelden, abmelden |
 | | GET | `/auth/me` | eigene Rolle und Rechte |
 | | POST | `/auth/password` | Passwort ändern |
-| Katalog | GET · POST | `/products` | Liste, anlegen |
-| | GET · PATCH · DELETE | `/products/{id}` | lesen, ändern (`If-Match`), löschen (nur ohne Verkäufe) |
-| | POST | `/products/{id}/publish` · `/archive` | veröffentlichen, archivieren |
-| | POST | `/products/{id}/scales` | Spurweite hinzufügen |
-| | POST | `/product-scales/{id}/variants` | Variante hinzufügen |
-| | PATCH · DELETE | `/variants/{id}` | Preis, EAN, Rückstand erlaubt |
-| | PUT | `/products/{id}/media` | Galerie: Reihenfolge, Rollen, Alt-Texte in einem Schritt |
-| | GET | `/products/{id}/copy-revisions` | Textfassungen |
-| | GET · POST · PATCH | `/categories` … | Kategorienbaum |
+| Katalog | GET | `/catalog/references` | Spurweiten, Ausführungen, Epochen für die Formulare |
+| | GET · POST | `/products` | Liste mit Zustand, Suche und Cursor; anlegen |
+| | GET · PATCH · DELETE | `/products/{id}` | lesen (`ETag`), ändern (`If-Match` Pflicht), löschen (nur nie veröffentlichte Entwürfe) |
+| | POST | `/products/{id}/publish` · `/archive` | veröffentlichen (prüft die Regeln), archivieren |
+| | POST | `/products/{id}/scales` | Spurweite mit Maßen hinzufügen |
+| | PATCH · DELETE | `/product-scales/{id}` | Maße und Gewicht ändern, Spurweite entfernen |
+| | POST | `/product-scales/{id}/variants` | Variante (Ausführung) hinzufügen; SKU und interne EAN vergibt das System |
+| | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Rückstand erlaubt, aktiv |
+| | POST | `/products/{id}/media` | hochgeladenes Bild anhängen, auch während der Verarbeitung; ohne `If-Match`, damit parallele Uploads sich nicht blockieren |
+| | PUT | `/products/{id}/media` | Galerie: Reihenfolge, Rollen, Zuordnung, Alt-Texte in einem Schritt (`If-Match`) |
+| | GET | `/products/{id}/copy-revisions` | Textfassungen (ab Schritt 7) |
+| | GET · POST · PATCH | `/categories` … | Kategorienbaum; ein Zyklus wird abgelehnt |
 | Medien | POST | `/media/uploads` | Upload-Ticket mit signierter URL |
 | | POST | `/media/{id}/complete` | Upload abschließen, Verarbeitung starten |
-| | GET · DELETE | `/media/{id}` | Zustand, Stufen, Metadaten |
-| | POST | `/media/{id}/reprocess` | Verarbeitung erneut anstoßen |
-| | GET | `/media/{id}/download` | Kurzzeit-URL für Original oder STL |
+| | GET · DELETE | `/media/{id}` | Zustand, Stufen, Metadaten; löschen, solange keine Galerie es nutzt |
+| | POST | `/media/{id}/reprocess` | Verarbeitung erneut anstoßen (`202`) |
+| | GET | `/media/{id}/download` | Kurzzeit-URL für Original oder STL (ab Schritt 6) |
 | Fertigung | GET · POST · PATCH | `/parts` … | Teile mit Druckdaten |
 | | PUT | `/product-scales/{id}/bom` | Stückliste ersetzen |
 | | GET · POST · PATCH | `/printers` … | Drucker |
@@ -1426,9 +1435,14 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 - Einen dunklen Modus gibt es nicht. Weil Komponenten nur Bedeutungen kennen, ließe er sich
   später als zweites Thema ergänzen, ohne eine Komponente anzufassen.
 - Umgesetzt in Schritt 2: Tokens, Schriften, alle bestehenden Seiten und das Stellwerk.
-  `BlueprintDrawing` und `SpecLine` sind auf der Startseite im Einsatz; `OptionPill`,
-  `ScaleTile`, `ProductStage`, `StatusBadge` und `ProductCard` entstehen mit dem Katalog in
-  Schritt 3, wenn es Produkte gibt, die sie zeigen.
+  `BlueprintDrawing` und `SpecLine` sind auf der Startseite im Einsatz.
+- Umgesetzt in Schritt 3 mit dem Katalog: `OptionPill` und `ScaleTile` (beide auf Radix Radio
+  Group), `ProductStage` (Bildwechsel per Überblendung, Miniaturen als Radiogruppe),
+  `StatusBadge` und `ProductCard`. Dazu `ResponsivePicture`, das jede Bildstufe als
+  `<picture>` mit AVIF und WebP ausgibt und den 16-px-Platzhalter auf der Dominanzfarbe
+  überblendet, sowie `Textarea` und `Select` für die Formulare im Stellwerk. Im Einsatz auf
+  `/katalog`, `/produkte/{slug}`, der Startseite („Neu aus der Werkstatt“) und im
+  Stellwerk-Katalog.
 
 ---
 
@@ -1437,11 +1451,13 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
+**Stand 24.10.2026:** Schritte 1 bis 3 sind umgesetzt.
+
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
 | 1 | **Konzept** (dieses Dokument) | Freigabe |
 | 2 | **Fundament:** Repository-Struktur, Docker Compose, CI, Plattform-Kern (Outbox, Unit of Work, Fehlerformat, IDs, Echtzeit), Identität mit **Kundenkonten** und Mitarbeiterzugang, Architekturregeln | Registrieren, E-Mail bestätigen, anmelden; der Mitarbeiter sieht die Registrierung live im Admin-Bereich |
-| 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne |
+| 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne; veröffentlichte Produkte stehen im Shop-Katalog und auf ihrer Produktseite |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken, mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen |
 | 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |
