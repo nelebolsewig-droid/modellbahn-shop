@@ -21,11 +21,22 @@ export function catalogHref(query: CatalogQuery & { weiter?: string }): Route {
   return (search ? `/katalog?${search}` : "/katalog") as Route;
 }
 
-function FilterLink({ href, active, children }: { href: Route; active: boolean; children: string }) {
+type FilterLinkProps = {
+  href: Route;
+  /** Drawn as chosen: the current filter, or the parent of the chosen subcategory. */
+  active: boolean;
+  /** Only the link to the list on screen is the current page; defaults to `active`. */
+  current?: boolean;
+  children: string;
+  "aria-label"?: string;
+};
+
+function FilterLink({ href, active, current = active, children, "aria-label": label }: FilterLinkProps) {
   return (
     <Link
       href={href}
-      aria-current={active ? "page" : undefined}
+      aria-current={current ? "page" : undefined}
+      aria-label={label}
       className={cn(
         "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-150",
         active
@@ -44,13 +55,37 @@ type CatalogFiltersProps = {
   categories: readonly CategoryOut[];
 };
 
+/** The chosen category and its ancestors, from the top level down; empty if none is chosen. */
+export function categoryTrail(categories: readonly CategoryOut[], slug: string | undefined): CategoryOut[] {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  const trail: CategoryOut[] = [];
+  let current = categories.find((category) => category.slug === slug);
+  while (current && !trail.includes(current)) {
+    trail.unshift(current);
+    current = current.parent_id === null ? undefined : byId.get(current.parent_id);
+  }
+  return trail;
+}
+
+function childrenOf(categories: readonly CategoryOut[], parentId: string | null): CategoryOut[] {
+  return categories
+    .filter((category) => category.parent_id === parentId)
+    .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, "de"));
+}
+
 /**
  * Gauge and category as links, so every filtered list has its own address (and
- * works without JavaScript). Only top-level categories are offered; a category
- * includes its subcategories.
+ * works without JavaScript). The top-level categories come first; once one is
+ * chosen, its subcategories follow in a row of their own. A category includes its
+ * subcategories.
  */
 export function CatalogFilters({ query, scales, categories }: CatalogFiltersProps) {
-  const topLevel = categories.filter((category) => category.parent_id === null);
+  const topLevel = childrenOf(categories, null);
+  const trail = categoryTrail(categories, query.kategorie);
+  // One row of subcategories for every chosen category that has some.
+  const levels = trail
+    .map((parent, depth) => ({ parent, children: childrenOf(categories, parent.id), chosen: trail[depth + 1] }))
+    .filter((level) => level.children.length > 0);
   return (
     <div className="space-y-6">
       <nav aria-label="Spurweite">
@@ -78,10 +113,7 @@ export function CatalogFilters({ query, scales, categories }: CatalogFiltersProp
           <p className="label-caps text-ink-tertiary">Kategorie</p>
           <ul className="mt-3 flex flex-wrap gap-2">
             <li>
-              <FilterLink
-                href={catalogHref({ ...query, kategorie: undefined })}
-                active={!query.kategorie}
-              >
+              <FilterLink href={catalogHref({ ...query, kategorie: undefined })} active={trail.length === 0}>
                 Alle
               </FilterLink>
             </li>
@@ -89,13 +121,41 @@ export function CatalogFilters({ query, scales, categories }: CatalogFiltersProp
               <li key={category.id}>
                 <FilterLink
                   href={catalogHref({ ...query, kategorie: category.slug })}
-                  active={query.kategorie === category.slug}
+                  active={trail[0]?.id === category.id}
+                  current={query.kategorie === category.slug}
                 >
                   {category.name}
                 </FilterLink>
               </li>
             ))}
           </ul>
+          {levels.map(({ parent, children, chosen }) => (
+            <ul
+              key={parent.id}
+              aria-label={`Unterkategorien von ${parent.name}`}
+              className="mt-3 ml-1 flex flex-wrap gap-2 border-l border-line-strong pl-3"
+            >
+              <li>
+                <FilterLink
+                  href={catalogHref({ ...query, kategorie: parent.slug })}
+                  active={chosen === undefined}
+                  aria-label={`Alles in ${parent.name}`}
+                >
+                  Alle
+                </FilterLink>
+              </li>
+              {children.map((category) => (
+                <li key={category.id}>
+                  <FilterLink
+                    href={catalogHref({ ...query, kategorie: category.slug })}
+                    active={chosen?.id === category.id}
+                  >
+                    {category.name}
+                  </FilterLink>
+                </li>
+              ))}
+            </ul>
+          ))}
         </nav>
       ) : null}
     </div>
