@@ -83,7 +83,7 @@ export function ProductView({ product }: { product: StoreProductOut }) {
                 aria-label="Spurweite"
                 value={selection.scale}
                 onValueChange={chooseScale}
-                className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3"
+                className="mt-3 flex flex-wrap gap-3"
               >
                 {product.scales.map((option) => (
                   <ScaleTile

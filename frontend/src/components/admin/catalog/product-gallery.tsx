@@ -201,7 +201,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
       ) : null}
 
       {draft.length > 0 ? (
-        <ol className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ol className="mt-6 grid gap-4 sm:grid-cols-2">
           {draft.map((entry, index) => (
             <GalleryTile
               key={entry.asset_id}
@@ -313,7 +313,7 @@ function GalleryTile({
       <div className="relative aspect-square rounded-t-md bg-stage">
         {picture ? (
           <div className="absolute inset-4">
-            <ResponsivePicture image={picture} alt={entry.alt_text ?? ""} sizes="(min-width: 1280px) 20vw, 45vw" />
+            <ResponsivePicture image={picture} alt={entry.alt_text ?? ""} sizes="(min-width: 640px) 30vw, 90vw" />
           </div>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
@@ -341,8 +341,8 @@ function GalleryTile({
             className="mt-1"
           />
         </label>
-        <div className="grid grid-cols-3 gap-2">
-          <label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="col-span-2">
             <span className="block text-hint text-ink-tertiary">Art</span>
             <Select
               value={entry.role ?? "gallery"}
