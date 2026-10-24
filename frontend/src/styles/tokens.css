@@ -1,0 +1,80 @@
+/*
+ * Design tokens of the Modellbahn-Shop (docs/KONZEPT.md §11, ADR 0007).
+ *
+ * Three levels: raw values (gray-*, prussian-* …) only name colours; semantic tokens
+ * (canvas, ink, accent …) say what a colour is for and point at a raw value;
+ * components use semantic tokens only, through the Tailwind classes that
+ * globals.css derives from them (bg-canvas, text-ink-secondary, border-line …).
+ * The values match the design system "Modellbahn-Shop Designsystem" (tokens.json);
+ * tokens.test.ts checks the contrast of every text pair.
+ *
+ * There is one light theme; the shop has no dark mode.
+ */
+:root {
+  /* Raw values */
+  --gray-0: #ffffff;
+  --gray-25: #fafaf8;
+  --gray-50: #f4f4f1;
+  --gray-100: #ecece8;
+  --gray-200: #dedfdb;
+  --gray-300: #c9cbc6;
+  --gray-400: #a7abae;
+  --gray-500: #80858a;
+  --gray-600: #666b70;
+  --gray-700: #4e5357;
+  --gray-900: #1e2124;
+  --prussian-50: #eef3f7;
+  --prussian-100: #d9e4ee;
+  --prussian-300: #8fa9c0;
+  --prussian-800: #003153;
+  --prussian-900: #002640;
+  --green-50: #e7f1ea;
+  --green-700: #2e7046;
+  --amber-50: #faf0dc;
+  --amber-700: #8a5a00;
+  --red-50: #f8e6e4;
+  --red-700: #a8322b;
+
+  /* Grounds */
+  --canvas: var(--gray-50);
+  --stage: var(--gray-25);
+  --surface: var(--gray-0);
+  --sunken: var(--gray-100);
+
+  /* Text */
+  --ink: var(--gray-900);
+  --ink-secondary: var(--gray-700);
+  --ink-tertiary: var(--gray-600);
+  --ink-disabled: var(--gray-400);
+
+  /* Lines */
+  --line: var(--gray-200);
+  --line-strong: var(--gray-300);
+  --line-control: var(--gray-500);
+
+  /* Selection and accent */
+  --selected: var(--gray-900);
+  --on-selected: var(--gray-0);
+  --accent: var(--prussian-800);
+  --accent-hover: var(--prussian-900);
+  --accent-subtle: var(--prussian-50);
+  --on-accent: var(--gray-0);
+  --focus: var(--prussian-800);
+
+  /* Technical drawings */
+  --drawing-line: var(--prussian-800);
+  --drawing-helper: var(--prussian-300);
+  --drawing-dimension: var(--gray-700);
+  --drawing-grid: var(--prussian-100);
+
+  /* States, always shown together with a word */
+  --success: var(--green-700);
+  --success-subtle: var(--green-50);
+  --warning: var(--amber-700);
+  --warning-subtle: var(--amber-50);
+  --danger: var(--red-700);
+  --danger-subtle: var(--red-50);
+
+  /* Dims the page behind a dialog. */
+  --scrim: rgb(30 33 36 / 0.32);
+}

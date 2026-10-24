@@ -1,0 +1,72 @@
+# HTTPS entry point of the Modellbahn-Shop: /api and the health endpoints go to FastAPI,
+# everything else to Next.js. SITE_ADDRESS and CADDY_TLS come from .env.
+
+# Verification and password-reset links carry their one-time token in the query string.
+# Both the access log and Caddy's own error log record request URIs, so both get this filter.
+(redact_tokens) {
+	format filter {
+		wrap json
+		fields {
+			request>uri query {
+				replace token REDACTED
+			}
+			request>headers>Referer delete
+		}
+	}
+}
+
+{
+	# The internal CA lives in the caddy-data volume. Installing it into the container's
+	# own trust store would serve no purpose; browsers on the host trust it separately.
+	skip_install_trust
+
+	# Errors such as an unreachable upstream are logged here, including the request URI.
+	log default {
+		output stderr
+		import redact_tokens
+	}
+}
+
+{$SITE_ADDRESS:localhost} {
+	# "internal" for localhost; an e-mail address switches to Let's Encrypt for a real domain.
+	tls {$CADDY_TLS:internal}
+
+	# No Strict-Transport-Security header: on localhost it would pin HTTPS for every
+	# development server on that host name in the visitor's browser. A public domain
+	# should add `Strict-Transport-Security "max-age=31536000"` here.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		# Keeps the token query string of e-mail links out of Referer headers.
+		Referrer-Policy "strict-origin"
+		-Server
+		-X-Powered-By
+	}
+
+	log {
+		output stdout
+		import redact_tokens
+	}
+
+	# /readyz feeds the system status in the admin area, so the browser must reach it too.
+	@api path /api/* /healthz /readyz
+	handle @api {
+		# JSON bodies only; uploads will go directly to object storage.
+		request_body {
+			max_size 1MB
+		}
+		# Not compressed: the SSE stream (/api/v1/admin/events) must reach the browser
+		# unbuffered. Caddy flushes text/event-stream responses immediately.
+		reverse_proxy api:8000
+	}
+
+	handle {
+		# Only for the pages: the API answers JSON, and its development docs load
+		# Swagger UI from a CDN. Next.js hydrates with inline scripts, so scripts need
+		# 'unsafe-inline' until nonces are added (they would make every page dynamic);
+		# everything else is locked to this origin, and nothing may frame the site.
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		encode zstd gzip
+		reverse_proxy web:3000
+	}
+}

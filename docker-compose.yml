@@ -1,0 +1,190 @@
+# Complete Modellbahn-Shop stack: `make up` starts it behind HTTPS on https://localhost.
+# All settings come from .env (documented in .env.example); `make up` creates .env on first run.
+
+name: modellbahn-shop
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+# Containers that need no Linux capabilities and never gain privileges.
+x-hardening: &hardening
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+x-backend-env: &backend-env
+  MB_ENVIRONMENT: ${MB_ENVIRONMENT:-development}
+  MB_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-modellbahn}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env}@db:5432/${POSTGRES_DB:-modellbahn}
+  MB_PUBLIC_BASE_URL: ${MB_PUBLIC_BASE_URL:-https://localhost}
+  MB_SMTP_HOST: ${MB_SMTP_HOST:-mailpit}
+  MB_SMTP_PORT: ${MB_SMTP_PORT:-1025}
+  MB_SMTP_STARTTLS: ${MB_SMTP_STARTTLS:-false}
+  # Passed through only when set in .env; otherwise the backend's own default applies.
+  MB_COOKIE_SECURE:
+  MB_SMTP_FROM:
+  MB_SMTP_USERNAME:
+  MB_SMTP_PASSWORD:
+  MB_ARGON2_TIME_COST:
+  MB_ARGON2_MEMORY_COST:
+  MB_ARGON2_PARALLELISM:
+  MB_OUTBOX_POLL_SECONDS:
+  MB_OUTBOX_MAX_ATTEMPTS:
+  MB_AUTH_RATE_LIMIT:
+  MB_AUTH_RATE_WINDOW_SECONDS:
+  MB_LOG_LEVEL:
+
+# api, worker and migrate run the same image; only the command differs.
+x-backend: &backend
+  <<: *hardening
+  build:
+    context: ./backend
+  image: modellbahn-shop/backend:local
+  environment: *backend-env
+  # Forwards SIGTERM to the Python process, which shuts down gracefully.
+  init: true
+  # Nothing is written outside /tmp at runtime.
+  read_only: true
+  tmpfs:
+    - /tmp
+  networks:
+    - backend
+  logging: *logging
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-modellbahn}
+      POSTGRES_USER: ${POSTGRES_USER:-modellbahn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Loopback only: reachable for local tools and `make dev-db`, never from the network.
+    ports:
+      - 127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=\"$${POSTGRES_USER}\" --dbname=\"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
+    restart: unless-stopped
+    logging: *logging
+
+  # Development mail catcher: every e-mail of the stack ends up in its web UI.
+  mailpit:
+    <<: *hardening
+    image: axllent/mailpit:v1
+    # The mails contain verification and reset links. Rejecting foreign Host headers keeps
+    # a website from reading them through DNS rebinding.
+    command: ["--allowed-hosts", "localhost,127.0.0.1"]
+    ports:
+      - 127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025
+      - 127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025
+    networks:
+      - backend
+    restart: unless-stopped
+    logging: *logging
+
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  api:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      # The api port is not published, so only containers of this stack can connect.
+      # Uvicorn may therefore take client IP and scheme from Caddy's X-Forwarded-* headers.
+      # Caddy replaces X-Forwarded-For with the address it saw, and the per-client limit
+      # of the login routes (MB_AUTH_RATE_LIMIT) counts by that address.
+      FORWARDED_ALLOW_IPS: "*"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+      - edge
+    restart: unless-stopped
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "modellbahn.worker"]
+    # A handler talking to the mail server may take up to the SMTP timeout (30 s);
+    # the dispatcher lets it finish on SIGTERM.
+    stop_grace_period: 40s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # The image's healthcheck probes the HTTP port, which only the api opens.
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  web:
+    <<: *hardening
+    build:
+      context: ./frontend
+      args:
+        # Inlined into the bundle at build time; `make up` rebuilds after a change.
+        - NEXT_PUBLIC_SHOP_NAME
+    image: modellbahn-shop/frontend:local
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    init: true
+    networks:
+      - edge
+    restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    <<: *hardening
+    image: caddy:2-alpine
+    # Ports 80 and 443 inside the container; nothing else is needed.
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      CADDY_TLS: ${CADDY_TLS:-internal}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and the internal CA; keeping them avoids new browser warnings after restarts.
+      - caddy-data:/data
+      - caddy-config:/config
+    # Opening the doors only once both upstreams answer avoids 502 pages right after `make up`.
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - edge
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  # Caddy, web and api. The database is deliberately not attached.
+  edge:
+  # Database, mail catcher and the backend processes.
+  backend:
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

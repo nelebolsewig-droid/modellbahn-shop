@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/*
+ * Tailwind theme of the Modellbahn-Shop: light, matte and precise (docs/KONZEPT.md §11).
+ * The colours are the semantic tokens of src/styles/tokens.css; Tailwind's own palette
+ * is switched off, so a component cannot pick a colour outside the design system.
+ */
+
+/* The admin area sets data-density="werkstatt": controls one step more compact. */
+@custom-variant werkstatt (&:where([data-density="werkstatt"], [data-density="werkstatt"] *));
+
+@theme {
+  --color-*: initial;
+  --radius-*: initial;
+
+  --radius-xs: 2px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+
+  --shadow-overlay: 0 24px 64px rgb(30 33 36 / 0.12);
+
+  /* Type scale: large and thin; weights 200 and 300 only from 40 px. */
+  --text-display-xl: 5rem;
+  --text-display-xl--line-height: 5.25rem;
+  --text-display-xl--letter-spacing: -0.035em;
+  --text-display-xl--font-weight: 200;
+  --text-display: 3.5rem;
+  --text-display--line-height: 3.75rem;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 200;
+  --text-title: 2.5rem;
+  --text-title--line-height: 2.875rem;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 300;
+  --text-heading: 1.75rem;
+  --text-heading--line-height: 2.125rem;
+  --text-heading--letter-spacing: -0.01em;
+  --text-heading--font-weight: 400;
+  --text-spec: 1.375rem;
+  --text-spec--line-height: 1.875rem;
+  --text-spec--font-weight: 300;
+  --text-body-lg: 1.1875rem;
+  --text-body-lg--line-height: 1.875rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.625rem;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.375rem;
+  --text-hint: 0.8125rem;
+  --text-hint--line-height: 1.125rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.06em;
+  --text-label--font-weight: 500;
+
+  --animate-lamp-pulse: lamp-pulse 1.6s ease-in-out infinite;
+  --animate-feed-in: feed-in 320ms ease-out;
+
+  @keyframes lamp-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @keyframes feed-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-stage: var(--stage);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-control: var(--line-control);
+  --color-selected: var(--selected);
+  --color-on-selected: var(--on-selected);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus);
+  --color-drawing-line: var(--drawing-line);
+  --color-drawing-helper: var(--drawing-helper);
+  --color-drawing-dimension: var(--drawing-dimension);
+  --color-drawing-grid: var(--drawing-grid);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-scrim: var(--scrim);
+
+  /* The font files come from next/font (src/app/fonts.ts), which sets these variables. */
+  --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+}
+
+/* Small uppercase caption above option groups and headings, e.g. "KUNDENKONTO". */
+@utility label-caps {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: var(--text-label--font-weight);
+  letter-spacing: var(--text-label--letter-spacing);
+  text-transform: uppercase;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background-color: var(--accent-subtle);
+    color: var(--ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
