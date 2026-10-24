@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { ThemeScope } from "@/components/ui/theme-scope";
+import { DensityScope } from "@/components/ui/density-scope";
 import { SHOP_NAME } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -11,7 +11,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** The admin area is always the dark "Stellwerk" panel, whatever the visitor's colour scheme. */
+/** The admin area ("Stellwerk"): the shop's light design, with more compact controls. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return <ThemeScope theme="stellwerk" className="min-h-dvh">{children}</ThemeScope>;
+  return (
+    <DensityScope density="werkstatt" className="min-h-dvh">
+      {children}
+    </DensityScope>
+  );
 }

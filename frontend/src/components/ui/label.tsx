@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export function Label({ className, ...props }: ComponentProps<typeof Root>) {
   return (
     <Root
-      className={cn("block text-sm leading-5 font-medium text-ink select-none", className)}
+      className={cn("block text-small font-medium text-ink select-none", className)}
       {...props}
     />
   );

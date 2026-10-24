@@ -14,7 +14,7 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { useTheme } from "./theme-scope";
+import { useDensity } from "./density-scope";
 
 // Radix provides the focus trap, Escape to close, scroll lock, focus return to the
 // trigger and the ARIA wiring (role="dialog", aria-modal, labelled by the title).
@@ -24,17 +24,16 @@ export const DialogTrigger = Trigger;
 export const DialogClose = Close;
 
 export function DialogContent({ className, children, ...props }: ComponentProps<typeof Content>) {
-  // The portal renders at the end of <body>, outside any ThemeScope.
-  const theme = useTheme();
+  // The portal renders at the end of <body>, outside any DensityScope.
+  const density = useDensity();
   return (
     <Portal>
-      <Overlay data-theme={theme} className="fixed inset-0 z-40 bg-scrim backdrop-blur-[2px]" />
+      <Overlay className="fixed inset-0 z-40 bg-scrim backdrop-blur-[2px]" />
       <Content
-        data-theme={theme}
+        data-density={density}
         className={cn(
-          "rule fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
-          "max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-md border-line-strong bg-surface-raised p-6 text-ink",
-          "shadow-[0_24px_60px_-20px_rgb(0_0_0/0.45)]",
+          "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-lg bg-surface p-8 text-ink shadow-overlay",
           className,
         )}
         {...props}
@@ -46,9 +45,9 @@ export function DialogContent({ className, children, ...props }: ComponentProps<
 }
 
 export function DialogTitle({ className, ...props }: ComponentProps<typeof Title>) {
-  return <Title className={cn("text-3xl", className)} {...props} />;
+  return <Title className={cn("text-heading", className)} {...props} />;
 }
 
 export function DialogDescription({ className, ...props }: ComponentProps<typeof Description>) {
-  return <Description className={cn("mt-3 text-sm leading-6 text-ink-muted", className)} {...props} />;
+  return <Description className={cn("mt-3 text-small text-ink-secondary", className)} {...props} />;
 }

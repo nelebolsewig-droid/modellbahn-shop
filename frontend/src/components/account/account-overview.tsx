@@ -60,17 +60,17 @@ function AccountDetails({ account, onLoggedOut, onDeleted }: AccountDetailsProps
   const changePassword = useChangeCustomerPassword();
 
   return (
-    <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <div className="mt-12 grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-8">
       <section
         aria-labelledby="profil"
-        className="rule rounded-md border-line-strong bg-surface-raised p-6 shadow-[inset_0_3px_0_0_var(--color-accent)] sm:p-8 lg:sticky lg:top-8"
+        className="rounded-lg bg-surface p-6 sm:p-8 lg:sticky lg:top-8"
       >
-        <h2 id="profil" className="text-3xl break-words">
+        <h2 id="profil" className="text-heading break-words">
           Hallo, {account.display_name}
         </h2>
         <dl className="mt-6 space-y-5">
           <div>
-            <dt className="label-caps text-ink-muted">E-Mail-Adresse</dt>
+            <dt className="label-caps text-ink-tertiary">E-Mail-Adresse</dt>
             <dd className="mt-1 break-all">{account.email}</dd>
             <dd className="mt-2">
               {account.email_verified ? (
@@ -81,7 +81,7 @@ function AccountDetails({ account, onLoggedOut, onDeleted }: AccountDetailsProps
             </dd>
           </div>
           <div>
-            <dt className="label-caps text-ink-muted">Konto angelegt am</dt>
+            <dt className="label-caps text-ink-tertiary">Konto angelegt am</dt>
             <dd className="mt-1">
               <time dateTime={account.created_at}>{formatLongDate(new Date(account.created_at))}</time>
             </dd>
@@ -92,7 +92,7 @@ function AccountDetails({ account, onLoggedOut, onDeleted }: AccountDetailsProps
         </div>
       </section>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         <SettingsSection title="Anzeigename" description="So sprechen wir dich an, zum Beispiel in E-Mails.">
           <DisplayNameForm displayName={account.display_name} />
         </SettingsSection>

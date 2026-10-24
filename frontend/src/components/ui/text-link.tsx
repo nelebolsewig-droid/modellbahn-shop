@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
 
 type TextLinkProps = Omit<ComponentProps<"a">, "href"> & { href: Route };
 
-/** A link inside running text: underlined in the accent colour. */
+/** A link inside running text: Prussian blue, underlined. */
 export function TextLink({ href, className, ...props }: TextLinkProps) {
   return (
     <Link
       href={href}
       className={cn(
-        "rounded-xs font-medium text-ink underline decoration-accent decoration-2 underline-offset-4",
-        "transition-colors hover:decoration-ink",
+        "rounded-xs text-accent underline decoration-1 underline-offset-4",
+        "transition-colors hover:text-accent-hover",
         className,
       )}
       {...props}

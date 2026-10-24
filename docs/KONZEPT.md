@@ -1416,15 +1416,19 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
   `globals.css` macht daraus Tailwind-Klassen (`bg-canvas`, `text-ink-secondary`,
   `border-line`). Komponenten verwenden nur diese Klassen.
 - Die Komponenten liegen unter `frontend/src/components/ui/` und heißen wie im Designsystem.
-- Ein Vitest-Test liest `tokens.css` und prüft die Kontrastpaare aus 11.2. Wer eine Farbe so
-  ändert, dass Text unlesbar wird, bricht den Build.
+- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 52 Kontrastpaare (Text 4,5 : 1,
+  Rahmen und Fokus 3 : 1). Wer eine Farbe so ändert, dass Text unlesbar wird, bricht den Build.
 - Das Stellwerk nutzt dieselben Tokens mit `data-density="werkstatt"`: Knöpfe, Pills und
   Felder eine Stufe kompakter.
 - Geist und Geist Mono werden über `next/font` selbst gehostet; Besucher laden nichts von Google.
+- Tailwinds eigene Farbpalette ist abgeschaltet (`--color-*: initial`); eine Komponente kann
+  keine Farbe außerhalb des Designsystems wählen.
 - Einen dunklen Modus gibt es nicht. Weil Komponenten nur Bedeutungen kennen, ließe er sich
   später als zweites Thema ergänzen, ohne eine Komponente anzufassen.
-- Die Umstellung des Frontends gehört zu Schritt 3. Bis dahin zeigt Schritt 2 noch die erste
-  Gestaltung (warmes Grau, Bernstein, dunkles Stellwerk).
+- Umgesetzt in Schritt 2: Tokens, Schriften, alle bestehenden Seiten und das Stellwerk.
+  `BlueprintDrawing` und `SpecLine` sind auf der Startseite im Einsatz; `OptionPill`,
+  `ScaleTile`, `ProductStage`, `StatusBadge` und `ProductCard` entstehen mit dem Katalog in
+  Schritt 3, wenn es Produkte gibt, die sie zeigen.
 
 ---
 
@@ -1437,7 +1441,7 @@ das man anfassen kann.
 | --- | --- | --- |
 | 1 | **Konzept** (dieses Dokument) | Freigabe |
 | 2 | **Fundament:** Repository-Struktur, Docker Compose, CI, Plattform-Kern (Outbox, Unit of Work, Fehlerformat, IDs, Echtzeit), Identität mit **Kundenkonten** und Mitarbeiterzugang, Architekturregeln | Registrieren, E-Mail bestätigen, anmelden; der Mitarbeiter sieht die Registrierung live im Admin-Bereich |
-| 3 | **Katalog + Medien** inklusive Pipeline; Frontend auf das helle Designsystem (§11) umgestellt | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne |
+| 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken, mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen |
 | 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |

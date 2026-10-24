@@ -1,12 +1,20 @@
 import { HomeActions } from "@/components/site/home-actions";
-import { TrackPlan } from "@/components/site/track-plan";
+import { SignalBoxDrawing } from "@/components/site/signal-box-drawing";
+import { SpecLine } from "@/components/ui/spec-line";
+
+// The gauges the shop will serve, with scale and track gauge.
+const GAUGES = [
+  { name: "H0", spec: ["1:87", "16,5 mm"] },
+  { name: "TT", spec: ["1:120", "12 mm"] },
+  { name: "N", spec: ["1:160", "9 mm"] },
+] as const;
 
 // What the concept plans for the next steps (docs/KONZEPT.md, "Fahrplan"); the
 // start page says honestly that none of it is open yet.
 const COMING = [
   {
     title: "Katalog",
-    text: "Gebäude, Bausätze und Kleinteile in H0 und N, jede Ausführung mit Maßen und Fotos.",
+    text: "Gebäude, Bausätze und Kleinteile in H0, TT und N, jede Ausführung mit Maßen und Fotos.",
   },
   {
     title: "Bausätze mit Stückliste",
@@ -21,40 +29,50 @@ const COMING = [
 export default function HomePage() {
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-12 pb-16 sm:px-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:pt-20 lg:pb-24">
+      <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
         <div>
-          <p className="label-caps flex items-center gap-2 text-ink-muted">
-            <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
-            Gleis 1 · Im Aufbau
-          </p>
-          <h1 className="mt-5 text-5xl sm:text-6xl lg:text-7xl">
+          <p className="label-caps text-ink-tertiary">Gleis 1 · Im Aufbau</p>
+          <h1 className="mt-5 text-title sm:text-display">
             Hier entsteht ein Shop für 3D-gedruckte Modellbahn-Artikel.
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-ink-muted">
-            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt. Der Katalog folgt –
-            ein Kundenkonto kannst du dir schon heute anlegen.
+          <p className="mt-6 max-w-xl text-body-lg text-ink-secondary">
+            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt. Der Katalog folgt; ein
+            Kundenkonto kannst du dir schon heute anlegen.
           </p>
           <HomeActions />
         </div>
-        <TrackPlan className="mx-auto max-w-xl lg:max-w-none" />
+        <SignalBoxDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
       </section>
 
-      <section aria-labelledby="was-hier-entsteht" className="bg-surface-sunken">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 lg:py-20">
-          <h2 id="was-hier-entsteht" className="text-3xl sm:text-4xl">
-            Was hier entsteht
+      <section aria-labelledby="spurweiten" className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+          <h2 id="spurweiten" className="text-heading">
+            Für H0, TT und N
           </h2>
-          <ol className="mt-10 grid gap-px overflow-hidden rounded-md bg-line-strong rule border-line-strong sm:grid-cols-3">
-            {COMING.map((item, index) => (
-              <li key={item.title} className="bg-surface-raised p-6 sm:p-7">
-                <span className="font-mono text-sm text-accent-text" aria-hidden="true">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3 className="mt-3 text-2xl">{item.title}</h3>
-                <p className="mt-3 leading-7 text-ink-muted">{item.text}</p>
+          <ul className="mt-10 grid gap-px overflow-hidden rounded-md bg-line sm:grid-cols-3">
+            {GAUGES.map((gauge) => (
+              <li key={gauge.name} className="bg-canvas py-6 sm:px-6 sm:first:pl-0">
+                <p className="text-title">{gauge.name}</p>
+                <SpecLine values={gauge.spec} size="small" className="mt-2" />
               </li>
             ))}
-          </ol>
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="was-hier-entsteht" className="bg-stage">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+          <h2 id="was-hier-entsteht" className="text-heading">
+            Was hier entsteht
+          </h2>
+          <ul className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-12">
+            {COMING.map((item) => (
+              <li key={item.title} className="border-t border-line-strong pt-6">
+                <h3 className="text-[1.25rem] leading-7 font-normal tracking-[-0.01em]">{item.title}</h3>
+                <p className="mt-3 text-ink-secondary">{item.text}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </>

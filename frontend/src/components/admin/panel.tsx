@@ -18,16 +18,16 @@ export function Panel({ title, code, actions, className, children }: PanelProps)
   return (
     <section
       aria-labelledby={headingId}
-      className={cn("rule rounded-md border-line bg-surface-raised", className)}
+      className={cn("rounded-md border border-line bg-surface", className)}
     >
-      <header className="flex flex-wrap items-center justify-between gap-3 rule-b border-line px-5 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="flex items-baseline gap-3">
           {code ? (
-            <span className="font-mono text-xs text-ink-muted" aria-hidden="true">
+            <span className="font-mono text-hint text-ink-tertiary" aria-hidden="true">
               {code}
             </span>
           ) : null}
-          <h2 id={headingId} className="text-xl">
+          <h2 id={headingId} className="text-body font-medium tracking-normal">
             {title}
           </h2>
         </div>

@@ -26,7 +26,7 @@ export function PasswordInput({ className, id, ...props }: PasswordInputProps) {
         onClick={() => setVisible((current) => !current)}
         aria-controls={id}
         aria-label={visible ? "Passwort verbergen" : "Passwort anzeigen"}
-        className="label-caps absolute inset-y-1.5 right-1.5 cursor-pointer rounded-sm px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink"
+        className="label-caps absolute inset-y-1.5 right-1.5 cursor-pointer rounded-full px-3 text-ink-tertiary transition-colors hover:bg-sunken hover:text-ink"
       >
         {visible ? "Verbergen" : "Anzeigen"}
       </button>

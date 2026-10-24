@@ -18,17 +18,17 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
           minHeight: "100dvh",
           display: "grid",
           placeItems: "center",
-          background: "#e8e7de",
-          color: "#1b211f",
-          fontFamily: "system-ui, sans-serif",
+          background: "#f4f4f1",
+          color: "#1e2124",
+          fontFamily: "\"Helvetica Neue\", Arial, sans-serif",
         }}
       >
         <title>Fehler</title>
         <main style={{ maxWidth: "32rem", padding: "2rem" }}>
-          <h1 style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <h1 style={{ fontWeight: 300, letterSpacing: "-0.02em" }}>
             Etwas ist schiefgegangen
           </h1>
-          <p style={{ lineHeight: 1.6 }}>
+          <p style={{ lineHeight: 1.6, color: "#4e5357" }}>
             Die Seite konnte nicht geladen werden. Bitte versuche es gleich noch einmal.
           </p>
           <button
@@ -36,11 +36,11 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
             onClick={retry}
             style={{
               marginTop: "1rem",
-              padding: "0.75rem 1.25rem",
-              border: "1.5px solid #1b211f",
-              borderRadius: "4px",
-              background: "#1b211f",
-              color: "#f4f3ee",
+              padding: "0.875rem 1.5rem",
+              border: 0,
+              borderRadius: "999px",
+              background: "#1e2124",
+              color: "#ffffff",
               font: "inherit",
               cursor: "pointer",
             }}

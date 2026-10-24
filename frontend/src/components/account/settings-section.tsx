@@ -15,15 +15,12 @@ export function SettingsSection({ title, description, tone = "default", children
   return (
     <section
       aria-labelledby={headingId}
-      className={cn(
-        "rule rounded-md p-6 sm:p-8",
-        tone === "danger" ? "border-danger" : "border-line-strong bg-surface-raised",
-      )}
+      className="rounded-lg bg-surface p-6 sm:p-8"
     >
-      <h2 id={headingId} className="text-3xl">
+      <h2 id={headingId} className={cn("text-heading", tone === "danger" && "text-danger")}>
         {title}
       </h2>
-      {description ? <div className="mt-2 max-w-prose text-sm leading-6 text-ink-muted">{description}</div> : null}
+      {description ? <div className="mt-2 max-w-prose text-small text-ink-secondary">{description}</div> : null}
       <div className="mt-6">{children}</div>
     </section>
   );

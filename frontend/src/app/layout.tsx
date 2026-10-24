@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { SHOP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
-import { displayFont, monoFont, sansFont } from "./fonts";
+import { monoFont, sansFont } from "./fonts";
 import { Providers } from "./providers";
 
 import "./globals.css";
@@ -15,17 +15,15 @@ export const metadata: Metadata = {
   applicationName: SHOP_NAME,
 };
 
+// One light theme (docs/KONZEPT.md §11); the browser chrome takes the canvas colour.
 export const viewport: Viewport = {
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#e8e7de" },
-    { media: "(prefers-color-scheme: dark)", color: "#151a18" },
-  ],
+  colorScheme: "light",
+  themeColor: "#f4f4f1",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="de" className={cn(displayFont.variable, sansFont.variable, monoFont.variable)}>
+    <html lang="de" className={cn(sansFont.variable, monoFont.variable)}>
       <body className="min-h-dvh">
         <Providers>{children}</Providers>
       </body>

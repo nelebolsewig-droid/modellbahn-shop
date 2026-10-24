@@ -73,24 +73,24 @@ function FeedItem({ entry, isNewest }: { entry: FeedEntry; isNewest: boolean }) 
     <li className="group relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 pb-6 last:pb-0">
       {/* The track: a rail running down the list, a node per event. */}
       <span aria-hidden="true" className="relative flex justify-center">
-        <span className="absolute top-0 bottom-0 w-[1.5px] bg-line-strong group-first:top-2 group-last:bottom-auto group-last:h-2" />
+        <span className="absolute top-0 bottom-0 w-px bg-line-strong group-first:top-2 group-last:bottom-auto group-last:h-2" />
         <span
           className={
             isNewest
-              ? "relative mt-1 size-3 rounded-full bg-accent shadow-[0_0_10px_1px_var(--color-accent)]"
-              : "relative mt-1 size-3 rounded-full bg-surface-raised ring-[1.5px] ring-line-strong"
+              ? "relative mt-1.5 size-2.5 rounded-full bg-accent shadow-[0_0_0_4px_var(--accent-subtle)]"
+              : "relative mt-1.5 size-2.5 rounded-full bg-surface ring-1 ring-line-control"
           }
         />
       </span>
       <div className={isNewest ? "animate-feed-in" : undefined}>
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-medium">{entry.label}</span>
-          <time dateTime={entry.occurredAt.toISOString()} className="font-mono text-sm text-ink-muted">
+          <time dateTime={entry.occurredAt.toISOString()} className="font-mono text-hint text-ink-tertiary tabular-nums">
             {formatEventTime(entry.occurredAt)}
           </time>
         </p>
-        {entry.account ? <p className="mt-1 break-words">{entry.account.displayName}</p> : null}
-        <p className="mt-1 font-mono text-xs break-all text-ink-muted">
+        {entry.account ? <p className="mt-1 break-words text-ink-secondary">{entry.account.displayName}</p> : null}
+        <p className="mt-1 font-mono text-hint break-all text-ink-tertiary">
           {entry.type}
           {entry.truncated ? " · gekürzt" : null}
         </p>
@@ -101,9 +101,9 @@ function FeedItem({ entry, isNewest }: { entry: FeedEntry; isNewest: boolean }) 
 
 function EmptyFeed() {
   return (
-    <div className="rule rounded-sm border-dashed border-line px-5 py-10 text-center">
-      <p className="label-caps text-ink-muted">Gleis frei</p>
-      <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-muted">
+    <div className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center">
+      <p className="label-caps text-ink-tertiary">Gleis frei</p>
+      <p className="mx-auto mt-3 max-w-sm text-small text-ink-secondary">
         Seit dem Öffnen dieser Seite ist nichts passiert. Neue Registrierungen und bestätigte
         E-Mail-Adressen erscheinen hier sofort, ohne Neuladen.
       </p>

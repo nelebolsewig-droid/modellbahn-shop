@@ -36,7 +36,7 @@ export function SystemStatus() {
         <StatusRow label="Datenbank" status={status.database} />
       </dl>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-mono text-xs text-ink-muted">
+        <p className="font-mono text-hint text-ink-tertiary tabular-nums">
           {checkedAt > 0 ? <>Geprüft {formatTime(new Date(checkedAt))}</> : "Wird geprüft …"}
         </p>
         <Button
@@ -57,8 +57,8 @@ function StatusRow({ label, status }: { label: string; status: ComponentStatus }
   const display = DISPLAY[status];
   return (
     <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
-      <dt className="label-caps">{label}</dt>
-      <dd className="flex items-center gap-2 text-sm">
+      <dt className="label-caps text-ink-secondary">{label}</dt>
+      <dd className="flex items-center gap-2 text-small">
         <span>{display.label}</span>
         <SignalLamp color={display.color} />
       </dd>

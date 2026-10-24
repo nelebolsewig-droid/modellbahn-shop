@@ -11,7 +11,7 @@ export function HomeActions() {
 
   if (session.status === "authenticated") {
     return (
-      <div className="mt-9 flex flex-wrap gap-3">
+      <div className="mt-10 flex flex-wrap gap-3">
         <Button asChild>
           <Link href="/konto">Zu meinem Konto</Link>
         </Button>
@@ -19,7 +19,7 @@ export function HomeActions() {
     );
   }
   return (
-    <div className="mt-9 flex flex-wrap gap-3">
+    <div className="mt-10 flex flex-wrap gap-3">
       <Button asChild>
         <Link href="/konto/registrieren">Kundenkonto anlegen</Link>
       </Button>

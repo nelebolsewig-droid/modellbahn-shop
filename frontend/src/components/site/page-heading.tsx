@@ -12,13 +12,10 @@ type PageHeadingProps = {
 export function PageHeading({ caption, title, children, className }: PageHeadingProps) {
   return (
     <header className={className}>
-      <p className="label-caps flex items-center gap-2 text-ink-muted">
-        <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
-        {caption}
-      </p>
-      <h1 className="mt-4 text-5xl sm:text-6xl">{title}</h1>
+      <p className="label-caps text-ink-tertiary">{caption}</p>
+      <h1 className="mt-4 text-title sm:text-display">{title}</h1>
       {children ? (
-        <div className="mt-5 max-w-lg space-y-3 leading-7 text-ink-muted">{children}</div>
+        <div className="mt-6 max-w-xl space-y-3 text-body-lg text-ink-secondary">{children}</div>
       ) : null}
     </header>
   );

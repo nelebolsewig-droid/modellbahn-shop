@@ -46,14 +46,14 @@ export function FormField({ label, hint, error, className, children }: FormField
         })}
       </div>
       {hint ? (
-        <p id={hintId} className="mt-1.5 text-sm text-ink-muted">
+        <p id={hintId} className="mt-1.5 text-hint text-ink-tertiary">
           {hint}
         </p>
       ) : null}
       <p
         id={errorId}
         aria-live="polite"
-        className="text-sm font-medium text-danger not-empty:mt-1.5"
+        className="text-hint font-medium text-danger not-empty:mt-1.5"
       >
         {error}
       </p>

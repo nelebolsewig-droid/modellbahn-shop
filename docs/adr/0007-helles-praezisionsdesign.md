@@ -26,11 +26,12 @@ soll duster oder rein schwarz wirken. Die Produktfotos sollen im Mittelpunkt ste
 
 ## Folgen
 
-- Das Frontend wird in Schritt 3 umgestellt: neue `tokens.css`, `@theme`-Klassen, Komponenten
-  nach §11.3, helles Stellwerk. Die Gestaltung aus Schritt 2 gilt bis dahin als Übergang.
+- Das Frontend ist noch in Schritt 2 umgestellt worden: `src/styles/tokens.css`, `@theme`-Klassen
+  ohne Tailwinds eigene Palette, Geist, helles Stellwerk mit kompakterer Werkstatt-Dichte. Die
+  Katalog-Bausteine (Produktbühne, Optionen, Karten) folgen mit Schritt 3.
 - Wer einen dunklen Modus bevorzugt, bekommt keinen. Weil Komponenten nur Bedeutungen kennen,
   ließe er sich später als zweites Thema ergänzen, ohne Komponenten zu ändern.
-- Ein Test prüft die Kontraste der Text-Token. Die hauchdünnen Konturen erreichen 3 : 1 bewusst
+- `src/styles/tokens.test.ts` prüft die Kontraste der Text-Token. Die hauchdünnen Konturen erreichen 3 : 1 bewusst
   nicht; Zustände werden deshalb immer über Füllung, Kontur in `selected` oder den Fokusring
   gezeigt, nie über die Haarlinie allein.
 - Geist wird über `next/font` selbst gehostet; Besucher laden keine Schriften von Google.

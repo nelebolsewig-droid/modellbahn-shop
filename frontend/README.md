@@ -69,9 +69,12 @@ src/
 - **Formulare** nutzen `useApiForm` (react-hook-form + zod): Prüfung beim Verlassen eines
   Feldes, Feldfehler der API am Feld, alles andere über dem Formular. Feldnamen sind die der
   API (`display_name`, `new_password`), damit 422-Antworten direkt passen.
-- **Farben nur über Tokens** (`bg-surface`, `text-ink`, `border-line-strong`, …) aus
-  `globals.css`. Der Shop folgt dem Farbschema des Systems; das Stellwerk ist immer dunkel.
-  Text erreicht mindestens 4,5:1 Kontrast, Rahmen von Eingabefeldern 3:1.
+- **Farben nur über Tokens** (`bg-canvas`, `text-ink-secondary`, `border-line`, …): Rohwerte
+  und Bedeutungen stehen in `src/styles/tokens.css`, `globals.css` macht daraus Klassen und
+  schaltet Tailwinds eigene Palette ab. Es gibt ein helles Thema, auch für das Stellwerk; dort
+  sind Bedienelemente kompakter (`data-density="werkstatt"`, Variante `werkstatt:`). Gestaltung
+  und Bausteine: `docs/KONZEPT.md` §11. `src/styles/tokens.test.ts` prüft, dass Text mindestens
+  4,5:1 Kontrast erreicht, Rahmen von Eingabefeldern und der Fokusring 3:1.
 - **Barrierefreiheit:** jedes Feld hat ein Label, Fehler sind Live-Regionen, der Fokus ist
   sichtbar, Dialoge kommen von Radix (Fokusfalle, Escape). Farbe trägt nie allein eine
   Information – die Signallampen stehen immer neben Text.

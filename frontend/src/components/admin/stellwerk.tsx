@@ -69,15 +69,13 @@ function Desk({ staff, onLoggedOut, onStreamClosed }: DeskProps) {
 
   return (
     <>
-      <header className="rule-b border-line">
+      <header className="border-b border-line">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <LogoMark />
             <div>
-              <p className="label-caps text-ink-muted">{SHOP_NAME}</p>
-              <p className="font-display text-2xl leading-none font-semibold tracking-display uppercase">
-                Stellwerk
-              </p>
+              <p className="label-caps text-ink-tertiary">{SHOP_NAME}</p>
+              <p className="text-[1.25rem] leading-6 font-medium tracking-[-0.01em]">Stellwerk</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -97,15 +95,15 @@ function Desk({ staff, onLoggedOut, onStreamClosed }: DeskProps) {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
-        <p role="alert" className="text-sm font-medium text-danger not-empty:mb-6">
+        <p role="alert" className="text-small font-medium text-danger not-empty:mb-6">
           {logout.isError ? errorMessage(logout.error) : null}
         </p>
-        <p className="label-caps text-ink-muted">Dienst · {formatWeekdayDate(now)}</p>
-        <h1 className="mt-3 text-4xl break-words sm:text-5xl">
+        <p className="label-caps text-ink-tertiary">Dienst · {formatWeekdayDate(now)}</p>
+        <h1 className="mt-4 text-heading break-words sm:text-title">
           {greetingFor(now)}, {staff.display_name}
         </h1>
-        <p className="mt-3 flex flex-wrap items-center gap-2 text-ink-muted">
-          Angemeldet als <Badge tone="warning">{STAFF_ROLE_LABELS[staff.role]}</Badge>
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-ink-secondary">
+          Angemeldet als <Badge tone="accent">{STAFF_ROLE_LABELS[staff.role]}</Badge>
           <span className="break-all">{staff.email}</span>
         </p>
 

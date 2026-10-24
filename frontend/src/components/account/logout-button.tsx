@@ -17,7 +17,7 @@ export function LogoutButton({ onLoggedOut }: { onLoggedOut: () => void }) {
       >
         {logout.isPending ? "Abmelden …" : "Abmelden"}
       </Button>
-      <p role="alert" className="text-sm font-medium text-danger not-empty:mt-2">
+      <p role="alert" className="text-small font-medium text-danger not-empty:mt-2">
         {logout.isError ? errorMessage(logout.error) : null}
       </p>
     </div>

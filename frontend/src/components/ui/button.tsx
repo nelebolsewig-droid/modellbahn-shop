@@ -6,24 +6,25 @@ import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   [
-    "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm whitespace-nowrap",
-    "font-display font-semibold tracking-display uppercase",
-    "transition-[background-color,border-color,color,box-shadow] duration-150",
-    "disabled:cursor-not-allowed disabled:opacity-55 aria-busy:cursor-progress",
+    "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full whitespace-nowrap",
+    "font-medium transition-[background-color,border-color,color] duration-150 ease-out",
+    "disabled:cursor-not-allowed aria-busy:cursor-progress",
   ],
   {
     variants: {
       variant: {
-        primary:
-          "rule border-primary bg-primary text-primary-ink shadow-[inset_0_-3px_0_0_var(--color-accent)] hover:shadow-[inset_0_-5px_0_0_var(--color-accent)]",
+        // Matte black; one per area ("In den Warenkorb", "Speichern").
+        primary: "bg-selected text-on-selected hover:bg-ink-secondary disabled:bg-sunken disabled:text-ink-disabled",
+        // The second action next to it, with a visible border (3:1).
         secondary:
-          "rule border-line-strong bg-transparent text-ink hover:bg-surface-sunken",
-        danger: "rule border-danger bg-danger text-danger-ink hover:brightness-110",
-        ghost: "text-ink underline-offset-4 hover:bg-surface-sunken hover:underline",
+          "border border-line-control bg-transparent text-ink hover:border-ink disabled:border-line disabled:text-ink-disabled",
+        danger: "bg-danger text-on-selected hover:bg-ink disabled:bg-sunken disabled:text-ink-disabled",
+        // Quiet actions inside a page, in the accent colour.
+        ghost: "text-accent hover:bg-accent-subtle hover:text-accent-hover disabled:text-ink-disabled",
       },
       size: {
-        md: "h-11 px-5 text-lg",
-        sm: "h-9 px-3 text-base",
+        md: "h-12 px-6 text-[0.9375rem] werkstatt:h-10 werkstatt:px-5 werkstatt:text-sm",
+        sm: "h-10 px-5 text-sm werkstatt:h-9 werkstatt:px-4",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

@@ -3,12 +3,24 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-const calloutVariants = cva("rule rounded-sm py-3 pr-4 pl-5 text-sm leading-6 text-ink", {
+// Flat, tinted fields without borders; the title always says what happened, so the
+// tint is never the only carrier of the message.
+const calloutVariants = cva("rounded-md px-5 py-4 text-small text-ink", {
   variants: {
     tone: {
-      info: "border-line-strong bg-surface-raised shadow-[inset_4px_0_0_0_var(--color-accent)]",
-      success: "border-success bg-success-surface shadow-[inset_4px_0_0_0_var(--color-success)]",
-      danger: "border-danger bg-danger-surface shadow-[inset_4px_0_0_0_var(--color-danger)]",
+      info: "bg-accent-subtle",
+      success: "bg-success-subtle",
+      danger: "bg-danger-subtle",
+    },
+  },
+});
+
+const titleVariants = cva("font-medium", {
+  variants: {
+    tone: {
+      info: "text-accent",
+      success: "text-success",
+      danger: "text-danger",
     },
   },
 });
@@ -26,8 +38,8 @@ type CalloutProps = {
 export function Callout({ tone, title, children, className }: CalloutProps) {
   return (
     <div className={cn(calloutVariants({ tone }), className)}>
-      {title ? <p className="font-semibold">{title}</p> : null}
-      {children ? <div className={cn(title ? "mt-1" : undefined, "space-y-2")}>{children}</div> : null}
+      {title ? <p className={titleVariants({ tone })}>{title}</p> : null}
+      {children ? <div className={cn(title ? "mt-1.5" : undefined, "space-y-2")}>{children}</div> : null}
     </div>
   );
 }
