@@ -94,7 +94,6 @@ export function ResponsivePicture({
         <picture>
           <source type="image/avif" srcSet={srcSet(renditions, "avif")} sizes={sizes} />
           <source type="image/webp" srcSet={srcSet(renditions, "webp")} sizes={sizes} />
-          {/* eslint-disable-next-line @next/next/no-img-element -- sizes are pre-rendered */}
           <img
             ref={ref}
             src={fallback.url}

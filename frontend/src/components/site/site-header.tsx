@@ -13,9 +13,19 @@ export function SiteHeader() {
           <LogoMark />
           <span className="text-[1.0625rem] font-medium tracking-[-0.01em]">{SHOP_NAME}</span>
         </Link>
-        <nav aria-label="Kundenkonto">
-          <AccountLink />
-        </nav>
+        <div className="flex items-center gap-2 sm:gap-6">
+          <nav aria-label="Shop">
+            <Link
+              href="/katalog"
+              className="rounded-sm px-2 py-1 text-[0.9375rem] font-medium text-ink-secondary hover:text-ink"
+            >
+              Katalog
+            </Link>
+          </nav>
+          <nav aria-label="Kundenkonto">
+            <AccountLink />
+          </nav>
+        </div>
       </div>
     </header>
   );

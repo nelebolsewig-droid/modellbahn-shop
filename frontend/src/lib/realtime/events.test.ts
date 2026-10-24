@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeFeed, parseFeedEntry, STAFF_EVENT_TYPES, type FeedEntry } from "./events";
+import { assetIdOf, mergeFeed, parseFeedEntry, STAFF_EVENT_TYPES, type FeedEntry } from "./events";
 
 function message(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -36,8 +36,18 @@ describe("parseFeedEntry", () => {
   });
 
   it("shows an unknown event type as it is, without an account if the payload has none", () => {
-    const parsed = parseFeedEntry(message({ type: "catalog.product.published", data: { sku: "1" } }));
-    expect(parsed?.label).toBe("catalog.product.published");
+    const parsed = parseFeedEntry(message({ type: "sales.order.placed", data: { sku: "1" } }));
+    expect(parsed?.label).toBe("sales.order.placed");
+    expect(parsed?.account).toBeUndefined();
+    expect(parsed?.subject).toBeUndefined();
+  });
+
+  it("names the product of a catalogue event", () => {
+    const parsed = parseFeedEntry(
+      message({ type: "catalog.product.published", data: { product_id: "p1", name: "Stellwerk Altenau" } }),
+    );
+    expect(parsed?.label).toBe("Produkt veröffentlicht");
+    expect(parsed?.subject).toBe("Stellwerk Altenau");
     expect(parsed?.account).toBeUndefined();
   });
 
@@ -50,9 +60,29 @@ describe("parseFeedEntry", () => {
     expect(parseFeedEntry(raw)).toBeNull();
   });
 
-  it("listens to both staff event types", () => {
-    expect(STAFF_EVENT_TYPES).toEqual(["identity.customer.registered", "identity.account.email_verified"]);
+  it("listens to every staff event type", () => {
+    expect(STAFF_EVENT_TYPES).toEqual([
+      "identity.customer.registered",
+      "identity.account.email_verified",
+      "catalog.product.published",
+      "catalog.product.archived",
+      "media.asset.ready",
+      "media.asset.failed",
+    ]);
   });
+});
+
+describe("assetIdOf", () => {
+  it("reads the asset of a media event", () => {
+    expect(assetIdOf(message({ type: "media.asset.ready", data: { asset_id: "a1" } }))).toBe("a1");
+  });
+
+  it.each([["not json", "{"], ["no asset", message()], ["malformed", message({ id: "" })]])(
+    "is null for anything else (%s)",
+    (_, raw) => {
+      expect(assetIdOf(raw)).toBeNull();
+    },
+  );
 });
 
 describe("mergeFeed", () => {

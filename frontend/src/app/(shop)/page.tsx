@@ -1,6 +1,13 @@
+import type { Route } from "next";
+import Link from "next/link";
+import { connection } from "next/server";
+
 import { HomeActions } from "@/components/site/home-actions";
 import { SignalBoxDrawing } from "@/components/site/signal-box-drawing";
+import { ProductCard } from "@/components/ui/product-card";
 import { SpecLine } from "@/components/ui/spec-line";
+import type { StoreProductCardOut, StoreProductPageOut } from "@/lib/api/generated/model";
+import { fetchStore } from "@/lib/api/server";
 
 // The gauges the shop will serve, with scale and track gauge.
 const GAUGES = [
@@ -13,20 +20,35 @@ const GAUGES = [
 // start page says honestly that none of it is open yet.
 const COMING = [
   {
-    title: "Katalog",
-    text: "Gebäude, Bausätze und Kleinteile in H0, TT und N, jede Ausführung mit Maßen und Fotos.",
+    title: "Bestellen",
+    text: "Mit Kundenkonto oder als Gast. Gastbestellungen landen später in deinem Konto, sobald deine E-Mail-Adresse bestätigt ist.",
   },
   {
     title: "Bausätze mit Stückliste",
     text: "Du siehst vorher, welche Teile in der Schachtel liegen und was du selbst ergänzt.",
   },
   {
-    title: "Bestellen",
-    text: "Mit Kundenkonto oder als Gast. Gastbestellungen landen später in deinem Konto, sobald deine E-Mail-Adresse bestätigt ist.",
+    title: "Verfügbarkeit",
+    text: "Du siehst, ob ein Modell am Lager liegt oder für dich gedruckt wird, und wann es ankommt.",
   },
 ] as const;
 
-export default function HomePage() {
+const NEWEST_COUNT = "3";
+
+/** The newest products in the shop; none (and no section) while the API is unreachable. */
+async function newestProducts(): Promise<StoreProductCardOut[]> {
+  try {
+    const page = await fetchStore<StoreProductPageOut>("/products", { limit: NEWEST_COUNT });
+    return page?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  // Rendered per request, so a newly published model shows up at once.
+  await connection();
+  const newest = await newestProducts();
   return (
     <>
       <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
@@ -36,13 +58,42 @@ export default function HomePage() {
             Hier entsteht ein Shop für 3D-gedruckte Modellbahn-Artikel.
           </h1>
           <p className="mt-6 max-w-xl text-body-lg text-ink-secondary">
-            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt. Der Katalog folgt; ein
-            Kundenkonto kannst du dir schon heute anlegen.
+            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt. Die ersten Modelle
+            stehen im Katalog; bestellen kannst du bald, ein Kundenkonto schon heute anlegen.
           </p>
           <HomeActions />
         </div>
         <SignalBoxDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
       </section>
+
+      {newest.length > 0 ? (
+        <section aria-labelledby="neu" className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <h2 id="neu" className="text-heading">
+                Neu aus der Werkstatt
+              </h2>
+              <Link href="/katalog" className="text-small font-medium text-accent hover:underline">
+                Alle Modelle
+              </Link>
+            </div>
+            <ul className="mt-10 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+              {newest.map((item) => (
+                <li key={item.slug}>
+                  <ProductCard
+                    href={`/produkte/${item.slug}` as Route}
+                    name={item.name}
+                    summary={item.summary}
+                    scales={item.scale_codes}
+                    priceFromCents={item.price_from_cents}
+                    image={item.image}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="spurweiten" className="border-t border-line">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
