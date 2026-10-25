@@ -46,17 +46,14 @@ export function ProductCard({
           </p>
         )}
       </div>
-      <div className="mt-4 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h3 className="text-[1.125rem] leading-6 font-normal tracking-[-0.01em] group-hover:underline group-hover:underline-offset-4">
-            {name}
-          </h3>
-          {scales.length > 0 ? <SpecLine values={scales} size="small" className="mt-1" /> : null}
-        </div>
+      {/* The name has the whole width; scales and price share the line below. */}
+      <h3 className="mt-4 text-[1.125rem] leading-6 font-normal tracking-[-0.01em] hyphens-auto break-words group-hover:underline group-hover:underline-offset-4">
+        {name}
+      </h3>
+      <div className="mt-1 flex items-baseline justify-between gap-4">
+        {scales.length > 0 ? <SpecLine values={scales} size="small" /> : <span />}
         {priceFromCents !== null ? (
-          <p className="shrink-0 text-small text-ink-secondary tabular-nums">
-            ab {formatPrice(priceFromCents)}
-          </p>
+          <p className="shrink-0 text-small text-ink-secondary tabular-nums">ab {formatPrice(priceFromCents)}</p>
         ) : null}
       </div>
       {summary ? <p className="mt-2 line-clamp-2 text-small text-ink-tertiary">{summary}</p> : null}

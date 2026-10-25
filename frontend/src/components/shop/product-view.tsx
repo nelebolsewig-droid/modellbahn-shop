@@ -18,6 +18,7 @@ import {
   formatProductNumber,
 } from "@/lib/catalog/format";
 import { scaleLabel } from "@/lib/catalog/scales";
+import { cn } from "@/lib/utils";
 
 type Selection = { scale: string; finish: string };
 
@@ -56,6 +57,8 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
   const variant = scale?.variants.find((v) => v.finish_code === selection.finish) ?? scale?.variants[0];
   const finish = product.finishes.find((f) => f.code === variant?.finish_code);
   const items = useMemo(() => galleryFor(product.gallery, selection), [product.gallery, selection]);
+  // German compounds ("Löschgruppenfahrzeug") do not fit the column in display size.
+  const longWord = product.name.split(/\s+/).some((word) => word.length > 14);
 
   function chooseScale(code: string) {
     const next = product.scales.find((s) => s.code === code);
@@ -71,7 +74,7 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
 
       <div className="lg:sticky lg:top-8">
         <p className="font-mono text-hint text-ink-tertiary">{formatProductNumber(product.number)}</p>
-        <h1 className="mt-3 text-title sm:text-display">{product.name}</h1>
+        <h1 className={cn("mt-3 text-title hyphens-auto break-words", !longWord && "sm:text-display")}>{product.name}</h1>
         {scale ? (
           <SpecLine values={[scaleLabel(scale), ...(finish ? [finish.name] : [])]} className="mt-4" />
         ) : null}

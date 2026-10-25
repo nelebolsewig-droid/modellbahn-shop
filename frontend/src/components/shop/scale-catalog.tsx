@@ -102,7 +102,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
       <header className="mt-8 grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <div>
           <p className="label-caps text-ink-tertiary">Maßstab {scaleLabel(scale)}</p>
-          <h1 className="mt-4 text-title sm:text-display">{category ? category.name : `Alle Modelle in ${scale.name}`}</h1>
+          <h1 className="mt-4 text-title hyphens-auto break-words sm:text-display">{category ? category.name : `Alle Modelle in ${scale.name}`}</h1>
         </div>
         {/* Against the largest scale of the shop, so the tape shows how big this one is. */}
         <ScaleRule
@@ -114,25 +114,32 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
         <ScaleSwitch location={location} scales={navigation.scales} categories={navigation.categories} />
       </div>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-14">
-        <aside className="space-y-10">
-          <form action={catalogPath({ scale: scale.code, category: category?.slug })} role="search" className="space-y-3">
-            <label htmlFor="suche" className="label-caps text-ink-tertiary">
-              Suche in {scale.name}
-            </label>
-            {location.epoche ? <input type="hidden" name="epoche" value={location.epoche} /> : null}
-            {location.sortierung ? <input type="hidden" name="sortierung" value={location.sortierung} /> : null}
-            <Input id="suche" name="suche" type="search" defaultValue={location.suche} placeholder="z. B. Feuerwehr" />
-            <Button type="submit" variant="secondary" size="sm">
-              Suchen
-            </Button>
-          </form>
-          <CategoryTree location={location} categories={navigation.categories} />
-          <EpochFilter location={location} epochs={navigation.epochs} />
+      <div className="mt-10 grid gap-10 lg:mt-12 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-14">
+        {/* Phones: the filters fold away, so the models come right after the heading. */}
+        <details className="group rounded-lg border border-line bg-surface lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+            <span>
+              <span className="block label-caps text-ink-tertiary">Filter</span>
+              <span className="mt-1 block text-small font-medium">
+                {[category?.name ?? "Alle Kategorien", location.epoche && `Epoche ${location.epoche}`, location.suche && `„${location.suche}“`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-ink-tertiary transition-transform duration-150 group-open:rotate-180">
+              ▾
+            </span>
+          </summary>
+          <div className="space-y-10 border-t border-line px-5 py-6">
+            <Filters navigation={navigation} location={location} scaleName={scale.name} inputId="suche-mobil" />
+          </div>
+        </details>
+        <aside className="hidden space-y-10 lg:block">
+          <Filters navigation={navigation} location={location} scaleName={scale.name} inputId="suche" />
         </aside>
 
         <section aria-label="Modelle">
-          {items.length > 0 ? <CatalogSort location={location} className="mb-8 justify-end" /> : null}
+          {items.length > 0 ? <CatalogSort location={location} className="mb-8 lg:justify-end" /> : null}
           {items.length === 0 ? (
             <EmptyState title={filtered ? "Nichts gefunden" : "Bald im Katalog"}>
               <p>
@@ -175,6 +182,35 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
         </section>
       </div>
     </div>
+  );
+}
+
+type FiltersProps = {
+  navigation: NavigationOut;
+  location: CatalogLocation;
+  scaleName: string;
+  /** The page shows the filters twice (folded on phones), each with its own field id. */
+  inputId: string;
+};
+
+/** Search within the scale, the category tree and the epochs. */
+function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
+  return (
+    <>
+      <form action={catalogPath({ scale: location.scale, category: location.category })} role="search" className="space-y-3">
+        <label htmlFor={inputId} className="label-caps text-ink-tertiary">
+          Suche in {scaleName}
+        </label>
+        {location.epoche ? <input type="hidden" name="epoche" value={location.epoche} /> : null}
+        {location.sortierung ? <input type="hidden" name="sortierung" value={location.sortierung} /> : null}
+        <Input id={inputId} name="suche" type="search" defaultValue={location.suche} placeholder="z. B. Feuerwehr" />
+        <Button type="submit" variant="secondary" size="sm">
+          Suchen
+        </Button>
+      </form>
+      <CategoryTree location={location} categories={navigation.categories} />
+      <EpochFilter location={location} epochs={navigation.epochs} />
+    </>
   );
 }
 
