@@ -19,7 +19,7 @@ import {
 } from "@/lib/api/generated/store-sales/store-sales";
 import { isApiProblem, type ApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
-import { formatLongDate, formatTime } from "@/lib/format";
+import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import { IDEMPOTENCY_HEADER, useIdempotencyKeys } from "@/lib/sales/idempotency";
 import { TEST_PAYMENT_METHODS } from "@/lib/sales/labels";
@@ -153,7 +153,7 @@ function PaymentSheet({ order, token, statusHref }: { order: OrderOut; token: st
       <p className="mt-6 text-hint text-ink-tertiary">
         Du kannst auch später bezahlen
         {order.payment_due_at
-          ? `, bis ${formatLongDate(new Date(order.payment_due_at))}, ${formatTime(new Date(order.payment_due_at))} Uhr`
+          ? `, bis ${formatLongDate(new Date(order.payment_due_at))}, ${formatClock(new Date(order.payment_due_at))} Uhr`
           : ""}
         : Die E-Mail zu deiner Bestellung enthält den Link hierher. Zur{" "}
         <Link href={statusHref} className="underline underline-offset-4 hover:text-ink">

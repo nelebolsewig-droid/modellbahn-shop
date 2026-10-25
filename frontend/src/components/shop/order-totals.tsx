@@ -10,22 +10,32 @@ type OrderTotalsProps = {
   className?: string;
 };
 
+const ROW = "col-span-2 grid grid-cols-subgrid";
+
 /** Goods, shipping, total and the VAT contained in it, aligned on the right. */
 export function OrderTotals({ totals, countryName, className }: OrderTotalsProps) {
   return (
+    // Each row a subgrid on the same two columns: the amounts line up, and the rule
+    // above the total runs unbroken across both.
     <dl className={cn("grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-2 text-small", className)}>
-      <dt className="text-ink-secondary">Zwischensumme</dt>
-      <dd className="text-right tabular-nums">{formatPrice(totals.subtotal_cents)}</dd>
-      <dt className="text-ink-secondary">Versand nach {countryName}</dt>
-      <dd className="text-right tabular-nums">
-        {totals.shipping_cents === 0 ? "kostenlos" : formatPrice(totals.shipping_cents)}
-      </dd>
-      <dt className="mt-3 border-t border-line pt-3 text-body font-medium">Summe</dt>
-      <dd className="mt-3 border-t border-line pt-3 text-right text-heading tabular-nums">
-        {formatPrice(totals.total_cents)}
-      </dd>
-      <dt className="text-hint text-ink-tertiary">darin enthalten 19 % MwSt.</dt>
-      <dd className="text-right text-hint text-ink-tertiary tabular-nums">{formatPrice(totals.tax_cents)}</dd>
+      <div className={ROW}>
+        <dt className="text-ink-secondary">Zwischensumme</dt>
+        <dd className="text-right tabular-nums">{formatPrice(totals.subtotal_cents)}</dd>
+      </div>
+      <div className={ROW}>
+        <dt className="text-ink-secondary">Versand nach {countryName}</dt>
+        <dd className="text-right tabular-nums">
+          {totals.shipping_cents === 0 ? "kostenlos" : formatPrice(totals.shipping_cents)}
+        </dd>
+      </div>
+      <div className={cn(ROW, "mt-3 items-baseline border-t border-line pt-3")}>
+        <dt className="text-body font-medium">Summe</dt>
+        <dd className="text-right text-heading tabular-nums">{formatPrice(totals.total_cents)}</dd>
+      </div>
+      <div className={ROW}>
+        <dt className="text-hint text-ink-tertiary">darin enthalten 19 % MwSt.</dt>
+        <dd className="text-right text-hint text-ink-tertiary tabular-nums">{formatPrice(totals.tax_cents)}</dd>
+      </div>
     </dl>
   );
 }

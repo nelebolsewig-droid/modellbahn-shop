@@ -36,7 +36,7 @@ import type { AdminOrderOut, StaffRole } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { SHOP_NAME } from "@/lib/config";
 import { useApiForm } from "@/lib/forms/use-api-form";
-import { formatLongDate, formatTime } from "@/lib/format";
+import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, ORDER_EVENT_TYPES, orderEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
@@ -109,7 +109,7 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
           </p>
           <h1 className="mt-3 font-mono text-heading sm:text-title">{data.number}</h1>
           <p className="mt-2 text-small text-ink-secondary">
-            Eingegangen am {formatLongDate(new Date(data.placed_at))}, {formatTime(new Date(data.placed_at))} Uhr ·{" "}
+            Eingegangen am {formatLongDate(new Date(data.placed_at))}, {formatClock(new Date(data.placed_at))} Uhr ·{" "}
             {data.customer_account_id ? "Kundenkonto" : "Gastbestellung"}
           </p>
         </div>
@@ -172,7 +172,7 @@ function StateNote({ order }: { order: AdminOrderOut }) {
     const due = new Date(order.payment_due_at);
     return (
       <p className="mt-6 text-small text-ink-secondary">
-        Wartet auf die Zahlung bis {formatLongDate(due)}, {formatTime(due)} Uhr; danach storniert das System sie.
+        Wartet auf die Zahlung bis {formatLongDate(due)}, {formatClock(due)} Uhr; danach storniert das System sie.
       </p>
     );
   }
@@ -196,7 +196,7 @@ function Payments({ order }: { order: AdminOrderOut }) {
           <tr key={payment.created_at}>
             <td className="py-2 pr-4 text-ink-secondary tabular-nums">
               <time dateTime={payment.created_at}>
-                {formatLongDate(new Date(payment.created_at))}, {formatTime(new Date(payment.created_at))}
+                {formatLongDate(new Date(payment.created_at))}, {formatClock(new Date(payment.created_at))}
               </time>
             </td>
             <td className="py-2 pr-4">
@@ -242,20 +242,21 @@ function ParcelLabel({ order }: { order: AdminOrderOut }) {
 }
 
 function Barcode({ value, className }: { value: string; className?: string }) {
-  // Two bars per character, widths from its code: stable for the same number.
-  const bars = [...value].flatMap((char) => {
+  // Guard bars, then five bars per character: narrow or wide by the bits of its code.
+  // Stable for the same number, and dense enough to read as a label at a glance.
+  const widths = [1, 1, ...[...value].flatMap((char) => {
     const code = char.charCodeAt(0);
-    return [1 + (code % 3), 1 + ((code >> 2) % 2)];
-  });
+    return [0, 1, 2, 3, 4].map((bit) => 1 + ((code >> bit) & 1) * 2);
+  }), 1, 1];
   let x = 0;
-  const rects = bars.map((width, index) => {
-    const rect = index % 2 === 0 ? <rect key={index} x={x} y={0} width={width} height={28} /> : null;
-    x += width + 1;
-    return rect;
+  const bars = widths.map((width, index) => {
+    const bar = <rect key={index} x={x} y={0} width={width} height={28} />;
+    x += width + (index % 3 === 2 ? 2 : 1);
+    return bar;
   });
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${x} 28`} preserveAspectRatio="none" className={className} width="100%" height="28" fill="currentColor">
-      {rects}
+      {bars}
     </svg>
   );
 }
@@ -266,7 +267,7 @@ function Dispatch({ order, onShipped }: { order: AdminOrderOut; onShipped: (orde
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-small">
         <dt className="text-ink-secondary">Versendet</dt>
         <dd>
-          {formatLongDate(new Date(order.shipped_at))}, {formatTime(new Date(order.shipped_at))} Uhr
+          {formatLongDate(new Date(order.shipped_at))}, {formatClock(new Date(order.shipped_at))} Uhr
         </dd>
         <dt className="text-ink-secondary">Versand mit</dt>
         <dd>{order.carrier || "—"}</dd>

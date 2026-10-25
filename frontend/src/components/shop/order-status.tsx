@@ -13,7 +13,7 @@ import type { OrderOut } from "@/lib/api/generated/model";
 import { useGetOrderByToken } from "@/lib/api/generated/store-sales/store-sales";
 import { isApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
-import { formatLongDate, formatTime } from "@/lib/format";
+import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import {
   CANCEL_REASON_LABELS,
@@ -109,7 +109,7 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
                   <li key={payment.created_at} className="flex justify-between gap-4">
                     <span>
                       {PAYMENT_STATUS_LABELS[payment.status]}
-                      <span className="text-ink-tertiary"> · {formatTime(new Date(payment.created_at))}</span>
+                      <span className="text-ink-tertiary"> · {formatClock(new Date(payment.created_at))}</span>
                     </span>
                     <span className="tabular-nums">{formatPrice(payment.amount_cents)}</span>
                   </li>
@@ -140,7 +140,7 @@ function StatusText({ order }: { order: OrderOut }) {
             <>
               {" "}
               Bitte bezahle bis {formatLongDate(new Date(order.payment_due_at))},{" "}
-              {formatTime(new Date(order.payment_due_at))} Uhr; danach stornieren wir sie automatisch.
+              {formatClock(new Date(order.payment_due_at))} Uhr; danach stornieren wir sie automatisch.
             </>
           ) : null}
         </p>

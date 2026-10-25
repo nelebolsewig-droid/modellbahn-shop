@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import type { AddressOut, OrderLineOut, OrderOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
-import { formatLongDate, formatTime } from "@/lib/format";
+import { formatLongDate, formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /*
@@ -65,7 +65,7 @@ export function OrderTimeline({ order, className }: { order: OrderOut; className
             {station.at ? (
               <p className="mt-0.5 text-hint text-ink-tertiary">
                 <time dateTime={station.at}>
-                  {formatLongDate(new Date(station.at))}, {formatTime(new Date(station.at))}
+                  {formatLongDate(new Date(station.at))}, {formatClock(new Date(station.at))}
                 </time>
               </p>
             ) : null}

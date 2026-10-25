@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatEventTime, formatLongDate, formatWeekdayDate, greetingFor } from "./format";
+import { formatClock, formatEventTime, formatLongDate, formatWeekdayDate, greetingFor } from "./format";
 
 describe("formatEventTime", () => {
   const now = new Date("2026-10-22T15:00:00Z");
@@ -35,5 +35,13 @@ describe("greetingFor", () => {
     ["2026-10-22T00:30:00Z", "Guten Abend"], // 02:30
   ])("greets at %s with %s", (iso, greeting) => {
     expect(greetingFor(new Date(iso))).toBe(greeting);
+  });
+});
+
+describe("formatClock", () => {
+  it("shows hours and minutes in German time, without seconds", () => {
+    expect(formatClock(new Date("2026-10-22T12:32:59Z"))).toBe("14:32");
+    // Winter time from 25 October 2026 on.
+    expect(formatClock(new Date("2026-10-26T08:05:00Z"))).toBe("09:05");
   });
 });

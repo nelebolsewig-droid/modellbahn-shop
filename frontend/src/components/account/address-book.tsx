@@ -72,7 +72,7 @@ function Book() {
         </span>{" "}
         Adressen. Die Standardadresse ist an der Kasse vorausgewählt.
       </p>
-      <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-6 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {entries.map((entry) => (
           <li key={entry.id}>
             {editing === entry.id ? (
@@ -95,7 +95,7 @@ function Book() {
               disabled={full}
               onClick={() => setEditing(NEW_ENTRY)}
               className={cn(
-                "flex h-full min-h-48 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg",
+                "flex min-h-48 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg",
                 "border border-dashed border-line-strong p-6 text-center transition-colors",
                 "hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:hover:border-line-strong disabled:hover:bg-transparent",
               )}
@@ -116,7 +116,7 @@ function Book() {
 }
 
 function EntryCard({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("h-full rounded-lg border border-line bg-surface p-6", className)}>{children}</div>;
+  return <div className={cn("rounded-lg border border-line bg-surface p-6", className)}>{children}</div>;
 }
 
 function useBookUpdate() {
