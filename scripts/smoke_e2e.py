@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """End-to-end smoke test of the running stack: ``make smoke`` (after ``make up``).
 
-Drives the demos of steps 2 and 3 through Caddy the way the browser does: start page,
+Drives the demos of steps 2 to 4 through Caddy the way the browser does: start page,
 registration, verification mail in Mailpit, verification with login, logout, password
 reset, staff login and the live event stream of the "Stellwerk"; then a product with
 gauge and variants, a photo uploaded straight into the object storage with a signed
-URL, its sizes appearing live, publishing and the shop's pages - plus the boundaries
-that keep it safe: shop and admin sessions do not mix, state-changing requests without
-the CSRF header are refused, and the storage takes only signed uploads.
+URL, its sizes appearing live, publishing and the shop's pages; then the sale of step
+4: cart, a guest order with Idempotency-Key, a declined and a successful test payment,
+the order joining the account once the guest registers, dispatch and a cancellation
+with refund - plus the boundaries that keep it safe: shop and admin sessions do not
+mix, state-changing requests without the CSRF header are refused, and the storage
+takes only signed uploads.
 
 Every step prints one German line with ✓ or ✗. The first failure ends the run with
 exit code 1, because later steps build on earlier ones.
@@ -55,17 +58,30 @@ ADMIN: Final = f"{API}/admin"
 SHOP: Final = f"{API}/store"
 
 CLIENT_HEADER: Final = "X-Modellbahn-Client"
+IDEMPOTENCY_HEADER: Final = "Idempotency-Key"
 CUSTOMER_COOKIE: Final = "mb_session"
 STAFF_COOKIE: Final = "mb_admin"
+CART_COOKIE: Final = "mb_cart"
+# 30 days of cart lifetime plus one, so the cookie never outlives the cart by surprise.
+CART_COOKIE_MAX_AGE: Final = 31 * 86400
 
 REGISTERED: Final = "identity.customer.registered"
 EMAIL_VERIFIED: Final = "identity.account.email_verified"
 ASSET_READY: Final = "media.asset.ready"
 PRODUCT_PUBLISHED: Final = "catalog.product.published"
+ORDER_PLACED: Final = "sales.order.placed"
+ORDER_PAID: Final = "sales.order.paid"
 SMOKE_CATEGORY: Final = "smoke-test"
+# The smoke product's two variants, and shipping to Germany below the free threshold.
+UNPAINTED_CENTS: Final = 3490
+PAINTED_CENTS: Final = 7990
+SHIPPING_DE_CENTS: Final = 490
+GUEST_TOTAL_CENTS: Final = UNPAINTED_CENTS + SHIPPING_DE_CENTS
 
 HTTP_TIMEOUT: Final = 15.0
 MAIL_TIMEOUT: Final = 30.0
+# The worker adopts guest orders after the verification event; it polls the outbox.
+ADOPTION_TIMEOUT: Final = 30.0
 EVENT_TIMEOUT: Final = 30.0
 # Longer than the API's 15 s heartbeat: a silent stream for this long is broken.
 STREAM_READ_TIMEOUT: Final = 45.0
@@ -240,12 +256,13 @@ class Browser:
         *,
         client_header: bool = True,
         cookies: Mapping[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> Response:
-        headers: dict[str, str] = {}
+        sent = dict(headers or {})
         if client_header and method in {"POST", "PUT", "PATCH", "DELETE"}:
-            headers[CLIENT_HEADER] = "web"
+            sent[CLIENT_HEADER] = "web"
         return self._send(
-            method, path, accept=JSON_ACCEPT, body=body, headers=headers, cookies=cookies
+            method, path, accept=JSON_ACCEPT, body=body, headers=sent, cookies=cookies
         )
 
     def upload(self, url: str, data: bytes, headers: Mapping[str, str]) -> Response:
@@ -567,6 +584,10 @@ class Demo:
         self.live_customer = Customer(
             email=f"{tag}-live@example.com", display_name=f"Live {tag[-10:]}"
         )
+        # Orders first as a guest, registers afterwards and finds the order in the account.
+        self.buyer = Customer(email=f"{tag}-kauf@example.com", display_name=f"Kauf {tag[-10:]}")
+        self.guest_browser = Browser(settings.base_url, opener)
+        self.buyer_browser = Browser(settings.base_url, opener)
         self.started_at = time.time()
         self.stream: EventStream | None = None
         # Handed from one step to the next.
@@ -577,6 +598,8 @@ class Demo:
         self._etag = ""
         self._asset: dict[str, Any] = {}
         self._product_name = f"Smoke-Stellwerk {tag[-6:]}"
+        self._order: dict[str, Any] = {}
+        self._account_order: dict[str, Any] = {}
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -609,6 +632,18 @@ class Demo:
             ("Bildstufen öffentlich unter /medien, Cache-Control immutable", self.renditions),
             ("Veröffentlichen mit If-Match, Ereignis im Stellwerk", self.publish),
             ("Shop: Liste, Produktdaten und Produktseite", self.shop),
+            ("Warenkorb: Cookie mb_cart, Preise und Versand vom Server", self.cart),
+            ("Kasse: falsche erwartete Summe wird abgelehnt (409 price_changed)", self.price_check),
+            ("Gastbestellung mit Idempotency-Key, keine Doppelbestellung", self.guest_order),
+            ("Eingangsbestätigung mit Zahlungslink kommt an", self.receipt_mail),
+            ("Statusseite /bestellung/… ohne Konto, nicht für Suchmaschinen", self.status_page),
+            ("Testzahlung: abgelehnt, Dienst gestört (503), dann bezahlt", self.payments),
+            ("Zahlungsmail kommt an, Ereignis sales.order.paid im Stellwerk", self.paid_mail),
+            ("Gast registriert sich: Bestellung erscheint im Konto", self.adoption),
+            ("Stellwerk: Bestellung finden und versenden, Versandmail", self.ship),
+            ("Kundenbestellung speichert die Adresse im Adressbuch", self.account_order),
+            ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
+            ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
             ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
             ("Kunden-Sitzung wird im Admin-Bereich abgelehnt (401)", self.customer_on_admin),
             ("Admin-Sitzung wird im Shop abgelehnt (401)", self.staff_on_store),
@@ -931,7 +966,7 @@ class Demo:
         )
         expect_status(scale, 201, "Spurweite H0")
         scale_id = scale.json()["scales"][0]["id"]
-        for finish, price in (("unpainted", 3490), ("painted", 7990)):
+        for finish, price in (("unpainted", UNPAINTED_CENTS), ("painted", PAINTED_CENTS)):
             variant = self._staff(
                 "POST",
                 f"{ADMIN}/product-scales/{scale_id}/variants",
@@ -1059,6 +1094,281 @@ class Demo:
         expect(self._product_name in page.text, "Produktseite ohne Produktnamen")
         expect("/medien/" in page.text, "Produktseite ohne Bild aus /medien")
         return f"/produkte/{slug}"
+
+    # Sales ---------------------------------------------------------------------------
+
+    def _variant(self, finish: str) -> dict[str, Any]:
+        variants = self._product["scales"][0]["variants"]
+        return next(v for v in variants if v["finish_code"] == finish)
+
+    def _checkout(self, browser: Browser, body: Mapping[str, object], key: str) -> Response:
+        return browser.api("POST", f"{SHOP}/checkouts", body, headers={IDEMPOTENCY_HEADER: key})
+
+    def _pay(self, method: str, key: str, token: str | None = None) -> Response:
+        token = token or self._order["public_token"]
+        return self.guest_browser.api(
+            "POST",
+            f"{SHOP}/orders/{token}/payments",
+            {"method": method},
+            headers={IDEMPOTENCY_HEADER: key},
+        )
+
+    def _guest_body(self, total: int) -> dict[str, object]:
+        return {
+            "expected_total_cents": total,
+            "email": self.buyer.email,
+            "address": {
+                "recipient": "Erika  Mustermann",
+                "street": "Bahnhofstraße 12",
+                "postal_code": "38707",
+                "city": "Altenau",
+                "country_code": "DE",
+            },
+        }
+
+    def _wait_for_order_event(self, event_type: str, number: str) -> None:
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == event_type and e.json().get("data", {}).get("number") == number
+                ),
+                what=f"{event_type} für {number}",
+            )
+
+    def cart(self) -> str | None:
+        empty = self.guest_browser.api("GET", f"{SHOP}/cart")
+        expect_status(empty, 200, "Leerer Warenkorb")
+        expect(
+            empty.json()["lines"] == [], f"Neuer Besucher hat einen Warenkorb: {empty.text[:200]}"
+        )
+        expect(empty.set_cookie(CART_COOKIE) is None, "Nur Ansehen legt schon einen Warenkorb an")
+        variant = self._variant("unpainted")
+        added = self.guest_browser.api("PUT", f"{SHOP}/cart/lines/{variant['id']}", {"quantity": 1})
+        expect_status(added, 200, "Variante in den Warenkorb")
+        expect_session_cookie(
+            added, CART_COOKIE, same_site="lax", max_age=CART_COOKIE_MAX_AGE, what="Warenkorb"
+        )
+        cart = self.guest_browser.api("GET", f"{SHOP}/cart").json()
+        expect(cart["item_count"] == 1, f"Warenkorb: {cart['item_count']} Artikel")
+        totals = cart["totals"]
+        expected = {
+            "subtotal_cents": UNPAINTED_CENTS,
+            "shipping_cents": SHIPPING_DE_CENTS,
+            "total_cents": GUEST_TOTAL_CENTS,
+            "tax_cents": 635,  # 19 % contained in 39,80 €
+        }
+        expect(totals == expected, f"Summen {totals}, erwartet {expected}")
+        expect(cart["ready_for_checkout"] is True, "Warenkorb nicht bereit für die Kasse")
+        return "34,90 € + 4,90 € Versand = 39,80 €"
+
+    def price_check(self) -> str | None:
+        refused = self._checkout(
+            self.guest_browser, self._guest_body(UNPAINTED_CENTS), str(uuid.uuid4())
+        )
+        expect_problem(refused, 409, "price_changed", "Bestellung mit veralteter Summe")
+        cart = self.guest_browser.api("GET", f"{SHOP}/cart").json()
+        expect(cart["item_count"] == 1, "Abgelehnte Bestellung hat den Warenkorb geleert")
+        return None
+
+    def guest_order(self) -> str | None:
+        key = str(uuid.uuid4())
+        body = self._guest_body(GUEST_TOTAL_CENTS)
+        missing_key = self.guest_browser.api("POST", f"{SHOP}/checkouts", body)
+        expect_problem(missing_key, 422, "validation_failed", "Bestellung ohne Idempotency-Key")
+        placed = self._checkout(self.guest_browser, body, key)
+        expect_status(placed, 201, "Gastbestellung")
+        order = placed.json()
+        self._order = order
+        expect(
+            re.fullmatch(r"MB-\d{4}-\d{5}", order["number"]) is not None,
+            f"Bestellnummer {order['number']}",
+        )
+        expect(order["status"] == "pending_payment", f"Neue Bestellung ist {order['status']}")
+        expect(order["totals"]["total_cents"] == GUEST_TOTAL_CENTS, f"Summe {order['totals']}")
+        expect(
+            order["shipping_address"]["recipient"] == "Erika Mustermann",
+            f"Empfänger nicht normalisiert: {order['shipping_address']}",
+        )
+        expect(placed.headers.get("Cache-Control") == "no-store", "Bestellung ist cachebar")
+        replayed = self._checkout(self.guest_browser, body, key)
+        expect_status(replayed, 201, "Wiederholte Bestellung")
+        expect(replayed.headers.get("Idempotent-Replayed") == "true", "Kein Idempotent-Replayed")
+        expect(replayed.json()["number"] == order["number"], "Wiederholung legt neue Bestellung an")
+        changed = self._checkout(self.guest_browser, {**body, "email": "x@example.com"}, key)
+        expect_problem(changed, 409, "idempotency_key_reused", "Gleicher Schlüssel, andere Daten")
+        emptied = self.guest_browser.api("GET", f"{SHOP}/cart").json()
+        expect(emptied["lines"] == [], "Warenkorb nach der Bestellung nicht leer")
+        self._wait_for_order_event(ORDER_PLACED, order["number"])
+        return str(order["number"])
+
+    def receipt_mail(self) -> str | None:
+        number = self._order["number"]
+        message = self.mailpit.wait_for(self.buyer.email, f"Bestellung {number} eingegangen")
+        text = str(message.get("Text", ""))
+        link = f"{self.base_url}/bestellung/{self._order['public_token']}/bezahlen"
+        expect(link in text, f"Eingangsbestätigung ohne Zahlungslink {link}")
+        expect("39,80" in text, "Eingangsbestätigung ohne Summe")
+        return "mit Link auf /bestellung/…/bezahlen"
+
+    def status_page(self) -> str | None:
+        token = self._order["public_token"]
+        api = self.visitor.api("GET", f"{SHOP}/orders/{token}")
+        expect_status(api, 200, "Bestellung über den Statuslink")
+        expect(api.json()["number"] == self._order["number"], "Statuslink zeigt andere Bestellung")
+        unknown = self.visitor.api("GET", f"{SHOP}/orders/{secrets.token_urlsafe(32)}")
+        expect_problem(unknown, 404, "order_not_found", "Unbekannter Statuslink")
+        page = self.visitor.page(f"/bestellung/{token}")
+        expect_status(page, 200, "Seite /bestellung/…")
+        expect('content="noindex, nofollow"' in page.text, "Statusseite ohne noindex")
+        expect(
+            'name="referrer" content="no-referrer"' in page.text, "Statusseite gibt Referrer weiter"
+        )
+        return None
+
+    def payments(self) -> str | None:
+        declined = self._pay("declined", str(uuid.uuid4()))
+        expect_status(declined, 200, "Abgelehnte Zahlung")
+        order = declined.json()
+        expect(order["status"] == "pending_payment", f"Nach Ablehnung: {order['status']}")
+        expect(order["payments"][-1]["status"] == "failed", f"Zahlungen {order['payments']}")
+        down = self._pay("fails", str(uuid.uuid4()))
+        expect_problem(down, 503, "payment_unavailable", "Gestörter Zahlungsdienst")
+        expect(down.headers.get("Retry-After") == "30", "503 ohne Retry-After")
+        key = str(uuid.uuid4())
+        paid = self._pay("succeeds", key)
+        expect_status(paid, 200, "Zahlung")
+        order = paid.json()
+        expect(order["status"] == "paid", f"Nach der Zahlung: {order['status']}")
+        again = self._pay("succeeds", key)
+        expect_status(again, 200, "Wiederholte Zahlung")
+        captured = [p for p in again.json()["payments"] if p["status"] == "captured"]
+        expect(len(captured) == 1, f"Doppelt abgebucht: {again.json()['payments']}")
+        expect_problem(
+            self._pay("succeeds", str(uuid.uuid4())), 409, "order_not_payable", "Zweite Zahlung"
+        )
+        self._order = order
+        return f"{len(order['payments'])} Zahlungsversuche, einmal abgebucht"
+
+    def paid_mail(self) -> str | None:
+        number = self._order["number"]
+        self.mailpit.wait_for(self.buyer.email, f"Zahlung eingegangen: Bestellung {number}")
+        self._wait_for_order_event(ORDER_PAID, number)
+        return None
+
+    def adoption(self) -> str | None:
+        registered = self.visitor.api(
+            "POST",
+            f"{STORE}/register",
+            {
+                "email": self.buyer.email,
+                "password": self.buyer.password,
+                "display_name": self.buyer.display_name,
+            },
+        )
+        expect_status(registered, 202, "Registrierung des Gasts")
+        message = self.mailpit.wait_for(self.buyer.email, "Bitte bestätige deine E-Mail-Adresse")
+        token = token_link(message, self.base_url, "/konto/bestaetigen")
+        verified = self.buyer_browser.api(
+            "POST", f"{STORE}/email-verification", {"token": token, "password": self.buyer.password}
+        )
+        expect_status(verified, 200, "Bestätigung des Gasts")
+        number = self._order["number"]
+        deadline = time.monotonic() + ADOPTION_TIMEOUT
+        while True:
+            listed = self.buyer_browser.api("GET", f"{STORE}/orders")
+            expect_status(listed, 200, "Bestellungen im Konto")
+            numbers = [item["number"] for item in listed.json()["items"]]
+            if number in numbers:
+                break
+            if time.monotonic() > deadline:
+                raise SmokeCheckError(
+                    f"{number} nach {ADOPTION_TIMEOUT:.0f} s nicht im Konto ({numbers}). "
+                    "Läuft der Worker? make logs SERVICE=worker"
+                )
+            time.sleep(0.5)
+        detail = self.buyer_browser.api("GET", f"{STORE}/orders/{number}")
+        expect_status(detail, 200, "Bestellung im Konto")
+        stranger = self.customer_browser.api("GET", f"{STORE}/orders/{number}")
+        expect_problem(stranger, 404, "order_not_found", "Fremde Bestellung im Konto")
+        return f"{number} im Konto von {self.buyer.email}"
+
+    def ship(self) -> str | None:
+        number = self._order["number"]
+        found = self._staff("GET", f"{ADMIN}/orders?{urllib.parse.urlencode({'q': number})}")
+        expect_status(found, 200, "Bestellungen im Stellwerk")
+        items = found.json()["items"]
+        expect([item["number"] for item in items] == [number], f"Suche nach {number}: {items}")
+        expect(items[0]["guest"] is False, "Übernommene Bestellung gilt noch als Gastbestellung")
+        order_id = items[0]["id"]
+        shipped = self._staff(
+            "POST",
+            f"{ADMIN}/orders/{order_id}/ship",
+            {"carrier": "DHL", "tracking_number": "SMOKE-0042"},
+        )
+        expect_status(shipped, 200, "Versenden")
+        expect(
+            shipped.json()["status"] == "shipped", f"Nach dem Versand: {shipped.json()['status']}"
+        )
+        twice = self._staff("POST", f"{ADMIN}/orders/{order_id}/ship", {})
+        expect_problem(twice, 409, "invalid_order_state", "Zweiter Versand")
+        message = self.mailpit.wait_for(
+            self.buyer.email, f"Deine Bestellung {number} ist unterwegs"
+        )
+        expect("SMOKE-0042" in str(message.get("Text", "")), "Versandmail ohne Sendungsnummer")
+        return "DHL · SMOKE-0042"
+
+    def account_order(self) -> str | None:
+        variant = self._variant("painted")
+        added = self.buyer_browser.api("PUT", f"{SHOP}/cart/lines/{variant['id']}", {"quantity": 1})
+        expect_status(added, 200, "Warenkorb des Kunden")
+        total = added.json()["totals"]["total_cents"]
+        expect(total == PAINTED_CENTS, f"Ab 50 € versandkostenfrei, Summe aber {total}")
+        body = {**self._guest_body(total), "save_address": True}
+        del body["email"]
+        placed = self._checkout(self.buyer_browser, body, str(uuid.uuid4()))
+        expect_status(placed, 201, "Bestellung mit Kundenkonto")
+        self._account_order = placed.json()
+        expect(self._account_order["email"] == self.buyer.email, "Bestellung ohne Kontoadresse")
+        book = self.buyer_browser.api("GET", f"{STORE}/addresses")
+        expect_status(book, 200, "Adressbuch")
+        entries = book.json()
+        expect(len(entries) == 1 and entries[0]["is_default"], f"Adressbuch: {entries}")
+        paid = self._pay("succeeds", str(uuid.uuid4()), token=self._account_order["public_token"])
+        expect_status(paid, 200, "Zahlung der Kundenbestellung")
+        self._account_order = paid.json()
+        return f"{self._account_order['number']} · Adresse gespeichert"
+
+    def cancel(self) -> str | None:
+        number = self._account_order["number"]
+        found = self._staff("GET", f"{ADMIN}/orders?{urllib.parse.urlencode({'q': number})}")
+        order_id = found.json()["items"][0]["id"]
+        self._account_order["id"] = order_id
+        cancelled = self._staff(
+            "POST", f"{ADMIN}/orders/{order_id}/cancel", {"note": "Smoke-Test: nicht lieferbar"}
+        )
+        expect_status(cancelled, 200, "Stornieren")
+        order = cancelled.json()
+        expect(order["status"] == "cancelled", f"Nach dem Storno: {order['status']}")
+        statuses = [p["status"] for p in order["payments"]]
+        expect(statuses == ["refunded"], f"Zahlung nicht erstattet: {statuses}")
+        message = self.mailpit.wait_for(
+            self.buyer.email, f"Deine Bestellung {number} wurde storniert"
+        )
+        text = str(message.get("Text", ""))
+        expect("erstatt" in text, "Stornomail erwähnt die Erstattung nicht")
+        expect("Smoke-Test: nicht lieferbar" in text, "Stornomail ohne Hinweis")
+        return f"{number} storniert, 79,90 € erstattet"
+
+    def order_pages(self) -> str | None:
+        mine = self.buyer_browser.page("/konto/bestellungen")
+        expect_status(mine, 200, "/konto/bestellungen mit Sitzung")
+        anonymous = self.visitor.page("/konto/bestellungen")
+        expect(
+            anonymous.status in {307, 308}, f"/konto/bestellungen ohne Sitzung: {anonymous.status}"
+        )
+        desk = self.staff_browser.page(f"/admin/bestellungen/{self._account_order['id']}")
+        expect_status(desk, 200, "/admin/bestellungen/… mit Admin-Sitzung")
+        return None
 
     def archive(self) -> str | None:
         product_id = self._product["id"]
