@@ -380,6 +380,15 @@ class TestPayment:
         cart = await filled_cart(carts, (painted, 1))
         order = (await place(checkout, carts, cart)).details.order
         token = order.public_token
+        await deliver()
+        (received,) = mails_to(mailer, "erika@example.de")
+        assert received.subject == f"Bestellung {order.number} eingegangen"
+        assert f"{PUBLIC_BASE_URL}/bestellung/{token}/bezahlen" in received.text
+        # Placed at 10:00 UTC on 22 October, due 24 hours later, shown in German summer time.
+        assert "23.10.2026, 12:00 Uhr" in received.text
+        assert "Stellwerk Altenau · H0 · bemalt" in received.text
+        assert "49,90\u00a0€" in received.text
+
         declined = await checkout.pay(
             public_token=token, method="declined", idempotency_key=uuid4()
         )
@@ -399,11 +408,28 @@ class TestPayment:
         assert await event_types(engine) == ["sales.order.placed", "sales.order.paid"]
 
         await deliver()
-        (mail,) = mails_to(mailer, "erika@example.de")
-        assert mail.subject == f"Deine Bestellung {order.number}"
-        assert f"{PUBLIC_BASE_URL}/bestellung/{token}" in mail.text
-        assert "Stellwerk Altenau · H0 · bemalt" in mail.text
-        assert "49,90\u00a0€" in mail.text
+        confirmed = mails_to(mailer, "erika@example.de")[-1]
+        assert confirmed.subject == f"Zahlung eingegangen: Bestellung {order.number}"
+        assert f"{PUBLIC_BASE_URL}/bestellung/{token}" in confirmed.text
+
+    async def test_a_late_receipt_offers_the_order_instead_of_the_payment(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        painted: UUID,
+    ) -> None:
+        cart = await filled_cart(carts, (painted, 1))
+        order = (await place(checkout, carts, cart)).details.order
+        await checkout.pay(
+            public_token=order.public_token, method="succeeds", idempotency_key=uuid4()
+        )
+        await deliver()
+        received, _ = mails_to(mailer, "erika@example.de")
+        assert "/bezahlen" not in received.text
+        assert "Bitte bezahle bis" not in received.text
+        assert "Bestellung ansehen" in received.text
 
     async def test_a_provider_failure_records_nothing(
         self, carts: CartService, checkout: CheckoutService, orders: OrderService, painted: UUID

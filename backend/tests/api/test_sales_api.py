@@ -223,7 +223,8 @@ class TestPayment:
 
         await deliver()
         assert [m.subject for m in mails_to(mailer, "gast@example.de")] == [
-            f"Deine Bestellung {order['number']}"
+            f"Bestellung {order['number']} eingegangen",
+            f"Zahlung eingegangen: Bestellung {order['number']}",
         ]
 
 

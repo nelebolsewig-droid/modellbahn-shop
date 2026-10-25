@@ -2,7 +2,7 @@
 
 * Identity events: a verified address adopts the guest orders placed with it; a deleted
   account loses its address book (its orders stay for the retention periods).
-* Order events: confirmation, dispatch and cancellation e-mails to the ordering address.
+* Order events: receipt, payment, dispatch and cancellation e-mails to the ordering address.
 
 Delivery is at least once. Adopting and removing are idempotent by nature; a notice
 e-mail may in rare cases be sent twice.
@@ -13,7 +13,12 @@ import structlog
 from modellbahn.modules.identity.contracts.events import AccountDeleted, EmailVerified
 from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
-from modellbahn.modules.sales.domain.events import OrderCancelled, OrderPaid, OrderShipped
+from modellbahn.modules.sales.domain.events import (
+    OrderCancelled,
+    OrderPaid,
+    OrderPlaced,
+    OrderShipped,
+)
 from modellbahn.modules.sales.domain.model import Order
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
@@ -43,6 +48,7 @@ class SalesHandlers:
         """Subscribe the handlers to their events."""
         registry.register(EmailVerified, self.adopt_guest_orders)
         registry.register(AccountDeleted, self.remove_address_book)
+        registry.register(OrderPlaced, self.send_receipt)
         registry.register(OrderPaid, self.send_confirmation)
         registry.register(OrderShipped, self.send_shipped_notice)
         registry.register(OrderCancelled, self.send_cancellation_notice)
@@ -74,6 +80,12 @@ class SalesHandlers:
         _logger.info(
             "sales.address_book.removed", account_id=str(event.aggregate_id), addresses=removed
         )
+
+    async def send_receipt(self, event: OrderPlaced) -> None:
+        order = await self._order(event)
+        if order is not None:
+            content = mails.received_mail(order, base_url=self._base_url, shop_name=self._shop_name)
+            await self._send(event, order, content)
 
     async def send_confirmation(self, event: OrderPaid) -> None:
         order = await self._order(event)
