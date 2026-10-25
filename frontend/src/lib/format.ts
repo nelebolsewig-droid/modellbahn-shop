@@ -14,6 +14,12 @@ const timeFormat = new Intl.DateTimeFormat(LOCALE, {
   second: "2-digit",
 });
 
+const clockFormat = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 const dateTimeFormat = new Intl.DateTimeFormat(LOCALE, {
   timeZone: TIME_ZONE,
   day: "2-digit",
@@ -58,6 +64,11 @@ export function formatEventTime(date: Date, now: Date = new Date()): string {
 /** "14:32:05" */
 export function formatTime(date: Date): string {
   return timeFormat.format(date);
+}
+
+/** "14:32", for customers and orders: seconds are noise there. */
+export function formatClock(date: Date): string {
+  return clockFormat.format(date);
 }
 
 /** "22. Oktober 2026" */

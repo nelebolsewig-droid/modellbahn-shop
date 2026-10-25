@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetIdOf, mergeFeed, parseFeedEntry, STAFF_EVENT_TYPES, type FeedEntry } from "./events";
+import { assetIdOf, mergeFeed, orderEventOf, parseFeedEntry, STAFF_EVENT_TYPES, type FeedEntry } from "./events";
 
 function message(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -36,8 +36,8 @@ describe("parseFeedEntry", () => {
   });
 
   it("shows an unknown event type as it is, without an account if the payload has none", () => {
-    const parsed = parseFeedEntry(message({ type: "sales.order.placed", data: { sku: "1" } }));
-    expect(parsed?.label).toBe("sales.order.placed");
+    const parsed = parseFeedEntry(message({ type: "planning.run.finished", data: { sku: "1" } }));
+    expect(parsed?.label).toBe("planning.run.finished");
     expect(parsed?.account).toBeUndefined();
     expect(parsed?.subject).toBeUndefined();
   });
@@ -68,7 +68,23 @@ describe("parseFeedEntry", () => {
       "catalog.product.archived",
       "media.asset.ready",
       "media.asset.failed",
+      "sales.order.placed",
+      "sales.order.paid",
+      "sales.order.shipped",
+      "sales.order.cancelled",
     ]);
+  });
+
+  it("names an order by number and total, never by customer", () => {
+    const parsed = parseFeedEntry(
+      message({
+        type: "sales.order.paid",
+        data: { order_id: "o1", number: "MB-2026-00042", total_cents: 8480 },
+      }),
+    );
+    expect(parsed?.label).toBe("Bestellung bezahlt");
+    expect(parsed?.subject).toBe("MB-2026-00042 · 84,80\u00a0€");
+    expect(parsed?.account).toBeUndefined();
   });
 });
 
@@ -81,6 +97,23 @@ describe("assetIdOf", () => {
     "is null for anything else (%s)",
     (_, raw) => {
       expect(assetIdOf(raw)).toBeNull();
+    },
+  );
+});
+
+describe("orderEventOf", () => {
+  it("reads type and order of an order event", () => {
+    const raw = message({
+      type: "sales.order.paid",
+      data: { order_id: "o1", number: "MB-2026-00042", total_cents: 8480 },
+    });
+    expect(orderEventOf(raw)).toEqual({ type: "sales.order.paid", orderId: "o1" });
+  });
+
+  it.each([["not json", "{"], ["no order", message()], ["asset", message({ data: { asset_id: "a1" } })]])(
+    "is null for anything else (%s)",
+    (_, raw) => {
+      expect(orderEventOf(raw)).toBeNull();
     },
   );
 });

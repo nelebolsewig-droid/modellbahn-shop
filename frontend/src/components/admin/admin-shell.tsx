@@ -22,6 +22,7 @@ import { StaffPasswordDialog } from "./staff-password-dialog";
 
 const SECTIONS = [
   { href: "/admin", label: "Übersicht", exact: true },
+  { href: "/admin/bestellungen", label: "Bestellungen", exact: false },
   { href: "/admin/katalog", label: "Katalog", exact: false },
   { href: "/admin/katalog/kategorien", label: "Kategorien", exact: true },
 ] as const satisfies readonly { href: Route; label: string; exact: boolean }[];
@@ -45,7 +46,7 @@ function isActive(pathname: string, section: (typeof SECTIONS)[number]): boolean
     return pathname === section.href;
   }
   // "Katalog" covers the products, not the categories, which have their own entry.
-  return pathname.startsWith(section.href) && !pathname.startsWith("/admin/katalog/kategorien");
+  return pathname.startsWith(section.href) && !(section.href === "/admin/katalog" && pathname.startsWith("/admin/katalog/kategorien"));
 }
 
 /**

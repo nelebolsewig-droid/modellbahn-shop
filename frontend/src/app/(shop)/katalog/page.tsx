@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 
-import { CatalogFilters, catalogHref, type CatalogQuery } from "@/components/shop/catalog-filters";
+import { CatalogFilters, catalogHref, CatalogSort, sortFor, type CatalogQuery } from "@/components/shop/catalog-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductCard } from "@/components/ui/product-card";
@@ -25,7 +25,9 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
   const query: CatalogQuery = {
     spur: firstParam(params.spur) || undefined,
     kategorie: firstParam(params.kategorie) || undefined,
+    epoche: firstParam(params.epoche) || undefined,
     suche: firstParam(params.suche)?.trim() || undefined,
+    sortierung: firstParam(params.sortierung) || undefined,
   };
   const cursor = firstParam(params.weiter) || undefined;
   const [navigation, page] = await Promise.all([
@@ -33,13 +35,16 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
     fetchStore<StoreProductPageOut>("/products", {
       scale: query.spur,
       category: query.kategorie,
+      epoch: query.epoche,
       q: query.suche,
+      sort: sortFor(query.sortierung),
       cursor,
       limit: PAGE_SIZE,
     }),
   ]);
   const category = navigation?.categories.find((c) => c.slug === query.kategorie);
   const items = page?.items ?? [];
+  const filtered = Boolean(query.suche || query.spur || query.kategorie || query.epoche);
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 lg:py-20">
@@ -60,17 +65,25 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
             </label>
             {query.spur ? <input type="hidden" name="spur" value={query.spur} /> : null}
             {query.kategorie ? <input type="hidden" name="kategorie" value={query.kategorie} /> : null}
+            {query.epoche ? <input type="hidden" name="epoche" value={query.epoche} /> : null}
+            {query.sortierung ? <input type="hidden" name="sortierung" value={query.sortierung} /> : null}
             <Input id="suche" name="suche" type="search" defaultValue={query.suche} placeholder="z. B. Stellwerk" />
             <Button type="submit" variant="secondary" size="sm">
               Suchen
             </Button>
           </form>
           {navigation ? (
-            <CatalogFilters query={query} scales={navigation.scales} categories={navigation.categories} />
+            <CatalogFilters
+              query={query}
+              scales={navigation.scales}
+              categories={navigation.categories}
+              epochs={navigation.epochs}
+            />
           ) : null}
         </aside>
 
         <section aria-label="Modelle">
+          {items.length > 0 ? <CatalogSort query={query} className="mb-8 justify-end" /> : null}
           {page === null ? (
             <EmptyState title="Diese Kategorie gibt es nicht">
               <Link href="/katalog" className="text-accent underline-offset-4 hover:underline">
@@ -78,9 +91,9 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
               </Link>
             </EmptyState>
           ) : items.length === 0 ? (
-            <EmptyState title={query.suche || query.spur || query.kategorie ? "Nichts gefunden" : "Bald im Katalog"}>
+            <EmptyState title={filtered ? "Nichts gefunden" : "Bald im Katalog"}>
               <p>
-                {query.suche || query.spur || query.kategorie
+                {filtered
                   ? "Zu dieser Auswahl gibt es noch kein Modell."
                   : "Die ersten Modelle werden gerade fotografiert."}
               </p>

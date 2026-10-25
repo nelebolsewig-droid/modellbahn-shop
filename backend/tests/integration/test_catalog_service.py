@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from modellbahn.modules.catalog.application.ports import ProductOrder
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.catalog.domain.errors import (
     CategoryCycleError,
@@ -443,6 +444,77 @@ class TestShop:
             await catalog.store_products(category_slug="gibt-es-nicht")
         with pytest.raises(UnknownReferenceError):
             await catalog.store_products(scale_code="Z")
+
+    async def test_sorted_by_price_and_name_page_by_page(
+        self,
+        catalog: CatalogService,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        # (name, price of the active variant, price of an inactive one)
+        specs = [
+            ("Wasserturm", 4990, 990),
+            ("Bahnwärterhaus", 2990, None),
+            ("Prellbock", 690, None),
+        ]
+        for name, price, inactive_price in specs:
+            details = await sellable(catalog, media, media_storage, deliver, name)
+            variant = details.product.scales[0].variants[0]
+            await catalog.change_variant(variant.id, expected_version=None, price_cents=price)
+            if inactive_price is not None:
+                await catalog.add_variant(
+                    details.product.scales[0].id,
+                    expected_version=None,
+                    finish_code="unpainted",
+                    price_cents=inactive_price,
+                    active=False,
+                )
+            await catalog.publish(details.product.id, expected_version=None)
+
+        async def all_pages(order: ProductOrder) -> list[str]:
+            names: list[str] = []
+            cursor = None
+            while True:
+                page = await catalog.store_products(order=order, cursor=cursor, limit=1)
+                names += [card.product.name for card in page.items]
+                if page.next_cursor is None:
+                    return names
+                cursor = page.next_cursor
+
+        # The inactive variant at 9,90 € does not make the water tower the cheapest.
+        assert await all_pages(ProductOrder.PRICE_ASC) == [
+            "Prellbock",
+            "Bahnwärterhaus",
+            "Wasserturm",
+        ]
+        assert await all_pages(ProductOrder.PRICE_DESC) == [
+            "Wasserturm",
+            "Bahnwärterhaus",
+            "Prellbock",
+        ]
+        assert await all_pages(ProductOrder.NAME) == ["Bahnwärterhaus", "Prellbock", "Wasserturm"]
+        with pytest.raises(ValueError, match="publication, price or name"):
+            await catalog.store_products(order=ProductOrder.CREATED)
+
+    async def test_filters_by_epoch(
+        self,
+        catalog: CatalogService,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        old = await sellable(catalog, media, media_storage, deliver, "Länderbahn-Stellwerk")
+        await catalog.change_product(old.product.id, expected_version=None, epoch_codes=["I", "II"])
+        await catalog.publish(old.product.id, expected_version=None)
+        new = await sellable(catalog, media, media_storage, deliver, "Spurplanstellwerk")
+        await catalog.change_product(new.product.id, expected_version=None, epoch_codes=["IV"])
+        await catalog.publish(new.product.id, expected_version=None)
+        page = await catalog.store_products(epoch_code="II")
+        assert [card.product.name for card in page.items] == ["Länderbahn-Stellwerk"]
+        assert (await catalog.store_products(epoch_code="VI")).items == []
+        with pytest.raises(UnknownReferenceError):
+            await catalog.store_products(epoch_code="IX")
 
     async def test_product_page(
         self,

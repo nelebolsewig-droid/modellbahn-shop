@@ -37,25 +37,32 @@ Compose-Stack, denn der Objektspeicher ist nur dort erreichbar.
 ```text
 src/
 ├── app/
-│   ├── (shop)/            Startseite, /katalog, /produkte/[slug], /konto/…, Impressum,
-│   │                      Datenschutz – mit Kopf- und Fußzeile
-│   ├── admin/             /admin/anmelden, das Stellwerk und /admin/katalog/…
+│   ├── (shop)/            Startseite, /katalog, /produkte/[slug], /warenkorb, /kasse,
+│   │                      /bestellung/[token] (mit /bezahlen), /konto/… (mit Bestellungen
+│   │                      und Adressbuch), Versand, AGB, Widerruf, Impressum, Datenschutz
+│   ├── admin/             /admin/anmelden, das Stellwerk, /admin/bestellungen/… und
+│   │                      /admin/katalog/…
 │   ├── globals.css        Design-Tokens (@theme) und Grundstile
 │   └── layout.tsx         <html lang="de">, Schriften, QueryClientProvider
 ├── components/
 │   ├── ui/                Bausteine des Designsystems (Button, OptionPill, ScaleTile,
 │   │                      ProductStage, ProductCard, ResponsivePicture, FormField, …)
 │   ├── forms/             Formulare, die Shop und Admin teilen
-│   ├── account/           Kundenkonto
-│   ├── shop/              Katalogfilter, Produktansicht mit Spurweiten- und Ausführungswahl
+│   ├── account/           Kundenkonto: Übersicht, Bestellhistorie, Adressbuch
+│   ├── shop/              Katalogfilter und Sortierung, Produktansicht, Warenkorb, Kasse,
+│   │                      Testzahlung, Bestellstatus mit Fahrplan-Verlauf
 │   ├── admin/             Stellwerk: Rahmen, Ereignis-Feed, Signallampe, Systemstatus
-│   │   └── catalog/       Produktliste, Produkt-Editor (Galerie, Spurweiten, Stammdaten),
+│   │   ├── catalog/       Produktliste, Produkt-Editor (Galerie, Spurweiten, Stammdaten),
 │   │                      Kategorien
+│   │   └── sales/         Bestellliste (live), Bestellpult mit Paketaufkleber, Versand,
+│   │                      Storno
 │   └── site/              Kopf, Fuß, Seitenrahmen, Gleisplan
 ├── lib/
 │   ├── api/               fetcher.ts (Mutator), server.ts (Server-Abrufe), problem.ts
 │   │                      (ApiProblem), generated/ (Orval)
 │   ├── catalog/           Preise und Maße auf Deutsch, Bezeichnungen, If-Match, Bildauswahl
+│   ├── sales/             Warenkorb-Hooks, Summen wie im Backend, Idempotency-Keys,
+│   │                      Bezeichnungen
 │   ├── media/             Upload: SHA-256 per Web Crypto, Ticket, PUT mit Fortschritt
 │   ├── i18n/problems.ts   deutsche Texte für jeden Fehlercode der API
 │   ├── session/           Anmeldestatus aus /me, Weiterleitungen geschützter Seiten
@@ -84,6 +91,11 @@ src/
 - **Änderungen am Produkt** schicken die zuletzt gelesene `version` als `If-Match`
   (`ifMatch()` aus `src/lib/catalog/versions.ts`). Antwortet die API mit 412, zeigt der
   Editor „Inzwischen geändert“ und lädt auf Wunsch den aktuellen Stand.
+- **Bestellen und Bezahlen** senden einen `Idempotency-Key` aus `useIdempotencyKeys()`:
+  Derselbe Versuch nach einem Netzfehler nutzt denselben Schlüssel, nach einem Erfolg gibt
+  es einen neuen. Der Header geht über das zweite Argument der erzeugten Funktion
+  (`placeOrder(body, { headers })`). Summen rechnet `lib/sales/totals.ts` nur zur Anzeige
+  nach; verbindlich ist die Antwort des Servers.
 - **Bilder** erscheinen nur über `ResponsivePicture`: ein `<picture>` mit den
   vorgerenderten AVIF- und WebP-Stufen, darunter Dominanzfarbe und Platzhalter. `next/image`
   wird nicht verwendet, denn die Stufen sind schon fertig.

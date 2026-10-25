@@ -8,7 +8,8 @@ describe("safeReturnPath", () => {
     ["/konto", "/konto"],
     ["/konto/", "/konto/"],
     ["/konto?tab=1", "/konto?tab=1"],
-  ])("follows a path inside the area: %s", (value, expected) => {
+    ["/kasse", "/kasse"],
+  ])("follows a path inside the area or to the checkout: %s", (value, expected) => {
     expect(safeReturnPath(value, CUSTOMER_AREA)).toBe(expected);
   });
 
@@ -24,6 +25,8 @@ describe("safeReturnPath", () => {
     ["/kontox"],
     ["/konto/anmelden"],
     ["/konto/../admin"],
+    ["/kasse/anders"],
+    ["/warenkorb"],
   ])("falls back to the area's home page for %s", (value) => {
     expect(safeReturnPath(value, CUSTOMER_AREA)).toBe("/konto");
   });
@@ -31,6 +34,7 @@ describe("safeReturnPath", () => {
   it("keeps the staff area apart from the shop", () => {
     expect(safeReturnPath("/admin", STAFF_AREA)).toBe("/admin");
     expect(safeReturnPath("/konto", STAFF_AREA)).toBe("/admin");
+    expect(safeReturnPath("/kasse", STAFF_AREA)).toBe("/admin");
   });
 });
 

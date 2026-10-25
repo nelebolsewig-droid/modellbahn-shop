@@ -33,10 +33,16 @@ import type {
 import type {
   AccountDeletionIn,
   AccountOut,
+  CustomerAddressIn,
+  CustomerAddressOut,
+  CustomerAddressPatchIn,
   DisplayNameIn,
   EmailIn,
   EmailVerificationIn,
+  ListMyOrdersParams,
   LoginIn,
+  OrderOut,
+  OrderPageOut,
   PasswordChangeIn,
   PasswordResetConfirmIn,
   Problem,
@@ -69,7 +75,357 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export const getVerifyCustomerEmailUrl = () => {
+export const getListAddressesUrl = () => {
+
+
+
+
+  return `/api/v1/store/account/addresses`
+}
+
+/**
+ * @summary The address book, the default first
+ */
+export const listAddresses = async ( options?: Parameters<typeof apiFetch>[1]): Promise<CustomerAddressOut[]> => {
+
+  return apiFetch<CustomerAddressOut[]>(getListAddressesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAddressesQueryKey = () => {
+    return [
+    `/api/v1/store/account/addresses`
+    ] as const;
+    }
+
+
+export const getListAddressesQueryOptions = <TData = Awaited<ReturnType<typeof listAddresses>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAddressesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAddresses>>> = ({ signal }) => listAddresses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAddressesQueryResult = NonNullable<Awaited<ReturnType<typeof listAddresses>>>
+export type ListAddressesQueryError = ErrorType<Problem>
+
+
+export function useListAddresses<TData = Awaited<ReturnType<typeof listAddresses>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAddresses>>,
+          TError,
+          Awaited<ReturnType<typeof listAddresses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAddresses<TData = Awaited<ReturnType<typeof listAddresses>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAddresses>>,
+          TError,
+          Awaited<ReturnType<typeof listAddresses>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAddresses<TData = Awaited<ReturnType<typeof listAddresses>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The address book, the default first
+ */
+
+export function useListAddresses<TData = Awaited<ReturnType<typeof listAddresses>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAddresses>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAddressesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getAddAddressUrl = () => {
+
+
+
+
+  return `/api/v1/store/account/addresses`
+}
+
+/**
+ * The first address of a book becomes its default.
+ * @summary Add an address; answers with the whole book
+ */
+export const addAddress = async (customerAddressIn: CustomerAddressIn, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerAddressOut[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerAddressOut[]>(getAddAddressUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerAddressIn)
+  }
+);}
+
+
+
+
+
+export const getAddAddressMutationKey = () => ['addAddress'] as const;
+
+export const getAddAddressMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAddress>>, TError,AddAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addAddress>>, TError,AddAddressMutationVariables, TContext> => {
+
+const mutationKey = getAddAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addAddress>>, AddAddressMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addAddress(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddAddressMutationResult = NonNullable<Awaited<ReturnType<typeof addAddress>>>
+    export type AddAddressMutationBody = CustomerAddressIn
+    export type AddAddressMutationError = ErrorType<Problem | ValidationProblem>
+    export type AddAddressMutationVariables = {data: CustomerAddressIn}
+
+    /**
+ * @summary Add an address; answers with the whole book
+ */
+export const useAddAddress = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAddress>>, TError,AddAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addAddress>>,
+        TError,
+        AddAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddAddressMutationOptions(options), queryClient);
+    }
+    export const getRemoveAddressUrl = (addressId: string,) => {
+
+
+
+
+  return `/api/v1/store/account/addresses/${addressId}`
+}
+
+/**
+ * If it was the default, the oldest remaining address takes over.
+ * @summary Remove an address; answers with the whole book
+ */
+export const removeAddress = async (addressId: string, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerAddressOut[]> => {
+
+  return apiFetch<CustomerAddressOut[]>(getRemoveAddressUrl(addressId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveAddressMutationKey = () => ['removeAddress'] as const;
+
+export const getRemoveAddressMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAddress>>, TError,RemoveAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeAddress>>, TError,RemoveAddressMutationVariables, TContext> => {
+
+const mutationKey = getRemoveAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeAddress>>, RemoveAddressMutationVariables> = (props) => {
+          const {addressId} = props ?? {};
+
+          return  removeAddress(addressId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveAddressMutationResult = NonNullable<Awaited<ReturnType<typeof removeAddress>>>
+
+    export type RemoveAddressMutationError = ErrorType<Problem | ValidationProblem>
+    export type RemoveAddressMutationVariables = {addressId: string}
+
+    /**
+ * @summary Remove an address; answers with the whole book
+ */
+export const useRemoveAddress = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAddress>>, TError,RemoveAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeAddress>>,
+        TError,
+        RemoveAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveAddressMutationOptions(options), queryClient);
+    }
+    export const getChangeAddressUrl = (addressId: string,) => {
+
+
+
+
+  return `/api/v1/store/account/addresses/${addressId}`
+}
+
+/**
+ * @summary Change an address or make it the default; answers with the whole book
+ */
+export const changeAddress = async (addressId: string,
+    customerAddressPatchIn: CustomerAddressPatchIn, options?: Parameters<typeof apiFetch>[1]): Promise<CustomerAddressOut[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<CustomerAddressOut[]>(getChangeAddressUrl(addressId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerAddressPatchIn)
+  }
+);}
+
+
+
+
+
+export const getChangeAddressMutationKey = () => ['changeAddress'] as const;
+
+export const getChangeAddressMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAddress>>, TError,ChangeAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeAddress>>, TError,ChangeAddressMutationVariables, TContext> => {
+
+const mutationKey = getChangeAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeAddress>>, ChangeAddressMutationVariables> = (props) => {
+          const {addressId,data} = props ?? {};
+
+          return  changeAddress(addressId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeAddressMutationResult = NonNullable<Awaited<ReturnType<typeof changeAddress>>>
+    export type ChangeAddressMutationBody = CustomerAddressPatchIn
+    export type ChangeAddressMutationError = ErrorType<Problem | ValidationProblem>
+    export type ChangeAddressMutationVariables = {addressId: string;data: CustomerAddressPatchIn}
+
+    /**
+ * @summary Change an address or make it the default; answers with the whole book
+ */
+export const useChangeAddress = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAddress>>, TError,ChangeAddressMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeAddress>>,
+        TError,
+        ChangeAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeAddressMutationOptions(options), queryClient);
+    }
+    export const getVerifyCustomerEmailUrl = () => {
 
 
 
@@ -526,7 +882,214 @@ export const useDeleteCustomerAccount = <TError = ErrorType<Problem | Validation
       > => {
       return useMutation(getDeleteCustomerAccountMutationOptions(options), queryClient);
     }
-    export const getChangeCustomerPasswordUrl = () => {
+    export const getListMyOrdersUrl = (params?: ListMyOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/store/account/orders?${stringifiedParams}` : `/api/v1/store/account/orders`
+}
+
+/**
+ * @summary The customer's orders, including adopted guest orders, newest first
+ */
+export const listMyOrders = async (params?: ListMyOrdersParams, options?: Parameters<typeof apiFetch>[1]): Promise<OrderPageOut> => {
+
+  return apiFetch<OrderPageOut>(getListMyOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyOrdersQueryKey = (params?: ListMyOrdersParams,) => {
+    return [
+    `/api/v1/store/account/orders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<Problem | ValidationProblem>>(params?: ListMyOrdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyOrdersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyOrders>>> = ({ signal }) => listMyOrders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listMyOrders>>>
+export type ListMyOrdersQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: undefined |  ListMyOrdersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyOrders>>,
+          TError,
+          Awaited<ReturnType<typeof listMyOrders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListMyOrdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyOrders>>,
+          TError,
+          Awaited<ReturnType<typeof listMyOrders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListMyOrdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The customer's orders, including adopted guest orders, newest first
+ */
+
+export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListMyOrdersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyOrdersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetMyOrderUrl = (number: string,) => {
+
+
+
+
+  return `/api/v1/store/account/orders/${number}`
+}
+
+/**
+ * @summary One of the customer's orders
+ */
+export const getMyOrder = async (number: string, options?: Parameters<typeof apiFetch>[1]): Promise<OrderOut> => {
+
+  return apiFetch<OrderOut>(getGetMyOrderUrl(number),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyOrderQueryKey = (number: string,) => {
+    return [
+    `/api/v1/store/account/orders/${number}`
+    ] as const;
+    }
+
+
+export const getGetMyOrderQueryOptions = <TData = Awaited<ReturnType<typeof getMyOrder>>, TError = ErrorType<Problem | ValidationProblem>>(number: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyOrderQueryKey(number);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyOrder>>> = ({ signal }) => getMyOrder(number, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: number !== null && number !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMyOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getMyOrder>>>
+export type GetMyOrderQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetMyOrder<TData = Awaited<ReturnType<typeof getMyOrder>>, TError = ErrorType<Problem | ValidationProblem>>(
+ number: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyOrder>>,
+          TError,
+          Awaited<ReturnType<typeof getMyOrder>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyOrder<TData = Awaited<ReturnType<typeof getMyOrder>>, TError = ErrorType<Problem | ValidationProblem>>(
+ number: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyOrder>>,
+          TError,
+          Awaited<ReturnType<typeof getMyOrder>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMyOrder<TData = Awaited<ReturnType<typeof getMyOrder>>, TError = ErrorType<Problem | ValidationProblem>>(
+ number: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One of the customer's orders
+ */
+
+export function useGetMyOrder<TData = Awaited<ReturnType<typeof getMyOrder>>, TError = ErrorType<Problem | ValidationProblem>>(
+ number: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyOrder>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMyOrderQueryOptions(number,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getChangeCustomerPasswordUrl = () => {
 
 
 

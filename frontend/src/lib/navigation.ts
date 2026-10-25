@@ -7,16 +7,22 @@ export type Area = {
   /** Where to go after login when no (valid) return path is given. */
   home: Route;
   login: Route;
+  /** Pages outside the area that a login may return to (the checkout). */
+  returnTo?: readonly string[];
 };
 
-export const CUSTOMER_AREA = { home: "/konto", login: "/konto/anmelden" } as const satisfies Area;
+export const CUSTOMER_AREA = {
+  home: "/konto",
+  login: "/konto/anmelden",
+  returnTo: ["/kasse"],
+} as const satisfies Area;
 export const STAFF_AREA = { home: "/admin", login: "/admin/anmelden" } as const satisfies Area;
 
 const PLACEHOLDER_ORIGIN = "http://placeholder.invalid";
 
 /**
  * The return path from a login link, if it is safe to follow: a path inside the
- * same area of this site. Anything else (other hosts, protocol-relative URLs,
+ * same area of this site (or one of its ``returnTo`` pages). Anything else (other hosts, protocol-relative URLs,
  * backslash tricks, the login page itself) falls back to the area's home page.
  */
 export function safeReturnPath(value: string | null | undefined, area: Area): Route {
@@ -29,7 +35,10 @@ export function safeReturnPath(value: string | null | undefined, area: Area): Ro
   } catch {
     return area.home;
   }
-  const inArea = url.pathname === area.home || url.pathname.startsWith(`${area.home}/`);
+  const inArea =
+    url.pathname === area.home ||
+    url.pathname.startsWith(`${area.home}/`) ||
+    (area.returnTo?.includes(url.pathname) ?? false);
   if (url.origin !== PLACEHOLDER_ORIGIN || !inArea || url.pathname === area.login) {
     return area.home;
   }

@@ -1,6 +1,6 @@
 """Catalogue of the shop, public: ``/api/v1/store`` (navigation, product list, product page)."""
 
-from typing import Annotated
+from typing import Annotated, Final, Literal
 
 from fastapi import APIRouter, Query, Response
 
@@ -14,9 +14,18 @@ from modellbahn.modules.catalog.api.schemas import (
     StoreProductOut,
     StoreProductPageOut,
 )
+from modellbahn.modules.catalog.application.ports import ProductOrder
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/store", tags=["store-catalog"])
+
+StoreSort = Literal["newest", "price_asc", "price_desc", "name"]
+_STORE_ORDERS: Final[dict[str, ProductOrder]] = {
+    "newest": ProductOrder.PUBLISHED,
+    "price_asc": ProductOrder.PRICE_ASC,
+    "price_desc": ProductOrder.PRICE_DESC,
+    "name": ProductOrder.NAME,
+}
 
 
 @router.get(
@@ -52,12 +61,22 @@ async def list_products(
         Query(max_length=80, description="Category slug; includes its subcategories."),
     ] = None,
     scale: Annotated[str | None, Query(max_length=10, description="Gauge code, e.g. H0.")] = None,
+    epoch: Annotated[str | None, Query(max_length=10, description="Epoch code, e.g. III.")] = None,
     q: Annotated[str | None, Query(max_length=200, description="German full-text search.")] = None,
+    sort: Annotated[
+        StoreSort, Query(description="Newest first (default), by price or by name.")
+    ] = "newest",
     cursor: Annotated[str | None, Query(max_length=500)] = None,
     limit: Annotated[int, Query(ge=1, le=48)] = 24,
 ) -> StoreProductPageOut:
     page = await service.store_products(
-        category_slug=category, scale_code=scale, text=q, cursor=cursor, limit=limit
+        category_slug=category,
+        scale_code=scale,
+        epoch_code=epoch,
+        text=q,
+        order=_STORE_ORDERS[sort],
+        cursor=cursor,
+        limit=limit,
     )
     references = await service.references()
     response.headers["Cache-Control"] = STORE_CACHE_CONTROL

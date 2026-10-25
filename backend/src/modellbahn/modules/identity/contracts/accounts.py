@@ -14,9 +14,12 @@ from modellbahn.platform.uow import UnitOfWork
 
 __all__ = [
     "ACCOUNT_REFERENCE",
+    "CUSTOMER_KIND",
+    "CUSTOMER_REFERENCE",
     "AccountKind",
     "AccountSummary",
     "StaffRole",
+    "find_verified_customer",
     "get_account_summary",
 ]
 
@@ -24,6 +27,11 @@ ACCOUNT_REFERENCE = "identity.accounts.id"
 """Target for another module's foreign key to an account (``ON DELETE SET NULL`` or
 ``RESTRICT``). Importing it also puts the accounts table on the shared metadata, which
 SQLAlchemy needs to resolve the key."""
+
+CUSTOMER_REFERENCE = ("identity.accounts.id", "identity.accounts.kind")
+CUSTOMER_KIND = AccountKind.CUSTOMER.value
+"""Target and kind for a composite foreign key ``(account_id, account_kind)`` whose kind
+column is fixed to ``CUSTOMER_KIND``: the database then accepts customer accounts only."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,3 +74,17 @@ async def get_account_summary(uow: UnitOfWork, account_id: UUID) -> AccountSumma
         email_verified=row.email_verified_at is not None,
         active=row.status is AccountStatus.ACTIVE,
     )
+
+
+async def find_verified_customer(uow: UnitOfWork, email: str) -> UUID | None:
+    """The active customer account whose verified address is ``email`` (any letter case).
+
+    Only a verified address counts: whoever controls it may see what was ordered with it.
+    """
+    statement = select(accounts.c.id).where(
+        accounts.c.kind == AccountKind.CUSTOMER,
+        accounts.c.email == email,
+        accounts.c.status == AccountStatus.ACTIVE,
+        accounts.c.email_verified_at.is_not(None),
+    )
+    return (await uow.session.execute(statement)).scalar_one_or_none()

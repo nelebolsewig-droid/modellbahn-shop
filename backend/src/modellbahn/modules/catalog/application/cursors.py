@@ -11,9 +11,13 @@ from modellbahn.modules.catalog.domain.errors import InvalidFieldError
 
 
 def encode_cursor(cursor: ProductCursor) -> str:
-    data: dict[str, str] = {"i": str(cursor.id)}
+    data: dict[str, str | int] = {"i": str(cursor.id)}
     if cursor.published_at is not None:
         data["p"] = cursor.published_at.isoformat()
+    if cursor.price_cents is not None:
+        data["c"] = cursor.price_cents
+    if cursor.name is not None:
+        data["n"] = cursor.name
     raw = json.dumps(data, separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
@@ -27,6 +31,15 @@ def decode_cursor(value: str) -> ProductCursor:
         if published is not None and published.tzinfo is None:
             msg = "cursor time without time zone"
             raise ValueError(msg)
-        return ProductCursor(id=UUID(data["i"]), published_at=published)
+        price = data.get("c")
+        name = data.get("n")
+        if (price is not None and not isinstance(price, int)) or (
+            name is not None and not isinstance(name, str)
+        ):
+            msg = "cursor value of the wrong type"
+            raise ValueError(msg)
+        return ProductCursor(
+            id=UUID(data["i"]), published_at=published, price_cents=price, name=name
+        )
     except (binascii.Error, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise InvalidFieldError("cursor", "invalid", "not a cursor of this list") from exc

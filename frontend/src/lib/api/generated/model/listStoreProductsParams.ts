@@ -11,6 +11,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ListStoreProductsSort } from './listStoreProductsSort';
 
 export type ListStoreProductsParams = {
 /**
@@ -22,9 +23,17 @@ category?: string | null;
  */
 scale?: string | null;
 /**
+ * Epoch code, e.g. III.
+ */
+epoch?: string | null;
+/**
  * German full-text search.
  */
 q?: string | null;
+/**
+ * Newest first (default), by price or by name.
+ */
+sort?: ListStoreProductsSort;
 cursor?: string | null;
 /**
  * @minimum 1

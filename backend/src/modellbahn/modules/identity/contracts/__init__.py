@@ -5,8 +5,8 @@
   and the types they carry. Framework-free, so any layer may use it.
 * :mod:`.accounts` - a read-only facade for account data. It queries the database
   and therefore belongs in another module's application or infrastructure layer.
-* :mod:`.auth` - FastAPI dependencies that let staff with certain roles through, for
-  another module's API layer.
+* :mod:`.auth` - FastAPI dependencies that let staff with certain roles through, or
+  identify the logged-in customer, for another module's API layer.
 
 This package itself imports none of them, so importing one does not load the others.
 """

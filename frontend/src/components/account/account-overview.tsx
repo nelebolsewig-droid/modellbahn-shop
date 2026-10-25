@@ -1,18 +1,12 @@
 "use client";
 
 import { PasswordChangeForm } from "@/components/forms/password-change-form";
-import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { PendingNotice } from "@/components/ui/pending-notice";
 import type { AccountOut } from "@/lib/api/generated/model";
 import { useChangeCustomerPassword } from "@/lib/api/generated/store-account/store-account";
 import { formatLongDate } from "@/lib/format";
-import { errorMessage } from "@/lib/i18n/problems";
-import { CUSTOMER_AREA } from "@/lib/navigation";
-import { useCustomerSession, useCustomerSessionCache } from "@/lib/session/customer";
-import { useProtectedArea } from "@/lib/session/use-session-redirects";
 
+import { CustomerGate } from "./customer-gate";
 import { DeleteAccount } from "./delete-account";
 import { DisplayNameForm } from "./display-name-form";
 import { LogoutButton } from "./logout-button";
@@ -20,34 +14,13 @@ import { SettingsSection } from "./settings-section";
 
 /** "Mein Konto": the customer's data and settings, as far as the API confirms a session. */
 export function AccountOverview() {
-  const session = useCustomerSession();
-  const cache = useCustomerSessionCache();
-  const { leave } = useProtectedArea(session, cache, CUSTOMER_AREA);
-
-  switch (session.status) {
-    case "loading":
-    case "anonymous":
-      return <PendingNotice className="mt-10">Dein Konto wird geladen …</PendingNotice>;
-    case "error":
-      return (
-        <div className="mt-10 max-w-xl space-y-4">
-          <Alert tone="danger" title="Dein Konto konnte nicht geladen werden">
-            <p>{errorMessage(session.error)}</p>
-          </Alert>
-          <Button type="button" variant="secondary" onClick={() => void cache.revalidate()}>
-            Erneut versuchen
-          </Button>
-        </div>
-      );
-    case "authenticated":
-      return (
-        <AccountDetails
-          account={session.account}
-          onLoggedOut={() => leave("/")}
-          onDeleted={() => leave("/konto/geloescht")}
-        />
-      );
-  }
+  return (
+    <CustomerGate pending="Dein Konto wird geladen …">
+      {({ account, leave }) => (
+        <AccountDetails account={account} onLoggedOut={() => leave("/")} onDeleted={() => leave("/konto/geloescht")} />
+      )}
+    </CustomerGate>
+  );
 }
 
 type AccountDetailsProps = {

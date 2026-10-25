@@ -3,50 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RETRY_AFTER_CLOSE_MS } from "@/lib/realtime/use-event-stream";
+import { FakeEventSource, latestSource } from "@/test/event-source";
 
 import { EventFeed } from "./event-feed";
-
-/** Stands in for the browser's EventSource; the test drives its events. */
-class FakeEventSource extends EventTarget {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSED = 2;
-  static instances: FakeEventSource[] = [];
-
-  readyState = FakeEventSource.CONNECTING;
-
-  constructor(readonly url: string) {
-    super();
-    FakeEventSource.instances.push(this);
-  }
-
-  close() {
-    this.readyState = FakeEventSource.CLOSED;
-  }
-
-  open() {
-    this.readyState = FakeEventSource.OPEN;
-    this.dispatchEvent(new Event("open"));
-  }
-
-  emit(type: string, data: unknown) {
-    this.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
-  }
-
-  /** `closed`: the browser gives up (e.g. 401); otherwise it retries by itself. */
-  fail({ closed }: { closed: boolean }) {
-    this.readyState = closed ? FakeEventSource.CLOSED : FakeEventSource.CONNECTING;
-    this.dispatchEvent(new Event("error"));
-  }
-}
-
-function latestSource(): FakeEventSource {
-  const source = FakeEventSource.instances.at(-1);
-  if (source === undefined) {
-    throw new Error("no EventSource was opened");
-  }
-  return source;
-}
 
 const REGISTERED = {
   id: "0192f1c4-7a3e-7cc2-9d5e-1b2c3d4e5f60",

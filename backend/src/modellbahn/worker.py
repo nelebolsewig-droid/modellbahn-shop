@@ -23,6 +23,11 @@ from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
+from modellbahn.modules.sales.application.cart import CartService
+from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
+from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -36,6 +41,8 @@ from modellbahn.platform.periodic import PeriodicJob, run_periodically
 _logger = structlog.get_logger("modellbahn.worker")
 
 STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
+OVERDUE_ORDER_SWEEP_INTERVAL: Final = timedelta(minutes=15)
+EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 FORWARDED_EVENT_MODULES: Final = (catalog_events,)
 
 
@@ -55,11 +62,20 @@ async def run_worker(
     clock = SystemClock()
     storage = media_storage or S3MediaStorage.from_settings(settings)
     media_uow = partial(SqlMediaUnitOfWork, session_factory)
+    sales_uow = sales_uow_factory(session_factory, public_base_url=settings.media_public_base_url)
+    mailer = mailer or SmtpMailer(settings)
 
     handlers = HandlerRegistry()
     IdentityMailHandlers(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
-        mailer=mailer or SmtpMailer(settings),
+        mailer=mailer,
+        clock=clock,
+        public_base_url=settings.public_base_url,
+        shop_name=settings.shop_name,
+    ).register(handlers)
+    SalesHandlers(
+        uow_factory=sales_uow,
+        mailer=mailer,
         clock=clock,
         public_base_url=settings.public_base_url,
         shop_name=settings.shop_name,
@@ -71,12 +87,24 @@ async def run_worker(
         clock=clock,
     ).register(handlers)
     media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)
+    order_service = OrderService(uow_factory=sales_uow, clock=clock, gateway=MockPaymentGateway())
+    cart_service = CartService(uow_factory=sales_uow, clock=clock)
     jobs = [
         PeriodicJob(
             name="media.purge_stale_uploads",
             interval=STALE_UPLOAD_SWEEP_INTERVAL,
             run=media_service.purge_stale_uploads,
-        )
+        ),
+        PeriodicJob(
+            name="sales.cancel_overdue_orders",
+            interval=OVERDUE_ORDER_SWEEP_INTERVAL,
+            run=order_service.cancel_overdue,
+        ),
+        PeriodicJob(
+            name="sales.purge_expired_carts",
+            interval=EXPIRED_CART_SWEEP_INTERVAL,
+            run=cart_service.purge_expired,
+        ),
     ]
 
     dispatcher = OutboxDispatcher(
