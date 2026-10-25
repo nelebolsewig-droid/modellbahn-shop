@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CartLink } from "@/components/shop/cart-link";
 import { SHOP_NAME } from "@/lib/config";
 
 import { AccountLink } from "./account-link";
@@ -22,6 +23,7 @@ export function SiteHeader() {
               Katalog
             </Link>
           </nav>
+          <CartLink />
           <nav aria-label="Kundenkonto">
             <AccountLink />
           </nav>

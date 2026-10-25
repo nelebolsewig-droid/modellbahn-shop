@@ -53,6 +53,101 @@
         "title": "AccountOut",
         "type": "object"
       },
+      "AddressIn": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "examples": [
+              "Altenau"
+            ],
+            "maxLength": 200,
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "examples": [
+              "DE"
+            ],
+            "maxLength": 2,
+            "title": "Country Code",
+            "type": "string"
+          },
+          "postal_code": {
+            "examples": [
+              "38707"
+            ],
+            "maxLength": 20,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "recipient": {
+            "examples": [
+              "Erika Mustermann"
+            ],
+            "maxLength": 200,
+            "title": "Recipient",
+            "type": "string"
+          },
+          "street": {
+            "examples": [
+              "Bahnhofstraße 12"
+            ],
+            "maxLength": 200,
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "street",
+          "postal_code",
+          "city",
+          "country_code"
+        ],
+        "title": "AddressIn",
+        "type": "object"
+      },
+      "AddressOut": {
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "title": "Country Code",
+            "type": "string"
+          },
+          "country_name": {
+            "examples": [
+              "Deutschland"
+            ],
+            "title": "Country Name",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "street",
+          "postal_code",
+          "city",
+          "country_code",
+          "country_name"
+        ],
+        "title": "AddressOut",
+        "type": "object"
+      },
       "AdminImageOut": {
         "description": "An image in any state; facts and sizes follow once it is ready.",
         "properties": {
@@ -143,6 +238,165 @@
           "renditions"
         ],
         "title": "AdminImageOut",
+        "type": "object"
+      },
+      "AdminOrderOut": {
+        "description": "An order in the admin area: also who ordered and the cancellation note.",
+        "properties": {
+          "cancel_note": {
+            "title": "Cancel Note",
+            "type": "string"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancelReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "carrier": {
+            "title": "Carrier",
+            "type": "string"
+          },
+          "customer_account_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Account Id"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "title": "Number",
+            "type": "string"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "payment_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Until when a pending order can be paid; afterwards it is cancelled.",
+            "title": "Payment Due At"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentOut"
+            },
+            "title": "Payments",
+            "type": "array"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "public_token": {
+            "title": "Public Token",
+            "type": "string"
+          },
+          "shipped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipped At"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/AddressOut"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          },
+          "tracking_number": {
+            "title": "Tracking Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "public_token",
+          "status",
+          "email",
+          "shipping_address",
+          "lines",
+          "totals",
+          "payments",
+          "placed_at",
+          "paid_at",
+          "shipped_at",
+          "cancelled_at",
+          "cancel_reason",
+          "carrier",
+          "tracking_number",
+          "payment_due_at",
+          "id",
+          "customer_account_id",
+          "cancel_note"
+        ],
+        "title": "AdminOrderOut",
         "type": "object"
       },
       "AssetKind": {
@@ -248,6 +502,194 @@
         ],
         "title": "AssetStatus",
         "type": "string"
+      },
+      "CancelIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "CancelIn",
+        "type": "object"
+      },
+      "CancelReason": {
+        "enum": [
+          "payment_timeout",
+          "by_shop"
+        ],
+        "title": "CancelReason",
+        "type": "string"
+      },
+      "CartLineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "description": "0 takes the line out.",
+            "maximum": 99.0,
+            "minimum": 0.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "CartLineIn",
+        "type": "object"
+      },
+      "CartLineOut": {
+        "properties": {
+          "available": {
+            "description": "False if the variant is no longer for sale.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "compare_at_price_cents": {
+            "anyOf": [
+              {
+                "examples": [
+                  8480
+                ],
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare At Price Cents"
+          },
+          "finish_code": {
+            "title": "Finish Code",
+            "type": "string"
+          },
+          "finish_name": {
+            "title": "Finish Name",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "line_total_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Line Total Cents",
+            "type": "integer"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "product_slug": {
+            "title": "Product Slug",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "scale_name": {
+            "title": "Scale Name",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "unit_price_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Unit Price Cents",
+            "type": "integer"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_slug",
+          "product_name",
+          "scale_code",
+          "scale_name",
+          "finish_code",
+          "finish_name",
+          "sku",
+          "quantity",
+          "unit_price_cents",
+          "compare_at_price_cents",
+          "line_total_cents",
+          "available",
+          "image"
+        ],
+        "title": "CartLineOut",
+        "type": "object"
+      },
+      "CartOut": {
+        "description": "The cart at today's prices; shipping is that to Germany until an address is known.",
+        "properties": {
+          "countries": {
+            "description": "Every country the shop ships to.",
+            "items": {
+              "$ref": "#/components/schemas/ShippingCountryOut"
+            },
+            "title": "Countries",
+            "type": "array"
+          },
+          "item_count": {
+            "description": "Pieces that can be ordered.",
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CartLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "ready_for_checkout": {
+            "title": "Ready For Checkout",
+            "type": "boolean"
+          },
+          "shipping_country": {
+            "$ref": "#/components/schemas/ShippingCountryOut"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          }
+        },
+        "required": [
+          "lines",
+          "item_count",
+          "totals",
+          "shipping_country",
+          "ready_for_checkout",
+          "countries"
+        ],
+        "title": "CartOut",
+        "type": "object"
       },
       "CategoryCreateIn": {
         "additionalProperties": false,
@@ -424,6 +866,225 @@
           "name"
         ],
         "title": "CategoryRefOut",
+        "type": "object"
+      },
+      "CheckoutIn": {
+        "additionalProperties": false,
+        "description": "What the customer confirmed. Guests send ``email`` and ``address``; customers may\nsend ``address_id`` from their book instead, or keep a new address (``save_address``).",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expected_total_cents": {
+            "description": "The total shown on the review page; a different total refuses the order.",
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Expected Total Cents",
+            "type": "integer"
+          },
+          "save_address": {
+            "default": false,
+            "title": "Save Address",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_total_cents"
+        ],
+        "title": "CheckoutIn",
+        "type": "object"
+      },
+      "CustomerAddressIn": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "examples": [
+              "Altenau"
+            ],
+            "maxLength": 200,
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "examples": [
+              "DE"
+            ],
+            "maxLength": 2,
+            "title": "Country Code",
+            "type": "string"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Label",
+            "type": "string"
+          },
+          "postal_code": {
+            "examples": [
+              "38707"
+            ],
+            "maxLength": 20,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "recipient": {
+            "examples": [
+              "Erika Mustermann"
+            ],
+            "maxLength": 200,
+            "title": "Recipient",
+            "type": "string"
+          },
+          "street": {
+            "examples": [
+              "Bahnhofstraße 12"
+            ],
+            "maxLength": 200,
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "street",
+          "postal_code",
+          "city",
+          "country_code"
+        ],
+        "title": "CustomerAddressIn",
+        "type": "object"
+      },
+      "CustomerAddressOut": {
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "title": "Country Code",
+            "type": "string"
+          },
+          "country_name": {
+            "examples": [
+              "Deutschland"
+            ],
+            "title": "Country Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "label": {
+            "examples": [
+              "Zuhause"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "street",
+          "postal_code",
+          "city",
+          "country_code",
+          "country_name",
+          "id",
+          "label",
+          "is_default"
+        ],
+        "title": "CustomerAddressOut",
+        "type": "object"
+      },
+      "CustomerAddressPatchIn": {
+        "additionalProperties": false,
+        "description": "Only the fields sent are changed; ``is_default: true`` makes the entry the default.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "title": "CustomerAddressPatchIn",
         "type": "object"
       },
       "DimensionsIn": {
@@ -901,6 +1562,87 @@
         "title": "ImageRenditionOut",
         "type": "object"
       },
+      "LineImageOut": {
+        "description": "The photo of a cart or order line: placeholder, dominant colour, rendered sizes.",
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "dominant_color": {
+            "examples": [
+              "#c8c8be"
+            ],
+            "title": "Dominant Color",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "lqip": {
+            "title": "Lqip",
+            "type": "string"
+          },
+          "renditions": {
+            "items": {
+              "$ref": "#/components/schemas/LineImageRenditionOut"
+            },
+            "title": "Renditions",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_id",
+          "width",
+          "height",
+          "dominant_color",
+          "lqip",
+          "renditions"
+        ],
+        "title": "LineImageOut",
+        "type": "object"
+      },
+      "LineImageRenditionOut": {
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/RenditionFormat"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "thumb"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "format",
+          "width",
+          "height",
+          "url"
+        ],
+        "title": "LineImageRenditionOut",
+        "type": "object"
+      },
       "LoginIn": {
         "additionalProperties": false,
         "properties": {
@@ -974,6 +1716,315 @@
         "title": "NavigationOut",
         "type": "object"
       },
+      "OrderLineOut": {
+        "properties": {
+          "finish_code": {
+            "title": "Finish Code",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "line_total_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Line Total Cents",
+            "type": "integer"
+          },
+          "product_slug": {
+            "title": "Product Slug",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "examples": [
+              "Stellwerk Altenau · H0 · bemalt"
+            ],
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Unit Price Cents",
+            "type": "integer"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_slug",
+          "sku",
+          "title",
+          "scale_code",
+          "finish_code",
+          "unit_price_cents",
+          "quantity",
+          "line_total_cents",
+          "image"
+        ],
+        "title": "OrderLineOut",
+        "type": "object"
+      },
+      "OrderOut": {
+        "description": "An order as its customer sees it. ``public_token`` is the key of its status page.",
+        "properties": {
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancelReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "carrier": {
+            "title": "Carrier",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "title": "Number",
+            "type": "string"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "payment_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Until when a pending order can be paid; afterwards it is cancelled.",
+            "title": "Payment Due At"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentOut"
+            },
+            "title": "Payments",
+            "type": "array"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "public_token": {
+            "title": "Public Token",
+            "type": "string"
+          },
+          "shipped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipped At"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/AddressOut"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          },
+          "tracking_number": {
+            "title": "Tracking Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "public_token",
+          "status",
+          "email",
+          "shipping_address",
+          "lines",
+          "totals",
+          "payments",
+          "placed_at",
+          "paid_at",
+          "shipped_at",
+          "cancelled_at",
+          "cancel_reason",
+          "carrier",
+          "tracking_number",
+          "payment_due_at"
+        ],
+        "title": "OrderOut",
+        "type": "object"
+      },
+      "OrderPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderSummaryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "OrderPageOut",
+        "type": "object"
+      },
+      "OrderStatus": {
+        "enum": [
+          "pending_payment",
+          "paid",
+          "shipped",
+          "cancelled"
+        ],
+        "title": "OrderStatus",
+        "type": "string"
+      },
+      "OrderSummaryOut": {
+        "description": "An order in a list.",
+        "properties": {
+          "first_line_title": {
+            "title": "First Line Title",
+            "type": "string"
+          },
+          "guest": {
+            "description": "Placed without an account (and not adopted yet).",
+            "title": "Guest",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "total_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Total Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "placed_at",
+          "item_count",
+          "total_cents",
+          "first_line_title",
+          "recipient",
+          "guest"
+        ],
+        "title": "OrderSummaryOut",
+        "type": "object"
+      },
       "PasswordChangeIn": {
         "additionalProperties": false,
         "properties": {
@@ -1019,6 +2070,85 @@
         ],
         "title": "PasswordResetConfirmIn",
         "type": "object"
+      },
+      "PaymentIn": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "description": "Test payment: the outcome the mock provider simulates.",
+            "enum": [
+              "succeeds",
+              "declined",
+              "fails"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "title": "PaymentIn",
+        "type": "object"
+      },
+      "PaymentOut": {
+        "properties": {
+          "amount_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "declined"
+            ],
+            "title": "Failure Code"
+          },
+          "provider": {
+            "examples": [
+              "mock"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          }
+        },
+        "required": [
+          "status",
+          "amount_cents",
+          "provider",
+          "failure_code",
+          "created_at"
+        ],
+        "title": "PaymentOut",
+        "type": "object"
+      },
+      "PaymentStatus": {
+        "enum": [
+          "captured",
+          "failed",
+          "refunded"
+        ],
+        "title": "PaymentStatus",
+        "type": "string"
       },
       "Problem": {
         "description": "OpenAPI schema of an RFC 9457 problem response.",
@@ -1862,6 +2992,71 @@
         "title": "ScaleOut",
         "type": "object"
       },
+      "ShipIn": {
+        "additionalProperties": false,
+        "properties": {
+          "carrier": {
+            "default": "",
+            "examples": [
+              "DHL"
+            ],
+            "maxLength": 40,
+            "title": "Carrier",
+            "type": "string"
+          },
+          "tracking_number": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Tracking Number",
+            "type": "string"
+          }
+        },
+        "title": "ShipIn",
+        "type": "object"
+      },
+      "ShippingCountryOut": {
+        "description": "A country the shop ships to, with its flat rate and the order value that ships free.",
+        "properties": {
+          "code": {
+            "examples": [
+              "DE"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "free_from_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Free From Cents",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "Deutschland"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "rate_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Rate Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "rate_cents",
+          "free_from_cents"
+        ],
+        "title": "ShippingCountryOut",
+        "type": "object"
+      },
       "StaffOut": {
         "description": "A staff member's own account.",
         "properties": {
@@ -2249,6 +3444,51 @@
         "title": "StoreVariantOut",
         "type": "object"
       },
+      "TotalsOut": {
+        "properties": {
+          "shipping_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Shipping Cents",
+            "type": "integer"
+          },
+          "subtotal_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Subtotal Cents",
+            "type": "integer"
+          },
+          "tax_cents": {
+            "description": "The 19 % VAT contained in the total.",
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Tax Cents",
+            "type": "integer"
+          },
+          "total_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Total Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subtotal_cents",
+          "shipping_cents",
+          "total_cents",
+          "tax_cents"
+        ],
+        "title": "TotalsOut",
+        "type": "object"
+      },
       "UploadOut": {
         "description": "Send the file with exactly this method and these headers before ``expires_at``.",
         "properties": {
@@ -2579,6 +3819,12 @@
       }
     },
     "securitySchemes": {
+      "cartCookie": {
+        "description": "The visitor's cart (set by setCartLine when it starts a cart).",
+        "in": "cookie",
+        "name": "mb_cart",
+        "type": "apiKey"
+      },
       "customerSession": {
         "description": "Session cookie of the shop (set by loginCustomer and verifyCustomerEmail).",
         "in": "cookie",
@@ -3809,6 +5055,465 @@
         "summary": "Render the sizes again",
         "tags": [
           "admin-media"
+        ]
+      }
+    },
+    "/api/v1/admin/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/OrderStatus"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Part of the order number or e-mail.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Part of the order number or e-mail.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Orders, newest first",
+        "tags": [
+          "admin-sales"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}": {
+      "get": {
+        "operationId": "getOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "An order with lines, address and payments",
+        "tags": [
+          "admin-sales"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}/cancel": {
+      "post": {
+        "operationId": "cancelOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_order_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `payment_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Cancel an order that has not been shipped; a payment is refunded",
+        "tags": [
+          "admin-sales"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}/ship": {
+      "post": {
+        "operationId": "shipOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_order_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Mark a paid order as shipped (the customer gets an e-mail)",
+        "tags": [
+          "admin-sales"
         ]
       }
     },
@@ -5751,6 +7456,368 @@
         ]
       }
     },
+    "/api/v1/store/account/addresses": {
+      "get": {
+        "operationId": "listAddresses",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerAddressOut"
+                  },
+                  "title": "Response Listaddresses",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "The address book, the default first",
+        "tags": [
+          "store-account"
+        ]
+      },
+      "post": {
+        "description": "The first address of a book becomes its default.",
+        "operationId": "addAddress",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerAddressIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerAddressOut"
+                  },
+                  "title": "Response Addaddress",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `address_book_full`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "Add an address; answers with the whole book",
+        "tags": [
+          "store-account"
+        ]
+      }
+    },
+    "/api/v1/store/account/addresses/{address_id}": {
+      "delete": {
+        "description": "If it was the default, the oldest remaining address takes over.",
+        "operationId": "removeAddress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Address Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerAddressOut"
+                  },
+                  "title": "Response Removeaddress",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `address_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "Remove an address; answers with the whole book",
+        "tags": [
+          "store-account"
+        ]
+      },
+      "patch": {
+        "operationId": "changeAddress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Address Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerAddressPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerAddressOut"
+                  },
+                  "title": "Response Changeaddress",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `address_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "Change an address or make it the default; answers with the whole book",
+        "tags": [
+          "store-account"
+        ]
+      }
+    },
     "/api/v1/store/account/email-verification": {
       "post": {
         "description": "Redeem the token from the verification mail; sets the ``mb_session`` cookie.\n\nNeeds the password chosen at registration as well, so that a verification link\nclicked by someone who did not register cannot hand the account to the person\nwho did. A wrong password (``invalid_password``) leaves the link usable.",
@@ -6140,6 +8207,170 @@
           }
         ],
         "summary": "Delete the account",
+        "tags": [
+          "store-account"
+        ]
+      }
+    },
+    "/api/v1/store/account/orders": {
+      "get": {
+        "operationId": "listMyOrders",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "The customer's orders, including adopted guest orders, newest first",
+        "tags": [
+          "store-account"
+        ]
+      }
+    },
+    "/api/v1/store/account/orders/{number}": {
+      "get": {
+        "operationId": "getMyOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "One of the customer's orders",
         "tags": [
           "store-account"
         ]
@@ -6624,6 +8855,338 @@
         ]
       }
     },
+    "/api/v1/store/cart": {
+      "get": {
+        "operationId": "getCart",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "cartCookie": []
+          }
+        ],
+        "summary": "The visitor's cart at today's prices",
+        "tags": [
+          "store-sales"
+        ]
+      }
+    },
+    "/api/v1/store/cart/lines/{variant_id}": {
+      "delete": {
+        "operationId": "removeCartLine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "cartCookie": []
+          }
+        ],
+        "summary": "Take a variant out of the cart",
+        "tags": [
+          "store-sales"
+        ]
+      },
+      "put": {
+        "description": "Starts a cart (and sets its cookie) when there is none yet.",
+        "operationId": "setCartLine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartLineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `cart_full`, `variant_unavailable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "cartCookie": []
+          }
+        ],
+        "summary": "Set how many pieces of a variant are in the cart (0 takes it out)",
+        "tags": [
+          "store-sales"
+        ]
+      }
+    },
+    "/api/v1/store/checkouts": {
+      "post": {
+        "description": "Prices are taken from the catalogue now, not from what the browser shows; a total\nother than ``expected_total_cents`` orders nothing (409 ``price_changed``). Logged-in\ncustomers order with their account; guests give an e-mail address. Repeating the\nrequest with the same ``Idempotency-Key`` returns the same order.",
+        "operationId": "placeOrder",
+        "parameters": [
+          {
+            "description": "A new UUID per intended action; repeat it when retrying the same request.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "description": "A new UUID per intended action; repeat it when retrying the same request.",
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `address_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `cart_empty`, `cart_items_unavailable`, `idempotency_key_reused`, `price_changed`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "cartCookie": []
+          }
+        ],
+        "summary": "Order what is in the cart; the payment follows",
+        "tags": [
+          "store-sales"
+        ]
+      }
+    },
     "/api/v1/store/navigation": {
       "get": {
         "operationId": "getStoreNavigation",
@@ -6652,6 +9215,193 @@
         "summary": "Categories, gauges, finishes and epochs for menus and filters",
         "tags": [
           "store-catalog"
+        ]
+      }
+    },
+    "/api/v1/store/orders/{public_token}": {
+      "get": {
+        "operationId": "getOrderByToken",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_token",
+            "required": true,
+            "schema": {
+              "title": "Public Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "An order's status page (the link from the order e-mails)",
+        "tags": [
+          "store-sales"
+        ]
+      }
+    },
+    "/api/v1/store/orders/{public_token}/payments": {
+      "post": {
+        "description": "A declined payment is recorded and answered with the order, still waiting for its\npayment; a provider failure (503) records nothing. Repeating the request with the same\n``Idempotency-Key`` never charges twice.",
+        "operationId": "payOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_token",
+            "required": true,
+            "schema": {
+              "title": "Public Token",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A new UUID per intended action; repeat it when retrying the same request.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "description": "A new UUID per intended action; repeat it when retrying the same request.",
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `idempotency_key_reused`, `order_not_payable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `payment_unavailable`."
+          }
+        },
+        "summary": "Pay for an order (test payment with a chosen outcome)",
+        "tags": [
+          "store-sales"
         ]
       }
     },
@@ -6698,6 +9448,25 @@
             }
           },
           {
+            "description": "Epoch code, e.g. III.",
+            "in": "query",
+            "name": "epoch",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Epoch code, e.g. III.",
+              "title": "Epoch"
+            }
+          },
+          {
             "description": "German full-text search.",
             "in": "query",
             "name": "q",
@@ -6714,6 +9483,24 @@
               ],
               "description": "German full-text search.",
               "title": "Q"
+            }
+          },
+          {
+            "description": "Newest first (default), by price or by name.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "description": "Newest first (default), by price or by name.",
+              "enum": [
+                "newest",
+                "price_asc",
+                "price_desc",
+                "name"
+              ],
+              "title": "Sort",
+              "type": "string"
             }
           },
           {
@@ -6917,7 +9704,11 @@
       "name": "store-catalog"
     },
     {
-      "description": "Customer accounts of the shop.",
+      "description": "Cart, checkout, order status and payment.",
+      "name": "store-sales"
+    },
+    {
+      "description": "Customer accounts, their orders and addresses.",
       "name": "store-account"
     },
     {
@@ -6931,6 +9722,10 @@
     {
       "description": "Product photos: uploads, processing, sizes.",
       "name": "admin-media"
+    },
+    {
+      "description": "Orders: overview, dispatch, cancellation.",
+      "name": "admin-sales"
     },
     {
       "description": "Live events for the admin area (SSE).",

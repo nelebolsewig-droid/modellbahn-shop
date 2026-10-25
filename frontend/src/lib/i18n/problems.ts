@@ -46,6 +46,24 @@ export const PROBLEM_MESSAGES: Messages = {
   invalid_asset_state: "Das ist im aktuellen Zustand des Bildes nicht möglich.",
   asset_in_use: "Das Bild wird noch verwendet, zum Beispiel in einer Galerie.",
 
+  // Sales
+  variant_unavailable: "Diese Ausführung ist gerade nicht erhältlich.",
+  cart_full: "Mehr verschiedene Artikel passen nicht in den Warenkorb.",
+  cart_empty: "Dein Warenkorb ist leer.",
+  cart_items_unavailable:
+    "Einige Artikel in deinem Warenkorb gibt es nicht mehr. Bitte entferne sie, dann geht es weiter.",
+  price_changed:
+    "Die Preise haben sich gerade geändert. Bitte sieh dir die neue Summe an und bestelle dann erneut.",
+  idempotency_key_reused:
+    "Diese Anfrage wurde schon mit anderen Angaben gestellt. Bitte lade die Seite neu.",
+  order_not_found: "Diese Bestellung gibt es nicht.",
+  order_not_payable: "Diese Bestellung wartet nicht (mehr) auf eine Zahlung.",
+  invalid_order_state: "Das ist im aktuellen Zustand der Bestellung nicht möglich.",
+  payment_unavailable:
+    "Der Zahlungsdienst ist gerade nicht erreichbar. Es wurde nichts abgebucht; versuche es bitte gleich noch einmal.",
+  address_not_found: "Diese Adresse gibt es nicht mehr.",
+  address_book_full: "Dein Adressbuch ist voll. Lösche bitte zuerst eine Adresse.",
+
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",
   csrf_header_missing:
@@ -98,6 +116,7 @@ export const FIELD_MESSAGES: Messages = {
   unsupported_type: "Bilder bitte als JPEG, PNG, WebP, AVIF oder HEIC.",
   too_large: "Die Datei ist größer als 50 MB.",
   invalid_filename: "Der Dateiname ist leer oder zu lang.",
+  not_shipped: "Dorthin liefern wir leider nicht.",
 };
 
 const PASSWORD_MESSAGES: Messages = {
@@ -124,6 +143,10 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
     too_long: "Die Adresse darf höchstens 80 Zeichen lang sein.",
   },
   name: { required: "Bitte gib einen Namen ein.", too_long: "Der Name ist zu lang." },
+  postal_code: { invalid: "Bitte prüfe die Postleitzahl (Deutschland 5, Österreich 4 Ziffern)." },
+  recipient: { required: "Bitte gib den Namen für das Paket ein." },
+  street: { required: "Bitte gib Straße und Hausnummer ein." },
+  city: { required: "Bitte gib den Ort ein." },
 };
 
 function lookup(messages: Messages | undefined, key: string): string | undefined {

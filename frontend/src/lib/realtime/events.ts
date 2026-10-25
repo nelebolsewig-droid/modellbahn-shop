@@ -17,10 +17,22 @@ export const STAFF_EVENT_LABELS = {
   "catalog.product.archived": "Produkt archiviert",
   "media.asset.ready": "Foto verarbeitet",
   "media.asset.failed": "Foto unbrauchbar",
+  "sales.order.placed": "Neue Bestellung",
+  "sales.order.paid": "Bestellung bezahlt",
+  "sales.order.shipped": "Bestellung versendet",
+  "sales.order.cancelled": "Bestellung storniert",
 } as const satisfies Record<string, string>;
 
 /** The media events, for pages that wait for their uploads (the product editor). */
 export const MEDIA_EVENT_TYPES = ["media.asset.ready", "media.asset.failed"] as const;
+
+/** The order events, for the order pages of the admin area. */
+export const ORDER_EVENT_TYPES = [
+  "sales.order.placed",
+  "sales.order.paid",
+  "sales.order.shipped",
+  "sales.order.cancelled",
+] as const;
 
 export type StaffEventType = keyof typeof STAFF_EVENT_LABELS;
 
@@ -43,6 +55,15 @@ const accountPayloadSchema = z.object({
 
 /** Public payload of the catalogue events. */
 const productPayloadSchema = z.object({ product_id: z.string(), name: z.string() });
+
+/** Public payload of the order events: number and total, never the customer's data. */
+const orderPayloadSchema = z.object({
+  order_id: z.string(),
+  number: z.string(),
+  total_cents: z.number().int(),
+});
+
+const euro = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
 
 /** Public payload of the media events: the page fetches the asset itself. */
 const assetPayloadSchema = z.object({ asset_id: z.string() });
@@ -80,6 +101,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
   const event = parsed.data;
   const account = accountPayloadSchema.safeParse(event.data);
   const product = productPayloadSchema.safeParse(event.data);
+  const order = orderPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
@@ -89,12 +111,15 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
       account: { id: account.data.account_id, displayName: account.data.display_name },
     }),
     ...(product.success && { subject: product.data.name }),
+    ...(order.success && {
+      subject: `${order.data.number} · ${euro.format(order.data.total_cents / 100)}`,
+    }),
     truncated: event.truncated,
   };
 }
 
-/** The asset an SSE message of the media events is about; null for anything else. */
-export function assetIdOf(raw: string): string | null {
+/** Type and payload of one SSE message, if it is an event and its payload fits `schema`. */
+function eventOf<T>(raw: string, schema: z.ZodType<T>): { type: string; payload: T } | null {
   let json: unknown;
   try {
     json = JSON.parse(raw);
@@ -105,8 +130,19 @@ export function assetIdOf(raw: string): string | null {
   if (!parsed.success) {
     return null;
   }
-  const payload = assetPayloadSchema.safeParse(parsed.data.data);
-  return payload.success ? payload.data.asset_id : null;
+  const payload = schema.safeParse(parsed.data.data);
+  return payload.success ? { type: parsed.data.type, payload: payload.data } : null;
+}
+
+/** The asset an SSE message of the media events is about; null for anything else. */
+export function assetIdOf(raw: string): string | null {
+  return eventOf(raw, assetPayloadSchema)?.payload.asset_id ?? null;
+}
+
+/** The order an SSE message of the order events is about, and what happened; null for anything else. */
+export function orderEventOf(raw: string): { type: string; orderId: string } | null {
+  const event = eventOf(raw, orderPayloadSchema);
+  return event === null ? null : { type: event.type, orderId: event.payload.order_id };
 }
 
 /** Newest first, without duplicates (a replay after reconnecting may repeat events). */

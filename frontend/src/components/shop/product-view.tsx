@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { AddToCart } from "@/components/shop/add-to-cart";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { ProductStage, type StageItem } from "@/components/ui/product-stage";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -40,8 +41,7 @@ function initialSelection(product: StoreProductOut): Selection {
 
 /**
  * The upper part of a product page: the photo stage on the left, the choice of
- * gauge and finish with price and dimensions on the right. Ordering follows in step 4;
- * until then the button says why it is not available.
+ * gauge and finish with price, quantity and "In den Warenkorb" on the right.
  */
 export function ProductView({ product }: { product: StoreProductOut }) {
   const [selection, setSelection] = useState<Selection>(() => initialSelection(product));
@@ -129,14 +129,19 @@ export function ProductView({ product }: { product: StoreProductOut }) {
                   </s>
                 ) : null}
               </p>
-              <p className="mt-1 text-hint text-ink-tertiary">inkl. MwSt., zzgl. Versand</p>
-              <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Button type="button" disabled aria-describedby="bestellen-hinweis">
-                  In den Warenkorb
-                </Button>
-                <p id="bestellen-hinweis" className="max-w-56 text-hint text-ink-tertiary">
-                  Bestellen ist mit dem nächsten Ausbauschritt des Shops möglich.
-                </p>
+              <p className="mt-1 text-hint text-ink-tertiary">
+                inkl. MwSt., zzgl.{" "}
+                <Link href="/versand" className="underline underline-offset-4 hover:text-ink">
+                  Versand
+                </Link>
+              </p>
+              <div className="mt-6">
+                {/* A new selection starts with quantity 1 and without the last confirmation. */}
+                <AddToCart
+                  key={variant.id}
+                  variantId={variant.id}
+                  title={[product.name, scale.name, ...(finish ? [finish.name] : [])].join(" · ")}
+                />
               </div>
             </div>
 

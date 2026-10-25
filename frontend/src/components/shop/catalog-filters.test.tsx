@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CategoryOut } from "@/lib/api/generated/model";
 
-import { CatalogFilters, categoryTrail } from "./catalog-filters";
+import { CatalogFilters, CatalogSort, categoryTrail, sortFor } from "./catalog-filters";
 
 function category(id: string, name: string, parent: string | null, position = 0): CategoryOut {
   return { id, slug: name.toLowerCase(), name, parent_id: parent, position };
@@ -72,5 +72,38 @@ describe("CatalogFilters", () => {
     render(<CatalogFilters query={{ spur: "H0" }} scales={SCALES} categories={CATEGORIES} />);
     const nav = screen.getByRole("navigation", { name: "Kategorie" });
     expect(within(nav).getByRole("link", { name: "Signale" })).toHaveAttribute("href", "/katalog?spur=H0&kategorie=signale");
+  });
+});
+
+describe("epochs and sorting", () => {
+  const EPOCHS = [
+    { code: "III", name: "Epoche III", period: "1949–1970" },
+    { code: "IV", name: "Epoche IV", period: "1970–1990" },
+  ];
+
+  it("keeps the other filters when choosing an epoch", () => {
+    render(<CatalogFilters query={{ spur: "H0", sortierung: "name" }} scales={SCALES} categories={[]} epochs={EPOCHS} />);
+    const nav = screen.getByRole("navigation", { name: "Epoche" });
+    expect(within(nav).getByRole("link", { name: "Epoche III, 1949–1970" })).toHaveAttribute(
+      "href",
+      "/katalog?spur=H0&epoche=III&sortierung=name",
+    );
+    expect(within(nav).getByRole("link", { name: "Alle" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("maps the German sort parameter to the API's order", () => {
+    expect(sortFor(undefined)).toBe("newest");
+    expect(sortFor("preis-auf")).toBe("price_asc");
+    expect(sortFor("preis-ab")).toBe("price_desc");
+    expect(sortFor("name")).toBe("name");
+    expect(sortFor("billig")).toBe("newest");
+  });
+
+  it("starts on the first page again when the order changes", () => {
+    render(<CatalogSort query={{ epoche: "IV", sortierung: "preis-ab" }} />);
+    const nav = screen.getByRole("navigation", { name: "Sortierung" });
+    expect(within(nav).getByRole("link", { name: "Preis absteigend" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Neueste" })).toHaveAttribute("href", "/katalog?epoche=IV");
+    expect(within(nav).getByRole("link", { name: "Name" })).toHaveAttribute("href", "/katalog?epoche=IV&sortierung=name");
   });
 });

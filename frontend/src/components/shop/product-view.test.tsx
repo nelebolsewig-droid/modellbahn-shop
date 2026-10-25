@@ -1,10 +1,25 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoreGalleryItemOut, StoreProductOut } from "@/lib/api/generated/model";
 
+import { jsonResponse, problemResponse, renderWithQueryClient } from "@/test/render";
+import { cartLine, cartOut } from "@/test/sales";
+
 import { galleryFor, ProductView } from "./product-view";
+
+const fetchMock = vi.fn<typeof fetch>();
+
+beforeEach(() => {
+  // The first request is always the cart; an empty one unless a test says otherwise.
+  vi.stubGlobal("fetch", fetchMock);
+  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(cartOut())));
+});
+
+afterEach(() => {
+  fetchMock.mockReset();
+});
 
 function image(id: string) {
   return {
@@ -81,7 +96,7 @@ describe("galleryFor", () => {
 describe("ProductView", () => {
   it("shows price, SKU and dimensions of the chosen variant", async () => {
     const user = userEvent.setup();
-    render(<ProductView product={PRODUCT} />);
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Stellwerk Altenau" })).toBeInTheDocument();
     expect(screen.getByText("MB-000042-H0-U")).toBeInTheDocument();
@@ -94,7 +109,7 @@ describe("ProductView", () => {
 
   it("offers only the finishes of the chosen gauge", async () => {
     const user = userEvent.setup();
-    render(<ProductView product={PRODUCT} />);
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
 
     await user.click(screen.getByRole("radio", { name: /^N/ }));
     const finishes = screen.getByRole("radiogroup", { name: "Ausführung" });
@@ -103,10 +118,36 @@ describe("ProductView", () => {
     expect(screen.getByText("MB-000042-N-U")).toBeInTheDocument();
   });
 
-  it("says why it cannot be ordered yet", () => {
-    render(<ProductView product={PRODUCT} />);
-    const button = screen.getByRole("button", { name: "In den Warenkorb" });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription(/nächsten Ausbauschritt/);
+  it("puts the chosen variant into the cart, on top of what is there", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(cartOut(cartLine({ variant_id: "v2", quantity: 1, line_total_cents: 8990 }))),
+    );
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
+    await user.click(screen.getByRole("radio", { name: "bemalt" }));
+    await user.click(screen.getByRole("button", { name: "Eins mehr" }));
+    expect(screen.getByRole("group", { name: "Menge" })).toHaveTextContent("2");
+
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(cartOut(cartLine({ variant_id: "v2", quantity: 3, line_total_cents: 26970 }))),
+    );
+    await user.click(screen.getByRole("button", { name: "In den Warenkorb" }));
+
+    expect(await screen.findByText("Im Warenkorb: Stellwerk Altenau · H0 · bemalt")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zum Warenkorb (3)" })).toHaveAttribute("href", "/warenkorb");
+    const [url, init] = fetchMock.mock.calls[1] ?? [];
+    expect(String(url)).toBe("/api/v1/store/cart/lines/v2");
+    expect(init?.method).toBe("PUT");
+    expect(JSON.parse(String(init?.body))).toEqual({ quantity: 3 });
+  });
+
+  it("explains a refusal in German", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(cartOut()));
+    fetchMock.mockResolvedValueOnce(problemResponse(409, "variant_unavailable"));
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "In den Warenkorb" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "In den Warenkorb" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("gerade nicht erhältlich");
   });
 });
