@@ -82,7 +82,7 @@ async def create_location(
     "/locations/{code}",
     operation_id="getLocation",
     summary="A location with its sub-locations and the units in it",
-    responses=problems({**STAFF_ACCESS, **_LOCATION_NOT_FOUND}, unsafe=False, validated=False),
+    responses=problems({**STAFF_ACCESS, **_LOCATION_NOT_FOUND}, unsafe=False),
 )
 async def get_location(
     code: str, _: StockWorker, service: LocationServiceDep
@@ -113,7 +113,6 @@ async def rename_location(
             **_LOCATION_NOT_FOUND,
             409: ["location_not_empty", "location_in_use"],
         },
-        validated=False,
     ),
 )
 async def delete_location(code: str, _: StockManager, service: LocationServiceDep) -> Response:
@@ -157,7 +156,7 @@ async def label_units(
     "/units/{code}",
     operation_id="getUnit",
     summary="A unit with what it is, where it lies and its whole history",
-    responses=problems({**STAFF_ACCESS, **_UNIT_NOT_FOUND}, unsafe=False, validated=False),
+    responses=problems({**STAFF_ACCESS, **_UNIT_NOT_FOUND}, unsafe=False),
 )
 async def get_unit(code: str, _: StockWorker, service: UnitServiceDep) -> UnitDetailsOut:
     return UnitDetailsOut.from_details(await service.details(code))
@@ -213,7 +212,6 @@ async def record_scan(body: ScanIn, staff: StockWorker, service: ScanServiceDep)
                 "scan_changed_since",
             ],
         },
-        validated=False,
     ),
 )
 async def undo_scan(scan_id: UUID, staff: StockWorker, service: ScanServiceDep) -> ScanOut:

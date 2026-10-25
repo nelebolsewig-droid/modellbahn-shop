@@ -28,6 +28,16 @@ from modellbahn.modules.identity.application.handlers import IdentityMailHandler
 from modellbahn.modules.identity.application.services import IdentityService, UnitOfWorkFactory
 from modellbahn.modules.identity.infrastructure.mapping import start_mappers
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.availability import AvailabilityService
+from modellbahn.modules.inventory.application.common import (
+    UnitOfWorkFactory as InventoryUnitOfWorkFactory,
+)
+from modellbahn.modules.inventory.application.handlers import InventoryHandlers
+from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.units import UnitService
+from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.media.application.services import (
@@ -313,6 +323,38 @@ def sales_handlers(
     )
 
 
+@pytest.fixture
+def inventory_uow(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> InventoryUnitOfWorkFactory:
+    return inventory_uow_factory(session_factory)
+
+
+@pytest.fixture
+def locations(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> LocationService:
+    return LocationService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def units(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> UnitService:
+    return UnitService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def scans(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> ScanService:
+    return ScanService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def allocation(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> AllocationService:
+    return AllocationService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def availability(inventory_uow: InventoryUnitOfWorkFactory) -> AvailabilityService:
+    return AvailabilityService(uow_factory=inventory_uow)
+
+
 type Deliver = Callable[[], Awaitable[int]]
 
 
@@ -323,12 +365,14 @@ def deliver(
     mail_handlers: IdentityMailHandlers,
     media_handlers: MediaProcessingHandlers,
     sales_handlers: SalesHandlers,
+    allocation: AllocationService,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
     mail_handlers.register(handlers)
     media_handlers.register(handlers)
     sales_handlers.register(handlers)
+    InventoryHandlers(allocation=allocation).register(handlers)
     dispatcher = OutboxDispatcher(
         engine=engine,
         listen_dsn=asyncpg_dsn(settings.database_url),

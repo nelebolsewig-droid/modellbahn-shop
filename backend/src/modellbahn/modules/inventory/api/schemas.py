@@ -522,9 +522,3 @@ class VariantAvailabilityOut(BaseModel):
 
 class AvailabilityOut(BaseModel):
     items: list[VariantAvailabilityOut]
-
-
-class PublicUnitOut(BaseModel):
-    """What a customer learns from a unit's label: which product it is."""
-
-    product_slug: str

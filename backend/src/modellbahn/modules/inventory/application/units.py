@@ -242,17 +242,6 @@ class UnitService:
         lines.sort(key=lambda line: (line.variant.title if line.variant else "", line.variant_id))
         return lines
 
-    async def product_of(self, code: str) -> str | None:
-        """The slug of the product a unit is a piece of, for a customer scanning its label."""
-        async with self._uow() as uow:
-            unit = await uow.units.get_by_code(normalize_unit_code(code))
-            if unit is None:
-                return None
-            variant = (await uow.catalog.variants([unit.variant_id])).get(unit.variant_id)
-        if variant is None or not variant.purchasable:
-            return None
-        return variant.product_slug
-
 
 async def _fresh_codes(uow: InventoryUnitOfWork, quantity: int) -> list[str]:
     """``quantity`` new unit codes that no unit has yet (a clash is astronomically rare)."""

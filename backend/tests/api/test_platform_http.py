@@ -208,7 +208,6 @@ EXPECTED_OPERATIONS = {
         "getProductAvailability",
         "store-inventory",
     ),
-    ("GET", "/api/v1/store/units/{code}"): ("getPublicUnit", "store-inventory"),
     ("GET", "/healthz"): ("getHealth", "system"),
     ("GET", "/readyz"): ("getReadiness", "system"),
 }

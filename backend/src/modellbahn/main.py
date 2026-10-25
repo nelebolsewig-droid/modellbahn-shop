@@ -111,7 +111,7 @@ _TAGS: Final = [
     {"name": "store-catalog", "description": "Products of the shop, public."},
     {"name": "store-sales", "description": "Cart, checkout, order status and payment."},
     {"name": "store-account", "description": "Customer accounts, their orders and addresses."},
-    {"name": "store-inventory", "description": "Availability of products, labels scanned."},
+    {"name": "store-inventory", "description": "How soon products can be delivered."},
     {"name": "admin-auth", "description": "Staff login for the admin area."},
     {"name": "admin-catalog", "description": "Products, scales, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
