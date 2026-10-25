@@ -61,7 +61,9 @@ src/modellbahn/
     │   ├── api/             Router, Schemas, Abhängigkeiten
     │   └── contracts/       das Einzige, was andere Module importieren dürfen
     ├── media/      Uploads, Bildverarbeitung (Pillow), S3-Adapter, Garage-Einrichtung
-    └── catalog/    Produkte, Spurweiten, Varianten, Kategorien, Galerie; Shop-Abfragen
+    ├── catalog/    Produkte, Spurweiten, Varianten, Kategorien, Galerie; Shop-Abfragen
+    └── sales/      Warenkorb, Bestellungen, Zahlung (Port mit Mock-Adapter), Adressbuch,
+                    Bestell-E-Mails
 migrations/         Alembic, von Hand geschrieben (kein Autogenerate)
 tests/              unit/, integration/, api/, architecture/
 ```
@@ -104,6 +106,17 @@ das Modul nicht, und die Regeln wären stillschweigend wirkungslos.
   `ETag`, `PATCH` und `PUT …/media` verlangen sie als `If-Match` (fehlt: 428, veraltet: 412).
   Veröffentlichen prüft die Regeln (Kategorie, aktive Variante, fertiges Hauptbild); dieselben
   Regeln gelten weiter, solange das Produkt im Shop steht.
+- **Verkauf:** Der Warenkorb liegt auf dem Server, das HttpOnly-Cookie `mb_cart` benennt
+  ihn. Preise und Kaufbarkeit holt der Verkauf über den Katalog-Vertrag
+  `load_sale_variants`; der Browser schickt nur die angezeigte Summe mit (anders: 409
+  `price_changed`). Checkout und Zahlung verlangen `Idempotency-Key`; dieselbe Anfrage noch
+  einmal liefert das erste Ergebnis (`Idempotent-Replayed: true`), eine andere mit demselben
+  Schlüssel 409. Die Zahlung läuft über den Port `PaymentGateway`, heute
+  `MockPaymentGateway` mit wählbarem Ausgang. Die Ereignisse `sales.order.*` lösen im Worker
+  die E-Mails aus und erreichen das Stellwerk per SSE; `identity.account.email_verified`
+  übernimmt Gastbestellungen ins Konto. Periodische Jobs stornieren unbezahlte Bestellungen
+  nach 24 Stunden (alle 15 Minuten) und löschen abgelaufene Warenkörbe (alle 6 Stunden).
+  Einzelheiten: ADR 0009.
 - **Fehler:** Jede Fehlerantwort ist `application/problem+json` (RFC 9457) mit einem
   stabilen `code`, den das Frontend übersetzt.
 - **CSRF:** Zustandsändernde Anfragen unter `/api/` brauchen den Header

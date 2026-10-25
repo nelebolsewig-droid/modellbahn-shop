@@ -6,11 +6,12 @@ Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Ca
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
 die tragenden Entscheidungen in [docs/adr/](docs/adr/).
 
-**Stand: Schritt 3 – Katalog und Medien.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
+**Stand: Schritt 4 – Shop und Verkauf.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
 mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit Kundenkonten
-und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln) stehen jetzt die Module
-*Katalog* und *Medien*, ein S3-Objektspeicher (Garage) und die Bild-Pipeline im Worker.
-Warenkorb und Bestellungen folgen mit Schritt 4.
+und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln) und den Modulen *Katalog* und
+*Medien* aus Schritt 3 steht jetzt das Modul *Verkauf*: Warenkorb, Bestellung mit Konto oder
+als Gast, Testzahlung, Adressbuch, Bestellhistorie und im Stellwerk Versand und Storno.
+Lager und Barcodes folgen mit Schritt 5.
 
 Was sich vorführen lässt:
 
@@ -26,8 +27,19 @@ Was sich vorführen lässt:
   nach wenigen Sekunden ohne Neuladen. Sind die Regeln erfüllt (Kategorie, aktive Variante,
   fertiges Hauptbild), wird das Produkt veröffentlicht.
 - **Shop.** Veröffentlichte Produkte stehen auf der Startseite, im Katalog mit Filtern nach
-  Kategorie und Spurweite sowie Volltextsuche und auf ihrer Produktseite mit Fotobühne, Wahl
-  von Spurweite und Ausführung, Preis und Maßen. Bestellen geht ab Schritt 4.
+  Kategorie, Spurweite und Epoche, Sortierung und Volltextsuche und auf ihrer Produktseite
+  mit Fotobühne, Wahl von Spurweite und Ausführung, Preis und Maßen.
+- **Kaufen.** Der Warenkorb zeigt Preise vom Server, Versand nach Deutschland oder
+  Österreich und wie viel bis zum kostenlosen Versand fehlt. An der Kasse bestellt man als
+  Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Die Zahlung ist bis zur
+  Anbindung eines Anbieters eine sichtbare **Testzahlung**: Man wählt, ob sie gelingt,
+  abgelehnt wird oder der Dienst gestört ist. Eingangsbestätigung, Zahlungseingang, Versand
+  und Storno kommen als E-Mail (in Mailpit). Wer als Gast bestellt und später ein Konto mit
+  derselben Adresse bestätigt, findet die Bestellung unter „Mein Konto → Bestellungen“.
+- **Bestellungen im Stellwerk.** Unter „Bestellungen“ erscheinen neue Bestellungen live mit
+  blinkendem Signal. Das Bestellpult zeigt Verlauf, Zahlungen, Artikel und einen
+  Paketaufkleber; Packer melden den Versand mit Sendungsnummer, Inhaber und Mitarbeiter
+  können stornieren, eine Zahlung wird dabei erstattet.
 
 ## Voraussetzungen
 
@@ -58,7 +70,11 @@ Startseite, Registrierung, Bestätigungs-E-Mail, Bestätigung mit Anmeldung, Abm
 Anmelden, Passwort zurücksetzen, Anmeldung im Stellwerk, Ereignisstrom (Nachlieferung per
 `Last-Event-ID` und live), dann den Katalog: Produktentwurf mit `If-Match`, Spurweite mit zwei
 Varianten, ein Foto über die signierte Upload-URL, die Bildstufen live und öffentlich unter
-`/medien`, Veröffentlichen, die Shop-Ansicht und Archivieren. Zum Schluss die Grenzen zwischen
+`/medien`, Veröffentlichen und die Shop-Ansicht. Danach der Verkauf: Warenkorb mit Cookie,
+abgelehnte veraltete Summe, Gastbestellung mit `Idempotency-Key` (auch wiederholt),
+Eingangsbestätigung, Statusseite, Testzahlung (abgelehnt, gestört, bezahlt), Übernahme ins
+Konto nach der Registrierung, Versand mit Sendungsnummer, eine Kundenbestellung mit
+Adressbuch und ihr Storno mit Erstattung. Zum Schluss Archivieren, die Grenzen zwischen
 Shop- und Admin-Sitzung und den CSRF-Header. Jeder Schritt erscheint mit ✓ oder ✗; beim ersten Fehler endet der Lauf mit
 Exit-Code 1. Für jeden Lauf legt das Ziel ein Wegwerf-Mitarbeiterkonto (Rolle `staff`) mit
 Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. Das Skript
@@ -68,8 +84,10 @@ Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. 
 | --- | --- |
 | <https://localhost> | Shop |
 | <https://localhost/katalog> | Shop-Katalog; Produktseiten unter `/produkte/{adresse}` |
-| <https://localhost/konto/registrieren> | Kundenkonto anlegen |
+| <https://localhost/warenkorb> | Warenkorb; weiter zur Kasse unter `/kasse` |
+| <https://localhost/konto/registrieren> | Kundenkonto anlegen; Bestellungen und Adressbuch unter `/konto/bestellungen` und `/konto/adressen` |
 | <https://localhost/admin> | Admin-Bereich „Stellwerk“ (Anmeldung mit dem Konto aus `make staff`) |
+| <https://localhost/admin/bestellungen> | Bestellungen: Liste live, Bestellpult mit Versand und Storno |
 | <https://localhost/admin/katalog> | Produkte anlegen und pflegen; Kategorien unter `/admin/katalog/kategorien` |
 | <http://localhost:8025> | Mailpit: hier landet jede E-Mail des Stacks |
 | <https://localhost/healthz>, <https://localhost/readyz> | Lebenszeichen der API, Bereitschaft inkl. Datenbank |
@@ -174,13 +192,15 @@ modellbahn-shop/
 │   │   └── modules/            je Modul domain, application, infrastructure, api, contracts
 │   │       ├── identity/       Kundenkonten, Mitarbeiter, Sitzungen
 │   │       ├── media/          Uploads, Bildstufen, Objektspeicher
-│   │       └── catalog/        Produkte, Spurweiten, Varianten, Kategorien, Galerie
+│   │       ├── catalog/        Produkte, Spurweiten, Varianten, Kategorien, Galerie
+│   │       └── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
     ├── Dockerfile
     ├── openapi.json            aus dem Backend exportiert, committet
     └── src/
-        ├── app/                Seiten: Startseite, /katalog, /produkte/…, /konto/…, /admin/…
+        ├── app/                Seiten: Startseite, /katalog, /produkte/…, /warenkorb, /kasse,
+        │                       /bestellung/…, /konto/…, /admin/…
         ├── components/ui/      Bausteine des Designsystems (Konzept §11.3)
         └── lib/api/generated/  von Orval erzeugter API-Client, committet
 ```
@@ -191,7 +211,7 @@ Die Regeln stammen aus [Konzept §3](docs/KONZEPT.md#3--systemarchitektur). Was 
 automatisch prüfen lässt, prüft die CI; ein Verstoß bricht den Build.
 
 **Module.** Jedes fachliche Modul liegt unter `backend/src/modellbahn/modules/<name>/` und
-besitzt ein eigenes PostgreSQL-Schema (heute `identity`, `media` und `catalog`; dazu
+besitzt ein eigenes PostgreSQL-Schema (heute `identity`, `media`, `catalog` und `sales`; dazu
 `platform` für die Outbox).
 Fremdschlüssel über Modulgrenzen zeigen nur auf Aggregatwurzeln und löschen nie kaskadierend.
 
@@ -254,7 +274,7 @@ E-Mail-Adresse schaltet auf Let's Encrypt), `MB_PUBLIC_BASE_URL`, `MB_ENVIRONMEN
 `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `MB_S3_ACCESS_KEY_ID` und `MB_S3_SECRET_ACCESS_KEY`
 setzen (`.env.example` zeigt, wie man sie erzeugt; in Produktion verweigert das Backend den
 Entwicklungsschlüssel). Der Produktionsbetrieb (Sicherungen von Datenbank und Objektspeicher,
-HSTS, ohne Mailpit) ist noch nicht Teil von Schritt 3.
+HSTS, ohne Mailpit) und ein echter Zahlungsanbieter sind noch nicht Teil von Schritt 4.
 
 ### Hinter einem TLS-Proxy
 
@@ -294,3 +314,4 @@ secrets:
   - [0006 UUIDv7 als Kennungen](docs/adr/0006-uuidv7-als-kennungen.md)
   - [0007 Helles Präzisionsdesign](docs/adr/0007-helles-praezisionsdesign.md)
   - [0008 Objektspeicher und Medien-Pipeline](docs/adr/0008-objektspeicher-und-medien-pipeline.md)
+  - [0009 Warenkorb, Checkout und Mock-Zahlung](docs/adr/0009-warenkorb-checkout-und-mock-zahlung.md)

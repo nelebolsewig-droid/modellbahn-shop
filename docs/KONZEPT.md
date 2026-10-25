@@ -692,61 +692,83 @@ aus welchen Boxen seine Teile stammen.
 
 ### 5.5 Verkauf
 
+Umgesetzt mit Schritt 4 (Migration `0003_sales`, ADR 0009).
+
 ```mermaid
 erDiagram
     CART ||--o{ CART_LINE : "enthält"
-    VARIANT ||--o{ CART_LINE : ""
     ORDER ||--|{ ORDER_LINE : "enthält"
-    VARIANT ||--o{ ORDER_LINE : "Momentaufnahme von"
     ORDER ||--o{ PAYMENT : "bezahlt durch"
-    ORDER_LINE ||--o{ ALLOCATION : "bedient durch"
+    ACCOUNT ||--o{ ORDER : "bestellt (leer bei Gast)"
+    ACCOUNT ||--o{ CUSTOMER_ADDRESS : "Adressbuch"
 
     CART {
-        uuid id PK
-        timestamptz expires_at
+        uuid id PK "steht im Cookie mb_cart"
+        timestamptz expires_at "30 Tage nach der letzten Änderung"
     }
     CART_LINE {
         uuid cart_id PK, FK
-        uuid variant_id PK, FK
-        int quantity
+        uuid variant_id PK "kein FK: Vertrag des Katalogs"
+        smallint quantity "1 bis 99"
     }
     ORDER {
         uuid id PK
-        text order_number UK "MB-2026-00042"
-        uuid public_token UK "Statuslink für Gäste"
-        uuid customer_account_id FK "leer bei Gastbestellung"
-        text status "pending_payment bis completed"
+        text number UK "MB-2026-00042 aus einer Sequenz"
+        text public_token UK "Statuslink, 256 Bit"
+        text status "pending_payment, paid, shipped, cancelled"
+        uuid customer_account_id FK "mit customer_kind auf identity.accounts"
         citext email
-        jsonb shipping_address
+        text ship_recipient "Lieferadresse in fünf Spalten"
         int subtotal_cents
         int shipping_cents
-        int total_cents "Summenprüfung per CHECK"
-        int tax_cents
+        int total_cents "CHECK: Zwischensumme + Versand"
+        int tax_cents "enthaltene USt."
+        uuid checkout_key UK "Idempotency-Key"
+        char checkout_fingerprint "SHA-256 der Anfrage"
+        text cancel_reason "payment_timeout oder by_shop"
+        text carrier
+        text tracking_number
     }
     ORDER_LINE {
         uuid id PK
         uuid order_id FK
-        uuid variant_id FK
+        uuid variant_id "eingefroren, kein FK"
         text sku "eingefroren"
         text title "eingefroren"
         int unit_price_cents "eingefroren"
-        int quantity
-        int line_total_cents
+        smallint quantity
+        int line_total_cents "CHECK: Menge × Preis"
+        uuid image_asset_id "eingefroren"
     }
     PAYMENT {
         uuid id PK
         uuid order_id FK
-        text provider "mock, später stripe"
+        text provider "mock, später ein Anbieter"
         text provider_ref
-        text status
+        text status "captured, failed, refunded"
         int amount_cents
+        uuid idempotency_key UK
+        char request_fingerprint
+        text failure_code
+    }
+    CUSTOMER_ADDRESS {
+        uuid id PK
+        uuid account_id FK "mit account_kind auf identity.accounts"
+        text label "Zuhause, Werkstatt …"
+        bool is_default "höchstens einer je Konto (EXCLUDE)"
     }
 ```
 
-Der Warenkorb liegt auf dem Server. Preise und Verfügbarkeit werden beim Checkout
-also gegen den aktuellen Stand geprüft und nicht gegen das, was im Browser stand.
-Bestellpositionen frieren SKU, Titel und Preis ein. Die **Zuteilung** entscheidet
-nach Zahlungseingang, wie eine Position bedient wird:
+Der Warenkorb liegt auf dem Server. Preise und Kaufbarkeit kommen beim Anzeigen und
+beim Bestellen aus dem Katalog (Vertrag `load_sale_variants`), nie aus dem Browser; der
+Browser schickt nur die angezeigte Summe zur Kontrolle mit. Bestellpositionen frieren
+SKU, Titel, Spurweite, Ausführung, Preis und Bild ein, deshalb verweist der Verkauf nicht
+per Fremdschlüssel auf Varianten. Eine Bestellung wechselt von `pending_payment` nach
+`paid` und `shipped`; storniert wird eine offene Bestellung nach 24 Stunden ohne Zahlung
+oder eine bezahlte durch den Shop, dann mit Erstattung.
+
+Ab Schritt 5 entscheidet nach Zahlungseingang die **Zuteilung**, wie eine Position
+bedient wird:
 
 1. **Einheit** vorhanden → die älteste passende Einheit wird zugeteilt (FIFO).
 2. **Montage** möglich → Teile liegen in Boxen, ein Bausatz wird beim Packen montiert.
@@ -1196,17 +1218,20 @@ Zusammenstellung übernehmen die Next.js Server Components.
 | Methode | Pfad | Zweck |
 | --- | --- | --- |
 | GET | `/navigation` | Kategorienbaum, Spurweiten, Epochen für Menü und Startseite |
-| GET | `/products` | Liste mit Filtern `category` (mit Unterkategorien), `scale`, `q` (deutsche Volltextsuche), `cursor`; `epoch`, `finish` und `sort` folgen mit Schritt 4 |
+| GET | `/products` | Liste mit Filtern `category` (mit Unterkategorien), `scale`, `epoch`, `q` (deutsche Volltextsuche), `sort` (`newest`, `price_asc`, `price_desc`, `name`) und `cursor` |
 | GET | `/products/{slug}` | Produkt mit Spurweiten, Varianten, Galerie, Fakten (60 s cachebar) |
 | GET | `/products/{slug}/availability` | Lieferbarkeit je Variante (dynamisch, kurz gecacht; ab Schritt 5) |
-| GET | `/search/suggest` | Vorschläge beim Tippen (ab Schritt 4) |
-| POST | `/carts` | Warenkorb anlegen |
-| GET | `/carts/{cartId}` | Warenkorb mit aktuellen Preisen |
-| PUT | `/carts/{cartId}/lines/{variantId}` | Menge setzen |
-| DELETE | `/carts/{cartId}/lines/{variantId}` | Position entfernen |
-| POST | `/checkouts` | Bestellung aus Warenkorb, Adresse, Versandart |
-| POST | `/checkouts/{orderId}/payment` | Mock-Zahlung (Ergebnis wählbar), mit `Idempotency-Key` |
-| GET | `/orders/{publicToken}` | Bestellstatus für Gäste |
+| GET | `/search/suggest` | Vorschläge beim Tippen (später) |
+| GET | `/cart` | Warenkorb mit aktuellen Preisen, Versandzonen und Summen; das Cookie `mb_cart` benennt ihn |
+| PUT | `/cart/lines/{variantId}` | Menge setzen; legt den Warenkorb beim ersten Artikel an |
+| DELETE | `/cart/lines/{variantId}` | Position entfernen |
+| POST | `/checkouts` | Bestellung aus dem Warenkorb mit Adresse (oder Eintrag aus dem Adressbuch) und erwarteter Summe, mit `Idempotency-Key` |
+| GET | `/orders/{publicToken}` | Bestellstatus über den geheimen Link |
+| POST | `/orders/{publicToken}/payments` | Testzahlung mit wählbarem Ausgang, mit `Idempotency-Key` |
+
+Der Warenkorb weicht vom ersten Entwurf (`POST /carts`, `/carts/{cartId}`) ab: Seine
+Kennung steht in einem HttpOnly-Cookie statt im Pfad, damit kein Skript sie liest und
+keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 
 **Kundenkonto** · `/api/v1/store/account`
 
@@ -1221,9 +1246,10 @@ Zusammenstellung übernehmen die Next.js Server Components.
 | POST | `/password-reset` | Link zum Zurücksetzen anfordern; antwortet immer gleich |
 | POST | `/password-reset/confirm` | Neues Passwort mit Token setzen |
 | POST | `/me/delete` | Konto löschen (anonymisieren), mit Passwort bestätigt |
-| GET · POST | `/addresses` | Adressbuch (ab Schritt 4) |
-| PATCH · DELETE | `/addresses/{id}` | Adresse ändern, löschen (ab Schritt 4) |
-| GET | `/orders` | Eigene Bestellungen, auch übernommene Gastbestellungen (ab Schritt 4) |
+| GET · POST | `/addresses` | Adressbuch, höchstens 20 Einträge; jede Änderung antwortet mit dem ganzen Buch |
+| PATCH · DELETE | `/addresses/{id}` | Adresse ändern oder zum Standard machen, löschen |
+| GET | `/orders` | Eigene Bestellungen, neueste zuerst, auch übernommene Gastbestellungen |
+| GET | `/orders/{number}` | Eine eigene Bestellung; eine fremde Nummer ergibt 404 |
 
 **Admin** · `/api/v1/admin`
 
@@ -1264,10 +1290,10 @@ Zusammenstellung übernehmen die Next.js Server Components.
 | | POST | `/movements` | Korrekturbuchung mit Begründung |
 | | POST | `/labels` | Etiketten als PDF oder an den Etikettendrucker |
 | | POST · PATCH | `/stocktakes` … | Inventur |
-| Verkauf | GET | `/orders` | Liste nach Zustand |
-| | GET | `/orders/{id}` | Bestellung mit Zuteilungen |
-| | GET | `/orders/{id}/pick-list` | Pickliste mit Lagerplätzen |
-| | POST | `/orders/{id}/ship` · `/cancel` | versenden (Sendungsnummer), stornieren |
+| Verkauf | GET | `/orders` | Liste nach Zustand (`status`, mehrfach), Suche nach Nummer oder E-Mail (`q`), Cursor |
+| | GET | `/orders/{id}` | Bestellung mit Positionen, Adresse, Zahlungen und Stornohinweis; Zuteilungen ab Schritt 5 |
+| | GET | `/orders/{id}/pick-list` | Pickliste mit Lagerplätzen (ab Schritt 5) |
+| | POST | `/orders/{id}/ship` · `/cancel` | versenden mit Versanddienst und Sendungsnummer (auch Packer); stornieren mit Hinweis und Erstattung (Owner, Mitarbeiter) |
 | Planung | POST | `/planning/runs` | neu rechnen, `202` |
 | | GET | `/planning/runs/{id}` | Lauf mit Kennzahlen |
 | | GET | `/planning/proposals` | aktuelle Rangliste |
@@ -1451,7 +1477,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 24.10.2026:** Schritte 1 bis 3 sind umgesetzt.
+**Stand 25.10.2026:** Schritte 1 bis 4 sind umgesetzt.
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1484,4 +1510,5 @@ Noch offen:
 | Frage | Wovon es abhängt |
 | --- | --- |
 | Etikettendrucker | Das Gerät bestimmt Etikettenformat und Druckweg (Brother QL, Zebra oder A4-Bögen). Spätestens vor Schritt 5. |
+| Zahlungsanbieter | Bis dahin bezahlt der Shop mit einer sichtbaren Testzahlung (ADR 0009). Vor dem Start mit echtem Geld wird ein Anbieter als weiterer Adapter angebunden, mit Webhooks. |
 | Name des Shops, Domain, Angaben fürs Impressum | Gebraucht für E-Mails, Rechtstexte und den Start. Bis dahin ist der Name konfigurierbar. |

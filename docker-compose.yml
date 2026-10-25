@@ -41,6 +41,8 @@ x-backend-env: &backend-env
   MB_OUTBOX_MAX_ATTEMPTS:
   MB_AUTH_RATE_LIMIT:
   MB_AUTH_RATE_WINDOW_SECONDS:
+  MB_CHECKOUT_RATE_LIMIT:
+  MB_CHECKOUT_RATE_WINDOW_SECONDS:
   MB_MEDIA_PUBLIC_BASE_URL:
   MB_LOG_LEVEL:
 
@@ -154,7 +156,8 @@ services:
       # The api port is not published, so only containers of this stack can connect.
       # Uvicorn may therefore take client IP and scheme from Caddy's X-Forwarded-* headers.
       # Caddy replaces X-Forwarded-For with the address it saw, and the per-client limit
-      # of the login routes (MB_AUTH_RATE_LIMIT) counts by that address.
+      # of the login, checkout and payment routes (MB_AUTH_RATE_LIMIT,
+      # MB_CHECKOUT_RATE_LIMIT) counts by that address.
       FORWARDED_ALLOW_IPS: "*"
     depends_on:
       migrate:
