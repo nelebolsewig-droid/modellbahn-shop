@@ -150,6 +150,17 @@ class SqlUnitRepository:
         )
         return list((await self._session.execute(statement)).scalars())
 
+    async def oldest_labeled(self, variant_id: UUID) -> Unit | None:
+        statement = (
+            select(Unit)
+            .where(units.c.variant_id == variant_id, units.c.status == UnitStatus.LABELED)
+            .order_by(units.c.created_at, units.c.id)
+            .limit(1)
+            .with_for_update(key_share=True, skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none()
+
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
         statement = (
             select(Unit)

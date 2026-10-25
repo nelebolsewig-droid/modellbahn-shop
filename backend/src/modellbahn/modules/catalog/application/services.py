@@ -13,6 +13,7 @@ from uuid import UUID
 
 from modellbahn.modules.catalog.application.cursors import decode_cursor, encode_cursor
 from modellbahn.modules.catalog.application.ports import (
+    Article,
     CatalogUnitOfWork,
     ProductCursor,
     ProductOrder,
@@ -164,6 +165,11 @@ class CatalogService:
     async def references(self) -> References:
         async with self._uow() as uow:
             return await _references(uow)
+
+    async def articles(self) -> list[Article]:
+        """The article list for the till: every variant with EAN, article number and price."""
+        async with self._uow() as uow:
+            return await uow.products.articles()
 
     async def navigation(self) -> Navigation:
         async with self._uow() as uow:
@@ -375,6 +381,7 @@ class CatalogService:
         price_cents: int,
         compare_at_price_cents: int | None = None,
         allow_backorder: bool = False,
+        lead_time_weeks: tuple[int, int] | None = None,
         active: bool = True,
     ) -> ProductDetails:
         async def change(
@@ -385,6 +392,7 @@ class CatalogService:
                 price_cents=price_cents,
                 compare_at_price_cents=compare_at_price_cents,
                 allow_backorder=allow_backorder,
+                lead_time_weeks=lead_time_weeks,
                 active=active,
             )
             # Drawn before the checks: a refused variant leaves a gap, which is harmless.
@@ -402,6 +410,7 @@ class CatalogService:
         price_cents: Maybe[int] = UNSET,
         compare_at_price_cents: Maybe[int | None] = UNSET,
         allow_backorder: Maybe[bool] = UNSET,
+        lead_time_weeks: Maybe[tuple[int, int] | None] = UNSET,
         active: Maybe[bool] = UNSET,
     ) -> ProductDetails:
         async def change(
@@ -412,6 +421,7 @@ class CatalogService:
                 price_cents=price_cents,
                 compare_at_price_cents=compare_at_price_cents,
                 allow_backorder=allow_backorder,
+                lead_time_weeks=lead_time_weeks,
                 active=active,
                 now=now,
             )

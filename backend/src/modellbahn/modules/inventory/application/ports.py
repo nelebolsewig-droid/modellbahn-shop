@@ -75,6 +75,10 @@ class UnitRepository(Protocol):
         """Units lying in the locations, oldest first."""
         ...
 
+    async def oldest_labeled(self, variant_id: UUID) -> Unit | None:
+        """The oldest unit of the variant that is labelled but not stored yet, locked."""
+        ...
+
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
         """Free units of the variant, oldest first, locked; units others lock are skipped."""
         ...
@@ -211,17 +215,25 @@ class LabelSheet(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Label:
-    """What one label shows: a QR code, the code in large type, two lines of text."""
+    """What one label shows: barcodes for scanners and tills, and text for people.
+
+    A unit's label carries the variant's EAN-13, which the till (SumUp) knows the
+    article by, and a Code 128 with the unit's own code for the workshop's scanner. A
+    location's label carries only the Code 128 with its code.
+    """
 
     caption: str
-    """What the label marks (``Einheit``, ``Lagerplatz``), set small above the code."""
-    qr_payload: str
-    """The URL in the QR code; a phone camera opens the matching page."""
+    """What the label marks (``Einheit``, ``Lagerplatz``), set small at the top."""
     code_text: str
+    """The code as people read it: ``7KQ2 X9F4 MZ`` or ``R02-F04-B12``."""
+    code128: str
+    """The data of the Code 128: the unit code or the location code."""
     title: str
     detail: str
     reference: str
-    """The bottom line in monospace: the article number, or the location's path."""
+    """A line in monospace: the article number, or the location's path."""
+    ean13: str | None = None
+    """The variant's EAN-13 (units only)."""
 
 
 class LabelRenderer(Protocol):

@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel
 
+from modellbahn.modules.catalog.api.articles import articles_csv
 from modellbahn.modules.catalog.api.deps import (
     CatalogEditor,
     CatalogServiceDep,
@@ -82,6 +83,30 @@ def _given(body: BaseModel, name: str, *, nullable: bool = False) -> Any:
 )
 async def get_references(_: CatalogEditor, service: CatalogServiceDep) -> ReferencesOut:
     return ReferencesOut.from_references(await service.references())
+
+
+@router.get(
+    "/catalog/articles.csv",
+    operation_id="exportArticles",
+    summary="Every variant with EAN, article number and price, as CSV for the till",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "Semicolon-separated, UTF-8 with byte order mark, prices in euros.",
+            "content": {"text/csv": {"schema": {"type": "string"}}},
+        },
+        **problems(ACCESS, unsafe=False, validated=False),
+    },
+)
+async def export_articles(_: CatalogEditor, service: CatalogServiceDep) -> Response:
+    return Response(
+        content=articles_csv(await service.articles()),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="artikelliste.csv"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get(
@@ -447,6 +472,7 @@ async def add_variant(
         price_cents=body.price_cents,
         compare_at_price_cents=body.compare_at_price_cents,
         allow_backorder=body.allow_backorder,
+        lead_time_weeks=body.lead_time_weeks(),
         active=body.active,
     )
     return _product(details, response)
@@ -455,7 +481,7 @@ async def add_variant(
 @router.patch(
     "/variants/{variant_id}",
     operation_id="updateVariant",
-    summary="Change price, former price, backorders or availability",
+    summary="Change price, former price, made to order with lead time, or availability",
     responses=problems({**ACCESS, **_VARIANT_NOT_FOUND, **VERSIONED, 422: ["not_publishable"]}),
 )
 async def update_variant(
@@ -473,6 +499,11 @@ async def update_variant(
         price_cents=_given(body, "price_cents"),
         compare_at_price_cents=_given(body, "compare_at_price_cents", nullable=True),
         allow_backorder=_given(body, "allow_backorder"),
+        lead_time_weeks=(
+            body.lead_time_weeks()
+            if {"lead_time_min_weeks", "lead_time_max_weeks"} & body.model_fields_set
+            else UNSET
+        ),
         active=_given(body, "active"),
     )
     return _product(details, response)

@@ -203,6 +203,7 @@ EXPECTED_OPERATIONS = {
         "admin-inventory",
     ),
     ("POST", "/api/v1/admin/inventory/labels"): ("printLabels", "admin-inventory"),
+    ("GET", "/api/v1/admin/catalog/articles.csv"): ("exportArticles", "admin-catalog"),
     ("GET", "/api/v1/store/products/{slug}/availability"): (
         "getProductAvailability",
         "store-inventory",

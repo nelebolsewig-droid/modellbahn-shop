@@ -58,6 +58,23 @@ class ProductQuery:
     after: ProductCursor | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class Article:
+    """One variant as a till or a spreadsheet lists it: a line of the article list."""
+
+    product_name: str
+    product_status: str
+    category_name: str | None
+    scale_name: str
+    finish_name: str
+    sku: str
+    gtin: str
+    price_cents: int
+    active: bool
+    allow_backorder: bool
+    lead_time_weeks: tuple[int, int] | None
+
+
 class ProductRepository(Protocol):
     async def get(self, product_id: UUID, *, for_update: bool = False) -> Product | None:
         """The product with scales, variants, epochs and gallery. ``for_update`` locks it."""
@@ -90,6 +107,10 @@ class ProductRepository(Protocol):
         ...
 
     async def delete(self, product: Product) -> None: ...
+
+    async def articles(self) -> list[Article]:
+        """Every variant of every product that is not archived, by product name."""
+        ...
 
     async def offered_counts(self) -> dict[tuple[UUID, str], int]:
         """Products in the shop per category and scale.

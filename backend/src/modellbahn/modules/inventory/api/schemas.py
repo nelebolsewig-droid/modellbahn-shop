@@ -347,6 +347,7 @@ class ScanVariantOut(BaseModel):
 
 
 class ScanEffectOut(BaseModel):
+    unit_code: str | None = Field(description="The unit the scan moved.")
     from_status: UnitStatus | None
     to_status: UnitStatus
     from_location: str | None
@@ -392,6 +393,8 @@ ScanMessage = Literal[
     "variant_complete",
     "not_in_order",
     "unit_not_stored",
+    "no_unit_to_store",
+    "variant_not_in_stock",
 ]
 
 
@@ -502,13 +505,18 @@ class VariantAvailabilityOut(BaseModel):
         "`unavailable`: not for sale right now."
     )
     free_units: int
+    lead_time_min_weeks: int | None = Field(description="Set for variants made to order.")
+    lead_time_max_weeks: int | None
 
     @classmethod
     def from_availability(cls, item: VariantAvailability) -> Self:
+        lead_time = item.lead_time_weeks
         return cls(
             variant_id=item.variant_id,
             availability=item.availability,
             free_units=item.free_units,
+            lead_time_min_weeks=lead_time[0] if lead_time else None,
+            lead_time_max_weeks=lead_time[1] if lead_time else None,
         )
 
 

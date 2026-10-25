@@ -257,12 +257,27 @@ class _Interpreter:
         return _Answer(ScanOutcome.SELECTED, "location_selected", resolved=reading, location=info)
 
     async def _on_variant(self, reading: Reading, variant_id: UUID) -> _Answer:
-        info = await self._variant_info(variant_id)
-        if self._request.mode is ScanMode.LOOKUP:
-            return _Answer(ScanOutcome.INFO, "variant", resolved=reading, variant=info)
-        answer = _Answer(ScanOutcome.REJECTED, "scan_unit_label", resolved=reading, variant=info)
-        if self._request.mode is ScanMode.PICK:
-            await self._add_progress(answer)
+        """The article's EAN-13 (the till's barcode): stands for one piece of the article.
+
+        Putting away takes the oldest piece of it that is labelled but not stored yet;
+        picking takes the piece of it the order is waiting for.
+        """
+        match self._request.mode:
+            case ScanMode.LOOKUP:
+                answer = _Answer(ScanOutcome.INFO, "variant")
+            case ScanMode.PUT_AWAY:
+                labelled = await self._uow.units.oldest_labeled(variant_id)
+                answer = (
+                    await self._put_away(labelled)
+                    if labelled is not None
+                    else _Answer(ScanOutcome.REJECTED, "no_unit_to_store")
+                )
+                if labelled is not None:
+                    answer.unit = await self._unit_info(labelled)
+            case ScanMode.PICK:
+                answer = await self._pick_variant(variant_id)
+        answer.resolved = reading
+        answer.variant = await self._variant_info(variant_id)
         return answer
 
     # --- Putting away ---------------------------------------------------------------
@@ -343,6 +358,47 @@ class _Interpreter:
             return _Answer(ScanOutcome.REJECTED, "unit_not_stored")
         return await self._pick_instead(unit, wanted)
 
+    async def _pick_variant(self, variant_id: UUID) -> _Answer:
+        """A piece of the article by its EAN: the reserved one first, else a free one."""
+        pick_list = await self._pick_list()
+        if pick_list is None:
+            return _Answer(ScanOutcome.REJECTED, "order_unknown")
+        if pick_list.order.status is not OrderStatus.PAID or not pick_list.is_allocated:
+            return _Answer(ScanOutcome.REJECTED, "order_not_pickable")
+        items = [item for item in pick_list.items if item.variant_id == variant_id]
+        reserved = next((i for i in items if i.state is PieceState.RESERVED), None)
+        backordered = next((i for i in items if i.state is PieceState.BACKORDERED), None)
+        if reserved is not None:
+            served = await self._uow.units.serving([reserved.allocation_id], for_update=True)
+            unit = served.get(reserved.allocation_id)
+            answer = (
+                await self._pick_own(unit, reserved)
+                if unit is not None
+                else _Answer(ScanOutcome.REJECTED, "variant_not_in_stock")
+            )
+        elif backordered is not None:
+            free = await self._uow.units.oldest_free(variant_id, limit=1)
+            answer = (
+                await self._pick_instead(free[0], [backordered])
+                if free
+                else _Answer(ScanOutcome.REJECTED, "variant_not_in_stock")
+            )
+        else:
+            answer = _Answer(ScanOutcome.REJECTED, "variant_complete" if items else "not_in_order")
+        if answer.outcome is ScanOutcome.APPLIED and answer.effect is not None:
+            answer.unit = await self._unit_info(
+                await self._picked_unit(answer.effect.get("unit_code"))
+            )
+        await self._uow.flush()
+        await self._add_progress(answer)
+        return answer
+
+    async def _picked_unit(self, code: object) -> Unit:
+        unit = await self._uow.units.get_by_code(str(code))
+        if unit is None:  # pragma: no cover - it was just picked
+            raise InvalidUnitStateError("the picked unit vanished")
+        return unit
+
     async def _pick_own(self, unit: Unit, item: PickItem) -> _Answer:
         """A unit reserved for this order: picked, unless it was already."""
         if item.state is not PieceState.RESERVED:
@@ -369,7 +425,9 @@ class _Interpreter:
         return _Answer(ScanOutcome.APPLIED, "picked", effect=effect)
 
     async def _effect(self, movement: Movement) -> JsonObject:
+        unit = await self._uow.units.get(movement.unit_id)
         return {
+            "unit_code": unit.code if unit is not None else None,
             "from_status": movement.from_status.value if movement.from_status else None,
             "to_status": movement.to_status.value,
             "from_location": await self._code(movement.from_location_id),

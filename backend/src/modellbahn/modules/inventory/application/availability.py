@@ -14,6 +14,8 @@ class VariantAvailability:
     variant_id: UUID
     availability: Availability
     free_units: int
+    lead_time_weeks: tuple[int, int] | None
+    """For variants made to order: how many weeks making one takes."""
 
 
 class AvailabilityService:
@@ -39,6 +41,7 @@ class AvailabilityService:
                     allow_backorder=variant.allow_backorder,
                 ),
                 free_units=free.get(variant.variant_id, 0),
+                lead_time_weeks=variant.lead_time_weeks if variant.allow_backorder else None,
             )
             for variant in variants
         ]

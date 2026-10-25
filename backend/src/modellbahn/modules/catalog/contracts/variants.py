@@ -57,7 +57,9 @@ class SaleVariant:
     purchasable: bool
     """In the shop and active: only such variants go into a cart and into an order."""
     allow_backorder: bool
-    """May be sold without stock: the workshop makes it for the customer."""
+    """Made to order: may be sold without stock, the workshop makes it for the customer."""
+    lead_time_weeks: tuple[int, int] | None
+    """How many weeks making it takes (from, to); set for every variant made to order."""
 
     @property
     def title(self) -> str:
@@ -102,6 +104,8 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
                 variants.c.compare_at_price_cents,
                 variants.c.active,
                 variants.c.allow_backorder,
+                variants.c.lead_time_min_weeks,
+                variants.c.lead_time_max_weeks,
                 variants.c.finish_code,
                 finishes.c.name.label("finish_name"),
                 product_scales.c.scale_code,
@@ -152,6 +156,11 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             image_asset_id=_best_image(galleries[row.product_id], row.scale_code, row.finish_code),
             purchasable=row.active and row.status == ProductStatus.ACTIVE,
             allow_backorder=row.allow_backorder,
+            lead_time_weeks=(
+                (row.lead_time_min_weeks, row.lead_time_max_weeks)
+                if row.lead_time_min_weeks is not None
+                else None
+            ),
         )
         for row in rows
     ]

@@ -22,7 +22,6 @@ dependencies = [
     "pillow-heif>=1.8.1,<1.9",
     "boto3>=1.43.118,<1.44",
     "reportlab>=5.1.0,<5.2",
-    "segno>=1.6.6,<1.7",
 ]
 
 [project.scripts]

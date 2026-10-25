@@ -1,10 +1,13 @@
 """Inventory: locations, units, allocations, scans and the stock journal.
 
 Written by hand like the migrations before; constraint names follow the naming
-convention of ``modellbahn.platform.db``. The outbox learns which handlers already
-succeeded for an event (``handled_by``): a paid order is now handled by sales (the
-confirmation mail) and by inventory (allocation), and a retry must run only the one
-that failed.
+convention of ``modellbahn.platform.db``.
+
+* Variants made to order get a lead time, a range of weeks the shop shows; those made
+  to order already get 4 to 6 weeks.
+* The outbox learns which handlers already succeeded for an event (``handled_by``): a
+  paid order is now handled by sales (the confirmation mail) and by inventory
+  (allocation), and a retry must run only the one that failed.
 
 Revision ID: 0005
 Revises: 0004
@@ -49,6 +52,7 @@ def upgrade() -> None:
         ),
         schema="platform",
     )
+    _add_lead_times()
     op.execute("CREATE EXTENSION IF NOT EXISTS ltree")
     op.execute("CREATE SCHEMA inventory")
     _create_locations()
@@ -56,6 +60,37 @@ def upgrade() -> None:
     _create_units()
     _create_scans()
     _create_stock_ledger()
+
+
+def _add_lead_times() -> None:
+    for column in ("lead_time_min_weeks", "lead_time_max_weeks"):
+        op.add_column(
+            "variants", sa.Column(column, sa.SmallInteger(), nullable=True), schema="catalog"
+        )
+    op.execute(
+        "UPDATE catalog.variants SET lead_time_min_weeks = 4, lead_time_max_weeks = 6 "
+        "WHERE allow_backorder"
+    )
+    op.create_check_constraint(
+        "ck_variants_lead_time_pair",
+        "variants",
+        "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)",
+        schema="catalog",
+    )
+    op.create_check_constraint(
+        "ck_variants_lead_time_range",
+        "variants",
+        "lead_time_min_weeks IS NULL OR (lead_time_min_weeks BETWEEN 1 AND 52 "
+        "AND lead_time_max_weeks BETWEEN lead_time_min_weeks AND 52)",
+        schema="catalog",
+    )
+    # Made to order means a lead time.
+    op.create_check_constraint(
+        "ck_variants_made_to_order_lead_time",
+        "variants",
+        "NOT allow_backorder OR lead_time_min_weeks IS NOT NULL",
+        schema="catalog",
+    )
 
 
 def _timestamps() -> list[sa.Column[object]]:
@@ -320,3 +355,7 @@ def downgrade() -> None:
     op.execute("DROP SCHEMA inventory")
     # The ltree extension stays, like citext: it belongs to the database.
     op.drop_column("outbox", "handled_by", schema="platform")
+    for name in ("made_to_order_lead_time", "lead_time_range", "lead_time_pair"):
+        op.drop_constraint(f"ck_variants_{name}", "variants", schema="catalog", type_="check")
+    for column in ("lead_time_max_weeks", "lead_time_min_weeks"):
+        op.drop_column("variants", column, schema="catalog")

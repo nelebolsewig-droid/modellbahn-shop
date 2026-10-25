@@ -165,11 +165,14 @@ class CartLineOut(BaseModel):
         "`unavailable`: cannot be ordered like this."
     )
     free_units: int = Field(description="Units of the variant on the shelves right now.")
+    lead_time_min_weeks: int | None = Field(description="Set for variants made to order.")
+    lead_time_max_weeks: int | None
     image: LineImageOut | None
 
     @classmethod
     def from_item(cls, item: CartItem) -> Self:
         variant = item.variant
+        lead_time = variant.lead_time_weeks if variant.allow_backorder else None
         return cls(
             variant_id=variant.variant_id,
             product_slug=variant.product_slug,
@@ -186,6 +189,8 @@ class CartLineOut(BaseModel):
             available=item.available,
             availability=item.availability,
             free_units=item.free_units,
+            lead_time_min_weeks=lead_time[0] if lead_time else None,
+            lead_time_max_weeks=lead_time[1] if lead_time else None,
             image=LineImageOut.from_view(item.image),
         )
 

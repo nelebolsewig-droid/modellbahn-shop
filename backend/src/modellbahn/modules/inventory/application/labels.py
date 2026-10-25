@@ -1,9 +1,10 @@
 """Labels for units and locations: what each shows, rendered by a :class:`LabelRenderer`.
 
-A unit's label carries its URL as QR code (``…/u/7KQ2X9F4MZ``), the code in groups of
-four, the product and its article number. A location's label carries its URL
-(``…/l/R02-F04-B12``), its code in large type and its name. A phone camera opens the
-matching page; the scanner in the admin area reads the same codes.
+Johann's till (SumUp) reads barcodes only, so labels carry barcodes, not QR codes. A
+unit's label shows the variant's EAN-13 (the till rings up the article by it), a
+Code 128 with the unit's own code, the product and its article number. A location's
+label shows a large Code 128 with its code and its name. The workshop's scanner reads
+all of them.
 """
 
 from collections.abc import Sequence
@@ -38,12 +39,9 @@ class LabelRequest:
 
 
 class LabelService:
-    def __init__(
-        self, *, uow_factory: UnitOfWorkFactory, renderer: LabelRenderer, public_base_url: str
-    ) -> None:
+    def __init__(self, *, uow_factory: UnitOfWorkFactory, renderer: LabelRenderer) -> None:
         self._uow = uow_factory
         self._renderer = renderer
-        self._base_url = public_base_url.rstrip("/")
 
     async def render(self, request: LabelRequest) -> bytes:
         """A PDF with the labels in the order asked for; unknown codes are an error."""
@@ -64,7 +62,8 @@ class LabelService:
                 labels.append(
                     Label(
                         caption="Einheit",
-                        qr_payload=f"{self._base_url}/u/{unit.code}",
+                        code128=unit.code,
+                        ean13=variant.gtin if variant else None,
                         code_text=format_unit_code(unit.code),
                         title=variant.product_name if variant else "",
                         detail=f"{variant.scale_name} · {variant.finish_name}" if variant else "",
@@ -81,7 +80,7 @@ class LabelService:
                 labels.append(
                     Label(
                         caption="Lagerplatz",
-                        qr_payload=f"{self._base_url}/l/{location.code}",
+                        code128=location.code,
                         code_text=location.code,
                         title=location.name or kind,
                         detail=kind,
