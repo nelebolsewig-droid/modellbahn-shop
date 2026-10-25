@@ -72,7 +72,7 @@ function CategoryRow({ category, depth, all }: { category: CategoryOut; depth: n
       <li className="flex items-center justify-between gap-4 py-3" style={{ paddingLeft: `${depth * 1.5}rem` }}>
         <span className="min-w-0">
           <span className="block font-medium">{category.name}</span>
-          <span className="block font-mono text-hint text-ink-tertiary">/katalog?kategorie={category.slug}</span>
+          <span className="block font-mono text-hint text-ink-tertiary">/katalog/…/{category.slug}</span>
         </span>
         <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
           Bearbeiten

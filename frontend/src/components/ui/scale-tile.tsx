@@ -8,16 +8,16 @@ import { cn } from "@/lib/utils";
 import { SpecLine } from "./spec-line";
 
 type ScaleTileProps = ComponentProps<typeof Item> & {
-  /** The gauge's name in large thin type, e.g. "H0". */
+  /** The scale's name in large thin type, e.g. "H0" or "1:24". */
   name: string;
-  /** Scale and track gauge, e.g. ["1:87", "16,5 mm"]. */
+  /** Ratio and track, e.g. ["1:87", "Gleis 16,5 mm"]. */
   spec: readonly string[];
-  /** A note below, e.g. the lowest price in this gauge. */
+  /** A note below, e.g. the lowest price in this scale. */
   note?: string;
 };
 
 /**
- * The large choice of a gauge: „H0 · 1:87 · 16,5 mm“. Belongs in an OptionGroup;
+ * The large choice of a scale: „H0 · 1:87 · Gleis 16,5 mm“. Belongs in an OptionGroup;
  * the chosen tile gets a matte black outline.
  */
 export function ScaleTile({ name, spec, note, className, ...props }: ScaleTileProps) {

@@ -39,7 +39,7 @@ import {
 
 type ProductEditorProps = { productId: string; onStreamClosed: () => void };
 
-/** Everything about one product: master data, gauges and variants, gallery, life cycle. */
+/** Everything about one product: master data, scales and variants, gallery, life cycle. */
 export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps) {
   const queryClient = useQueryClient();
   const product = useProduct(productId);

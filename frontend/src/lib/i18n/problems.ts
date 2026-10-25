@@ -24,13 +24,15 @@ export const PROBLEM_MESSAGES: Messages = {
 
   // Catalogue
   product_not_found: "Dieses Produkt gibt es nicht (mehr).",
-  product_scale_not_found: "Diese Spurweite gibt es an dem Produkt nicht mehr.",
+  product_scale_not_found: "Diesen Maßstab gibt es an dem Produkt nicht mehr.",
   variant_not_found: "Diese Variante gibt es nicht mehr.",
   category_not_found: "Diese Kategorie gibt es nicht.",
   slug_taken: "Diese Adresse ist schon vergeben. Bitte wähle eine andere.",
   slug_locked: "Die Adresse eines veröffentlichten Produkts bleibt fest, weil Links darauf zeigen.",
-  scale_exists: "Das Produkt gibt es schon in dieser Spurweite.",
-  variant_exists: "Diese Ausführung gibt es in der Spurweite schon.",
+  scale_exists: "Das Produkt gibt es schon in diesem Maßstab.",
+  variant_exists: "Diese Ausführung gibt es in dem Maßstab schon.",
+  scale_not_found: "Diesen Maßstab gibt es nicht mehr.",
+  scale_in_use: "Der Maßstab wird noch verwendet: Produkte gibt es in ihm, oder Fotos sind ihm zugeordnet.",
   invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
   product_not_deletable:
     "Nur Entwürfe, die nie im Shop waren, lassen sich löschen. Archiviere das Produkt stattdessen.",
@@ -142,7 +144,23 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
     invalid: "Nur Kleinbuchstaben, Ziffern und einzelne Bindestriche, z. B. stellwerk-altenau.",
     too_long: "Die Adresse darf höchstens 80 Zeichen lang sein.",
   },
-  name: { required: "Bitte gib einen Namen ein.", too_long: "Der Name ist zu lang." },
+  name: {
+    required: "Bitte gib einen Namen ein.",
+    too_long: "Der Name ist zu lang.",
+    duplicate: "Diesen Namen trägt schon ein anderer Maßstab.",
+  },
+  code: {
+    invalid: "Ein bis vier Großbuchstaben oder Ziffern, z. B. H0 oder 124.",
+    duplicate: "Diesen Code gibt es schon.",
+  },
+  ratio_denominator: {
+    invalid: "Bitte eine Zahl mit höchstens einer Nachkommastelle, z. B. 22,5.",
+    out_of_range: "Bitte ein Verhältnis zwischen 1:1 und 1:1000.",
+  },
+  track_gauge_mm: {
+    invalid: "Bitte eine Zahl mit höchstens einer Nachkommastelle, z. B. 16,5.",
+    out_of_range: "Bitte eine Spurweite über 0 mm.",
+  },
   postal_code: { invalid: "Bitte prüfe die Postleitzahl (Deutschland 5, Österreich 4 Ziffern)." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },
   street: { required: "Bitte gib Straße und Hausnummer ein." },

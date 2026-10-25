@@ -29,9 +29,13 @@ export function formatProductNumber(value: number): string {
   return `MB-${String(value).padStart(6, "0")}`;
 }
 
-/** The technical line of a gauge: ["H0", "1:87", "16,5 mm"]. */
-export function scaleSpec(scale: { name: string; ratio: string; track_gauge_mm: number }): string[] {
-  return [scale.name, scale.ratio, formatMillimetres(scale.track_gauge_mm)];
+/** The technical line of a scale: ["H0", "1:87", "Gleis 16,5 mm"]; ["1:24"] for a road scale. */
+export function scaleSpec(scale: { name: string; ratio: string; track_gauge_mm: number | null }): string[] {
+  return [
+    scale.name,
+    ...(scale.name === scale.ratio ? [] : [scale.ratio]),
+    ...(scale.track_gauge_mm === null ? [] : [`Gleis ${formatMillimetres(scale.track_gauge_mm)}`]),
+  ];
 }
 
 /** "Länge 112,5 mm · Breite 64 mm" for whatever dimensions are known. */

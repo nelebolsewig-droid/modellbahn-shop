@@ -10,7 +10,7 @@ type ProductCardProps = {
   href: Route;
   name: string;
   summary: string;
-  /** Gauges for sale, e.g. ["H0", "N"]. */
+  /** Scales for sale, by name, e.g. ["H0", "1:24"]. */
   scales: readonly string[];
   priceFromCents: number | null;
   image: PictureImage | null;

@@ -20,10 +20,15 @@ export function useProduct(productId: string) {
   });
 }
 
-/** Gauges, finishes and epochs: rows of a migration, they do not change while a page is open. */
+export const REFERENCES_KEY = ["admin", "catalog-references"] as const;
+
+/**
+ * Scales, finishes and epochs. They rarely change; the scales page refreshes them
+ * (REFERENCES_KEY) when a scale is added, changed or removed.
+ */
 export function useReferences() {
   return useQuery<ReferencesOut, ApiProblem>({
-    queryKey: ["admin", "catalog-references"],
+    queryKey: REFERENCES_KEY,
     queryFn: ({ signal }) => getCatalogReferences({ signal }),
     staleTime: Number.POSITIVE_INFINITY,
   });

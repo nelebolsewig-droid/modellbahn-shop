@@ -1,4 +1,4 @@
-import type { Metadata, Route } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -7,6 +7,8 @@ import { cache } from "react";
 import { ProductView } from "@/components/shop/product-view";
 import type { StoreProductOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
+import { catalogPath, findScale, scaleLabel } from "@/lib/catalog/scales";
+import { firstParam } from "@/lib/search-params";
 
 // Metadata and page ask for the same product; React's cache makes it one request.
 const loadProduct = cache(async (slug: string): Promise<StoreProductOut | null> => {
@@ -27,12 +29,15 @@ export async function generateMetadata({ params }: PageProps<"/produkte/[slug]">
   };
 }
 
-export default async function ProductPage({ params }: PageProps<"/produkte/[slug]">) {
+export default async function ProductPage({ params, searchParams }: PageProps<"/produkte/[slug]">) {
   const product = await loadProduct((await params).slug);
   if (product === null) {
     notFound();
   }
   const paragraphs = product.description.split(/\n{2,}/).filter(Boolean);
+  // Coming from a scale's list, the page opens in that scale (and the crumbs lead back).
+  const wanted = firstParam((await searchParams).massstab);
+  const scale = (wanted ? findScale(product.scales, wanted) : undefined) ?? product.scales[0];
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:py-14">
@@ -43,18 +48,28 @@ export default async function ProductPage({ params }: PageProps<"/produkte/[slug
               Katalog
             </Link>
           </li>
-          {product.category_path.map((category) => (
-            <li key={category.slug} className="flex items-center gap-2">
+          {scale ? (
+            <li className="flex items-center gap-2">
               <span aria-hidden="true">/</span>
-              <Link href={`/katalog?kategorie=${category.slug}` as Route} className="hover:text-ink">
-                {category.name}
+              <Link href={catalogPath({ scale: scale.code })} className="hover:text-ink">
+                {scaleLabel(scale)}
               </Link>
             </li>
-          ))}
+          ) : null}
+          {scale
+            ? product.category_path.map((category) => (
+                <li key={category.slug} className="flex items-center gap-2">
+                  <span aria-hidden="true">/</span>
+                  <Link href={catalogPath({ scale: scale.code, category: category.slug })} className="hover:text-ink">
+                    {category.name}
+                  </Link>
+                </li>
+              ))
+            : null}
         </ol>
       </nav>
 
-      <ProductView product={product} />
+      <ProductView product={product} initialScale={scale?.code} />
 
       {paragraphs.length > 0 || product.prototype || product.epochs.length > 0 ? (
         <section aria-labelledby="beschreibung" className="mt-20 grid gap-10 border-t border-line pt-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">

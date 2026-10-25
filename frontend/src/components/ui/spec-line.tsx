@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 
 type SpecLineProps = {
-  /** In this order: gauge, scale, technique, optionally the finish ("H0", "1:87", "Resin"). */
+  /** In this order: scale, ratio, technique, optionally the finish ("H0", "1:87", "Resin"). */
   values: readonly string[];
   size?: "large" | "small";
   className?: string;
