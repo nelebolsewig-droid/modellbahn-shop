@@ -25,8 +25,9 @@ describe("catalogue numbers", () => {
     expect(formatProductNumber(42)).toBe("MB-000042");
   });
 
-  it("builds the technical line of a gauge", () => {
-    expect(scaleSpec({ name: "H0", ratio: "1:87", track_gauge_mm: 16.5 })).toEqual(["H0", "1:87", "16,5 mm"]);
+  it("builds the technical line of a scale", () => {
+    expect(scaleSpec({ name: "H0", ratio: "1:87", track_gauge_mm: 16.5 })).toEqual(["H0", "1:87", "Gleis 16,5 mm"]);
+    expect(scaleSpec({ name: "1:24", ratio: "1:24", track_gauge_mm: null })).toEqual(["1:24"]);
   });
 
   it("lists only the known dimensions", () => {

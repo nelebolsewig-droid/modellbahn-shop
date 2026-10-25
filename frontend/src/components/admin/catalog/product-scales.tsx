@@ -23,7 +23,8 @@ import type {
   ScaleOut,
   VariantOut,
 } from "@/lib/api/generated/model";
-import { centsToEuroInput, formatMillimetres } from "@/lib/catalog/format";
+import { centsToEuroInput, scaleSpec } from "@/lib/catalog/format";
+import { scaleLabel } from "@/lib/catalog/scales";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
 import {
@@ -37,7 +38,7 @@ import { useProductCommand } from "./use-product";
 
 type Props = { product: ProductOut; references: ReferencesOut };
 
-/** The gauges of a product, each with its dimensions and the variants sold in it. */
+/** The scales of a product, each with its dimensions and the variants sold in it. */
 export function ProductScales({ product, references }: Props) {
   const command = useProductCommand(product.id);
   const offered = new Set(product.scales.map((s) => s.scale_code));
@@ -48,10 +49,10 @@ export function ProductScales({ product, references }: Props) {
   });
 
   return (
-    <Panel title="Spurweiten und Varianten" code="PRD 03">
+    <Panel title="Maßstäbe und Varianten" code="PRD 03">
       {ordered.length === 0 ? (
         <p className="text-small text-ink-secondary">
-          Noch keine Spurweite. Wähle unten, in welchen Spurweiten es das Modell gibt.
+          Noch kein Maßstab. Wähle unten, in welchen Maßstäben es das Modell gibt.
         </p>
       ) : (
         <div className="space-y-6">
@@ -68,7 +69,7 @@ export function ProductScales({ product, references }: Props) {
       )}
       {missing.length > 0 ? (
         <div className="mt-6 border-t border-line pt-5">
-          <p className="label-caps text-ink-tertiary">Spurweite hinzufügen</p>
+          <p className="label-caps text-ink-tertiary">Maßstab hinzufügen</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {missing.map((scale) => (
               <Button
@@ -83,7 +84,7 @@ export function ProductScales({ product, references }: Props) {
                   )
                 }
               >
-                + {scale.name} · {scale.ratio}
+                + {scaleLabel(scale)}
               </Button>
             ))}
           </div>
@@ -112,11 +113,11 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
   });
 
   return (
-    <section aria-label={`Spurweite ${scale.name}`} className="rounded-md border border-line">
+    <section aria-label={`Maßstab ${scaleLabel(scale)}`} className="rounded-md border border-line">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-stage px-4 py-3">
         <div className="flex items-baseline gap-4">
           <span className="text-heading font-extralight">{scale.name}</span>
-          <SpecLine values={[scale.ratio, formatMillimetres(scale.track_gauge_mm)]} size="small" />
+          <SpecLine values={scaleSpec(scale).slice(1)} size="small" />
         </div>
         <Button
           type="button"
@@ -124,12 +125,12 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
           size="sm"
           disabled={remove.isPending}
           onClick={() => {
-            if (window.confirm(`Spurweite ${scale.name} mit allen Varianten entfernen?`)) {
+            if (window.confirm(`Maßstab ${scaleLabel(scale)} mit allen Varianten entfernen?`)) {
               remove.mutate(() => deleteProductScale(productScale.id, ifMatch(product.version)));
             }
           }}
         >
-          Spurweite entfernen
+          Maßstab entfernen
         </Button>
       </header>
       <div className="space-y-5 p-4">

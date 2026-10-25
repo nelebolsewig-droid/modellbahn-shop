@@ -17,10 +17,12 @@ import {
   formatPrice,
   formatProductNumber,
 } from "@/lib/catalog/format";
+import { scaleLabel } from "@/lib/catalog/scales";
+import { cn } from "@/lib/utils";
 
 type Selection = { scale: string; finish: string };
 
-/** Photos of the chosen gauge and finish first, then untagged ones, then the others. */
+/** Photos of the chosen scale and finish first, then untagged ones, then the others. */
 export function galleryFor(gallery: readonly StoreGalleryItemOut[], selection: Selection): StageItem[] {
   const score = (tag: string | null, chosen: string) => (tag === chosen ? 0 : tag === null ? 1 : 2);
   return gallery
@@ -34,25 +36,33 @@ export function galleryFor(gallery: readonly StoreGalleryItemOut[], selection: S
     .map(({ item }) => ({ key: item.image.asset_id, image: item.image, alt: item.alt_text }));
 }
 
-function initialSelection(product: StoreProductOut): Selection {
-  const scale = product.scales[0];
+function initialSelection(product: StoreProductOut, scaleCode: string | undefined): Selection {
+  const scale = product.scales.find((s) => s.code === scaleCode) ?? product.scales[0];
   return { scale: scale?.code ?? "", finish: scale?.variants[0]?.finish_code ?? "" };
 }
 
+type ProductViewProps = {
+  product: StoreProductOut;
+  /** The scale to open with, e.g. the one of the list the visitor came from. */
+  initialScale?: string;
+};
+
 /**
  * The upper part of a product page: the photo stage on the left, the choice of
- * gauge and finish with price, quantity and "In den Warenkorb" on the right.
+ * scale and finish with price, quantity and "In den Warenkorb" on the right.
  */
-export function ProductView({ product }: { product: StoreProductOut }) {
-  const [selection, setSelection] = useState<Selection>(() => initialSelection(product));
+export function ProductView({ product, initialScale }: ProductViewProps) {
+  const [selection, setSelection] = useState<Selection>(() => initialSelection(product, initialScale));
   const scale = product.scales.find((s) => s.code === selection.scale) ?? product.scales[0];
   const variant = scale?.variants.find((v) => v.finish_code === selection.finish) ?? scale?.variants[0];
   const finish = product.finishes.find((f) => f.code === variant?.finish_code);
   const items = useMemo(() => galleryFor(product.gallery, selection), [product.gallery, selection]);
+  // German compounds ("Löschgruppenfahrzeug") do not fit the column in display size.
+  const longWord = product.name.split(/\s+/).some((word) => word.length > 14);
 
   function chooseScale(code: string) {
     const next = product.scales.find((s) => s.code === code);
-    // Keep the finish if the new gauge has it, otherwise take its first one.
+    // Keep the finish if the new scale has it, otherwise take its first one.
     const keeps = next?.variants.some((v) => v.finish_code === selection.finish) ?? false;
     setSelection({ scale: code, finish: keeps ? selection.finish : (next?.variants[0]?.finish_code ?? "") });
   }
@@ -64,12 +74,9 @@ export function ProductView({ product }: { product: StoreProductOut }) {
 
       <div className="lg:sticky lg:top-8">
         <p className="font-mono text-hint text-ink-tertiary">{formatProductNumber(product.number)}</p>
-        <h1 className="mt-3 text-title sm:text-display">{product.name}</h1>
+        <h1 className={cn("mt-3 text-title hyphens-auto break-words", !longWord && "sm:text-display")}>{product.name}</h1>
         {scale ? (
-          <SpecLine
-            values={[scale.name, scale.ratio, ...(finish ? [finish.name] : [])]}
-            className="mt-4"
-          />
+          <SpecLine values={[scaleLabel(scale), ...(finish ? [finish.name] : [])]} className="mt-4" />
         ) : null}
         {product.summary ? <p className="mt-5 text-body-lg text-ink-secondary">{product.summary}</p> : null}
 
@@ -77,10 +84,10 @@ export function ProductView({ product }: { product: StoreProductOut }) {
           <div className="mt-10 space-y-8">
             <div>
               <p className="label-caps text-ink-tertiary" aria-hidden="true">
-                Spurweite
+                Maßstab
               </p>
               <RadioGroup
-                aria-label="Spurweite"
+                aria-label="Maßstab"
                 value={selection.scale}
                 onValueChange={chooseScale}
                 className="mt-3 flex flex-wrap gap-3"
@@ -90,7 +97,10 @@ export function ProductView({ product }: { product: StoreProductOut }) {
                     key={option.code}
                     value={option.code}
                     name={option.name}
-                    spec={[option.ratio, formatMillimetres(option.track_gauge_mm)]}
+                    spec={[
+                      ...(option.name === option.ratio ? [] : [option.ratio]),
+                      option.track_gauge_mm === null ? "ohne Gleis" : `Gleis ${formatMillimetres(option.track_gauge_mm)}`,
+                    ]}
                     note={`ab ${formatPrice(Math.min(...option.variants.map((v) => v.price_cents)))}`}
                   />
                 ))}

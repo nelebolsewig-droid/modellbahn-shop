@@ -1,4 +1,4 @@
-"""Catalogue of the admin area: products, gauges, variants, galleries, categories.
+"""Catalogue of the admin area: products, scales, variants, galleries, categories.
 
 Every answer about a product carries the whole product and its version as ``ETag``.
 Routes that overwrite what the client saw require ``If-Match``; the other commands
@@ -15,6 +15,7 @@ from modellbahn.modules.catalog.api.deps import (
     CatalogEditor,
     CatalogServiceDep,
     IfMatch,
+    ScaleServiceDep,
     expected_version,
     set_etag,
 )
@@ -25,6 +26,7 @@ from modellbahn.modules.catalog.api.errors import (
     VERSIONED,
 )
 from modellbahn.modules.catalog.api.schemas import (
+    AdminScaleOut,
     CategoryCreateIn,
     CategoryOut,
     CategoryPatchIn,
@@ -37,8 +39,11 @@ from modellbahn.modules.catalog.api.schemas import (
     ProductPatchIn,
     ProductScaleIn,
     ReferencesOut,
+    ScaleCreateIn,
+    ScalePatchIn,
     VariantCreateIn,
     VariantPatchIn,
+    exact_decimal,
 )
 from modellbahn.modules.catalog.application.services import ProductDetails
 from modellbahn.modules.catalog.domain.model import UNSET, ProductStatus
@@ -72,7 +77,7 @@ def _given(body: BaseModel, name: str, *, nullable: bool = False) -> Any:
 @router.get(
     "/catalog/references",
     operation_id="getCatalogReferences",
-    summary="Gauges, finishes and epochs",
+    summary="Scales, finishes and epochs",
     responses=problems(ACCESS, unsafe=False, validated=False),
 )
 async def get_references(_: CatalogEditor, service: CatalogServiceDep) -> ReferencesOut:
@@ -124,6 +129,71 @@ async def update_category(
     return CategoryOut.from_category(category)
 
 
+# --- Scales ---------------------------------------------------------------------------
+
+_SCALE_MISSING = {404: ["scale_not_found"]}
+
+
+@router.get(
+    "/scales",
+    operation_id="listScales",
+    summary="Every scale, the smallest models first, with how many products use it",
+    responses=problems(ACCESS, unsafe=False, validated=False),
+)
+async def list_scales(_: CatalogEditor, service: ScaleServiceDep) -> list[AdminScaleOut]:
+    return [AdminScaleOut.from_usage(usage) for usage in await service.list_scales()]
+
+
+@router.post(
+    "/scales",
+    status_code=status.HTTP_201_CREATED,
+    operation_id="createScale",
+    summary="Add a scale, e.g. 1:24 for road vehicles",
+    responses=problems(ACCESS),
+)
+async def create_scale(
+    body: ScaleCreateIn, _: CatalogEditor, service: ScaleServiceDep
+) -> AdminScaleOut:
+    usage = await service.create_scale(
+        code=body.code,
+        name=body.name,
+        ratio_denominator=exact_decimal(body.ratio_denominator),
+        track_gauge_mm=None if body.track_gauge_mm is None else exact_decimal(body.track_gauge_mm),
+    )
+    return AdminScaleOut.from_usage(usage)
+
+
+@router.patch(
+    "/scales/{code}",
+    operation_id="updateScale",
+    summary="Rename a scale or correct its ratio or track gauge (the code stays)",
+    responses=problems({**ACCESS, **_SCALE_MISSING}),
+)
+async def update_scale(
+    code: str, body: ScalePatchIn, _: CatalogEditor, service: ScaleServiceDep
+) -> AdminScaleOut:
+    ratio = _given(body, "ratio_denominator")
+    gauge = _given(body, "track_gauge_mm", nullable=True)
+    usage = await service.change_scale(
+        code,
+        name=_given(body, "name"),
+        ratio_denominator=ratio if ratio is UNSET else exact_decimal(ratio),
+        track_gauge_mm=gauge if gauge is UNSET or gauge is None else exact_decimal(gauge),
+    )
+    return AdminScaleOut.from_usage(usage)
+
+
+@router.delete(
+    "/scales/{code}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteScale",
+    summary="Remove a scale no product and no photo uses",
+    responses=problems({**ACCESS, **_SCALE_MISSING, 409: ["scale_in_use"]}),
+)
+async def delete_scale(code: str, _: CatalogEditor, service: ScaleServiceDep) -> None:
+    await service.delete_scale(code)
+
+
 # --- Products -------------------------------------------------------------------------
 
 
@@ -164,7 +234,7 @@ async def create_product(
 @router.get(
     "/products/{product_id}",
     operation_id="getProduct",
-    summary="A product with gauges, variants and gallery",
+    summary="A product with scales, variants and gallery",
     responses=problems({**ACCESS, **PRODUCT_NOT_FOUND}, unsafe=False),
 )
 async def get_product(
@@ -271,17 +341,17 @@ async def archive_product(
     return _product(details, response)
 
 
-# --- Gauges and variants --------------------------------------------------------------
+# --- Scales and variants --------------------------------------------------------------
 
 
 @router.post(
     "/products/{product_id}/scales",
     status_code=status.HTTP_201_CREATED,
     operation_id="addProductScale",
-    summary="Offer the product in another gauge",
+    summary="Offer the product in another scale",
     responses=problems({**ACCESS, **PRODUCT_NOT_FOUND, **VERSIONED, 409: ["scale_exists"]}),
 )
-async def add_scale(
+async def add_product_scale(
     product_id: UUID,
     body: ProductScaleIn,
     response: Response,
@@ -301,10 +371,10 @@ async def add_scale(
 @router.patch(
     "/product-scales/{product_scale_id}",
     operation_id="updateProductScale",
-    summary="Set the size and weight in this gauge",
+    summary="Set the size and weight in this scale",
     responses=problems({**ACCESS, **_SCALE_NOT_FOUND, **VERSIONED}),
 )
-async def update_scale(
+async def update_product_scale(
     product_scale_id: UUID,
     body: DimensionsIn,
     response: Response,
@@ -324,10 +394,10 @@ async def update_scale(
 @router.delete(
     "/product-scales/{product_scale_id}",
     operation_id="deleteProductScale",
-    summary="Stop offering the product in this gauge",
+    summary="Stop offering the product in this scale",
     responses=problems({**ACCESS, **_SCALE_NOT_FOUND, **VERSIONED, 422: ["not_publishable"]}),
 )
-async def delete_scale(
+async def delete_product_scale(
     product_scale_id: UUID,
     response: Response,
     _: CatalogEditor,
@@ -345,7 +415,7 @@ async def delete_scale(
     "/product-scales/{product_scale_id}/variants",
     status_code=status.HTTP_201_CREATED,
     operation_id="addVariant",
-    summary="Sell the gauge in another finish",
+    summary="Sell the scale in another finish",
     responses=problems({**ACCESS, **_SCALE_NOT_FOUND, **VERSIONED, 409: ["variant_exists"]}),
 )
 async def add_variant(

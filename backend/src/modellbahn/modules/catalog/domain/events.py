@@ -49,7 +49,7 @@ class ProductArchived(DomainEvent):
 @domain_event
 @dataclass(frozen=True, kw_only=True)
 class ProductUpdated(DomainEvent):
-    """A product in the shop changed (text, prices, gauges, gallery)."""
+    """A product in the shop changed (text, prices, scales, gallery)."""
 
     event_type: ClassVar[str] = "catalog.product.updated"
     aggregate_type: ClassVar[str] = PRODUCT_AGGREGATE

@@ -5,7 +5,8 @@ Drives the demos of steps 2 to 4 through Caddy the way the browser does: start p
 registration, verification mail in Mailpit, verification with login, logout, password
 reset, staff login and the live event stream of the "Stellwerk"; then a product with
 gauge and variants, a photo uploaded straight into the object storage with a signed
-URL, its sizes appearing live, publishing and the shop's pages; then the sale of step
+URL, its sizes appearing live, publishing and the shop's pages sorted by scale (with
+the maintenance of scales); then the sale of step
 4: cart, a guest order with Idempotency-Key, a declined and a successful test payment,
 the order joining the account once the guest registers, dispatch and a cancellation
 with refund - plus the boundaries that keep it safe: shop and admin sessions do not
@@ -625,13 +626,14 @@ class Demo:
             ("Ereignisstrom mit Last-Event-ID spielt die Registrierung nach", self.replay),
             ("Neue Registrierung erscheint live im Ereignisstrom", self.live_event),
             ("Katalog: Produktentwurf mit ETag, PATCH nur mit If-Match", self.product_draft),
-            ("Spurweite H0 mit zwei Varianten, SKU und interner EAN", self.variants),
+            ("Maßstab H0 mit zwei Varianten, SKU und interner EAN", self.variants),
             ("Speicher nimmt nur signierte Uploads an (403)", self.unsigned_upload),
             ("Foto: Ticket, signierter PUT über Caddy, Abschluss", self.upload_photo),
             ("Bildstufen erscheinen live (media.asset.ready)", self.photo_ready),
             ("Bildstufen öffentlich unter /medien, Cache-Control immutable", self.renditions),
             ("Veröffentlichen mit If-Match, Ereignis im Stellwerk", self.publish),
-            ("Shop: Liste, Produktdaten und Produktseite", self.shop),
+            ("Shop: Maßstab-Einstieg, Liste in H0, Produktseite, alte Adressen", self.shop),
+            ("Maßstäbe: 1:43,5 anlegen, nach Größe einsortiert, benutzte bleiben", self.scales),
             ("Warenkorb: Cookie mb_cart, Preise und Versand vom Server", self.cart),
             ("Kasse: falsche erwartete Summe wird abgelehnt (409 price_changed)", self.price_check),
             ("Gastbestellung mit Idempotency-Key, keine Doppelbestellung", self.guest_order),
@@ -964,7 +966,7 @@ class Demo:
             f"{ADMIN}/products/{product_id}/scales",
             {"scale_code": "H0", "length_mm": 112.5, "weight_g": 85},
         )
-        expect_status(scale, 201, "Spurweite H0")
+        expect_status(scale, 201, "Maßstab H0")
         scale_id = scale.json()["scales"][0]["id"]
         for finish, price in (("unpainted", UNPAINTED_CENTS), ("painted", PAINTED_CENTS)):
             variant = self._staff(
@@ -1089,11 +1091,53 @@ class Demo:
         product = detail.json()
         expect(len(product["gallery"]) == 1, "Galerie im Shop ist leer")
         expect("gtin" not in product["scales"][0]["variants"][0], "Shop verrät die EAN")
-        page = self.visitor.page(f"/produkte/{slug}")
+        page = self.visitor.page(f"/produkte/{slug}?massstab=h0")
         expect_status(page, 200, f"Seite /produkte/{slug}")
         expect(self._product_name in page.text, "Produktseite ohne Produktnamen")
         expect("/medien/" in page.text, "Produktseite ohne Bild aus /medien")
-        return f"/produkte/{slug}"
+
+        navigation = self.visitor.api("GET", f"{SHOP}/navigation").json()
+        h0 = next(scale for scale in navigation["scales"] if scale["code"] == "H0")
+        expect(h0["product_count"] >= 1, f"Navigation zählt in H0 {h0['product_count']} Produkte")
+        category = next(c for c in navigation["categories"] if c["slug"] == SMOKE_CATEGORY)
+        expect(category["product_counts"].get("H0", 0) >= 1, f"Kategorie zählt {category}")
+        entry = self.visitor.page("/katalog")
+        expect_status(entry, 200, "Seite /katalog")
+        expect("Welcher Maßstab?" in entry.text, "/katalog ohne Maßstab-Einstieg")
+        query = urllib.parse.urlencode({"suche": self._product_name})
+        listed = self.visitor.page(f"/katalog/h0/{SMOKE_CATEGORY}?{query}")
+        expect_status(listed, 200, f"Seite /katalog/h0/{SMOKE_CATEGORY}")
+        expect(self._product_name in listed.text, "Liste in H0 ohne das Produkt")
+        old = self.visitor.page(f"/katalog?spur=H0&kategorie={SMOKE_CATEGORY}")
+        expect(old.status in {307, 308}, f"Alte Katalog-Adresse: HTTP {old.status}")
+        location = old.headers.get("Location", "")
+        expect(
+            location.endswith(f"/katalog/h0/{SMOKE_CATEGORY}"),
+            f"Alte Adresse leitet nach {location}",
+        )
+        return f"/katalog/h0/{SMOKE_CATEGORY}"
+
+    def scales(self) -> str | None:
+        code = "X" + "".join(secrets.choice("0123456789ABCDEFGHJKLMNPQRSTUVWXYZ") for _ in range(3))
+        created = self._staff(
+            "POST",
+            f"{ADMIN}/scales",
+            {"code": code, "name": f"Smoke {code}", "ratio_denominator": 43.5},
+        )
+        expect_status(created, 201, "Maßstab anlegen")
+        expect(created.json()["ratio"] == "1:43,5", f"Verhältnis {created.json()['ratio']}")
+        listed = self._staff("GET", f"{ADMIN}/scales")
+        expect_status(listed, 200, "Maßstäbe lesen")
+        codes = [scale["code"] for scale in listed.json()]
+        expect(
+            codes.index("H0") < codes.index(code) < codes.index("G"),
+            f"1:43,5 steht nicht zwischen H0 und G: {codes}",
+        )
+        expect_problem(
+            self._staff("DELETE", f"{ADMIN}/scales/H0"), 409, "scale_in_use", "Benutzter Maßstab"
+        )
+        expect_status(self._staff("DELETE", f"{ADMIN}/scales/{code}"), 204, "Maßstab löschen")
+        return f"{code} angelegt und gelöscht"
 
     # Sales ---------------------------------------------------------------------------
 

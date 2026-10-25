@@ -6,11 +6,7 @@ from fastapi import APIRouter, Query, Response
 
 from modellbahn.modules.catalog.api.deps import STORE_CACHE_CONTROL, CatalogServiceDep
 from modellbahn.modules.catalog.api.schemas import (
-    CategoryOut,
-    EpochOut,
-    FinishOut,
     NavigationOut,
-    ScaleOut,
     StoreProductOut,
     StoreProductPageOut,
 )
@@ -31,19 +27,13 @@ _STORE_ORDERS: Final[dict[str, ProductOrder]] = {
 @router.get(
     "/navigation",
     operation_id="getStoreNavigation",
-    summary="Categories, gauges, finishes and epochs for menus and filters",
+    summary="Categories, scales, finishes and epochs for menus and filters, with counts",
     responses=problems(unsafe=False, validated=False),
 )
 async def get_navigation(response: Response, service: CatalogServiceDep) -> NavigationOut:
     navigation = await service.navigation()
     response.headers["Cache-Control"] = STORE_CACHE_CONTROL
-    references = navigation.references
-    return NavigationOut(
-        categories=[CategoryOut.from_category(c) for c in navigation.categories],
-        scales=[ScaleOut.from_scale(s) for s in references.scales],
-        finishes=[FinishOut.from_finish(f) for f in references.finishes],
-        epochs=[EpochOut.from_epoch(e) for e in references.epochs],
-    )
+    return NavigationOut.from_navigation(navigation)
 
 
 @router.get(
@@ -60,7 +50,9 @@ async def list_products(
         str | None,
         Query(max_length=80, description="Category slug; includes its subcategories."),
     ] = None,
-    scale: Annotated[str | None, Query(max_length=10, description="Gauge code, e.g. H0.")] = None,
+    scale: Annotated[
+        str | None, Query(max_length=10, description="Scale code, e.g. H0 or 124 (1:24).")
+    ] = None,
     epoch: Annotated[str | None, Query(max_length=10, description="Epoch code, e.g. III.")] = None,
     q: Annotated[str | None, Query(max_length=200, description="German full-text search.")] = None,
     sort: Annotated[
@@ -86,7 +78,7 @@ async def list_products(
 @router.get(
     "/products/{slug}",
     operation_id="getStoreProduct",
-    summary="A product page: gauges, finishes, prices, gallery",
+    summary="A product page: scales, finishes, prices, gallery",
     responses=problems({404: ["product_not_found"]}, unsafe=False),
 )
 async def get_product(slug: str, response: Response, service: CatalogServiceDep) -> StoreProductOut:

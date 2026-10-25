@@ -13,7 +13,11 @@ from modellbahn.modules.catalog.api import store as catalog_store
 from modellbahn.modules.catalog.api.errors import (
     install_error_translations as install_catalog_error_translations,
 )
+from modellbahn.modules.catalog.application.scales import ScaleService
 from modellbahn.modules.catalog.application.services import CatalogService
+from modellbahn.modules.catalog.application.services import (
+    UnitOfWorkFactory as CatalogUnitOfWorkFactory,
+)
 from modellbahn.modules.catalog.infrastructure.mapping import (
     start_mappers as start_catalog_mappers,
 )
@@ -88,7 +92,7 @@ _TAGS: Final = [
     {"name": "store-sales", "description": "Cart, checkout, order status and payment."},
     {"name": "store-account", "description": "Customer accounts, their orders and addresses."},
     {"name": "admin-auth", "description": "Staff login for the admin area."},
-    {"name": "admin-catalog", "description": "Products, gauges, variants, galleries."},
+    {"name": "admin-catalog", "description": "Products, scales, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
     {"name": "admin-sales", "description": "Orders: overview, dispatch, cancellation."},
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
@@ -123,12 +127,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         storage=S3MediaStorage.from_settings(settings),
         clock=clock,
     )
-    catalog_service = CatalogService(
-        uow_factory=catalog_uow_factory(
-            session_factory, public_base_url=settings.media_public_base_url
-        ),
-        clock=clock,
-    )
     hub = RealtimeHub(asyncpg_dsn(settings.database_url))
 
     @asynccontextmanager
@@ -160,7 +158,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.identity_service = identity_service
     app.state.media_service = media_service
-    app.state.catalog_service = catalog_service
+    _attach_catalog_services(
+        app,
+        uow_factory=catalog_uow_factory(
+            session_factory, public_base_url=settings.media_public_base_url
+        ),
+        clock=clock,
+    )
     _attach_sales_services(
         app,
         uow_factory=sales_uow_factory(
@@ -221,6 +225,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(http.router)
     app.include_router(api)
     return app
+
+
+def _attach_catalog_services(
+    app: FastAPI, *, uow_factory: CatalogUnitOfWorkFactory, clock: SystemClock
+) -> None:
+    app.state.catalog_service = CatalogService(uow_factory=uow_factory, clock=clock)
+    app.state.scale_service = ScaleService(uow_factory=uow_factory)
 
 
 def _attach_sales_services(

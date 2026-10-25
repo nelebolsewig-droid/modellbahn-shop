@@ -84,7 +84,7 @@ const PRODUCT: StoreProductOut = {
 };
 
 describe("galleryFor", () => {
-  it("puts the photos of the chosen gauge and finish first", () => {
+  it("puts the photos of the chosen scale and finish first", () => {
     const order = (scale: string, finish: string) =>
       galleryFor(PRODUCT.gallery, { scale, finish }).map((item) => item.key);
     expect(order("H0", "painted")).toEqual(["c", "a", "b"]);
@@ -107,7 +107,14 @@ describe("ProductView", () => {
     expect(screen.getByText(/89,90/)).toBeInTheDocument();
   });
 
-  it("offers only the finishes of the chosen gauge", async () => {
+  it("opens in the scale of the list the visitor came from", () => {
+    renderWithQueryClient(<ProductView product={PRODUCT} initialScale="N" />);
+    expect(screen.getByRole("radiogroup", { name: "Maßstab" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^N/ })).toBeChecked();
+    expect(screen.getByText("MB-000042-N-U")).toBeInTheDocument();
+  });
+
+  it("offers only the finishes of the chosen scale", async () => {
     const user = userEvent.setup();
     renderWithQueryClient(<ProductView product={PRODUCT} />);
 

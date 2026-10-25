@@ -18,7 +18,7 @@ import type { StoreGalleryItemOut } from './storeGalleryItemOut';
 import type { StoreScaleOut } from './storeScaleOut';
 
 /**
- * A product page: gauges and finishes for sale, gallery of ready images.
+ * A product page: scales and finishes for sale, gallery of ready images.
  */
 export interface StoreProductOut {
   category_path: CategoryRefOut[];

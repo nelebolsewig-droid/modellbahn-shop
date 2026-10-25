@@ -16,6 +16,8 @@ from modellbahn.modules.catalog.domain.errors import (
     ProductScaleNotFoundError,
     PublishBlocker,
     ScaleAlreadyAddedError,
+    ScaleInUseError,
+    ScaleNotFoundError,
     SlugLockedError,
     SlugTakenError,
     VariantAlreadyExistsError,
@@ -78,7 +80,7 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "The product does not exist.", code="product_not_found"
     ),
     ProductScaleNotFoundError: lambda _: NotFoundError(
-        "The gauge of the product does not exist.", code="product_scale_not_found"
+        "The scale of the product does not exist.", code="product_scale_not_found"
     ),
     VariantNotFoundError: lambda _: NotFoundError(
         "The variant does not exist.", code="variant_not_found"
@@ -86,15 +88,21 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     CategoryNotFoundError: lambda _: NotFoundError(
         "The category does not exist.", code="category_not_found"
     ),
+    ScaleNotFoundError: lambda _: NotFoundError(
+        "The scale does not exist.", code="scale_not_found"
+    ),
+    ScaleInUseError: lambda _: ConflictError(
+        "Products are offered in this scale or photos are tagged with it.", code="scale_in_use"
+    ),
     SlugTakenError: lambda _: ConflictError("The address is already used.", code="slug_taken"),
     SlugLockedError: lambda _: ConflictError(
         "A product that has been published keeps its address.", code="slug_locked"
     ),
     ScaleAlreadyAddedError: lambda _: ConflictError(
-        "The product already comes in this gauge.", code="scale_exists"
+        "The product already comes in this scale.", code="scale_exists"
     ),
     VariantAlreadyExistsError: lambda _: ConflictError(
-        "This gauge is already sold in this finish.", code="variant_exists"
+        "This scale is already sold in this finish.", code="variant_exists"
     ),
     InvalidProductStateError: lambda error: ConflictError(str(error), code="invalid_product_state"),
     ProductNotDeletableError: lambda _: ConflictError(

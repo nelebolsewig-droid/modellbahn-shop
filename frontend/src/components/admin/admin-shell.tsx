@@ -25,6 +25,7 @@ const SECTIONS = [
   { href: "/admin/bestellungen", label: "Bestellungen", exact: false },
   { href: "/admin/katalog", label: "Katalog", exact: false },
   { href: "/admin/katalog/kategorien", label: "Kategorien", exact: true },
+  { href: "/admin/katalog/massstaebe", label: "Maßstäbe", exact: true },
 ] as const satisfies readonly { href: Route; label: string; exact: boolean }[];
 
 export type AdminDesk = {
@@ -45,8 +46,9 @@ function isActive(pathname: string, section: (typeof SECTIONS)[number]): boolean
   if (section.exact) {
     return pathname === section.href;
   }
-  // "Katalog" covers the products, not the categories, which have their own entry.
-  return pathname.startsWith(section.href) && !(section.href === "/admin/katalog" && pathname.startsWith("/admin/katalog/kategorien"));
+  // "Katalog" covers the products, not categories and scales, which have their own entries.
+  const ownEntry = pathname.startsWith("/admin/katalog/kategorien") || pathname.startsWith("/admin/katalog/massstaebe");
+  return pathname.startsWith(section.href) && !(section.href === "/admin/katalog" && ownEntry);
 }
 
 /**

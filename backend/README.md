@@ -61,7 +61,7 @@ src/modellbahn/
     │   ├── api/             Router, Schemas, Abhängigkeiten
     │   └── contracts/       das Einzige, was andere Module importieren dürfen
     ├── media/      Uploads, Bildverarbeitung (Pillow), S3-Adapter, Garage-Einrichtung
-    ├── catalog/    Produkte, Spurweiten, Varianten, Kategorien, Galerie; Shop-Abfragen
+    ├── catalog/    Produkte, Maßstäbe, Varianten, Kategorien, Galerie; Shop-Abfragen
     └── sales/      Warenkorb, Bestellungen, Zahlung (Port mit Mock-Adapter), Adressbuch,
                     Bestell-E-Mails
 migrations/         Alembic, von Hand geschrieben (kein Autogenerate)
@@ -101,11 +101,14 @@ das Modul nicht, und die Regeln wären stillschweigend wirkungslos.
   sRGB, sechs Größen in WebP und AVIF, Platzhalter, Dominanzfarbe, Hash. Die Stufen liegen
   unter inhaltsadressierten Namen im öffentlichen Bucket; `media.asset.ready` erreicht das
   Stellwerk per SSE. Einzelheiten: ADR 0008.
-- **Katalog:** Das Produkt ist das Aggregat; Spurweiten, Varianten, Epochen und Galerie
+- **Katalog:** Das Produkt ist das Aggregat; Maßstäbe, Varianten, Epochen und Galerie
   ändern sich nur über seine Methoden. Jede Änderung erhöht `version`; `GET` liefert sie als
   `ETag`, `PATCH` und `PUT …/media` verlangen sie als `If-Match` (fehlt: 428, veraltet: 412).
   Veröffentlichen prüft die Regeln (Kategorie, aktive Variante, fertiges Hauptbild); dieselben
-  Regeln gelten weiter, solange das Produkt im Shop steht.
+  Regeln gelten weiter, solange das Produkt im Shop steht. Die Maßstäbe selbst sind
+  Referenzdaten, die `ScaleService` pflegt: Der Code bleibt fest (er steht in jeder SKU), das
+  Gleis ist optional, gelöscht wird nur ein ungenutzter Maßstab. Die Shop-Navigation zählt die
+  Produkte je Maßstab und je Kategorie und Maßstab. Einzelheiten: ADR 0010.
 - **Verkauf:** Der Warenkorb liegt auf dem Server, das HttpOnly-Cookie `mb_cart` benennt
   ihn. Preise und Kaufbarkeit holt der Verkauf über den Katalog-Vertrag
   `load_sale_variants`; der Browser schickt nur die angezeigte Summe mit (anders: 409

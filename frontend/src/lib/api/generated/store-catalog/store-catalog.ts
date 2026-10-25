@@ -67,7 +67,7 @@ export const getGetStoreNavigationUrl = () => {
 }
 
 /**
- * @summary Categories, gauges, finishes and epochs for menus and filters
+ * @summary Categories, scales, finishes and epochs for menus and filters, with counts
  */
 export const getStoreNavigation = async ( options?: Parameters<typeof apiFetch>[1]): Promise<NavigationOut> => {
 
@@ -138,7 +138,7 @@ export function useGetStoreNavigation<TData = Awaited<ReturnType<typeof getStore
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Categories, gauges, finishes and epochs for menus and filters
+ * @summary Categories, scales, finishes and epochs for menus and filters, with counts
  */
 
 export function useGetStoreNavigation<TData = Awaited<ReturnType<typeof getStoreNavigation>>, TError = ErrorType<Problem>>(
@@ -274,7 +274,7 @@ export const getGetStoreProductUrl = (slug: string,) => {
 }
 
 /**
- * @summary A product page: gauges, finishes, prices, gallery
+ * @summary A product page: scales, finishes, prices, gallery
  */
 export const getStoreProduct = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<StoreProductOut> => {
 
@@ -345,7 +345,7 @@ export function useGetStoreProduct<TData = Awaited<ReturnType<typeof getStorePro
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary A product page: gauges, finishes, prices, gallery
+ * @summary A product page: scales, finishes, prices, gallery
  */
 
 export function useGetStoreProduct<TData = Awaited<ReturnType<typeof getStoreProduct>>, TError = ErrorType<Problem | ValidationProblem>>(

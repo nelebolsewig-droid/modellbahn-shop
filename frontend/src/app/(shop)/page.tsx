@@ -2,26 +2,20 @@ import type { Route } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
 import { SignalBoxDrawing } from "@/components/site/signal-box-drawing";
 import { ProductCard } from "@/components/ui/product-card";
-import { SpecLine } from "@/components/ui/spec-line";
-import type { StoreProductCardOut, StoreProductPageOut } from "@/lib/api/generated/model";
+import type { NavigationOut, StoreProductCardOut, StoreProductPageOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
-
-// The gauges the shop will serve, with scale and track gauge.
-const GAUGES = [
-  { name: "H0", spec: ["1:87", "16,5 mm"] },
-  { name: "TT", spec: ["1:120", "12 mm"] },
-  { name: "N", spec: ["1:160", "9 mm"] },
-] as const;
+import { loadNavigation } from "@/lib/catalog/store-data";
 
 // What the concept plans for the next steps (docs/KONZEPT.md, "Fahrplan"); the
 // start page says honestly that none of it is open yet.
 const COMING = [
   {
-    title: "Bestellen",
-    text: "Mit Kundenkonto oder als Gast. Gastbestellungen landen später in deinem Konto, sobald deine E-Mail-Adresse bestätigt ist.",
+    title: "Gedruckt, wenn du bestellst",
+    text: "Was nicht am Lager liegt, plant die Werkstatt für den nächsten Druck ein; die Lieferzeit steht vorher fest.",
   },
   {
     title: "Bausätze mit Stückliste",
@@ -45,10 +39,20 @@ async function newestProducts(): Promise<StoreProductCardOut[]> {
   }
 }
 
+/** Scales and counts for the scale tiles; none while the API is unreachable. */
+async function navigationOrNull(): Promise<NavigationOut | null> {
+  try {
+    return await loadNavigation();
+  } catch {
+    return null;
+  }
+}
+
 export default async function HomePage() {
   // Rendered per request, so a newly published model shows up at once.
   await connection();
-  const newest = await newestProducts();
+  const [newest, navigation] = await Promise.all([newestProducts(), navigationOrNull()]);
+  const scaleNames = new Map((navigation?.scales ?? []).map((scale) => [scale.code, scale.name]));
   return (
     <>
       <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
@@ -58,8 +62,8 @@ export default async function HomePage() {
             Hier entsteht ein Shop für 3D-gedruckte Modellbahn-Artikel.
           </h1>
           <p className="mt-6 max-w-xl text-body-lg text-ink-secondary">
-            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt. Die ersten Modelle
-            stehen im Katalog; bestellen kannst du bald, ein Kundenkonto schon heute anlegen.
+            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt, von Z bis G und für
+            die Straße in 1:24. Bestellen kannst du als Gast oder mit Kundenkonto.
           </p>
           <HomeActions />
         </div>
@@ -84,7 +88,7 @@ export default async function HomePage() {
                     href={`/produkte/${item.slug}` as Route}
                     name={item.name}
                     summary={item.summary}
-                    scales={item.scale_codes}
+                    scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                     priceFromCents={item.price_from_cents}
                     image={item.image}
                   />
@@ -95,21 +99,21 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section aria-labelledby="spurweiten" className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
-          <h2 id="spurweiten" className="text-heading">
-            Für H0, TT und N
-          </h2>
-          <ul className="mt-10 grid gap-px overflow-hidden rounded-md bg-line sm:grid-cols-3">
-            {GAUGES.map((gauge) => (
-              <li key={gauge.name} className="bg-canvas py-6 sm:px-6 sm:first:pl-0">
-                <p className="text-title">{gauge.name}</p>
-                <SpecLine values={gauge.spec} size="small" className="mt-2" />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      {navigation ? (
+        <section aria-labelledby="massstaebe" className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <h2 id="massstaebe" className="text-heading">
+                Nach Maßstab
+              </h2>
+              <p className="text-small text-ink-tertiary">Ein Meter Vorbild, in jedem Maßstab nachgemessen</p>
+            </div>
+            <div className="mt-10">
+              <ScaleGates scales={navigation.scales} />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="was-hier-entsteht" className="bg-stage">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">

@@ -19,7 +19,7 @@ export interface StoreScaleOut {
   length_mm: number | null;
   name: string;
   ratio: string;
-  track_gauge_mm: number;
+  track_gauge_mm: number | null;
   variants: StoreVariantOut[];
   weight_g: number | null;
   width_mm: number | null;

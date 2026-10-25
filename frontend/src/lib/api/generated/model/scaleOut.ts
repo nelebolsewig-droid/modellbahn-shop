@@ -13,8 +13,12 @@
  */
 
 export interface ScaleOut {
+  /** Fixed once created; part of SKUs and addresses. */
   code: string;
   name: string;
+  /** Written the German way: 1:87, 1:22,5. */
   ratio: string;
-  track_gauge_mm: number;
+  ratio_denominator: number;
+  /** Null for scales without a track, e.g. road vehicles. */
+  track_gauge_mm: number | null;
 }

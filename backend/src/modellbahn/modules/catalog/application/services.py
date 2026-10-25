@@ -1,4 +1,4 @@
-"""Catalogue use cases: categories, products with gauges and variants, galleries, the shop.
+"""Catalogue use cases: categories, products with scales and variants, galleries, the shop.
 
 Every public method runs in its own unit of work. Changes to a product lock its row
 and compare the version the client read (``expected_version``, from ``If-Match``),
@@ -70,7 +70,7 @@ _UNIQUE_RULES: Final[dict[str, type[Exception]]] = {
 
 @dataclass(frozen=True, slots=True)
 class References:
-    """Gauges, finishes and epochs, each in display order."""
+    """Scales, finishes and epochs, each in display order."""
 
     scales: list[Scale]
     finishes: list[Finish]
@@ -120,8 +120,20 @@ class ProductPage:
 
 @dataclass(frozen=True, slots=True)
 class Navigation:
+    """What the shop's menus need, with how many products each choice would show."""
+
     categories: list[Category]
     references: References
+    # Products in the shop per (category, scale code), in that category itself only.
+    offered: dict[tuple[UUID, str], int]
+
+    def scale_count(self, scale_code: str) -> int:
+        """Products in the shop in this scale (each product has exactly one category)."""
+        return sum(n for (_, code), n in self.offered.items() if code == scale_code)
+
+    def category_counts(self, category_id: UUID) -> dict[str, int]:
+        """Products directly in this category, per scale code."""
+        return {code: n for (cid, code), n in self.offered.items() if cid == category_id}
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,7 +162,9 @@ class CatalogService:
     async def navigation(self) -> Navigation:
         async with self._uow() as uow:
             return Navigation(
-                categories=await uow.categories.all(), references=await _references(uow)
+                categories=await uow.categories.all(),
+                references=await _references(uow),
+                offered=await uow.products.offered_counts(),
             )
 
     # --- Categories ---------------------------------------------------------------------
@@ -511,7 +525,7 @@ class CatalogService:
     ) -> ProductPage:
         """Products in the shop, newest first unless ``order`` says otherwise.
 
-        A category includes its subcategories; a gauge or an epoch narrows the list to
+        A category includes its subcategories; a scale or an epoch narrows the list to
         products offered in it.
         """
         if order is ProductOrder.CREATED:

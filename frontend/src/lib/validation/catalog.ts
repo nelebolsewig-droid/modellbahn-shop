@@ -88,3 +88,50 @@ export const optionalGrams = z.string().transform((value, context) => {
   }
   return number;
 });
+
+/** A number with at most one decimal place, German or English decimal mark ("22,5"). */
+function oneDecimal(value: string): number | null {
+  const text = value.trim().replace(",", ".");
+  return /^\d+(\.\d)?$/.test(text) ? Number(text) : null;
+}
+
+/** The ratio of a scale, written as its denominator: "87" for 1:87, "22,5" for 1:22,5. */
+export const scaleRatio = z.string().transform((value, context) => {
+  const number = oneDecimal(value);
+  if (number === null || number <= 1 || number > 1000) {
+    context.addIssue({ code: "custom", message: "Bitte die Zahl nach „1:“ eingeben, z. B. 87 oder 22,5." });
+    return z.NEVER;
+  }
+  return number;
+});
+
+/** A track gauge in mm; empty for scales without a track, e.g. road vehicles. */
+export const optionalTrackGauge = z.string().transform((value, context) => {
+  if (value.trim() === "") {
+    return null;
+  }
+  const number = oneDecimal(value);
+  if (number === null || number <= 0 || number >= 1000) {
+    context.addIssue({ code: "custom", message: "Bitte die Spurweite in mm wie 16,5 eingeben oder leer lassen." });
+    return z.NEVER;
+  }
+  return number;
+});
+
+/** Mirrors Scale.create in the catalogue domain. The code is fixed once saved. */
+export const scaleSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{1,4}$/, "Ein bis vier Großbuchstaben oder Ziffern, z. B. H0 oder 124."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Bitte gib einen Namen ein, z. B. H0 oder 1:24.")
+    .max(20, "Der Name darf höchstens 20 Zeichen lang sein."),
+  ratio_denominator: scaleRatio,
+  track_gauge_mm: optionalTrackGauge,
+});
+
+export type ScaleValues = z.input<typeof scaleSchema>;

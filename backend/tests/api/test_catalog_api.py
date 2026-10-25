@@ -237,6 +237,11 @@ class TestPublishing:
         assert page["epochs"] == [{"code": "III", "name": "Epoche III", "period": "1949–1970"}]  # noqa: RUF001
         (scale,) = page["scales"]
         assert (scale["code"], scale["ratio"], scale["track_gauge_mm"]) == ("H0", "1:87", 16.5)
+        navigation = (await client.get(f"{SHOP}/navigation")).json()
+        h0 = next(s for s in navigation["scales"] if s["code"] == "H0")
+        assert (h0["ratio_denominator"], h0["product_count"]) == (87, 1)
+        (category,) = navigation["categories"]
+        assert category["product_counts"] == {"H0": 1}
         assert (scale["length_mm"], scale["weight_g"]) == (112.5, 85)
         assert [v["finish_code"] for v in scale["variants"]] == ["unpainted", "painted"]
         assert "gtin" not in scale["variants"][0]
@@ -288,7 +293,17 @@ class TestCategoriesAndLists:
         assert [c["slug"] for c in listed] == ["gebaeude", "stellwerke"]
         navigation = (await client.get(f"{SHOP}/navigation")).json()
         assert [c["slug"] for c in navigation["categories"]] == ["gebaeude", "stellwerke"]
-        assert [s["code"] for s in navigation["scales"]] == ["H0", "TT", "N"]
+        assert [s["code"] for s in navigation["scales"]] == [
+            "Z",
+            "N",
+            "TT",
+            "H0",
+            "0",
+            "125",
+            "124",
+            "G",
+        ]
+        assert navigation["categories"][0]["product_counts"] == {}
         assert len(navigation["epochs"]) == 6
 
     async def test_admin_list_with_cursor(self, staff_client: AsyncClient) -> None:
@@ -311,7 +326,7 @@ class TestCategoriesAndLists:
         [
             (f"{SHOP}/products/gibt-es-nicht", 404, "product_not_found"),
             (f"{SHOP}/products?category=gibt-es-nicht", 404, "category_not_found"),
-            (f"{SHOP}/products?scale=Z", 422, "validation_failed"),
+            (f"{SHOP}/products?scale=QQ", 422, "validation_failed"),
             (f"{SHOP}/products?cursor=kaputt", 422, "validation_failed"),
         ],
     )
@@ -328,3 +343,69 @@ class TestCategoriesAndLists:
         assert_problem(
             await packer_client.post(f"{PRODUCTS}/{uuid4()}/publish"), 403, "insufficient_role"
         )
+
+
+SCALES = "/api/v1/admin/scales"
+
+
+class TestScales:
+    async def test_add_correct_and_remove_a_scale(self, staff_client: AsyncClient) -> None:
+        created = await staff_client.post(
+            SCALES, json={"code": "43", "name": "1:43,5", "ratio_denominator": 43.5}
+        )
+        assert created.status_code == 201, created.text
+        assert created.json() == {
+            "code": "43",
+            "name": "1:43,5",
+            "ratio": "1:43,5",
+            "ratio_denominator": 43.5,
+            "track_gauge_mm": None,
+            "product_count": 0,
+        }
+        listed = (await staff_client.get(SCALES)).json()
+        assert [s["code"] for s in listed] == ["Z", "N", "TT", "H0", "0", "43", "125", "124", "G"]
+
+        changed = await staff_client.patch(f"{SCALES}/0", json={"track_gauge_mm": None})
+        assert changed.json()["track_gauge_mm"] is None
+        renamed = await staff_client.patch(f"{SCALES}/0", json={"name": "Null"})
+        assert (renamed.json()["name"], renamed.json()["track_gauge_mm"]) == ("Null", None)
+
+        assert (await staff_client.delete(f"{SCALES}/43")).status_code == 204
+        assert_problem(await staff_client.delete(f"{SCALES}/43"), 404, "scale_not_found")
+
+    async def test_refuses_duplicates_and_odd_numbers(self, staff_client: AsyncClient) -> None:
+        body = assert_problem(
+            await staff_client.post(
+                SCALES, json={"code": "h0", "name": "Neu", "ratio_denominator": 87}
+            ),
+            422,
+            "validation_failed",
+        )
+        assert [(e["field"], e["code"]) for e in body["errors"]] == [("code", "duplicate")]
+        body = assert_problem(
+            await staff_client.post(
+                SCALES, json={"code": "S", "name": "S", "ratio_denominator": 64.25}
+            ),
+            422,
+            "validation_failed",
+        )
+        assert [(e["field"], e["code"]) for e in body["errors"]] == [
+            ("ratio_denominator", "invalid")
+        ]
+
+    async def test_a_scale_in_use_stays(self, staff_client: AsyncClient) -> None:
+        product = (await create(staff_client)).json()
+        added = await staff_client.post(
+            f"{PRODUCTS}/{product['id']}/scales", json={"scale_code": "124"}
+        )
+        assert added.status_code == 201, added.text
+        assert_problem(await staff_client.delete(f"{SCALES}/124"), 409, "scale_in_use")
+        listed = {s["code"]: s for s in (await staff_client.get(SCALES)).json()}
+        assert listed["124"]["product_count"] == 1
+
+    async def test_only_back_office_staff(
+        self, client: AsyncClient, packer_client: AsyncClient
+    ) -> None:
+        assert_problem(await client.get(SCALES), 401, "not_authenticated")
+        assert_problem(await packer_client.get(SCALES), 403, "insufficient_role")
+        assert_problem(await packer_client.delete(f"{SCALES}/Z"), 403, "insufficient_role")

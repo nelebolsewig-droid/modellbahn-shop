@@ -37,7 +37,8 @@ Compose-Stack, denn der Objektspeicher ist nur dort erreichbar.
 ```text
 src/
 ├── app/
-│   ├── (shop)/            Startseite, /katalog, /produkte/[slug], /warenkorb, /kasse,
+│   ├── (shop)/            Startseite, /katalog (Maßstab wählen), /katalog/[massstab]/[kategorie],
+│   │                      /produkte/[slug], /warenkorb, /kasse,
 │   │                      /bestellung/[token] (mit /bezahlen), /konto/… (mit Bestellungen
 │   │                      und Adressbuch), Versand, AGB, Widerruf, Impressum, Datenschutz
 │   ├── admin/             /admin/anmelden, das Stellwerk, /admin/bestellungen/… und
@@ -49,18 +50,19 @@ src/
 │   │                      ProductStage, ProductCard, ResponsivePicture, FormField, …)
 │   ├── forms/             Formulare, die Shop und Admin teilen
 │   ├── account/           Kundenkonto: Übersicht, Bestellhistorie, Adressbuch
-│   ├── shop/              Katalogfilter und Sortierung, Produktansicht, Warenkorb, Kasse,
+│   ├── shop/              Maßstab-Kacheln, Kategorienbaum, Sortierung, Produktansicht, Warenkorb, Kasse,
 │   │                      Testzahlung, Bestellstatus mit Fahrplan-Verlauf
 │   ├── admin/             Stellwerk: Rahmen, Ereignis-Feed, Signallampe, Systemstatus
-│   │   ├── catalog/       Produktliste, Produkt-Editor (Galerie, Spurweiten, Stammdaten),
-│   │                      Kategorien
+│   │   ├── catalog/       Produktliste, Produkt-Editor (Galerie, Maßstäbe, Stammdaten),
+│   │                      Kategorien, Maßstäbe
 │   │   └── sales/         Bestellliste (live), Bestellpult mit Paketaufkleber, Versand,
 │   │                      Storno
 │   └── site/              Kopf, Fuß, Seitenrahmen, Gleisplan
 ├── lib/
 │   ├── api/               fetcher.ts (Mutator), server.ts (Server-Abrufe), problem.ts
 │   │                      (ApiProblem), generated/ (Orval)
-│   ├── catalog/           Preise und Maße auf Deutsch, Bezeichnungen, If-Match, Bildauswahl
+│   ├── catalog/           Preise und Maße auf Deutsch, Maßstäbe und Katalog-Adressen,
+│   │                      Bezeichnungen, If-Match, Bildauswahl
 │   ├── sales/             Warenkorb-Hooks, Summen wie im Backend, Idempotency-Keys,
 │   │                      Bezeichnungen
 │   ├── media/             Upload: SHA-256 per Web Crypto, Ticket, PUT mit Fortschritt

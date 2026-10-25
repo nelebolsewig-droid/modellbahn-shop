@@ -18,6 +18,7 @@ from modellbahn.modules.catalog.domain.model import (
     Epoch,
     Finish,
     Product,
+    ProductStatus,
     Scale,
 )
 from modellbahn.modules.catalog.infrastructure.mapping import start_mappers
@@ -27,6 +28,7 @@ from modellbahn.modules.catalog.infrastructure.tables import (
     finishes,
     gtin_serial_seq,
     product_epochs,
+    product_media,
     product_number_seq,
     product_scales,
     products,
@@ -41,7 +43,7 @@ def _locked[*Ts](statement: Select[*Ts], for_update: bool) -> Select[*Ts]:
     if not for_update:
         return statement
     # FOR NO KEY UPDATE: no use case changes a primary key, and it does not wait for
-    # the key-share locks that inserting a gauge or gallery entry takes on the product.
+    # the key-share locks that inserting a scale or gallery entry takes on the product.
     return statement.with_for_update(key_share=True).execution_options(populate_existing=True)
 
 
@@ -96,12 +98,31 @@ class SqlProductRepository:
 
     def mark_changed(self, product: Product) -> None:
         # The version column only moves when the product row itself is updated. Changes
-        # to gauges, variants or the gallery touch updated_at, but within the same
+        # to scales, variants or the gallery touch updated_at, but within the same
         # microsecond that would be no change at all; flagging it forces the UPDATE.
         flag_modified(product, "updated_at")
 
     async def delete(self, product: Product) -> None:
         await self._session.delete(product)
+
+    async def offered_counts(self) -> dict[tuple[UUID, str], int]:
+        statement = (
+            select(products.c.primary_category_id, product_scales.c.scale_code, func.count())
+            .join(product_scales, product_scales.c.product_id == products.c.id)
+            .where(
+                products.c.status == ProductStatus.ACTIVE,
+                products.c.primary_category_id.is_not(None),
+                exists().where(
+                    variants.c.product_scale_id == product_scales.c.id,
+                    variants.c.active.is_(True),
+                ),
+            )
+            .group_by(products.c.primary_category_id, product_scales.c.scale_code)
+        )
+        return {
+            (category_id, scale_code): count
+            for category_id, scale_code, count in await self._session.execute(statement)
+        }
 
     async def search(self, query: ProductQuery) -> list[Product]:
         statement = select(Product)
@@ -110,7 +131,7 @@ class SqlProductRepository:
         if query.category_ids is not None:
             statement = statement.where(products.c.primary_category_id.in_(query.category_ids))
         if query.scale_code is not None:
-            # Offered in the gauge: at least one active variant in it.
+            # Offered in the scale: at least one active variant in it.
             statement = statement.where(
                 exists().where(
                     product_scales.c.product_id == products.c.id,
@@ -206,17 +227,50 @@ class SqlReferenceData:
         self._session = session
 
     async def scales(self) -> list[Scale]:
-        rows = await self._session.execute(select(scales).order_by(scales.c.position))
-        return [
-            Scale(
-                code=row.code,
-                name=row.name,
-                ratio_denominator=row.ratio_denominator,
-                track_gauge_mm=row.track_gauge_mm,
-                position=row.position,
-            )
-            for row in rows
-        ]
+        statement = select(Scale).order_by(scales.c.ratio_denominator.desc(), scales.c.code)
+        return list((await self._session.execute(statement)).scalars())
+
+    async def get_scale(self, code: str, *, for_update: bool = False) -> Scale | None:
+        statement = select(Scale).where(scales.c.code == code)
+        if for_update:
+            # A full row lock: inserting a product's scale takes a key-share lock on this
+            # row, so deleting waits for such inserts and they wait for the delete.
+            statement = statement.with_for_update().execution_options(populate_existing=True)
+        return (await self._session.execute(statement)).scalar_one_or_none()
+
+    async def scale_taken(
+        self, *, code: str | None = None, name: str | None = None, except_code: str | None = None
+    ) -> bool:
+        conditions: list[ColumnElement[bool]] = []
+        if code is not None:
+            conditions.append(scales.c.code == code)
+        if name is not None:
+            conditions.append(scales.c.name == name)
+        if not conditions:
+            return False
+        if except_code is not None:
+            conditions.append(scales.c.code != except_code)
+        # Compare with what is stored: flushing a pending rename first would hit the
+        # unique constraint before this check could answer.
+        with self._session.no_autoflush:
+            return bool(await self._session.scalar(select(exists().where(*conditions))))
+
+    async def scale_usage(self) -> dict[str, int]:
+        statement = select(product_scales.c.scale_code, func.count()).group_by(
+            product_scales.c.scale_code
+        )
+        return {str(code): int(count) for code, count in await self._session.execute(statement)}
+
+    async def scale_in_use(self, code: str) -> bool:
+        offered = exists().where(product_scales.c.scale_code == code)
+        tagged = exists().where(product_media.c.scale_code == code)
+        return bool(await self._session.scalar(select(offered | tagged)))
+
+    def add_scale(self, scale: Scale) -> None:
+        self._session.add(scale)
+
+    async def delete_scale(self, scale: Scale) -> None:
+        await self._session.delete(scale)
 
     async def finishes(self) -> list[Finish]:
         rows = await self._session.execute(select(finishes).order_by(finishes.c.position))

@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from modellbahn.modules.catalog.application.scales import ScaleService
 from modellbahn.modules.catalog.application.services import CatalogService
 from modellbahn.modules.catalog.application.services import (
     UnitOfWorkFactory as CatalogUnitOfWorkFactory,
@@ -126,8 +127,8 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return create_session_factory(engine)
 
 
-# Every table a test can write to. The catalogue's reference data (gauges, finishes,
-# epochs) comes from the migration and stays.
+# Every table a test can write to. The catalogue's finishes and epochs come from the
+# migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
     "sales.cart_lines",
@@ -151,11 +152,22 @@ WRITABLE_TABLES = (
 )
 
 
+# The scales migrations 0002 and 0004 create.
+RESET_SCALES = """
+INSERT INTO catalog.scales (code, name, ratio_denominator, track_gauge_mm) VALUES
+    ('Z', 'Z', 220, 6.5), ('N', 'N', 160, 9.0), ('TT', 'TT', 120, 12.0),
+    ('H0', 'H0', 87, 16.5), ('0', '0', 45, 32.0), ('125', '1:25', 25, NULL),
+    ('124', '1:24', 24, NULL), ('G', 'G', 22.5, 45.0)
+"""
+
+
 @pytest.fixture
 async def clean_database(engine: AsyncEngine) -> None:
     """Empty every table, so that each test starts from scratch."""
     async with engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE {', '.join(WRITABLE_TABLES)}"))
+        await connection.execute(text("DELETE FROM catalog.scales"))
+        await connection.execute(text(RESET_SCALES))
 
 
 @pytest.fixture
@@ -242,6 +254,11 @@ def catalog_uow(session_factory: async_sessionmaker[AsyncSession]) -> CatalogUni
 @pytest.fixture
 def catalog(catalog_uow: CatalogUnitOfWorkFactory, clock: FixedClock) -> CatalogService:
     return CatalogService(uow_factory=catalog_uow, clock=clock)
+
+
+@pytest.fixture
+def scale_service(catalog_uow: CatalogUnitOfWorkFactory) -> ScaleService:
+    return ScaleService(uow_factory=catalog_uow)
 
 
 @pytest.fixture

@@ -16,7 +16,7 @@ import type { FinishOut } from './finishOut';
 import type { ScaleOut } from './scaleOut';
 
 /**
- * Gauges, finishes and epochs, each in display order.
+ * Scales, finishes and epochs, each in display order.
  */
 export interface ReferencesOut {
   epochs: EpochOut[];

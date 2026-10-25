@@ -4,6 +4,7 @@ from typing import Annotated, Final
 
 from fastapi import Depends, Header, Request, Response
 
+from modellbahn.modules.catalog.application.scales import ScaleService
 from modellbahn.modules.catalog.application.services import CatalogService
 from modellbahn.modules.identity.contracts.auth import StaffMember, StaffRole, require_staff
 from modellbahn.platform.errors import PreconditionFailedError, PreconditionRequiredError
@@ -19,6 +20,13 @@ def get_catalog_service(request: Request) -> CatalogService:
 
 
 CatalogServiceDep = Annotated[CatalogService, Depends(get_catalog_service)]
+
+
+def get_scale_service(request: Request) -> ScaleService:
+    return app_state(request, "scale_service", ScaleService)
+
+
+ScaleServiceDep = Annotated[ScaleService, Depends(get_scale_service)]
 # Packers scan and pack, nothing else (KONZEPT §9.2).
 CatalogEditor = Annotated[StaffMember, Depends(require_staff(StaffRole.OWNER, StaffRole.STAFF))]
 IfMatch = Annotated[

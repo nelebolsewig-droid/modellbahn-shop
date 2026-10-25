@@ -399,6 +399,70 @@
         "title": "AdminOrderOut",
         "type": "object"
       },
+      "AdminScaleOut": {
+        "properties": {
+          "code": {
+            "description": "Fixed once created; part of SKUs and addresses.",
+            "examples": [
+              "H0"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "product_count": {
+            "description": "Products offered in it, in any state.",
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "ratio": {
+            "description": "Written the German way: 1:87, 1:22,5.",
+            "examples": [
+              "1:87"
+            ],
+            "title": "Ratio",
+            "type": "string"
+          },
+          "ratio_denominator": {
+            "examples": [
+              87
+            ],
+            "title": "Ratio Denominator",
+            "type": "number"
+          },
+          "track_gauge_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for scales without a track, e.g. road vehicles.",
+            "examples": [
+              16.5
+            ],
+            "title": "Track Gauge Mm"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "ratio",
+          "ratio_denominator",
+          "track_gauge_mm",
+          "product_count"
+        ],
+        "title": "AdminScaleOut",
+        "type": "object"
+      },
       "AssetKind": {
         "enum": [
           "image",
@@ -1089,7 +1153,7 @@
       },
       "DimensionsIn": {
         "additionalProperties": false,
-        "description": "Size and weight of the model in this gauge; null where unknown.",
+        "description": "Size and weight of the model in this scale; null where unknown.",
         "properties": {
           "height_mm": {
             "anyOf": [
@@ -1675,12 +1739,69 @@
         "title": "MediaRole",
         "type": "string"
       },
+      "NavigationCategoryOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "product_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Products in the shop directly in this category, per scale code; scales without any are left out. Add the subcategories for the whole branch.",
+            "examples": [
+              {
+                "H0": 4,
+                "N": 1
+              }
+            ],
+            "title": "Product Counts",
+            "type": "object"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "slug",
+          "name",
+          "position",
+          "product_counts"
+        ],
+        "title": "NavigationCategoryOut",
+        "type": "object"
+      },
       "NavigationOut": {
-        "description": "Categories (flat, with ``parent_id``) and the reference data for filters.",
+        "description": "Categories (flat, with ``parent_id``), scales by size and the other reference\ndata, with how many products each choice shows.",
         "properties": {
           "categories": {
             "items": {
-              "$ref": "#/components/schemas/CategoryOut"
+              "$ref": "#/components/schemas/NavigationCategoryOut"
             },
             "title": "Categories",
             "type": "array"
@@ -1701,7 +1822,7 @@
           },
           "scales": {
             "items": {
-              "$ref": "#/components/schemas/ScaleOut"
+              "$ref": "#/components/schemas/NavigationScaleOut"
             },
             "title": "Scales",
             "type": "array"
@@ -1714,6 +1835,70 @@
           "epochs"
         ],
         "title": "NavigationOut",
+        "type": "object"
+      },
+      "NavigationScaleOut": {
+        "properties": {
+          "code": {
+            "description": "Fixed once created; part of SKUs and addresses.",
+            "examples": [
+              "H0"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "product_count": {
+            "description": "Products in the shop in this scale.",
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "ratio": {
+            "description": "Written the German way: 1:87, 1:22,5.",
+            "examples": [
+              "1:87"
+            ],
+            "title": "Ratio",
+            "type": "string"
+          },
+          "ratio_denominator": {
+            "examples": [
+              87
+            ],
+            "title": "Ratio Denominator",
+            "type": "number"
+          },
+          "track_gauge_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for scales without a track, e.g. road vehicles.",
+            "examples": [
+              16.5
+            ],
+            "title": "Track Gauge Mm"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "ratio",
+          "ratio_denominator",
+          "track_gauge_mm",
+          "product_count"
+        ],
+        "title": "NavigationScaleOut",
         "type": "object"
       },
       "OrderLineOut": {
@@ -2822,7 +3007,7 @@
         "type": "object"
       },
       "ReferencesOut": {
-        "description": "Gauges, finishes and epochs, each in display order.",
+        "description": "Scales, finishes and epochs, each in display order.",
         "properties": {
           "epochs": {
             "items": {
@@ -2955,9 +3140,62 @@
         "title": "RequestAcceptedOut",
         "type": "object"
       },
+      "ScaleCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "examples": [
+              "124"
+            ],
+            "maxLength": 4,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "1:24"
+            ],
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "ratio_denominator": {
+            "examples": [
+              24
+            ],
+            "exclusiveMinimum": 1.0,
+            "maximum": 1000.0,
+            "title": "Ratio Denominator",
+            "type": "number"
+          },
+          "track_gauge_mm": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1000.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Gauge Mm"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "ratio_denominator"
+        ],
+        "title": "ScaleCreateIn",
+        "type": "object"
+      },
       "ScaleOut": {
         "properties": {
           "code": {
+            "description": "Fixed once created; part of SKUs and addresses.",
             "examples": [
               "H0"
             ],
@@ -2965,31 +3203,98 @@
             "type": "string"
           },
           "name": {
+            "examples": [
+              "H0"
+            ],
             "title": "Name",
             "type": "string"
           },
           "ratio": {
+            "description": "Written the German way: 1:87, 1:22,5.",
             "examples": [
               "1:87"
             ],
             "title": "Ratio",
             "type": "string"
           },
+          "ratio_denominator": {
+            "examples": [
+              87
+            ],
+            "title": "Ratio Denominator",
+            "type": "number"
+          },
           "track_gauge_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for scales without a track, e.g. road vehicles.",
             "examples": [
               16.5
             ],
-            "title": "Track Gauge Mm",
-            "type": "number"
+            "title": "Track Gauge Mm"
           }
         },
         "required": [
           "code",
           "name",
           "ratio",
+          "ratio_denominator",
           "track_gauge_mm"
         ],
         "title": "ScaleOut",
+        "type": "object"
+      },
+      "ScalePatchIn": {
+        "additionalProperties": false,
+        "description": "Only the fields sent are changed; ``track_gauge_mm: null`` removes the track gauge.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "ratio_denominator": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 1.0,
+                "maximum": 1000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio Denominator"
+          },
+          "track_gauge_mm": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 1000.0,
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Gauge Mm"
+          }
+        },
+        "title": "ScalePatchIn",
         "type": "object"
       },
       "ShipIn": {
@@ -3200,7 +3505,7 @@
         "type": "object"
       },
       "StoreProductOut": {
-        "description": "A product page: gauges and finishes for sale, gallery of ready images.",
+        "description": "A product page: scales and finishes for sale, gallery of ready images.",
         "properties": {
           "category_path": {
             "items": {
@@ -3356,8 +3661,15 @@
             "type": "string"
           },
           "track_gauge_mm": {
-            "title": "Track Gauge Mm",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Gauge Mm"
           },
           "variants": {
             "items": {
@@ -4172,7 +4484,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Gauges, finishes and epochs",
+        "summary": "Scales, finishes and epochs",
         "tags": [
           "admin-catalog"
         ]
@@ -5638,7 +5950,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Stop offering the product in this gauge",
+        "summary": "Stop offering the product in this scale",
         "tags": [
           "admin-catalog"
         ]
@@ -5773,7 +6085,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Set the size and weight in this gauge",
+        "summary": "Set the size and weight in this scale",
         "tags": [
           "admin-catalog"
         ]
@@ -5920,7 +6232,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Sell the gauge in another finish",
+        "summary": "Sell the scale in another finish",
         "tags": [
           "admin-catalog"
         ]
@@ -6361,7 +6673,7 @@
             "staffSession": []
           }
         ],
-        "summary": "A product with gauges, variants and gallery",
+        "summary": "A product with scales, variants and gallery",
         "tags": [
           "admin-catalog"
         ]
@@ -7189,7 +7501,356 @@
             "staffSession": []
           }
         ],
-        "summary": "Offer the product in another gauge",
+        "summary": "Offer the product in another scale",
+        "tags": [
+          "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/scales": {
+      "get": {
+        "operationId": "listScales",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminScaleOut"
+                  },
+                  "title": "Response Listscales",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Every scale, the smallest models first, with how many products use it",
+        "tags": [
+          "admin-catalog"
+        ]
+      },
+      "post": {
+        "operationId": "createScale",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScaleCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminScaleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Add a scale, e.g. 1:24 for road vehicles",
+        "tags": [
+          "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/scales/{code}": {
+      "delete": {
+        "operationId": "deleteScale",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `scale_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `scale_in_use`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Remove a scale no product and no photo uses",
+        "tags": [
+          "admin-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "updateScale",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScalePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminScaleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `scale_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Rename a scale or correct its ratio or track gauge (the code stays)",
         "tags": [
           "admin-catalog"
         ]
@@ -9212,7 +9873,7 @@
             "description": "Service Unavailable. Problem codes: `database_unavailable`."
           }
         },
-        "summary": "Categories, gauges, finishes and epochs for menus and filters",
+        "summary": "Categories, scales, finishes and epochs for menus and filters, with counts",
         "tags": [
           "store-catalog"
         ]
@@ -9429,7 +10090,7 @@
             }
           },
           {
-            "description": "Gauge code, e.g. H0.",
+            "description": "Scale code, e.g. H0 or 124 (1:24).",
             "in": "query",
             "name": "scale",
             "required": false,
@@ -9443,7 +10104,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Gauge code, e.g. H0.",
+              "description": "Scale code, e.g. H0 or 124 (1:24).",
               "title": "Scale"
             }
           },
@@ -9637,7 +10298,7 @@
             "description": "Service Unavailable. Problem codes: `database_unavailable`."
           }
         },
-        "summary": "A product page: gauges, finishes, prices, gallery",
+        "summary": "A product page: scales, finishes, prices, gallery",
         "tags": [
           "store-catalog"
         ]
@@ -9716,7 +10377,7 @@
       "name": "admin-auth"
     },
     {
-      "description": "Products, gauges, variants, galleries.",
+      "description": "Products, scales, variants, galleries.",
       "name": "admin-catalog"
     },
     {

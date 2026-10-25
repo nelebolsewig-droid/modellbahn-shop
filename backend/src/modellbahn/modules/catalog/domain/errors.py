@@ -18,7 +18,7 @@ class InvalidFieldError(CatalogError):
 
 
 class UnknownReferenceError(InvalidFieldError):
-    """A code or id names nothing: an unknown gauge, finish, epoch, category or image."""
+    """A code or id names nothing: an unknown scale, finish, epoch, category or image."""
 
     def __init__(self, field: str, value: object) -> None:
         super().__init__(field, "unknown", f"{value!r} does not exist")
@@ -40,6 +40,14 @@ class CategoryNotFoundError(CatalogError):
     pass
 
 
+class ScaleNotFoundError(CatalogError):
+    pass
+
+
+class ScaleInUseError(CatalogError):
+    """A product is offered in the scale, or a photo is tagged with it."""
+
+
 class SlugTakenError(CatalogError):
     """Another product or category already uses the address."""
 
@@ -49,11 +57,11 @@ class SlugLockedError(CatalogError):
 
 
 class ScaleAlreadyAddedError(CatalogError):
-    """The product already comes in this gauge."""
+    """The product already comes in this scale."""
 
 
 class VariantAlreadyExistsError(CatalogError):
-    """The gauge is already sold in this finish."""
+    """The scale is already sold in this finish."""
 
 
 class InvalidProductStateError(CatalogError):

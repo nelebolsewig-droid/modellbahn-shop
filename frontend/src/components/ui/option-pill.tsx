@@ -13,7 +13,7 @@ type OptionGroupProps = Omit<ComponentProps<typeof Root>, "orientation"> & {
 };
 
 /**
- * One choice out of a few: gauge, finish, technique. A radio group (Radix): arrow keys
+ * One choice out of a few: scale, finish, technique. A radio group (Radix): arrow keys
  * move between the options, Tab leaves the group.
  */
 export function OptionGroup({ label, aside, className, children, ...props }: OptionGroupProps) {

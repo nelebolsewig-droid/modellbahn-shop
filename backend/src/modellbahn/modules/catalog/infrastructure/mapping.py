@@ -1,8 +1,9 @@
 """Imperative mapping of the catalogue domain classes onto their tables.
 
-Gauges, variants, epochs and gallery entries belong to the product aggregate and are
-loaded with it (``selectin``: the async session cannot load lazily). Categories are
-an aggregate of their own; the product refers to its category by id only.
+A product's scales, variants, epochs and gallery entries belong to the product aggregate
+and are loaded with it (``selectin``: the async session cannot load lazily). Categories
+are an aggregate of their own; the product refers to its category by id only. Scales
+(H0, 1:24 …) are reference data the staff maintain, mapped on their own.
 """
 
 from sqlalchemy import inspect
@@ -14,6 +15,7 @@ from modellbahn.modules.catalog.domain.model import (
     ProductEpoch,
     ProductMedia,
     ProductScale,
+    Scale,
     Variant,
 )
 from modellbahn.modules.catalog.infrastructure import tables
@@ -25,6 +27,7 @@ def start_mappers() -> None:
     if inspect(Product, raiseerr=False) is not None:
         return
     mapper_registry.map_imperatively(Category, tables.categories)
+    mapper_registry.map_imperatively(Scale, tables.scales)
     mapper_registry.map_imperatively(Variant, tables.variants)
     mapper_registry.map_imperatively(
         ProductScale,
@@ -50,7 +53,7 @@ def start_mappers() -> None:
         Product,
         tables.products,
         # Every change to the aggregate touches the product row, so this version
-        # covers gauges, variants and the gallery too.
+        # covers scales, variants and the gallery too.
         version_id_col=tables.products.c.version,
         # Computed by the database; never written by the application.
         exclude_properties=["search_vector"],
