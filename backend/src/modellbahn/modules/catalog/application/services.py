@@ -29,6 +29,7 @@ from modellbahn.modules.catalog.domain.errors import (
     SlugTakenError,
     UnknownReferenceError,
     VariantAlreadyExistsError,
+    VariantHasUnitsError,
     VariantNotFoundError,
     VersionMismatchError,
 )
@@ -50,7 +51,11 @@ from modellbahn.modules.catalog.domain.text import check_slug, slugify
 from modellbahn.modules.media.contracts.images import AssetStatus, ImageView
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
-from modellbahn.platform.uow import ConcurrentUpdateError, UniqueViolationError
+from modellbahn.platform.uow import (
+    ConcurrentUpdateError,
+    ForeignKeyViolationError,
+    UniqueViolationError,
+)
 
 type UnitOfWorkFactory = Callable[[], CatalogUnitOfWork]
 type ProductChange = Callable[[CatalogUnitOfWork, Product, datetime], Awaitable[list[DomainEvent]]]
@@ -60,6 +65,7 @@ STORE_PAGE_MAX: Final = 48
 # Images that may join a gallery: the upload is complete (processing may still run).
 _ATTACHABLE: Final = frozenset({AssetStatus.UPLOADED, AssetStatus.READY})
 # Unique constraints that stand for a rule of the model.
+_UNITS_OF_VARIANT: Final = "fk_units_variant_id_variants"
 _UNIQUE_RULES: Final[dict[str, type[Exception]]] = {
     "uq_products_slug": SlugTakenError,
     "uq_categories_slug": SlugTakenError,
@@ -614,6 +620,11 @@ async def _commit(uow: CatalogUnitOfWork) -> None:
         await uow.commit()
     except ConcurrentUpdateError as exc:
         raise VersionMismatchError from exc
+    except ForeignKeyViolationError as exc:
+        # The inventory refers to variants it has units of; removing them would lose history.
+        if exc.constraint != _UNITS_OF_VARIANT:
+            raise
+        raise VariantHasUnitsError from exc
     except UniqueViolationError as exc:
         rule = _UNIQUE_RULES.get(exc.constraint or "")
         if rule is None:

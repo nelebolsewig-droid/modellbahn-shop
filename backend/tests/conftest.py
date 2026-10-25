@@ -131,6 +131,11 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
+    "inventory.stock_ledger",
+    "inventory.scans",
+    "inventory.units",
+    "inventory.allocations",
+    "inventory.locations",
     "sales.cart_lines",
     "sales.carts",
     "sales.payments",

@@ -21,6 +21,7 @@ from modellbahn.modules.catalog.domain.errors import (
     SlugLockedError,
     SlugTakenError,
     VariantAlreadyExistsError,
+    VariantHasUnitsError,
     VariantNotFoundError,
     VersionMismatchError,
 )
@@ -105,6 +106,10 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "This scale is already sold in this finish.", code="variant_exists"
     ),
     InvalidProductStateError: lambda error: ConflictError(str(error), code="invalid_product_state"),
+    VariantHasUnitsError: lambda _: ConflictError(
+        "The workshop has units of this variant; deactivate it instead.",
+        code="variant_has_units",
+    ),
     ProductNotDeletableError: lambda _: ConflictError(
         "Only drafts that were never published can be deleted.", code="product_not_deletable"
     ),

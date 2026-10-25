@@ -59,8 +59,10 @@ async def get_order(order_id: UUID, _: OrderViewer, service: OrderServiceDep) ->
 @router.post(
     "/{order_id}/ship",
     operation_id="shipOrder",
-    summary="Mark a paid order as shipped (the customer gets an e-mail)",
-    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}),
+    summary="Ship a paid, completely picked order (the customer gets an e-mail)",
+    responses=problems(
+        {**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state", "order_not_picked"]}
+    ),
 )
 async def ship_order(
     order_id: UUID, body: ShipIn, _: OrderShipper, service: OrderServiceDep

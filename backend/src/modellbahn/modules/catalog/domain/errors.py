@@ -68,6 +68,10 @@ class InvalidProductStateError(CatalogError):
     """The product's state does not allow this (e.g. archiving a draft)."""
 
 
+class VariantHasUnitsError(CatalogError):
+    """The workshop has (or had) units of the variant; it can be deactivated, not removed."""
+
+
 class ProductNotDeletableError(CatalogError):
     """Only drafts that were never published can be deleted."""
 

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modellbahn.modules.inventory.contracts.availability import Availability
 from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
@@ -155,7 +156,15 @@ class CartLineOut(BaseModel):
     unit_price_cents: Cents
     compare_at_price_cents: Cents | None
     line_total_cents: Cents
-    available: bool = Field(description="False if the variant is no longer for sale.")
+    available: bool = Field(
+        description="False if the variant is no longer for sale, or not deliverable in "
+        "this quantity (not enough in stock and not made to order)."
+    )
+    availability: Availability = Field(
+        description="`in_stock`: ships at once; `made_to_order`: printed for the customer; "
+        "`unavailable`: cannot be ordered like this."
+    )
+    free_units: int = Field(description="Units of the variant on the shelves right now.")
     image: LineImageOut | None
 
     @classmethod
@@ -175,6 +184,8 @@ class CartLineOut(BaseModel):
             compare_at_price_cents=variant.compare_at_price_cents,
             line_total_cents=item.line_total_cents,
             available=item.available,
+            availability=item.availability,
+            free_units=item.free_units,
             image=LineImageOut.from_view(item.image),
         )
 

@@ -36,7 +36,7 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -87,6 +87,8 @@ outbox_table = Table(
     Column("next_attempt_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("published_at", DateTime(timezone=True)),
     Column("last_error", Text),
+    # Handlers that already succeeded for this event; a retry runs only the others.
+    Column("handled_by", ARRAY(Text), nullable=False, server_default=text("'{}'")),
     CheckConstraint("status IN ('pending', 'published', 'dead')", name="status"),
     CheckConstraint("attempts >= 0", name="attempts_non_negative"),
     CheckConstraint("(status = 'published') = (published_at IS NOT NULL)", name="published_at"),
@@ -180,36 +182,52 @@ def retry_delay(attempts: int) -> timedelta:
 type Handler = Callable[[DomainEvent], Awaitable[None]]
 
 
-class HandlerRegistry:
-    """Maps each event type to the one handler that reacts to it.
+@dataclass(frozen=True, slots=True)
+class RegisteredHandler:
+    """A handler with the name its delivery state is kept under."""
 
-    One handler per type, because the outbox keeps one delivery state per event: if
-    a second handler failed, the retry would run the first one again as well. When
-    two modules need the same event, the outbox gets a delivery state per handler;
-    until then :meth:`register` refuses a second handler instead of hiding the issue.
+    name: str
+    handle: Handler
+
+
+class HandlerRegistry:
+    """Maps each event type to the handlers that react to it, each under its own name.
+
+    Several modules may react to the same event (a paid order sends a confirmation and
+    allocates stock). The outbox notes per event which handlers already succeeded
+    (``handled_by``), so a retry runs only the ones that failed, and one failing
+    handler does not hold back the others.
+
+    The name defaults to the handler's qualified name, e.g.
+    ``SalesHandlers.send_confirmation``. It is stored for events that are retried, so
+    renaming a handler can make it run once more for such an event; delivery is at
+    least once anyway.
 
     Delivery is **at least once**: a handler can run again for an event it already
     processed, e.g. when the worker dies after the handler finished but before the
     event was marked as published. Every handler must therefore be idempotent:
     record what it did under the event id (a unique ``source_event_id`` column is
-    the usual way) and do nothing if that record already exists. Where this is
-    impossible, such as for a plain notification e-mail, a rare duplicate must be
-    acceptable.
+    the usual way) or check the state it would create, and do nothing if it exists.
+    Where this is impossible, such as for a plain notification e-mail, a rare
+    duplicate must be acceptable.
     """
 
     def __init__(self) -> None:
-        self._handlers: dict[str, Handler] = {}
+        self._handlers: dict[str, list[RegisteredHandler]] = {}
 
     def register[E: DomainEvent](
-        self, event_class: type[E], handler: Callable[[E], Awaitable[None]]
+        self,
+        event_class: type[E],
+        handler: Callable[[E], Awaitable[None]],
+        *,
+        name: str | None = None,
     ) -> None:
-        """Run ``handler`` for every event of ``event_class``; one handler per type."""
+        """Run ``handler`` for every event of ``event_class``."""
         event_type = event_class.event_type
-        if event_type in self._handlers:
-            msg = (
-                f"{event_type} already has a handler; the outbox retries per event, "
-                "so a second handler needs a delivery state of its own first"
-            )
+        handler_name = name or str(getattr(handler, "__qualname__", repr(handler)))
+        registered = self._handlers.setdefault(event_type, [])
+        if any(entry.name == handler_name for entry in registered):
+            msg = f"{event_type} already has a handler named {handler_name!r}"
             raise ValueError(msg)
 
         async def typed_handler(event: DomainEvent) -> None:
@@ -218,11 +236,11 @@ class HandlerRegistry:
                 raise TypeError(msg)
             await handler(event)
 
-        self._handlers[event_type] = typed_handler
+        registered.append(RegisteredHandler(handler_name, typed_handler))
 
-    def handler_for(self, event_type: str) -> Handler | None:
-        """The handler registered for ``event_type``, if any."""
-        return self._handlers.get(event_type)
+    def handlers_for(self, event_type: str) -> list[RegisteredHandler]:
+        """The handlers registered for ``event_type``, in the order of registration."""
+        return list(self._handlers.get(event_type, ()))
 
 
 class OutboxDispatcher:
@@ -333,6 +351,7 @@ class OutboxDispatcher:
         log: structlog.stdlib.BoundLogger = _logger.bind(
             event_id=str(row.id), event_type=row.event_type
         )
+        handled: list[str] = list(row.handled_by)
         try:
             event = self._events.deserialize(
                 row.event_type,
@@ -341,11 +360,22 @@ class OutboxDispatcher:
                 occurred_at=row.occurred_at,
                 payload=row.payload,
             )
-            handler = self._handlers.handler_for(row.event_type)
-            if handler is not None:
-                await handler(event)
         except Exception as exc:
-            await self._record_failure(connection, row, exc, log)
+            await self._record_failure(connection, row, [("deserialize", exc)], handled, log)
+            return
+        failures: list[tuple[str, Exception]] = []
+        for registered in self._handlers.handlers_for(row.event_type):
+            if registered.name in handled:
+                continue
+            try:
+                await registered.handle(event)
+            except Exception as exc:
+                # The others still run: one failing handler does not hold them back.
+                failures.append((registered.name, exc))
+            else:
+                handled.append(registered.name)
+        if failures:
+            await self._record_failure(connection, row, failures, handled, log)
             return
 
         # The wall-clock time of this statement, not of the transaction start: the
@@ -354,7 +384,10 @@ class OutboxDispatcher:
             update(outbox_table)
             .where(outbox_table.c.id == row.id)
             .values(
-                status=OutboxStatus.PUBLISHED, published_at=func.clock_timestamp(), last_error=None
+                status=OutboxStatus.PUBLISHED,
+                published_at=func.clock_timestamp(),
+                last_error=None,
+                handled_by=handled,
             )
         )
         if event.audience:
@@ -366,23 +399,29 @@ class OutboxDispatcher:
         self,
         connection: AsyncConnection,
         row: Row[Any],
-        exc: Exception,
+        failures: list[tuple[str, Exception]],
+        handled: list[str],
         log: structlog.stdlib.BoundLogger,
     ) -> None:
         attempts = row.attempts + 1
-        error = f"{type(exc).__name__}: {exc}"[:LAST_ERROR_MAX_LENGTH]
-        values: dict[str, Any] = {"attempts": attempts, "last_error": error}
+        error = "; ".join(f"{name}: {type(exc).__name__}: {exc}" for name, exc in failures)[
+            :LAST_ERROR_MAX_LENGTH
+        ]
+        values: dict[str, Any] = {"attempts": attempts, "last_error": error, "handled_by": handled}
+        failed = [name for name, _ in failures]
+        first_error = failures[0][1]
         if attempts >= self._max_attempts:
             values["status"] = OutboxStatus.DEAD
-            log.error("outbox.event.dead", attempts=attempts, exc_info=exc)
+            log.error("outbox.event.dead", attempts=attempts, handlers=failed, exc_info=first_error)
         else:
             delay = retry_delay(attempts)
             values["next_attempt_at"] = func.now() + delay
             log.warning(
                 "outbox.event.retry_scheduled",
                 attempts=attempts,
+                handlers=failed,
                 retry_in_seconds=delay.total_seconds(),
-                exc_info=exc,
+                exc_info=first_error,
             )
         await connection.execute(
             update(outbox_table).where(outbox_table.c.id == row.id).values(**values)

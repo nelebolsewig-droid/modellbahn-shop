@@ -3,6 +3,7 @@
 It runs SQL, so a domain layer must not import it (the pure-domain contract says so).
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -21,6 +22,7 @@ __all__ = [
     "StaffRole",
     "find_verified_customer",
     "get_account_summary",
+    "load_display_names",
 ]
 
 ACCOUNT_REFERENCE = "identity.accounts.id"
@@ -88,3 +90,14 @@ async def find_verified_customer(uow: UnitOfWork, email: str) -> UUID | None:
         accounts.c.email_verified_at.is_not(None),
     )
     return (await uow.session.execute(statement)).scalar_one_or_none()
+
+
+async def load_display_names(uow: UnitOfWork, account_ids: Collection[UUID]) -> dict[UUID, str]:
+    """The display names of the accounts among ``account_ids`` (e.g. who booked a movement)."""
+    ids = list(set(account_ids))
+    if not ids:
+        return {}
+    rows = await uow.session.execute(
+        select(accounts.c.id, accounts.c.display_name).where(accounts.c.id.in_(ids))
+    )
+    return {row.id: row.display_name for row in rows}

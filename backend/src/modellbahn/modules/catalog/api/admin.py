@@ -281,7 +281,12 @@ async def update_product(
     operation_id="deleteProduct",
     summary="Delete a draft that was never published",
     responses=problems(
-        {**ACCESS, **PRODUCT_NOT_FOUND, **VERSIONED, 409: ["product_not_deletable"]}
+        {
+            **ACCESS,
+            **PRODUCT_NOT_FOUND,
+            **VERSIONED,
+            409: ["product_not_deletable", "variant_has_units"],
+        }
     ),
 )
 async def delete_product(
@@ -395,7 +400,15 @@ async def update_product_scale(
     "/product-scales/{product_scale_id}",
     operation_id="deleteProductScale",
     summary="Stop offering the product in this scale",
-    responses=problems({**ACCESS, **_SCALE_NOT_FOUND, **VERSIONED, 422: ["not_publishable"]}),
+    responses=problems(
+        {
+            **ACCESS,
+            **_SCALE_NOT_FOUND,
+            **VERSIONED,
+            409: ["variant_has_units"],
+            422: ["not_publishable"],
+        }
+    ),
 )
 async def delete_product_scale(
     product_scale_id: UUID,
@@ -468,8 +481,16 @@ async def update_variant(
 @router.delete(
     "/variants/{variant_id}",
     operation_id="deleteVariant",
-    summary="Remove a variant",
-    responses=problems({**ACCESS, **_VARIANT_NOT_FOUND, **VERSIONED, 422: ["not_publishable"]}),
+    summary="Remove a variant (one with units in the workshop can only be deactivated)",
+    responses=problems(
+        {
+            **ACCESS,
+            **_VARIANT_NOT_FOUND,
+            **VERSIONED,
+            409: ["variant_has_units"],
+            422: ["not_publishable"],
+        }
+    ),
 )
 async def delete_variant(
     variant_id: UUID,

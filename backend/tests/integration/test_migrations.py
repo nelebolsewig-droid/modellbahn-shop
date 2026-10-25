@@ -13,13 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
+from modellbahn.modules.inventory.infrastructure import tables as inventory_tables
 from modellbahn.modules.media.infrastructure import tables as media_tables
 from modellbahn.modules.sales.infrastructure import tables as sales_tables
 from modellbahn.platform import outbox
 from modellbahn.platform.db import create_engine, metadata
 from tests.support import create_database, downgrade, drop_database, migrate
 
-SCHEMAS = ("platform", "identity", "media", "catalog", "sales")
+SCHEMAS = ("platform", "identity", "media", "catalog", "sales", "inventory")
 
 
 @pytest.fixture
@@ -39,8 +40,9 @@ async def _tables(database_url: str) -> set[str]:
             rows = await connection.execute(
                 text(
                     "SELECT table_schema || '.' || table_name FROM information_schema.tables "
-                    "WHERE table_schema IN ('platform', 'identity', 'media', 'catalog', 'sales')"
-                )
+                    "WHERE table_schema = ANY(:schemas)"
+                ),
+                {"schemas": list(SCHEMAS)},
             )
             return set(rows.scalars())
     finally:
@@ -71,6 +73,11 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "sales.order_lines",
         "sales.payments",
         "sales.customer_addresses",
+        "inventory.locations",
+        "inventory.allocations",
+        "inventory.units",
+        "inventory.scans",
+        "inventory.stock_ledger",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -100,6 +107,7 @@ async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
     assert media_tables.assets.metadata is metadata
     assert catalog_tables.products.metadata is metadata
     assert sales_tables.orders.metadata is metadata
+    assert inventory_tables.units.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 
@@ -109,8 +117,9 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         rows = await connection.execute(
             text(
                 "SELECT conname FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace "
-                "WHERE n.nspname IN ('platform', 'identity', 'media', 'catalog', 'sales')"
-            )
+                "WHERE n.nspname = ANY(:schemas)"
+            ),
+            {"schemas": list(SCHEMAS)},
         )
         names = set(rows.scalars())
     assert {
@@ -137,6 +146,14 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "ck_scales_code_format",
         "ck_scales_ratio_range",
         "uq_scales_name",
+        "ck_locations_site_is_root",
+        "ck_units_on_shelf",
+        "ck_units_serves_allocation",
+        "uq_units_allocation_id",
+        "fk_units_variant_id_variants",
+        "fk_allocations_order_id_orders",
+        "fk_stock_ledger_reverses_id_stock_ledger",
+        "ck_stock_ledger_undo_reverses",
     } <= names
 
 

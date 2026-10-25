@@ -108,25 +108,39 @@ class TestHandlerRegistry:
             received.append(event)
 
         registry.register(SampleHappened, handler)
-        typed = registry.handler_for(SampleHappened.event_type)
-        assert typed is not None
+        (typed,) = registry.handlers_for(SampleHappened.event_type)
+        assert typed.name.endswith("handler")
         event = sample()
-        await typed(event)
+        await typed.handle(event)
         assert received == [event]
-        assert registry.handler_for("test.other") is None
+        assert registry.handlers_for("test.other") == []
 
-    def test_a_second_handler_for_one_type_is_refused(self) -> None:
-        # A retry after the second one failed would run the first one again.
+    def test_several_modules_may_react_to_one_event_type(self) -> None:
+        registry = HandlerRegistry()
+
+        async def send_mail(event: SampleHappened) -> None: ...
+
+        async def allocate(event: SampleHappened) -> None: ...
+
+        registry.register(SampleHappened, send_mail)
+        registry.register(SampleHappened, allocate, name="inventory.allocate")
+
+        names = [entry.name for entry in registry.handlers_for(SampleHappened.event_type)]
+        assert names[0].endswith("send_mail")
+        assert names[1] == "inventory.allocate"
+
+    def test_a_name_is_used_once_per_event_type(self) -> None:
+        # The delivery state is kept by name; two handlers under one name would share it.
         registry = HandlerRegistry()
 
         async def first(event: SampleHappened) -> None: ...
 
         async def second(event: SampleHappened) -> None: ...
 
-        registry.register(SampleHappened, first)
+        registry.register(SampleHappened, first, name="same")
 
-        with pytest.raises(ValueError, match="already has a handler"):
-            registry.register(SampleHappened, second)
+        with pytest.raises(ValueError, match="already has a handler named 'same'"):
+            registry.register(SampleHappened, second, name="same")
 
 
 class TestRealtimeNotification:

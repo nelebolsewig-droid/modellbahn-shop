@@ -11,6 +11,7 @@ from typing import Protocol, Self
 from uuid import UUID
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
+from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.sales.domain.model import (
     Cart,
@@ -118,6 +119,18 @@ class Accounts(Protocol):
         ...
 
 
+class Inventory(Protocol):
+    """What sales may ask the inventory module."""
+
+    async def free_units(self, variant_ids: Collection[UUID]) -> dict[UUID, int]:
+        """Units on the shelves that nobody has been promised (missing means none)."""
+        ...
+
+    async def pick_progress(self, order_id: UUID) -> PickProgress:
+        """How many of the order's pieces are picked for packing."""
+        ...
+
+
 class PaymentGateway(Protocol):
     """The payment provider behind an anti-corruption layer (KONZEPT §2.6).
 
@@ -152,6 +165,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def accounts(self) -> Accounts: ...
+
+    @property
+    def inventory(self) -> Inventory: ...
 
     async def __aenter__(self) -> Self: ...
 
