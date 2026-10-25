@@ -40,7 +40,7 @@ class SaleVariant:
     price_cents: int
     compare_at_price_cents: int | None
     image_asset_id: UUID | None
-    """The gallery image that fits gauge and finish best (an untagged one, else the main image)."""
+    """The gallery image that fits scale and finish best (an untagged one, else the main image)."""
     purchasable: bool
     """In the shop and active: only such variants go into a cart and into an order."""
 
@@ -122,7 +122,7 @@ async def load_sale_variants(
 def _best_image(
     gallery: list[tuple[int, UUID, str | None, str | None]], scale_code: str, finish_code: str
 ) -> UUID | None:
-    # Same order as the product page's stage: a photo of the chosen gauge and finish
+    # Same order as the product page's stage: a photo of the chosen scale and finish
     # first, then untagged ones, then photos of other variants; ties by position.
     def score(tag: str | None, chosen: str) -> int:
         return 0 if tag == chosen else 1 if tag is None else 2

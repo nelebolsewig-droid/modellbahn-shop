@@ -140,7 +140,7 @@ class TestProducts:
             )
         with pytest.raises(UnknownReferenceError):
             await catalog.add_scale(
-                product.id, expected_version=None, scale_code="Z", dimensions=Dimensions()
+                product.id, expected_version=None, scale_code="QQ", dimensions=Dimensions()
             )
         other = await catalog.add_variant(
             scale.id, expected_version=None, finish_code="unpainted", price_cents=2990
@@ -395,7 +395,7 @@ class TestShop:
         assert [c.product.name for c in second.items] == [names[0]]
         assert second.next_cursor is None
 
-    async def test_filters_by_gauge_category_and_text(
+    async def test_filters_by_scale_category_and_text(
         self,
         catalog: CatalogService,
         media: MediaService,
@@ -443,7 +443,51 @@ class TestShop:
         with pytest.raises(CategoryNotFoundError):
             await catalog.store_products(category_slug="gibt-es-nicht")
         with pytest.raises(UnknownReferenceError):
-            await catalog.store_products(scale_code="Z")
+            await catalog.store_products(scale_code="QQ")
+
+    async def test_navigation_counts_what_the_shop_shows(
+        self,
+        catalog: CatalogService,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        vehicles = await catalog.create_category(name="Straßenfahrzeuge")
+        trucks = await catalog.create_category(name="LKW", parent_id=vehicles.id)
+        fire = await catalog.create_category(name="Feuerwehr", parent_id=trucks.id)
+        # A fire engine in H0 and 1:24, a tipper in H0, and a draft that does not count.
+        engine = await sellable(catalog, media, media_storage, deliver, "Löschfahrzeug", fire.id)
+        engine = await catalog.add_scale(
+            engine.product.id, expected_version=None, scale_code="124", dimensions=Dimensions()
+        )
+        big = next(s for s in engine.product.scales if s.scale_code == "124")
+        await catalog.add_variant(
+            big.id, expected_version=None, finish_code="painted", price_cents=12900
+        )
+        await catalog.publish(engine.product.id, expected_version=None)
+        tipper = await sellable(catalog, media, media_storage, deliver, "Kipper", trucks.id)
+        await catalog.publish(tipper.product.id, expected_version=None)
+        await sellable(catalog, media, media_storage, deliver, "Entwurf", trucks.id)
+
+        navigation = await catalog.navigation()
+
+        assert navigation.category_counts(fire.id) == {"H0": 1, "124": 1}
+        assert navigation.category_counts(trucks.id) == {"H0": 1}
+        assert navigation.category_counts(vehicles.id) == {}
+        assert navigation.scale_count("H0") == 2
+        assert navigation.scale_count("124") == 1
+        assert navigation.scale_count("N") == 0
+        # Smallest models first: Z (1:220) … G (1:22,5).
+        assert [s.code for s in navigation.references.scales] == [
+            "Z",
+            "N",
+            "TT",
+            "H0",
+            "0",
+            "125",
+            "124",
+            "G",
+        ]
 
     async def test_sorted_by_price_and_name_page_by_page(
         self,
@@ -535,4 +579,13 @@ class TestShop:
         assert [c.slug for c in page.category_path] == ["gebaeude", "stellwerke"]
         # Only ready images reach the shop.
         assert list(page.images) == [details.product.gallery[0].asset_id]
-        assert {s.code for s in page.references.scales} == {"H0", "TT", "N"}
+        assert {s.code for s in page.references.scales} == {
+            "Z",
+            "N",
+            "TT",
+            "H0",
+            "0",
+            "125",
+            "124",
+            "G",
+        }

@@ -1,6 +1,6 @@
-"""The catalogue model: products, the gauges they come in, their variants and gallery.
+"""The catalogue model: products, the scales they come in, their variants and gallery.
 
-A *product* ("Stellwerk Altenau") comes *in gauges* (H0, N), and each gauge is sold as
+A *product* ("Stellwerk Altenau") comes *in scales* (H0, N), and each scale is sold as
 *variants*, one per finish (unbemalt, grundiert, bemalt). The product is the aggregate
 root: every change goes through it and raises its version, so two people editing the
 same product cannot overwrite each other unnoticed.
@@ -9,6 +9,7 @@ Plain dataclasses without any framework, mapped imperatively by the infrastructu
 Every method that depends on time takes ``now``.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -48,6 +49,12 @@ GALLERY_MAX_SIZE: Final = 40
 PRICE_MAX_CENTS: Final = 10_000_000
 DIMENSION_MAX_MM: Final = Decimal(10_000)
 WEIGHT_MAX_G: Final = 100_000
+# A scale's code names it in SKUs and addresses: H0, TT, N, Z, 0, G, 124 (for 1:24).
+SCALE_CODE: Final = re.compile(r"[A-Z0-9]{1,4}")
+SCALE_NAME_MAX_LENGTH: Final = 20
+SCALE_RATIO_MIN: Final = Decimal(1)
+SCALE_RATIO_MAX: Final = Decimal(1000)
+TRACK_GAUGE_MAX_MM: Final = Decimal("999.9")
 # GS1 reserves the prefixes 20 to 29 for numbers used inside one company.
 INTERNAL_GTIN_PREFIX: Final = "20"
 _GTIN_SERIAL_DIGITS: Final = 10
@@ -77,22 +84,82 @@ class MediaRole(StrEnum):
     SCALE_COMPARISON = "scale_comparison"
 
 
-# --- Reference data (rows of the migration, read-only at runtime) ------------------------
+# --- Reference data -------------------------------------------------------------------
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(eq=False, kw_only=True)
 class Scale:
-    """A gauge such as H0: scale 1:87, track gauge 16.5 mm."""
+    """A scale such as H0: models at 1:87. Railway models of it run on 16.5 mm track;
+    road vehicles have a scale but no track, so the gauge is optional.
+
+    The code is fixed once created: it is part of every SKU and of the shop's addresses.
+    """
 
     code: str
     name: str
-    ratio_denominator: int
-    track_gauge_mm: Decimal
-    position: int
+    ratio_denominator: Decimal
+    track_gauge_mm: Decimal | None
+
+    @classmethod
+    def create(
+        cls, *, code: str, name: str, ratio_denominator: Decimal, track_gauge_mm: Decimal | None
+    ) -> "Scale":
+        return cls(
+            code=_scale_code(code),
+            name=single_line(name, field="name", max_length=SCALE_NAME_MAX_LENGTH),
+            ratio_denominator=_ratio(ratio_denominator),
+            track_gauge_mm=_track_gauge(track_gauge_mm),
+        )
+
+    def change(
+        self,
+        *,
+        name: Maybe[str] = UNSET,
+        ratio_denominator: Maybe[Decimal] = UNSET,
+        track_gauge_mm: Maybe[Decimal | None] = UNSET,
+    ) -> None:
+        if name is not UNSET:
+            self.name = single_line(name, field="name", max_length=SCALE_NAME_MAX_LENGTH)
+        if ratio_denominator is not UNSET:
+            self.ratio_denominator = _ratio(ratio_denominator)
+        if track_gauge_mm is not UNSET:
+            self.track_gauge_mm = _track_gauge(track_gauge_mm)
 
     @property
     def ratio(self) -> str:
-        return f"1:{self.ratio_denominator}"
+        """``1:87``, ``1:22,5`` - written the German way."""
+        number = self.ratio_denominator.normalize()
+        text = f"{number:f}".replace(".", ",")
+        return f"1:{text}"
+
+
+def _scale_code(value: str) -> str:
+    code = value.strip().upper()
+    if not SCALE_CODE.fullmatch(code):
+        raise InvalidFieldError("code", "invalid", "one to four letters or digits, e.g. H0")
+    return code
+
+
+def _one_decimal(value: Decimal, *, field: str) -> Decimal:
+    if not value.is_finite() or value != value.quantize(Decimal("0.1")):
+        raise InvalidFieldError(field, "invalid", "a number with at most one decimal place")
+    return value.quantize(Decimal("0.1"))
+
+
+def _ratio(value: Decimal) -> Decimal:
+    ratio = _one_decimal(value, field="ratio_denominator")
+    if not SCALE_RATIO_MIN < ratio <= SCALE_RATIO_MAX:
+        raise InvalidFieldError("ratio_denominator", "out_of_range", "between 1:1 and 1:1000")
+    return ratio
+
+
+def _track_gauge(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    gauge = _one_decimal(value, field="track_gauge_mm")
+    if not Decimal(0) < gauge <= TRACK_GAUGE_MAX_MM:
+        raise InvalidFieldError("track_gauge_mm", "out_of_range", "above 0 and plausible")
+    return gauge
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,7 +221,7 @@ def check_price(price_cents: int, compare_at_price_cents: int | None) -> None:
 
 @dataclass(frozen=True, slots=True)
 class Dimensions:
-    """Size and weight of the model in one gauge; any of them may be unknown."""
+    """Size and weight of the model in one scale; any of them may be unknown."""
 
     length_mm: Decimal | None = None
     width_mm: Decimal | None = None
@@ -224,7 +291,7 @@ class Category:
 
 @dataclass(eq=False, kw_only=True)
 class Variant:
-    """What a customer buys: one gauge in one finish, with SKU, EAN and price."""
+    """What a customer buys: one scale in one finish, with SKU, EAN and price."""
 
     id: UUID
     product_scale_id: UUID
@@ -241,7 +308,7 @@ class Variant:
 
 @dataclass(eq=False, kw_only=True)
 class ProductScale:
-    """The product in one gauge, with the model's size in that gauge."""
+    """The product in one scale, with the model's size in that scale."""
 
     id: UUID
     product_id: UUID
@@ -266,7 +333,7 @@ class ProductEpoch:
 class ProductMedia:
     """An image of the gallery; ``position`` 0 is the main image.
 
-    ``scale_code`` and ``finish_code`` say which gauge or finish the photo shows, so
+    ``scale_code`` and ``finish_code`` say which scale or finish the photo shows, so
     the shop can switch the gallery with the customer's choice.
     """
 
@@ -447,7 +514,7 @@ class Product:
         self._ensure_still_sellable()
         self.updated_at = now
 
-    # --- Gauges and variants --------------------------------------------------------------
+    # --- Scales and variants --------------------------------------------------------------
 
     def add_scale(self, scale: Scale, dimensions: Dimensions, now: datetime) -> ProductScale:
         if any(s.scale_code == scale.code for s in self.scales):
@@ -476,7 +543,7 @@ class Product:
         self.updated_at = now
 
     def remove_scale(self, product_scale_id: UUID, now: datetime) -> None:
-        """Drop a gauge with its variants. Photos tagged with it lose the tag."""
+        """Drop a scale with its variants. Photos tagged with it lose the tag."""
         product_scale = self.scale(product_scale_id)
         self.scales.remove(product_scale)
         for entry in self.media:

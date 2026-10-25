@@ -10,7 +10,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modellbahn.modules.catalog.application.scales import ScaleUsage
 from modellbahn.modules.catalog.application.services import (
+    Navigation,
     ProductCard,
     ProductDetails,
     ProductPage,
@@ -25,6 +27,7 @@ from modellbahn.modules.catalog.domain.model import (
     PRICE_MAX_CENTS,
     PRODUCT_NAME_MAX_LENGTH,
     PROTOTYPE_MAX_LENGTH,
+    SCALE_NAME_MAX_LENGTH,
     SUMMARY_MAX_LENGTH,
     WEIGHT_MAX_G,
     Category,
@@ -65,10 +68,15 @@ def _float(value: Decimal | None) -> float | None:
 
 
 class ScaleOut(BaseModel):
-    code: str = Field(examples=["H0"])
-    name: str
-    ratio: str = Field(examples=["1:87"])
-    track_gauge_mm: float = Field(examples=[16.5])
+    code: str = Field(
+        examples=["H0"], description="Fixed once created; part of SKUs and addresses."
+    )
+    name: str = Field(examples=["H0"])
+    ratio: str = Field(examples=["1:87"], description="Written the German way: 1:87, 1:22,5.")
+    ratio_denominator: float = Field(examples=[87])
+    track_gauge_mm: float | None = Field(
+        examples=[16.5], description="Null for scales without a track, e.g. road vehicles."
+    )
 
     @classmethod
     def from_scale(cls, scale: Scale) -> Self:
@@ -76,8 +84,39 @@ class ScaleOut(BaseModel):
             code=scale.code,
             name=scale.name,
             ratio=scale.ratio,
-            track_gauge_mm=float(scale.track_gauge_mm),
+            ratio_denominator=float(scale.ratio_denominator),
+            track_gauge_mm=_float(scale.track_gauge_mm),
         )
+
+
+class AdminScaleOut(ScaleOut):
+    product_count: int = Field(description="Products offered in it, in any state.")
+
+    @classmethod
+    def from_usage(cls, usage: ScaleUsage) -> Self:
+        return cls(
+            **ScaleOut.from_scale(usage.scale).model_dump(), product_count=usage.product_count
+        )
+
+
+class ScaleCreateIn(_Request):
+    code: Annotated[str, Field(min_length=1, max_length=4, examples=["124"])]
+    name: Annotated[str, Field(min_length=1, max_length=SCALE_NAME_MAX_LENGTH, examples=["1:24"])]
+    ratio_denominator: Annotated[float, Field(gt=1, le=1000, examples=[24])]
+    track_gauge_mm: Annotated[float, Field(gt=0, lt=1000)] | None = None
+
+
+class ScalePatchIn(_Request):
+    """Only the fields sent are changed; ``track_gauge_mm: null`` removes the track gauge."""
+
+    name: Annotated[str, Field(min_length=1, max_length=SCALE_NAME_MAX_LENGTH)] | None = None
+    ratio_denominator: Annotated[float, Field(gt=1, le=1000)] | None = None
+    track_gauge_mm: Annotated[float, Field(gt=0, lt=1000)] | None = None
+
+
+def exact_decimal(value: float) -> Decimal:
+    """The number as typed (22.5 stays 22.5); the model checks the decimal places."""
+    return Decimal(repr(value))
 
 
 class FinishOut(BaseModel):
@@ -101,7 +140,7 @@ class EpochOut(BaseModel):
 
 
 class ReferencesOut(BaseModel):
-    """Gauges, finishes and epochs, each in display order."""
+    """Scales, finishes and epochs, each in display order."""
 
     scales: list[ScaleOut]
     finishes: list[FinishOut]
@@ -412,7 +451,7 @@ class ProductPatchIn(_Request):
 
 
 class DimensionsIn(_Request):
-    """Size and weight of the model in this gauge; null where unknown."""
+    """Size and weight of the model in this scale; null where unknown."""
 
     length_mm: Millimetres | None = None
     width_mm: Millimetres | None = None
@@ -481,13 +520,50 @@ class GalleryIn(_Request):
 # --- The shop -------------------------------------------------------------------------
 
 
-class NavigationOut(BaseModel):
-    """Categories (flat, with ``parent_id``) and the reference data for filters."""
+class NavigationScaleOut(ScaleOut):
+    product_count: int = Field(description="Products in the shop in this scale.")
 
-    categories: list[CategoryOut]
-    scales: list[ScaleOut]
+
+class NavigationCategoryOut(CategoryOut):
+    product_counts: dict[str, int] = Field(
+        description=(
+            "Products in the shop directly in this category, per scale code; scales "
+            "without any are left out. Add the subcategories for the whole branch."
+        ),
+        examples=[{"H0": 4, "N": 1}],
+    )
+
+
+class NavigationOut(BaseModel):
+    """Categories (flat, with ``parent_id``), scales by size and the other reference
+    data, with how many products each choice shows."""
+
+    categories: list[NavigationCategoryOut]
+    scales: list[NavigationScaleOut]
     finishes: list[FinishOut]
     epochs: list[EpochOut]
+
+    @classmethod
+    def from_navigation(cls, navigation: Navigation) -> Self:
+        references = navigation.references
+        return cls(
+            categories=[
+                NavigationCategoryOut(
+                    **CategoryOut.from_category(category).model_dump(),
+                    product_counts=navigation.category_counts(category.id),
+                )
+                for category in navigation.categories
+            ],
+            scales=[
+                NavigationScaleOut(
+                    **ScaleOut.from_scale(scale).model_dump(),
+                    product_count=navigation.scale_count(scale.code),
+                )
+                for scale in references.scales
+            ],
+            finishes=[FinishOut.from_finish(f) for f in references.finishes],
+            epochs=[EpochOut.from_epoch(e) for e in references.epochs],
+        )
 
 
 class StoreProductCardOut(BaseModel):
@@ -495,7 +571,7 @@ class StoreProductCardOut(BaseModel):
     number: int
     name: str
     summary: str
-    # Gauges with at least one variant for sale, in display order.
+    # Scales with at least one variant for sale, in display order.
     scale_codes: list[str]
     price_from_cents: int | None
     image: ImageOut | None
@@ -537,7 +613,7 @@ class StoreScaleOut(BaseModel):
     code: str
     name: str
     ratio: str
-    track_gauge_mm: float
+    track_gauge_mm: float | None
     length_mm: float | None
     width_mm: float | None
     height_mm: float | None
@@ -559,7 +635,7 @@ class CategoryRefOut(BaseModel):
 
 
 class StoreProductOut(BaseModel):
-    """A product page: gauges and finishes for sale, gallery of ready images."""
+    """A product page: scales and finishes for sale, gallery of ready images."""
 
     slug: str
     number: int
@@ -593,7 +669,7 @@ class StoreProductOut(BaseModel):
                     code=scale.code,
                     name=scale.name,
                     ratio=scale.ratio,
-                    track_gauge_mm=float(scale.track_gauge_mm),
+                    track_gauge_mm=_float(scale.track_gauge_mm),
                     length_mm=_float(product_scale.length_mm),
                     width_mm=_float(product_scale.width_mm),
                     height_mm=_float(product_scale.height_mm),

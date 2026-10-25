@@ -48,11 +48,13 @@ scales = Table(
     "scales",
     metadata,
     Column("code", Text, primary_key=True),
-    Column("name", Text, nullable=False),
-    Column("ratio_denominator", SmallInteger, nullable=False),
-    Column("track_gauge_mm", Numeric(4, 1), nullable=False),
-    Column("position", SmallInteger, nullable=False),
-    CheckConstraint("ratio_denominator > 0", name="ratio_positive"),
+    Column("name", Text, nullable=False, unique=True),
+    Column("ratio_denominator", Numeric(5, 1), nullable=False),
+    # Road vehicles have a scale but no track.
+    Column("track_gauge_mm", Numeric(4, 1)),
+    CheckConstraint("ratio_denominator > 1 AND ratio_denominator <= 1000", name="ratio_range"),
+    CheckConstraint("track_gauge_mm IS NULL OR track_gauge_mm > 0", name="track_gauge_positive"),
+    CheckConstraint("code ~ '^[A-Z0-9]{1,4}$'", name="code_format"),
     schema=SCHEMA,
 )
 
@@ -152,7 +154,7 @@ product_scales = Table(
     Column("width_mm", Numeric(6, 1)),
     Column("height_mm", Numeric(6, 1)),
     Column("weight_g", Integer),
-    # One row per gauge and product.
+    # One row per scale and product.
     UniqueConstraint("product_id", "scale_code"),
     CheckConstraint(
         "(length_mm IS NULL OR length_mm > 0) AND (width_mm IS NULL OR width_mm > 0) "
@@ -182,7 +184,7 @@ variants = Table(
     Column("active", Boolean, nullable=False, server_default=text("true")),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
-    # Each gauge is sold at most once in each finish.
+    # Each scale is sold at most once in each finish.
     UniqueConstraint("product_scale_id", "finish_code"),
     CheckConstraint("price_cents >= 0", name="price_non_negative"),
     CheckConstraint(

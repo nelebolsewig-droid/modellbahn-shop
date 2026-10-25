@@ -11,17 +11,18 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { CategoryOut } from './categoryOut';
 import type { EpochOut } from './epochOut';
 import type { FinishOut } from './finishOut';
-import type { ScaleOut } from './scaleOut';
+import type { NavigationCategoryOut } from './navigationCategoryOut';
+import type { NavigationScaleOut } from './navigationScaleOut';
 
 /**
- * Categories (flat, with ``parent_id``) and the reference data for filters.
+ * Categories (flat, with ``parent_id``), scales by size and the other reference
+ * data, with how many products each choice shows.
  */
 export interface NavigationOut {
-  categories: CategoryOut[];
+  categories: NavigationCategoryOut[];
   epochs: EpochOut[];
   finishes: FinishOut[];
-  scales: ScaleOut[];
+  scales: NavigationScaleOut[];
 }

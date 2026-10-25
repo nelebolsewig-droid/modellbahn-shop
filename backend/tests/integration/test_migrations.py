@@ -134,4 +134,31 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "fk_orders_customer_account_id_customer_kind_accounts",
         "fk_customer_addresses_account_id_account_kind_accounts",
         "ex_customer_addresses_one_default",
+        "ck_scales_code_format",
+        "ck_scales_ratio_range",
+        "uq_scales_name",
     } <= names
+
+
+@pytest.mark.usefixtures("clean_database")
+async def test_scales_start_with_rail_and_road_scales(engine: AsyncEngine) -> None:
+    async with engine.connect() as connection:
+        rows = await connection.execute(
+            text(
+                "SELECT code, name, ratio_denominator, track_gauge_mm FROM catalog.scales "
+                "ORDER BY ratio_denominator DESC"
+            )
+        )
+        scales = [
+            (code, name, str(ratio), gauge and str(gauge)) for code, name, ratio, gauge in rows
+        ]
+    assert scales == [
+        ("Z", "Z", "220.0", "6.5"),
+        ("N", "N", "160.0", "9.0"),
+        ("TT", "TT", "120.0", "12.0"),
+        ("H0", "H0", "87.0", "16.5"),
+        ("0", "0", "45.0", "32.0"),
+        ("125", "1:25", "25.0", None),
+        ("124", "1:24", "24.0", None),
+        ("G", "G", "22.5", "45.0"),
+    ]

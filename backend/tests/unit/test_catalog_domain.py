@@ -38,8 +38,8 @@ from modellbahn.modules.catalog.domain.model import (
 from modellbahn.modules.catalog.domain.text import check_slug, multi_line, single_line, slugify
 from tests.support import NOW
 
-H0 = Scale(code="H0", name="H0", ratio_denominator=87, track_gauge_mm=Decimal("16.5"), position=1)
-N = Scale(code="N", name="N", ratio_denominator=160, track_gauge_mm=Decimal("9.0"), position=3)
+H0 = Scale(code="H0", name="H0", ratio_denominator=Decimal(87), track_gauge_mm=Decimal("16.5"))
+N = Scale(code="N", name="N", ratio_denominator=Decimal(160), track_gauge_mm=Decimal("9.0"))
 UNPAINTED = Finish(code="unpainted", name="unbemalt", sku_letter="U", position=1)
 PAINTED = Finish(code="painted", name="bemalt", sku_letter="B", position=3)
 
@@ -145,7 +145,7 @@ class TestNumbers:
 
 
 class TestGaugesAndVariants:
-    def test_each_gauge_once_and_each_finish_once_per_gauge(self) -> None:
+    def test_each_scale_once_and_each_finish_once_per_scale(self) -> None:
         item = product()
         scale = item.add_scale(H0, Dimensions(length_mm=Decimal("98.0")), NOW)
         with pytest.raises(ScaleAlreadyAddedError):
@@ -179,7 +179,7 @@ class TestGaugesAndVariants:
         with pytest.raises(VariantNotFoundError):
             item.change_variant(uuid4(), active=False, now=NOW)
 
-    def test_removing_a_gauge_untags_its_photos(self) -> None:
+    def test_removing_a_scale_untags_its_photos(self) -> None:
         item = product()
         scale = item.add_scale(N, Dimensions(), NOW)
         asset_id = uuid4()

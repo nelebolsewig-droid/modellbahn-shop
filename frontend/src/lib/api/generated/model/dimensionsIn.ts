@@ -13,7 +13,7 @@
  */
 
 /**
- * Size and weight of the model in this gauge; null where unknown.
+ * Size and weight of the model in this scale; null where unknown.
  */
 export interface DimensionsIn {
   height_mm?: number | null;

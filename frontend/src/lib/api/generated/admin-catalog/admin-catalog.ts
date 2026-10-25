@@ -31,6 +31,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminScaleOut,
   CategoryCreateIn,
   CategoryOut,
   CategoryPatchIn,
@@ -45,6 +46,8 @@ import type {
   ProductPatchIn,
   ProductScaleIn,
   ReferencesOut,
+  ScaleCreateIn,
+  ScalePatchIn,
   ValidationProblem,
   VariantCreateIn,
   VariantPatchIn
@@ -82,7 +85,7 @@ export const getGetCatalogReferencesUrl = () => {
 }
 
 /**
- * @summary Gauges, finishes and epochs
+ * @summary Scales, finishes and epochs
  */
 export const getCatalogReferences = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ReferencesOut> => {
 
@@ -153,7 +156,7 @@ export function useGetCatalogReferences<TData = Awaited<ReturnType<typeof getCat
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Gauges, finishes and epochs
+ * @summary Scales, finishes and epochs
  */
 
 export function useGetCatalogReferences<TData = Awaited<ReturnType<typeof getCatalogReferences>>, TError = ErrorType<Problem>>(
@@ -458,7 +461,7 @@ export const useUpdateCategory = <TError = ErrorType<Problem | ValidationProblem
 
 /**
  * Removes its variants too; answers with the changed product.
- * @summary Stop offering the product in this gauge
+ * @summary Stop offering the product in this scale
  */
 export const deleteProductScale = async (productScaleId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
 
@@ -510,7 +513,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteProductScaleMutationVariables = {productScaleId: string}
 
     /**
- * @summary Stop offering the product in this gauge
+ * @summary Stop offering the product in this scale
  */
 export const useDeleteProductScale = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductScale>>, TError,DeleteProductScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -532,7 +535,7 @@ export const useDeleteProductScale = <TError = ErrorType<Problem | ValidationPro
 
 /**
  * Replaces all four values; null means unknown.
- * @summary Set the size and weight in this gauge
+ * @summary Set the size and weight in this scale
  */
 export const updateProductScale = async (productScaleId: string,
     dimensionsIn: DimensionsIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
@@ -599,7 +602,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateProductScaleMutationVariables = {productScaleId: string;data: DimensionsIn}
 
     /**
- * @summary Set the size and weight in this gauge
+ * @summary Set the size and weight in this scale
  */
 export const useUpdateProductScale = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductScale>>, TError,UpdateProductScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -621,7 +624,7 @@ export const useUpdateProductScale = <TError = ErrorType<Problem | ValidationPro
 
 /**
  * SKU and internal EAN-13 are assigned automatically.
- * @summary Sell the gauge in another finish
+ * @summary Sell the scale in another finish
  */
 export const addVariant = async (productScaleId: string,
     variantCreateIn: VariantCreateIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
@@ -688,7 +691,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AddVariantMutationVariables = {productScaleId: string;data: VariantCreateIn}
 
     /**
- * @summary Sell the gauge in another finish
+ * @summary Sell the scale in another finish
  */
 export const useAddVariant = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addVariant>>, TError,AddVariantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -976,7 +979,7 @@ export const useDeleteProduct = <TError = ErrorType<Problem | ValidationProblem>
 }
 
 /**
- * @summary A product with gauges, variants and gallery
+ * @summary A product with scales, variants and gallery
  */
 export const getProduct = async (productId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
 
@@ -1047,7 +1050,7 @@ export function useGetProduct<TData = Awaited<ReturnType<typeof getProduct>>, TE
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary A product with gauges, variants and gallery
+ * @summary A product with scales, variants and gallery
  */
 
 export function useGetProduct<TData = Awaited<ReturnType<typeof getProduct>>, TError = ErrorType<Problem | ValidationProblem>>(
@@ -1492,7 +1495,7 @@ export const usePublishProduct = <TError = ErrorType<Problem | ValidationProblem
 }
 
 /**
- * @summary Offer the product in another gauge
+ * @summary Offer the product in another scale
  */
 export const addProductScale = async (productId: string,
     productScaleIn: ProductScaleIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
@@ -1559,7 +1562,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AddProductScaleMutationVariables = {productId: string;data: ProductScaleIn}
 
     /**
- * @summary Offer the product in another gauge
+ * @summary Offer the product in another scale
  */
 export const useAddProductScale = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addProductScale>>, TError,AddProductScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -1570,6 +1573,354 @@ export const useAddProductScale = <TError = ErrorType<Problem | ValidationProble
         TContext
       > => {
       return useMutation(getAddProductScaleMutationOptions(options), queryClient);
+    }
+    export const getListScalesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/scales`
+}
+
+/**
+ * @summary Every scale, the smallest models first, with how many products use it
+ */
+export const listScales = async ( options?: Parameters<typeof apiFetch>[1]): Promise<AdminScaleOut[]> => {
+
+  return apiFetch<AdminScaleOut[]>(getListScalesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListScalesQueryKey = () => {
+    return [
+    `/api/v1/admin/scales`
+    ] as const;
+    }
+
+
+export const getListScalesQueryOptions = <TData = Awaited<ReturnType<typeof listScales>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListScalesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScales>>> = ({ signal }) => listScales({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListScalesQueryResult = NonNullable<Awaited<ReturnType<typeof listScales>>>
+export type ListScalesQueryError = ErrorType<Problem>
+
+
+export function useListScales<TData = Awaited<ReturnType<typeof listScales>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listScales>>,
+          TError,
+          Awaited<ReturnType<typeof listScales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListScales<TData = Awaited<ReturnType<typeof listScales>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listScales>>,
+          TError,
+          Awaited<ReturnType<typeof listScales>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListScales<TData = Awaited<ReturnType<typeof listScales>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Every scale, the smallest models first, with how many products use it
+ */
+
+export function useListScales<TData = Awaited<ReturnType<typeof listScales>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listScales>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListScalesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getCreateScaleUrl = () => {
+
+
+
+
+  return `/api/v1/admin/scales`
+}
+
+/**
+ * @summary Add a scale, e.g. 1:24 for road vehicles
+ */
+export const createScale = async (scaleCreateIn: ScaleCreateIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminScaleOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AdminScaleOut>(getCreateScaleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scaleCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreateScaleMutationKey = () => ['createScale'] as const;
+
+export const getCreateScaleMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createScale>>, TError,CreateScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createScale>>, TError,CreateScaleMutationVariables, TContext> => {
+
+const mutationKey = getCreateScaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createScale>>, CreateScaleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createScale(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateScaleMutationResult = NonNullable<Awaited<ReturnType<typeof createScale>>>
+    export type CreateScaleMutationBody = ScaleCreateIn
+    export type CreateScaleMutationError = ErrorType<Problem | ValidationProblem>
+    export type CreateScaleMutationVariables = {data: ScaleCreateIn}
+
+    /**
+ * @summary Add a scale, e.g. 1:24 for road vehicles
+ */
+export const useCreateScale = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createScale>>, TError,CreateScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createScale>>,
+        TError,
+        CreateScaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateScaleMutationOptions(options), queryClient);
+    }
+    export const getDeleteScaleUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/admin/scales/${code}`
+}
+
+/**
+ * @summary Remove a scale no product and no photo uses
+ */
+export const deleteScale = async (code: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteScaleUrl(code),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteScaleMutationKey = () => ['deleteScale'] as const;
+
+export const getDeleteScaleMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteScale>>, TError,DeleteScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteScale>>, TError,DeleteScaleMutationVariables, TContext> => {
+
+const mutationKey = getDeleteScaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteScale>>, DeleteScaleMutationVariables> = (props) => {
+          const {code} = props ?? {};
+
+          return  deleteScale(code,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteScaleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteScale>>>
+
+    export type DeleteScaleMutationError = ErrorType<Problem | ValidationProblem>
+    export type DeleteScaleMutationVariables = {code: string}
+
+    /**
+ * @summary Remove a scale no product and no photo uses
+ */
+export const useDeleteScale = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteScale>>, TError,DeleteScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteScale>>,
+        TError,
+        DeleteScaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteScaleMutationOptions(options), queryClient);
+    }
+    export const getUpdateScaleUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/admin/scales/${code}`
+}
+
+/**
+ * @summary Rename a scale or correct its ratio or track gauge (the code stays)
+ */
+export const updateScale = async (code: string,
+    scalePatchIn: ScalePatchIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminScaleOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AdminScaleOut>(getUpdateScaleUrl(code),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(scalePatchIn)
+  }
+);}
+
+
+
+
+
+export const getUpdateScaleMutationKey = () => ['updateScale'] as const;
+
+export const getUpdateScaleMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScale>>, TError,UpdateScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateScale>>, TError,UpdateScaleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateScaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateScale>>, UpdateScaleMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  updateScale(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateScaleMutationResult = NonNullable<Awaited<ReturnType<typeof updateScale>>>
+    export type UpdateScaleMutationBody = ScalePatchIn
+    export type UpdateScaleMutationError = ErrorType<Problem | ValidationProblem>
+    export type UpdateScaleMutationVariables = {code: string;data: ScalePatchIn}
+
+    /**
+ * @summary Rename a scale or correct its ratio or track gauge (the code stays)
+ */
+export const useUpdateScale = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateScale>>, TError,UpdateScaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateScale>>,
+        TError,
+        UpdateScaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateScaleMutationOptions(options), queryClient);
     }
     export const getDeleteVariantUrl = (variantId: string,) => {
 

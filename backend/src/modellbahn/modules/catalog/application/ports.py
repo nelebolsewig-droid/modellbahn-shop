@@ -60,7 +60,7 @@ class ProductQuery:
 
 class ProductRepository(Protocol):
     async def get(self, product_id: UUID, *, for_update: bool = False) -> Product | None:
-        """The product with gauges, variants, epochs and gallery. ``for_update`` locks it."""
+        """The product with scales, variants, epochs and gallery. ``for_update`` locks it."""
         ...
 
     async def get_by_slug(self, slug: str) -> Product | None: ...
@@ -68,7 +68,7 @@ class ProductRepository(Protocol):
     async def get_for_scale(
         self, product_scale_id: UUID, *, for_update: bool = False
     ) -> Product | None:
-        """The product a gauge row belongs to."""
+        """The product a scale row belongs to."""
         ...
 
     async def get_for_variant(
@@ -86,10 +86,18 @@ class ProductRepository(Protocol):
     def add(self, product: Product) -> None: ...
 
     def mark_changed(self, product: Product) -> None:
-        """Count a change in the product's version, even if only a gauge or image changed."""
+        """Count a change in the product's version, even if only a scale or image changed."""
         ...
 
     async def delete(self, product: Product) -> None: ...
+
+    async def offered_counts(self) -> dict[tuple[UUID, str], int]:
+        """Products in the shop per category and scale.
+
+        A product counts in a scale when it has an active variant there, as in
+        :meth:`search`, and in its own category only (not in the parents).
+        """
+        ...
 
     async def search(self, query: ProductQuery) -> list[Product]:
         """Products matching ``query``, one page in the requested order."""
@@ -109,9 +117,31 @@ class CategoryRepository(Protocol):
 
 
 class ReferenceData(Protocol):
-    """Gauges, finishes and epochs: rows of the migration, the same for every request."""
+    """Scales, finishes and epochs. Staff maintain the scales; the rest is fixed."""
 
-    async def scales(self) -> list[Scale]: ...
+    async def scales(self) -> list[Scale]:
+        """By size of the models: the smallest scale (largest ratio) first."""
+        ...
+
+    async def get_scale(self, code: str, *, for_update: bool = False) -> Scale | None: ...
+
+    async def scale_taken(
+        self, *, code: str | None = None, name: str | None = None, except_code: str | None = None
+    ) -> bool:
+        """Whether a scale (other than ``except_code``) has this code or this name."""
+        ...
+
+    async def scale_usage(self) -> dict[str, int]:
+        """How many products (in any state) are offered in each scale that has any."""
+        ...
+
+    async def scale_in_use(self, code: str) -> bool:
+        """A product is offered in it or a photo is tagged with it."""
+        ...
+
+    def add_scale(self, scale: Scale) -> None: ...
+
+    async def delete_scale(self, scale: Scale) -> None: ...
 
     async def finishes(self) -> list[Finish]: ...
 
