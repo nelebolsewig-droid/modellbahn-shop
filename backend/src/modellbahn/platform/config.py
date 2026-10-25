@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # routes within the window; 0 switches the limit off.
     auth_rate_limit: int = Field(default=30, ge=0)
     auth_rate_window_seconds: float = Field(default=600.0, gt=0)
+    # The same for checkouts and payments together; 0 switches the limit off.
+    checkout_rate_limit: int = Field(default=30, ge=0)
+    checkout_rate_window_seconds: float = Field(default=600.0, gt=0)
 
     # Object storage (S3 API). The defaults reach the storage service of docker-compose.yml
     # from the host, with the development key of .env.example.

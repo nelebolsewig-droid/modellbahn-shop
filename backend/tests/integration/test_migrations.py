@@ -14,11 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
 from modellbahn.modules.media.infrastructure import tables as media_tables
+from modellbahn.modules.sales.infrastructure import tables as sales_tables
 from modellbahn.platform import outbox
 from modellbahn.platform.db import create_engine, metadata
 from tests.support import create_database, downgrade, drop_database, migrate
 
-SCHEMAS = ("platform", "identity", "media", "catalog")
+SCHEMAS = ("platform", "identity", "media", "catalog", "sales")
 
 
 @pytest.fixture
@@ -38,7 +39,7 @@ async def _tables(database_url: str) -> set[str]:
             rows = await connection.execute(
                 text(
                     "SELECT table_schema || '.' || table_name FROM information_schema.tables "
-                    "WHERE table_schema IN ('platform', 'identity', 'media', 'catalog')"
+                    "WHERE table_schema IN ('platform', 'identity', 'media', 'catalog', 'sales')"
                 )
             )
             return set(rows.scalars())
@@ -64,6 +65,12 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "catalog.product_scales",
         "catalog.variants",
         "catalog.product_media",
+        "sales.carts",
+        "sales.cart_lines",
+        "sales.orders",
+        "sales.order_lines",
+        "sales.payments",
+        "sales.customer_addresses",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -92,6 +99,7 @@ async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
     assert identity_tables.accounts.metadata is metadata
     assert media_tables.assets.metadata is metadata
     assert catalog_tables.products.metadata is metadata
+    assert sales_tables.orders.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 
@@ -101,7 +109,7 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         rows = await connection.execute(
             text(
                 "SELECT conname FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace "
-                "WHERE n.nspname IN ('platform', 'identity', 'media', 'catalog')"
+                "WHERE n.nspname IN ('platform', 'identity', 'media', 'catalog', 'sales')"
             )
         )
         names = set(rows.scalars())
@@ -120,4 +128,10 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "fk_product_media_asset_id_asset_kind_assets",
         "uq_variants_product_scale_id_finish_code",
         "ck_variants_gtin_format",
+        "uq_orders_checkout_key",
+        "uq_payments_idempotency_key",
+        "ck_orders_total_is_sum",
+        "fk_orders_customer_account_id_customer_kind_accounts",
+        "fk_customer_addresses_account_id_account_kind_accounts",
+        "ex_customer_addresses_one_default",
     } <= names

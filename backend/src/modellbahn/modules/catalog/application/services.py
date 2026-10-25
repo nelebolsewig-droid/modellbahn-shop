@@ -503,11 +503,20 @@ class CatalogService:
         *,
         category_slug: str | None = None,
         scale_code: str | None = None,
+        epoch_code: str | None = None,
         text: str | None = None,
+        order: ProductOrder = ProductOrder.PUBLISHED,
         cursor: str | None = None,
         limit: int = 24,
     ) -> ProductPage:
-        """Products in the shop, newest first; a category includes its subcategories."""
+        """Products in the shop, newest first unless ``order`` says otherwise.
+
+        A category includes its subcategories; a gauge or an epoch narrows the list to
+        products offered in it.
+        """
+        if order is ProductOrder.CREATED:
+            msg = "the shop lists by publication, price or name"
+            raise ValueError(msg)
         async with self._uow() as uow:
             category_ids: frozenset[UUID] | None = None
             if category_slug is not None:
@@ -516,14 +525,18 @@ class CatalogService:
                 if root is None:
                     raise CategoryNotFoundError
                 category_ids = _subtree(everything, root.id)
+            references = await _references(uow)
             if scale_code is not None:
-                (await _references(uow)).scale(scale_code, field="scale")
+                references.scale(scale_code, field="scale")
+            if epoch_code is not None:
+                references.check_epochs([epoch_code], field="epoch")
             query = ProductQuery(
-                order=ProductOrder.PUBLISHED,
+                order=order,
                 limit=min(limit, STORE_PAGE_MAX),
                 statuses=frozenset({ProductStatus.ACTIVE}),
                 category_ids=category_ids,
                 scale_code=scale_code,
+                epoch_code=epoch_code,
                 text=text or None,
                 after=None if cursor is None else decode_cursor(cursor),
             )
@@ -630,6 +643,7 @@ async def _page(uow: CatalogUnitOfWork, query: ProductQuery) -> ProductPage:
             statuses=query.statuses,
             category_ids=query.category_ids,
             scale_code=query.scale_code,
+            epoch_code=query.epoch_code,
             text=query.text,
             after=query.after,
         )
@@ -648,13 +662,20 @@ async def _page(uow: CatalogUnitOfWork, query: ProductQuery) -> ProductPage:
     next_cursor = None
     if more and page:
         last = page[-1]
-        next_cursor = encode_cursor(
-            ProductCursor(
-                id=last.id,
-                published_at=last.published_at if query.order is ProductOrder.PUBLISHED else None,
-            )
-        )
+        next_cursor = encode_cursor(_cursor_after(last, query.order))
     return ProductPage(items=items, next_cursor=next_cursor)
+
+
+def _cursor_after(product: Product, order: ProductOrder) -> ProductCursor:
+    match order:
+        case ProductOrder.PUBLISHED:
+            return ProductCursor(id=product.id, published_at=product.published_at)
+        case ProductOrder.PRICE_ASC | ProductOrder.PRICE_DESC:
+            return ProductCursor(id=product.id, price_cents=product.lowest_price_cents)
+        case ProductOrder.NAME:
+            return ProductCursor(id=product.id, name=product.name)
+        case ProductOrder.CREATED:
+            return ProductCursor(id=product.id)
 
 
 def _check_no_cycle(categories: list[Category], category_id: UUID, parent_id: UUID) -> None:

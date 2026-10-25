@@ -5,13 +5,14 @@ Repositories only read and stage changes; committing is the unit of work's job.
 
 from collections.abc import Collection
 from functools import partial
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, exists, func, select, tuple_
+from sqlalchemy import ColumnElement, Select, exists, func, literal, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
-from modellbahn.modules.catalog.application.ports import ProductOrder, ProductQuery
+from modellbahn.modules.catalog.application.ports import ProductCursor, ProductOrder, ProductQuery
 from modellbahn.modules.catalog.domain.model import (
     Category,
     Epoch,
@@ -25,6 +26,7 @@ from modellbahn.modules.catalog.infrastructure.tables import (
     epochs,
     finishes,
     gtin_serial_seq,
+    product_epochs,
     product_number_seq,
     product_scales,
     products,
@@ -117,25 +119,60 @@ class SqlProductRepository:
                     variants.c.active.is_(True),
                 )
             )
+        if query.epoch_code is not None:
+            statement = statement.where(
+                exists().where(
+                    product_epochs.c.product_id == products.c.id,
+                    product_epochs.c.epoch_code == query.epoch_code,
+                )
+            )
         if query.text:
             statement = statement.where(
                 products.c.search_vector.op("@@")(func.websearch_to_tsquery("german", query.text))
             )
-        after = query.after
-        if query.order is ProductOrder.PUBLISHED:
-            statement = statement.order_by(products.c.published_at.desc(), products.c.id.desc())
-            if after is not None and after.published_at is not None:
-                statement = statement.where(
-                    tuple_(products.c.published_at, products.c.id)
-                    < tuple_(after.published_at, after.id)
-                )
-        else:
+        statement = _ordered(statement, query.order, query.after).limit(query.limit)
+        return list((await self._session.execute(statement)).scalars())
+
+
+# The "from" price: the cheapest active variant, as Product.lowest_price_cents computes it.
+_LOWEST_PRICE = (
+    select(func.min(variants.c.price_cents))
+    .join(product_scales, product_scales.c.id == variants.c.product_scale_id)
+    .where(product_scales.c.product_id == products.c.id, variants.c.active.is_(True))
+    .correlate(products)
+    .scalar_subquery()
+)
+
+
+def _ordered[*Ts](
+    statement: Select[*Ts], order: ProductOrder, after: ProductCursor | None
+) -> Select[*Ts]:
+    """Sort a product query and continue after the cursor (keyset: sort value, then id)."""
+    key: ColumnElement[Any]
+    value: object
+    match order:
+        case ProductOrder.PUBLISHED:
+            key, value = products.c.published_at, after.published_at if after else None
+            descending = True
+        case ProductOrder.PRICE_ASC | ProductOrder.PRICE_DESC:
+            key, value = _LOWEST_PRICE, after.price_cents if after else None
+            descending = order is ProductOrder.PRICE_DESC
+        case ProductOrder.NAME:
+            key, value = products.c.name, after.name if after else None
+            descending = False
+        case ProductOrder.CREATED:
             # Ids are UUIDv7: descending id is newest first.
             statement = statement.order_by(products.c.id.desc())
-            if after is not None:
-                statement = statement.where(products.c.id < after.id)
-        statement = statement.limit(query.limit)
-        return list((await self._session.execute(statement)).scalars())
+            return statement if after is None else statement.where(products.c.id < after.id)
+    if descending:
+        statement = statement.order_by(key.desc(), products.c.id.desc())
+    else:
+        statement = statement.order_by(key.asc(), products.c.id.asc())
+    if after is None or value is None:
+        return statement
+    position = tuple_(key, products.c.id)
+    cursor = tuple_(literal(value), literal(after.id))
+    return statement.where(position < cursor if descending else position > cursor)
 
 
 class SqlCategoryRepository:

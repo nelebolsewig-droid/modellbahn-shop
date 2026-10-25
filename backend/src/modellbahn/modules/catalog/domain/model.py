@@ -370,6 +370,11 @@ class Product:
     def variants(self) -> list[Variant]:
         return [variant for scale in self.scales for variant in scale.variants]
 
+    @property
+    def lowest_price_cents(self) -> int | None:
+        """The "from" price of the shop: the cheapest active variant."""
+        return min((v.price_cents for v in self.variants if v.active), default=None)
+
     def scale(self, product_scale_id: UUID) -> ProductScale:
         found = next((s for s in self.scales if s.id == product_scale_id), None)
         if found is None:

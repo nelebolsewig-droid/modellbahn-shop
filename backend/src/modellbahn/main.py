@@ -41,6 +41,21 @@ from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
+from modellbahn.modules.sales.api import account as sales_account
+from modellbahn.modules.sales.api import admin as sales_admin
+from modellbahn.modules.sales.api import store as sales_store
+from modellbahn.modules.sales.api.deps import CHECKOUT_RATE_LIMITER
+from modellbahn.modules.sales.api.errors import (
+    install_error_translations as install_sales_error_translations,
+)
+from modellbahn.modules.sales.application.addresses import AddressService
+from modellbahn.modules.sales.application.cart import CartService
+from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
+from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
+from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.platform import http
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
@@ -70,10 +85,12 @@ API of the Modellbahn-Shop.
 
 _TAGS: Final = [
     {"name": "store-catalog", "description": "Products of the shop, public."},
-    {"name": "store-account", "description": "Customer accounts of the shop."},
+    {"name": "store-sales", "description": "Cart, checkout, order status and payment."},
+    {"name": "store-account", "description": "Customer accounts, their orders and addresses."},
     {"name": "admin-auth", "description": "Staff login for the admin area."},
     {"name": "admin-catalog", "description": "Products, gauges, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
+    {"name": "admin-sales", "description": "Orders: overview, dispatch, cancellation."},
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -94,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     start_identity_mappers()
     start_media_mappers()
     start_catalog_mappers()
+    start_sales_mappers()
     clock = SystemClock()
     identity_service = IdentityService(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
@@ -143,6 +161,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.identity_service = identity_service
     app.state.media_service = media_service
     app.state.catalog_service = catalog_service
+    _attach_sales_services(
+        app,
+        uow_factory=sales_uow_factory(
+            session_factory, public_base_url=settings.media_public_base_url
+        ),
+        clock=clock,
+    )
     app.state.realtime_hub = hub
     setattr(
         app.state,
@@ -151,19 +176,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             limit=settings.auth_rate_limit, window_seconds=settings.auth_rate_window_seconds
         ),
     )
+    setattr(
+        app.state,
+        CHECKOUT_RATE_LIMITER,
+        RateLimiter(
+            limit=settings.checkout_rate_limit,
+            window_seconds=settings.checkout_rate_window_seconds,
+        ),
+    )
 
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)
-    install_identity_error_translations(app)
-    install_media_error_translations(app)
-    install_catalog_error_translations(app)
+    for install_error_translations in (
+        install_identity_error_translations,
+        install_media_error_translations,
+        install_catalog_error_translations,
+        install_sales_error_translations,
+    ):
+        install_error_translations(app)
 
     api = APIRouter(prefix=API_PREFIX)
     api.include_router(catalog_store.router)
     api.include_router(identity_store.router)
+    api.include_router(sales_store.router)
+    api.include_router(sales_account.router)
     api.include_router(identity_admin.router)
     api.include_router(catalog_admin.router)
     api.include_router(media_admin.router)
+    api.include_router(sales_admin.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,
@@ -181,6 +221,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(http.router)
     app.include_router(api)
     return app
+
+
+def _attach_sales_services(
+    app: FastAPI, *, uow_factory: UnitOfWorkFactory, clock: SystemClock
+) -> None:
+    gateway = MockPaymentGateway()
+    app.state.cart_service = CartService(uow_factory=uow_factory, clock=clock)
+    app.state.checkout_service = CheckoutService(
+        uow_factory=uow_factory, clock=clock, gateway=gateway
+    )
+    app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
+    app.state.address_service = AddressService(uow_factory=uow_factory, clock=clock)
 
 
 app = create_app()

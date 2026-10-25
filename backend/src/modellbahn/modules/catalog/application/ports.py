@@ -24,10 +24,16 @@ from modellbahn.platform.events import DomainEvent
 
 
 class ProductOrder(StrEnum):
-    """``created``: newest first, for the admin list; ``published``: newest in the shop."""
+    """``created``: newest first, for the admin list; ``published``: newest in the shop.
+
+    The shop also sorts by the lowest price of the active variants and by name.
+    """
 
     CREATED = "created"
     PUBLISHED = "published"
+    PRICE_ASC = "price_asc"
+    PRICE_DESC = "price_desc"
+    NAME = "name"
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +42,8 @@ class ProductCursor:
 
     id: UUID
     published_at: datetime | None = None
+    price_cents: int | None = None
+    name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +53,7 @@ class ProductQuery:
     statuses: frozenset[ProductStatus] | None = None
     category_ids: frozenset[UUID] | None = None
     scale_code: str | None = None
+    epoch_code: str | None = None
     text: str | None = None
     after: ProductCursor | None = None
 

@@ -34,6 +34,16 @@ from modellbahn.modules.media.application.services import (
 )
 from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
+from modellbahn.modules.sales.application.addresses import AddressService
+from modellbahn.modules.sales.application.cart import CartService
+from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.modules.sales.application.common import (
+    UnitOfWorkFactory as SalesUnitOfWorkFactory,
+)
+from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
+from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.config import Environment, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -120,6 +130,12 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # epochs) comes from the migration and stays.
 WRITABLE_TABLES = (
     "platform.outbox",
+    "sales.cart_lines",
+    "sales.carts",
+    "sales.payments",
+    "sales.order_lines",
+    "sales.orders",
+    "sales.customer_addresses",
     "catalog.product_media",
     "catalog.variants",
     "catalog.product_scales",
@@ -228,6 +244,53 @@ def catalog(catalog_uow: CatalogUnitOfWorkFactory, clock: FixedClock) -> Catalog
     return CatalogService(uow_factory=catalog_uow, clock=clock)
 
 
+@pytest.fixture
+def sales_uow(session_factory: async_sessionmaker[AsyncSession]) -> SalesUnitOfWorkFactory:
+    return sales_uow_factory(session_factory, public_base_url=MEDIA_BASE_URL)
+
+
+@pytest.fixture
+def payment_gateway() -> MockPaymentGateway:
+    return MockPaymentGateway()
+
+
+@pytest.fixture
+def carts(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> CartService:
+    return CartService(uow_factory=sales_uow, clock=clock)
+
+
+@pytest.fixture
+def checkout(
+    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: MockPaymentGateway
+) -> CheckoutService:
+    return CheckoutService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+
+
+@pytest.fixture
+def orders(
+    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: MockPaymentGateway
+) -> OrderService:
+    return OrderService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+
+
+@pytest.fixture
+def addresses(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> AddressService:
+    return AddressService(uow_factory=sales_uow, clock=clock)
+
+
+@pytest.fixture
+def sales_handlers(
+    sales_uow: SalesUnitOfWorkFactory, mailer: InMemoryMailer, clock: FixedClock
+) -> SalesHandlers:
+    return SalesHandlers(
+        uow_factory=sales_uow,
+        mailer=mailer,
+        clock=clock,
+        public_base_url=PUBLIC_BASE_URL,
+        shop_name=SHOP_NAME,
+    )
+
+
 type Deliver = Callable[[], Awaitable[int]]
 
 
@@ -237,11 +300,13 @@ def deliver(
     settings: Settings,
     mail_handlers: IdentityMailHandlers,
     media_handlers: MediaProcessingHandlers,
+    sales_handlers: SalesHandlers,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
     mail_handlers.register(handlers)
     media_handlers.register(handlers)
+    sales_handlers.register(handlers)
     dispatcher = OutboxDispatcher(
         engine=engine,
         listen_dsn=asyncpg_dsn(settings.database_url),
