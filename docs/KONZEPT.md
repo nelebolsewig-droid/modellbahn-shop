@@ -65,7 +65,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | **Kern** | Planung | Was wann auf welchen Drucker kommt, entscheidet über Lieferfähigkeit und gebundenes Kapital. Kein Standardprodukt kann das für 3D-Druck auf Bestellung. |
 | **Kern** | Fertigung | Teile, Stücklisten, Druckplatten, Nachbearbeitung: das eigentliche Handwerk. |
 | **Kern** | Lager | Teilebestand in Boxen, Montage zu Bausätzen, Einzelverfolgung fertiger Ware. |
-| Unterstützend | Katalog | Fachlich anspruchsvoll (Spurweiten, Epochen, Ausführungen), aber kein Alleinstellungsmerkmal. |
+| Unterstützend | Katalog | Fachlich anspruchsvoll (Maßstäbe, Epochen, Ausführungen), aber kein Alleinstellungsmerkmal. |
 | Unterstützend | Verkauf | Warenkorb, Checkout, Bestellstatus: notwendig, aber gut verstanden. |
 | Unterstützend | Medien | Fotos und 3D-Dateien mit eigener Verarbeitungsstrecke. |
 | Unterstützend | KI-Inhalte | Verkaufstexte und Alt-Texte aus Produktfakten. |
@@ -94,10 +94,10 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 | Begriff | Im Code | Bedeutung |
 | --- | --- | --- |
 | Produkt | `Product` | Ein Modell als Idee, z. B. „Stellwerk Altenau“ |
-| Spurweite / Baugröße | `Scale` | H0 (1:87, 16,5 mm), TT (1:120, 12 mm), N (1:160, 9 mm) |
-| Produkt in Spurweite | `ProductScale` | Das Modell in einer Baugröße, mit eigenen Maßen und eigener Stückliste |
+| Maßstab | `Scale` | Die erste Ordnung des Shops: H0 (1:87, Gleis 16,5 mm), N (1:160, 9 mm), G (1:22,5, 45 mm), 1:24 für Straßenfahrzeuge (ohne Gleis); im Stellwerk pflegbar (ADR 0010) |
+| Produkt in einem Maßstab | `ProductScale` | Das Modell in einem Maßstab, mit eigenen Maßen und eigener Stückliste |
 | Ausführung | `Finish` | Unbemalt, grundiert, fertig bemalt |
-| Variante | `Variant` | Was im Warenkorb liegt: Produkt × Spurweite × Ausführung, mit SKU, EAN und Preis |
+| Variante | `Variant` | Was im Warenkorb liegt: Produkt × Maßstab × Ausführung, mit SKU, EAN und Preis |
 | Epoche | `Epoch` | Zeitabschnitt der Eisenbahngeschichte, I bis VI |
 | Teil | `Part` | Ein druckbares Einzelteil, z. B. „Dach Stellwerk Altenau H0“ |
 | Stückliste | `BillOfMaterials` | Welche Teile in welcher Menge einen Bausatz bilden |
@@ -117,8 +117,8 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 
 | Aggregat | Invarianten, die das Aggregat selbst schützt |
 | --- | --- |
-| **Product** | Jede Kombination Spurweite × Ausführung höchstens einmal. Aktiv nur mit mindestens einer aktiven Variante und einem Bild. Preise ≥ 0, Streichpreis > Preis. |
-| **BillOfMaterials** | Nur Teile derselben Spurweite. Mengen > 0. Ändert sich die Stückliste, entsteht eine neue Fassung; bestehende Einheiten behalten ihre. |
+| **Product** | Jede Kombination Maßstab × Ausführung höchstens einmal. Aktiv nur mit mindestens einer aktiven Variante und einem Bild. Preise ≥ 0, Streichpreis > Preis. |
+| **BillOfMaterials** | Nur Teile desselben Maßstabs. Mengen > 0. Ändert sich die Stückliste, entsteht eine neue Fassung; bestehende Einheiten behalten ihre. |
 | **PrintJob** | Zustandsfolge `queued → printing → post_processing → done` (oder `failed`, `cancelled`). Gute + fehlerhafte Teile ≤ geplante. Pro Drucker läuft höchstens ein Druck. |
 | **Location** | Baum ohne Zyklen. Nur Boxen und Fächer nehmen Ware auf. Der Code ist eindeutig und unveränderlich, denn er klebt als Etikett am Regal. |
 | **PartStock** | Menge je Teil und Platz nie negativ. Änderungen nur zusammen mit einer Journalbuchung. |
@@ -461,13 +461,13 @@ erDiagram
     }
 ```
 
-**So hängt ein Bausatz zusammen:** Das *Produkt* „Stellwerk Altenau“ gibt es *in
-Spurweite* H0 und N. „Stellwerk Altenau H0“ hat eine *Stückliste*: 1 × Gebäudekörper,
+**So hängt ein Bausatz zusammen:** Das *Produkt* „Stellwerk Altenau“ gibt es *im
+Maßstab* H0 und N. „Stellwerk Altenau H0“ hat eine *Stückliste*: 1 × Gebäudekörper,
 1 × Dach, 2 × Schornstein, 1 × Fensterset. Verkauft wird es als drei *Varianten*,
 unbemalt, grundiert und fertig bemalt. Alle drei teilen sich die Stückliste, denn
 bemalt wird nach dem Druck.
 
-Die Stückliste trägt die Spurweite ein zweites Mal, und zwei zusammengesetzte
+Die Stückliste trägt den Maßstab ein zweites Mal, und zwei zusammengesetzte
 Fremdschlüssel prüfen sie gegen das Produkt *und* gegen das Teil. Ein N-Dach kann
 deshalb nicht in einen H0-Bausatz geraten, auch nicht durch einen Fehler im Code.
 
@@ -762,7 +762,7 @@ erDiagram
 Der Warenkorb liegt auf dem Server. Preise und Kaufbarkeit kommen beim Anzeigen und
 beim Bestellen aus dem Katalog (Vertrag `load_sale_variants`), nie aus dem Browser; der
 Browser schickt nur die angezeigte Summe zur Kontrolle mit. Bestellpositionen frieren
-SKU, Titel, Spurweite, Ausführung, Preis und Bild ein, deshalb verweist der Verkauf nicht
+SKU, Titel, Maßstab, Ausführung, Preis und Bild ein, deshalb verweist der Verkauf nicht
 per Fremdschlüssel auf Varianten. Eine Bestellung wechselt von `pending_payment` nach
 `paid` und `shipped`; storniert wird eine offene Bestellung nach 24 Stunden ohne Zahlung
 oder eine bezahlte durch den Shop, dann mit Erstattung.
@@ -946,10 +946,10 @@ mit genau dem dafür vorgesehenen Constraint scheitern, nicht mit irgendeinem.
 
 | Bereich | Abgewiesen wird … |
 | --- | --- |
-| Stückliste | ein N-Teil in einem H0-Bausatz; eine falsch behauptete Spurweite; ein Resin-Teil mit FDM-Material |
+| Stückliste | ein N-Teil in einem H0-Bausatz; ein falsch behaupteter Maßstab; ein Resin-Teil mit FDM-Material |
 | Medien | eine STL als Produktfoto; ein Foto als Druckdatei; ein Thumbnail für eine STL; STL-Details an einem Foto; eine zweite „aktuelle“ Druckdatei je Teil; dieselbe Datei doppelt; zwei Bilder auf Position 0 |
 | Lager | ein Einheitencode mit I oder O; eine Einheit „im Lager“ ohne Platz; eine „versandte“ Einheit ohne Bestellposition; negativer Teilebestand; eine Buchung für Teil und Einheit zugleich; eine Montage ohne erzeugte Einheit; eine Box ohne übergeordneten Platz; ein Platzcode in Kleinbuchstaben |
-| Katalog | eine EAN mit Buchstaben; das Löschen einer Variante, von der es Exemplare gibt; das Löschen einer Spurweite mit Stückliste; eine KI-Textfassung ohne zugehörigen KI-Lauf |
+| Katalog | eine EAN mit Buchstaben; das Löschen einer Variante, von der es Exemplare gibt; das Löschen eines Maßstabs mit Stückliste; eine KI-Textfassung ohne zugehörigen KI-Lauf |
 | Fertigung | zwei laufende Drucke auf einem Drucker; mehr gute Teile als geplant |
 | Planung, Verkauf | ein angenommener Vorschlag ohne Zeitpunkt; eine Bestellsumme, die nicht aufgeht |
 | Konten | ein Mitarbeiterkonto ohne Rolle; ein Kundenkonto mit Rolle; eine Kunden-E-Mail doppelt in anderer Schreibung; eine Kundensitzung an einem Mitarbeiterkonto; eine Bestellung oder Adresse an einem Mitarbeiterkonto; eine zweite Standard-Lieferadresse; das harte Löschen eines Kontos mit Adresse oder Bestellung |
@@ -1077,7 +1077,7 @@ lokalen Netz. Caddy stellt das Zertifikat automatisch aus.
 ### 8.1 Produkttexte aus technischen Parametern
 
 **Eingabe:** Die KI bekommt nicht nur Schlagworte, sondern die *Fakten aus dem
-Datenmodell*. Dazu gehören Name, Kategorie, Epochen mit Jahreszahlen, Spurweiten mit
+Datenmodell*. Dazu gehören Name, Kategorie, Epochen mit Jahreszahlen, Maßstäbe mit
 Maßstab und Maßen, Ausführungen, Teilezahl aus der Stückliste, Drucktechnik,
 Material, **Schichtdicke** (z. B. 25 µm), Vorbild-Angaben, die freien Schlagworte des
 Admins und die Ziel-Suchbegriffe.
@@ -1135,7 +1135,7 @@ Rein mathematisch, lokal, ohne Sprachmodell. Jede Zahl ist nachrechenbar.
 | --- | --- |
 | **1 · Daten** | Tagesabsatz je Variante. Tage ohne Bestand gelten als *fehlend*, nicht als null; sonst lernt das Modell, dass ausverkaufte Artikel sich nicht verkaufen (zensierte Nachfrage). |
 | **2 · Nachfrageklasse** | Nach Syntetos und Boylan aus mittlerem Abstand zwischen Verkäufen (ADI) und Schwankung (CV²), Grenzen 1,32 und 0,49: *gleichmäßig*, *schwankend*, *sporadisch*, *klumpig*. Modellbahnartikel sind überwiegend sporadisch: wochenlang nichts, dann drei auf einmal. |
-| **3 · Verfahren je Klasse** | gleichmäßig/schwankend → ETS; sporadisch → Croston-SBA; klumpig → TSB (erkennt auch auslaufende Artikel); neu (unter 8 Wochen) → Analogprodukte derselben Kategorie und Spurweite. Bibliothek: statsforecast. |
+| **3 · Verfahren je Klasse** | gleichmäßig/schwankend → ETS; sporadisch → Croston-SBA; klumpig → TSB (erkennt auch auslaufende Artikel); neu (unter 8 Wochen) → Analogprodukte derselben Kategorie und desselben Maßstabs. Bibliothek: statsforecast. |
 | **4 · Saison** | Monatsindex auf Ebene Kategorie bzw. Gesamtshop, weil ein Einzelartikel zu wenig Historie hat. Dazu ein Ereigniskalender mit Faktoren: Advent, Black Friday, Messen. |
 | **5 · Stücklistenauflösung** | Variantenbedarf × Stückliste = Teilebedarf. Nettobedarf = Bedarf in der Durchlaufzeit + Sicherheitsbestand − (Teilebestand + laufende Drucke − Zuteilungen). Klassische Materialbedarfsplanung. |
 | **6 · Lagerpolitik** | Durchlaufzeit *L* = Warteschlange + Druck + Waschen/Härten + Montage. Sicherheitsbestand *SS* = z · σ · √L. Meldebestand = μ · L + SS. Servicegrad nach ABC-Klasse: A 97,5 % (z = 1,96), B 95 % (1,645), C 90 % (1,28). |
@@ -1217,9 +1217,9 @@ Zusammenstellung übernehmen die Next.js Server Components.
 
 | Methode | Pfad | Zweck |
 | --- | --- | --- |
-| GET | `/navigation` | Kategorienbaum, Spurweiten, Epochen für Menü und Startseite |
+| GET | `/navigation` | Kategorienbaum, Maßstäbe (nach Größe), Epochen; mit Produktzahl je Maßstab und je Kategorie und Maßstab |
 | GET | `/products` | Liste mit Filtern `category` (mit Unterkategorien), `scale`, `epoch`, `q` (deutsche Volltextsuche), `sort` (`newest`, `price_asc`, `price_desc`, `name`) und `cursor` |
-| GET | `/products/{slug}` | Produkt mit Spurweiten, Varianten, Galerie, Fakten (60 s cachebar) |
+| GET | `/products/{slug}` | Produkt mit Maßstäben, Varianten, Galerie, Fakten (60 s cachebar) |
 | GET | `/products/{slug}/availability` | Lieferbarkeit je Variante (dynamisch, kurz gecacht; ab Schritt 5) |
 | GET | `/search/suggest` | Vorschläge beim Tippen (später) |
 | GET | `/cart` | Warenkorb mit aktuellen Preisen, Versandzonen und Summen; das Cookie `mb_cart` benennt ihn |
@@ -1258,12 +1258,14 @@ keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 | Identität | POST · DELETE | `/auth/session` | Anmelden, abmelden |
 | | GET | `/auth/me` | eigene Rolle und Rechte |
 | | POST | `/auth/password` | Passwort ändern |
-| Katalog | GET | `/catalog/references` | Spurweiten, Ausführungen, Epochen für die Formulare |
+| Katalog | GET | `/catalog/references` | Maßstäbe, Ausführungen, Epochen für die Formulare |
+| | GET · POST | `/scales` | Maßstäbe mit Produktzahl; anlegen (Code, Name, Verhältnis, Gleis optional) |
+| | PATCH · DELETE | `/scales/{code}` | Name, Verhältnis, Gleis ändern (der Code bleibt); löschen nur ungenutzt (ADR 0010) |
 | | GET · POST | `/products` | Liste mit Zustand, Suche und Cursor; anlegen |
 | | GET · PATCH · DELETE | `/products/{id}` | lesen (`ETag`), ändern (`If-Match` Pflicht), löschen (nur nie veröffentlichte Entwürfe) |
 | | POST | `/products/{id}/publish` · `/archive` | veröffentlichen (prüft die Regeln), archivieren |
-| | POST | `/products/{id}/scales` | Spurweite mit Maßen hinzufügen |
-| | PATCH · DELETE | `/product-scales/{id}` | Maße und Gewicht ändern, Spurweite entfernen |
+| | POST | `/products/{id}/scales` | Maßstab mit Maßen hinzufügen |
+| | PATCH · DELETE | `/product-scales/{id}` | Maße und Gewicht ändern, Maßstab entfernen |
 | | POST | `/product-scales/{id}/variants` | Variante (Ausführung) hinzufügen; SKU und interne EAN vergibt das System |
 | | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Rückstand erlaubt, aktiv |
 | | POST | `/products/{id}/media` | hochgeladenes Bild anhängen, auch während der Verarbeitung; ohne `If-Match`, damit parallele Uploads sich nicht blockieren |
@@ -1374,7 +1376,7 @@ Kurzfassung.
    das Modell füllt etwa drei Viertel der Fläche, damit die Details des Drucks wirken.
 3. **Zeichnungen wie Architekturpläne.** Technische Ansichten in feinen 1-px-Linien in
    Preußischblau oder Anthrazit auf hellem Raster, mit Maßlinien und Schriftfeld.
-4. **Bedienelemente minimal.** Spurweite und Ausführung („unbemalt · grundiert · bemalt“) als
+4. **Bedienelemente minimal.** Maßstab und Ausführung („unbemalt · grundiert · bemalt“) als
    Pills oder Kacheln mit hauchdünner, hellgrauer Kontur. Aktiv: Mattschwarz oder dezentes
    Preußischblau.
 5. **Große, dünne, serifenlose Schrift.** Eine Familie (Geist). Kennzeilen wie
@@ -1432,8 +1434,9 @@ Schatten nur für Dialoge und Popover.
 | Komponente | Zweck | Aktiv / Zustände |
 | --- | --- | --- |
 | `Button` | Aktion: primär, sekundär, Textlink | primär Mattschwarz; deaktiviert nur mit Grund daneben |
-| `OptionPill` | Spurweite, Ausführung, Technik | Mattschwarz oder Preußischblau; nicht lieferbar gestrichelt |
-| `ScaleTile` | große Spurweiten-Wahl: „H0 · 1:87 · 16,5 mm“ | Kontur in Mattschwarz |
+| `OptionPill` | Maßstab, Ausführung, Technik, Epoche | Mattschwarz oder Preußischblau; nicht lieferbar gestrichelt |
+| `ScaleTile` | große Maßstab-Wahl: „H0 · 1:87 · Gleis 16,5 mm“ | Kontur in Mattschwarz |
+| `ScaleRule` | Maßband: ein Meter Vorbild im Maßstab, alle Bänder einer Reihe im selben Millimetermaß | Tusche-Striche, Ende in Preußischblau |
 | `ProductStage` | rahmenlose Fotobühne, 4:5, 1:1, 16:10 | Bildwechsel 320 ms |
 | `BlueprintDrawing` | technische Ansicht mit Maßen und Schriftfeld | Linien zoomunabhängig 1 px |
 | `SpecLine` | Kennzeile, groß und klein | |
@@ -1477,13 +1480,13 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 25.10.2026:** Schritte 1 bis 4 sind umgesetzt.
+**Stand 25.10.2026:** Schritte 1 bis 4 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
 | 1 | **Konzept** (dieses Dokument) | Freigabe |
 | 2 | **Fundament:** Repository-Struktur, Docker Compose, CI, Plattform-Kern (Outbox, Unit of Work, Fehlerformat, IDs, Echtzeit), Identität mit **Kundenkonten** und Mitarbeiterzugang, Architekturregeln | Registrieren, E-Mail bestätigen, anmelden; der Mitarbeiter sieht die Registrierung live im Admin-Bereich |
-| 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Spurweiten und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne; veröffentlichte Produkte stehen im Shop-Katalog und auf ihrer Produktseite |
+| 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Maßstäben und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne; veröffentlichte Produkte stehen im Shop-Katalog und auf ihrer Produktseite |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken, mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen |
 | 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |
@@ -1504,6 +1507,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 4 | Sprache im Code | Bezeichner Englisch, Oberfläche und Dokumentation Deutsch |
 | 5 | Wo liegt der Code? | Eigenes Repository |
 | 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
+| 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
 
 Noch offen:
 

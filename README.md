@@ -11,6 +11,7 @@ mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit
 und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln) und den Modulen *Katalog* und
 *Medien* aus Schritt 3 steht jetzt das Modul *Verkauf*: Warenkorb, Bestellung mit Konto oder
 als Gast, Testzahlung, Adressbuch, Bestellhistorie und im Stellwerk Versand und Storno.
+Der Katalog ist nach **Maßstab** geordnet, darunter nach Kategorie (ADR 0010).
 Lager und Barcodes folgen mit Schritt 5.
 
 Was sich vorführen lässt:
@@ -21,14 +22,19 @@ Was sich vorführen lässt:
   erscheinen, ohne die Seite neu zu laden. Passwort zurücksetzen, Passwort ändern, Abmelden
   und Konto löschen funktionieren ebenfalls.
 - **Katalog.** Im Stellwerk unter „Katalog“ legt ein Mitarbeiter Kategorien und ein Produkt
-  an, ergänzt Spurweiten (H0, TT, N) mit Maßen und je Ausführung eine Variante mit Preis;
+  an, ergänzt Maßstäbe (etwa H0, N oder 1:24) mit Maßen und je Ausführung eine Variante mit Preis;
   Artikelnummer und interne EAN vergibt das System. Fotos gehen per Ziehen und Ablegen direkt
   in den Objektspeicher, der Worker rechnet alle Bildstufen, und das Vorschaubild erscheint
   nach wenigen Sekunden ohne Neuladen. Sind die Regeln erfüllt (Kategorie, aktive Variante,
   fertiges Hauptbild), wird das Produkt veröffentlicht.
-- **Shop.** Veröffentlichte Produkte stehen auf der Startseite, im Katalog mit Filtern nach
-  Kategorie, Spurweite und Epoche, Sortierung und Volltextsuche und auf ihrer Produktseite
-  mit Fotobühne, Wahl von Spurweite und Ausführung, Preis und Maßen.
+  Die Maßstäbe selbst pflegt das Stellwerk unter „Maßstäbe“: von Z 1:220 bis G 1:22,5,
+  dazu 1:24 und 1:25 für Straßenfahrzeuge ohne Gleis.
+- **Shop.** Der Katalog beginnt mit der Frage „Welcher Maßstab?“: Kacheln mit der Zahl der
+  Modelle und einem Maßband, das einen Meter Vorbild im jeweiligen Maßstab zeigt. Danach
+  folgen unter `/katalog/{maßstab}/{kategorie}` nur die Kategorien und Unterkategorien, die
+  es in diesem Maßstab gibt (etwa Straßenfahrzeuge → LKW → Feuerwehr), dazu Epoche,
+  Sortierung und Suche. Die Produktseite zeigt Fotobühne, Wahl von Maßstab und Ausführung,
+  Preis und Maße.
 - **Kaufen.** Der Warenkorb zeigt Preise vom Server, Versand nach Deutschland oder
   Österreich und wie viel bis zum kostenlosen Versand fehlt. An der Kasse bestellt man als
   Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Die Zahlung ist bis zur
@@ -68,9 +74,10 @@ verdeckt zweimal ab; mit `ROLE=staff` oder `ROLE=packer` entsteht ein Konto mit 
 `make smoke` prüft den laufenden Stack von außen, über Caddy und Mailpit, so wie ein Browser:
 Startseite, Registrierung, Bestätigungs-E-Mail, Bestätigung mit Anmeldung, Abmelden, erneutes
 Anmelden, Passwort zurücksetzen, Anmeldung im Stellwerk, Ereignisstrom (Nachlieferung per
-`Last-Event-ID` und live), dann den Katalog: Produktentwurf mit `If-Match`, Spurweite mit zwei
+`Last-Event-ID` und live), dann den Katalog: Produktentwurf mit `If-Match`, Maßstab mit zwei
 Varianten, ein Foto über die signierte Upload-URL, die Bildstufen live und öffentlich unter
-`/medien`, Veröffentlichen und die Shop-Ansicht. Danach der Verkauf: Warenkorb mit Cookie,
+`/medien`, Veröffentlichen, die Shop-Ansicht nach Maßstab mit Umleitung alter Adressen und die
+Pflege der Maßstäbe. Danach der Verkauf: Warenkorb mit Cookie,
 abgelehnte veraltete Summe, Gastbestellung mit `Idempotency-Key` (auch wiederholt),
 Eingangsbestätigung, Statusseite, Testzahlung (abgelehnt, gestört, bezahlt), Übernahme ins
 Konto nach der Registrierung, Versand mit Sendungsnummer, eine Kundenbestellung mit
@@ -83,12 +90,12 @@ Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. 
 | Adresse | Was |
 | --- | --- |
 | <https://localhost> | Shop |
-| <https://localhost/katalog> | Shop-Katalog; Produktseiten unter `/produkte/{adresse}` |
+| <https://localhost/katalog> | Shop-Katalog nach Maßstab, etwa `/katalog/h0/lkw`; Produktseiten unter `/produkte/{adresse}` |
 | <https://localhost/warenkorb> | Warenkorb; weiter zur Kasse unter `/kasse` |
 | <https://localhost/konto/registrieren> | Kundenkonto anlegen; Bestellungen und Adressbuch unter `/konto/bestellungen` und `/konto/adressen` |
 | <https://localhost/admin> | Admin-Bereich „Stellwerk“ (Anmeldung mit dem Konto aus `make staff`) |
 | <https://localhost/admin/bestellungen> | Bestellungen: Liste live, Bestellpult mit Versand und Storno |
-| <https://localhost/admin/katalog> | Produkte anlegen und pflegen; Kategorien unter `/admin/katalog/kategorien` |
+| <https://localhost/admin/katalog> | Produkte anlegen und pflegen; Kategorien und Maßstäbe unter `/admin/katalog/kategorien` und `/admin/katalog/massstaebe` |
 | <http://localhost:8025> | Mailpit: hier landet jede E-Mail des Stacks |
 | <https://localhost/healthz>, <https://localhost/readyz> | Lebenszeichen der API, Bereitschaft inkl. Datenbank |
 
@@ -192,7 +199,7 @@ modellbahn-shop/
 │   │   └── modules/            je Modul domain, application, infrastructure, api, contracts
 │   │       ├── identity/       Kundenkonten, Mitarbeiter, Sitzungen
 │   │       ├── media/          Uploads, Bildstufen, Objektspeicher
-│   │       ├── catalog/        Produkte, Spurweiten, Varianten, Kategorien, Galerie
+│   │       ├── catalog/        Produkte, Maßstäbe, Varianten, Kategorien, Galerie
 │   │       └── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
@@ -315,3 +322,4 @@ secrets:
   - [0007 Helles Präzisionsdesign](docs/adr/0007-helles-praezisionsdesign.md)
   - [0008 Objektspeicher und Medien-Pipeline](docs/adr/0008-objektspeicher-und-medien-pipeline.md)
   - [0009 Warenkorb, Checkout und Mock-Zahlung](docs/adr/0009-warenkorb-checkout-und-mock-zahlung.md)
+  - [0010 Katalog nach Maßstab statt nach Spurweite](docs/adr/0010-katalog-nach-massstab.md)
