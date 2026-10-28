@@ -1,6 +1,7 @@
 # Modellbahn-Shop
 
-Webshop und Werkstatt-Backend für 3D-gedruckte Modellbahn-Artikel. Gebaut als **modularer
+Webshop und Werkstatt-Backend von **adp-Modelle**: Fahrzeugmodelle in Handarbeit und
+Kleinserie, für Schiene und Straße. Gebaut als **modularer
 Monolith**: ein Repository, ein Backend in Python (FastAPI) mit zwei Prozessen (API und
 Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Caddy als
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
@@ -12,7 +13,9 @@ und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln), den Modulen *Kata
 *Medien* aus Schritt 3 und *Verkauf* aus Schritt 4 steht jetzt das Modul *Lager*:
 Lagerplätze, jedes Stück mit eigenem Etikett, ein Scanner fürs Handy, Kommissionieren live
 und Lieferbarkeit im Shop (ADR 0011). Der Katalog ist nach **Maßstab** geordnet, darunter
-nach Kategorie (ADR 0010). Die Fertigung folgt mit Schritt 6.
+nach Kategorie (ADR 0010). Dazu kam das Modul *Auftritt*: Messetermine mit Kalender und
+Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder
+(ADR 0012). Die Fertigung folgt mit Schritt 6.
 
 Was sich vorführen lässt:
 
@@ -35,8 +38,8 @@ Was sich vorführen lässt:
   es in diesem Maßstab gibt (etwa Straßenfahrzeuge → LKW → Feuerwehr), dazu Epoche,
   Sortierung und Suche. Die Produktseite zeigt Fotobühne, Wahl von Maßstab und Ausführung,
   Preis und Maße.
-- **Kaufen.** Der Warenkorb zeigt Preise vom Server, Versand nach Deutschland oder
-  Österreich und wie viel bis zum kostenlosen Versand fehlt. An der Kasse bestellt man als
+- **Kaufen.** Der Warenkorb zeigt Preise vom Server und den Versand: 5,90 € nach
+  Deutschland, 16,90 € in die übrigen EU-Länder. An der Kasse bestellt man als
   Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Die Zahlung ist bis zur
   Anbindung eines Anbieters eine sichtbare **Testzahlung**: Man wählt, ob sie gelingt,
   abgelehnt wird oder der Dienst gestört ist. Eingangsbestätigung, Zahlungseingang, Versand
@@ -62,6 +65,15 @@ Was sich vorführen lässt:
   Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 4–6 Wochen“
   oder „Derzeit nicht lieferbar“; Warenkorb und Kasse nehmen nicht mehr an, als lieferbar
   ist, und nennen die Lieferzeit vor dem Kauf.
+- **Messen.** Im Stellwerk unter „Messen“ trägt ein Mitarbeiter Messen mit Tagen, Ort, Stand
+  und Öffnungszeiten ein. Der Shop zeigt sie unter `/termine` als Halte auf einem
+  Streckenband, die nächste auch auf der Startseite, jede als Kalenderdatei, alle als
+  Kalender-Abo. Besucher bestellen die **Messe-Post** und bestätigen sie per Link aus der
+  E-Mail (Double-Opt-in). „Ankündigen“ schickt eine Messe einmal an alle Bestätigten, jede
+  Mail mit Abmeldelink. Bestell- und Versandmails nennen die nächste Messe.
+- **Impressum und Werkstatt.** `/impressum` kommt aus `MB_IMPRINT_*`, dieselben Angaben
+  schließen jede E-Mail. Dazu die Seiten „Über uns“ und „Sonderanfertigung“ (3D-Druck und
+  Lasercutting).
 
 ## Voraussetzungen
 
@@ -217,16 +229,18 @@ modellbahn-shop/
 │   │       ├── media/          Uploads, Bildstufen, Objektspeicher
 │   │       ├── catalog/        Produkte, Maßstäbe, Varianten, Kategorien, Galerie,
 │   │       │                   Artikelliste für die Kasse
-│   │       ├── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch
-│   │       └── inventory/      Lagerplätze, Einheiten, Journal, Scans, Zuteilung,
-│   │                           Etiketten (PDF mit EAN-13 und Code 128), Lieferbarkeit
+│   │       ├── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch, Versandzonen
+│   │       ├── inventory/      Lagerplätze, Einheiten, Journal, Scans, Zuteilung,
+│   │       │                   Etiketten (PDF mit EAN-13 und Code 128), Lieferbarkeit
+│   │       └── site/           Messen, Kalender (iCalendar), Messe-Post mit Double-Opt-in
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
     ├── Dockerfile
     ├── openapi.json            aus dem Backend exportiert, committet
     └── src/
         ├── app/                Seiten: Startseite, /katalog, /produkte/…, /warenkorb, /kasse,
-        │                       /bestellung/…, /konto/…, /admin/…
+        │                       /bestellung/…, /konto/…, /termine, /ueber-uns,
+        │                       /sonderanfertigung, /impressum, /admin/…
         ├── components/ui/      Bausteine des Designsystems (Konzept §11.3)
         ├── lib/inventory/      Scanner ohne Browser testbar: Codes, Handscanner, Scan-Sitzung,
         │                       Offline-Warteschlange
@@ -298,11 +312,14 @@ Alle Einstellungen des Stacks kommen aus `.env`; [`.env.example`](.env.example) 
 jede Variable und taugt unverändert für die lokale Entwicklung. `.env` ist von Git
 ausgeschlossen. Für eine öffentliche Domain mindestens `SITE_ADDRESS`, `CADDY_TLS` (eine
 E-Mail-Adresse schaltet auf Let's Encrypt), `MB_PUBLIC_BASE_URL`, `MB_ENVIRONMENT=production`,
-`POSTGRES_PASSWORD`, die `MB_SMTP_*`-Werte eines echten Mailservers und eigene Werte für
+`POSTGRES_PASSWORD`, die `MB_SMTP_*`-Werte eines echten Mailservers, die Anbieterangaben
+`MB_IMPRINT_*` (ohne sie startet das Backend in Produktion nicht) und eigene Werte für
 `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `MB_S3_ACCESS_KEY_ID` und `MB_S3_SECRET_ACCESS_KEY`
 setzen (`.env.example` zeigt, wie man sie erzeugt; in Produktion verweigert das Backend den
-Entwicklungsschlüssel). Der Produktionsbetrieb (Sicherungen von Datenbank und Objektspeicher,
-HSTS, ohne Mailpit) und ein echter Zahlungsanbieter sind noch nicht Teil von Schritt 4.
+Entwicklungsschlüssel). Echte Anbieterangaben gehören nur in `.env`; `.env.example` hat
+Platzhalter. Der Shopname kommt aus dem Absender `MB_SMTP_FROM` (E-Mails) und
+`NEXT_PUBLIC_SHOP_NAME` (Oberfläche). Der Produktionsbetrieb (Sicherungen von Datenbank und
+Objektspeicher, HSTS, ohne Mailpit) und ein echter Zahlungsanbieter fehlen noch.
 
 ### Hinter einem TLS-Proxy
 
@@ -345,3 +362,4 @@ secrets:
   - [0009 Warenkorb, Checkout und Mock-Zahlung](docs/adr/0009-warenkorb-checkout-und-mock-zahlung.md)
   - [0010 Katalog nach Maßstab statt nach Spurweite](docs/adr/0010-katalog-nach-massstab.md)
   - [0011 Lager, Barcodes und Lieferbarkeit](docs/adr/0011-lager-barcodes-und-lieferbarkeit.md)
+  - [0012 Messen, Messe-Post und Impressum](docs/adr/0012-messen-messe-post-und-impressum.md)

@@ -1,7 +1,8 @@
 # Modellbahn-Shop · Architekturkonzept
 
-> **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritt 2 (Fundament) und Schritt 3
-> (Katalog + Medien) umgesetzt · als Nächstes Schritt 4 (Shop-Frontend + Verkauf)
+> **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritte 2 bis 5 umgesetzt, dazu Messen,
+> Messe-Post und Impressum (ADR 0012); der Shop läuft als **adp-Modelle** · als Nächstes
+> Schritt 6 (Fertigung)
 > **Umfang:** Domänenmodell (DDD), Systemarchitektur, Tech-Stack, Datenmodell (ERD),
 > Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Gestaltung, Fahrplan
 > **Geprüft:** Das Datenmodell wurde gegen PostgreSQL 17 geprüft
@@ -12,7 +13,7 @@
 ## 0 · Auf einen Blick
 
 Ein Webshop und ein Werkstatt-Backend für 3D-gedruckte Modellbahn-Artikel, gebaut
-als **modularer Monolith** mit neun fachlichen Modulen. Jedes Modul ist intern nach
+als **modularer Monolith** mit zehn Modulen. Jedes Modul ist intern nach
 **Clean Architecture** geschnitten, besitzt sein eigenes Datenbankschema und spricht
 mit den anderen nur über veröffentlichte Verträge und Domänenereignisse. Damit lässt
 sich jedes Modul später als eigener Dienst herauslösen, ohne dass die anderen es
@@ -20,7 +21,7 @@ merken.
 
 | Kennzahl | Wert |
 | --- | --- |
-| Fachliche Module (Bounded Contexts) | 9 |
+| Module (Bounded Contexts) | 10 |
 | Tabellen im Datenmodell | 46, verteilt auf 9 Schemas |
 | Integritätsregeln in der Datenbank (CHECK, FK, UNIQUE) | 203 |
 | Prüfungen gegen echtes PostgreSQL | 38 von 38 bestanden (35 Gegentests, 3 Positivtests) |
@@ -69,6 +70,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Unterstützend | Verkauf | Warenkorb, Checkout, Bestellstatus: notwendig, aber gut verstanden. |
 | Unterstützend | Medien | Fotos und 3D-Dateien mit eigener Verarbeitungsstrecke. |
 | Unterstützend | KI-Inhalte | Verkaufstexte und Alt-Texte aus Produktfakten. |
+| Unterstützend | Auftritt | Messetermine, Messe-Post und Impressum: wie der Shop nach außen auftritt, ohne schwierige Fachlogik (ADR 0012). |
 | Generisch | Identität | Konten für Mitarbeiter und Kunden, Sitzungen, Rollen. Bewährte Verfahren, sorgfältig umgesetzt. |
 | Generisch | Zahlung | Angebunden über eine Schutzschicht, zunächst als Mock. |
 
@@ -84,6 +86,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Verkauf | `sales` | Warenkorb, Bestellung, Zahlung, Adressbuch der Kunden | **Cart**, **Order**, **Payment**, **CustomerAddress** |
 | Planung | `planning` | Prognose und Druckwarteschlange | **ForecastRun**, **PrintProposal** |
 | KI-Inhalte | `ai` | Textentwürfe, Protokoll jedes Modellaufrufs | **AiRun** |
+| Auftritt | `site` | Messen und ihre einmalige Ankündigung, Messe-Post mit Double-Opt-in, Impressum aus der Konfiguration (ADR 0012) | **Fair**, **Subscription**, Mailing |
 | Plattform | `platform` | Outbox, Idempotenz (kein Fachmodul) | – |
 
 ### 2.3 Ubiquitäre Sprache
@@ -112,6 +115,9 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 | Kundenkonto | `Account` mit `kind = customer` | Registrierter Kunde mit bestätigter E-Mail-Adresse, Adressbuch und Bestellhistorie |
 | Mitarbeiterkonto | `Account` mit `kind = staff` | Zugang zum Admin-Bereich mit der Rolle `owner`, `staff` oder `packer` |
 | Gastbestellung | `Order` ohne Konto | Bestellung nur mit E-Mail-Adresse; wird übernommen, sobald ein Konto mit derselben bestätigten Adresse existiert |
+| Messe | `Fair` | Eine Messe oder Ausstellung, auf der die Werkstatt ausstellt: Tage, Ort, Stand, Öffnungszeiten |
+| Messe-Post | `Subscription` | Die Anmeldung einer E-Mail-Adresse für Messe-Ankündigungen; gilt erst nach Klick auf den Bestätigungslink (Double-Opt-in) |
+| Ankündigen | `Fair.announce` | Die Messe einmal an alle bestätigten Empfänger der Messe-Post schicken |
 
 ### 2.4 Aggregate und ihre Invarianten
 
@@ -149,6 +155,8 @@ Ereignis verloren“.
 | `manufacturing.print_job.completed` | Fertigung | Lager: Teile im Wareneingang buchen |
 | `planning.proposal.accepted` | Planung | Fertigung: Druckauftrag anlegen |
 | `ai.copy.drafted` | KI-Inhalte | Admin-Oberfläche per SSE |
+| `site.subscription.requested` | Auftritt | Worker: Mail mit Bestätigungslink |
+| `site.fair.announced` | Auftritt | Worker: Ankündigung an alle Bestätigten; Admin-Liveansicht |
 
 ### 2.6 Context Map
 
@@ -1235,6 +1243,21 @@ Der Warenkorb weicht vom ersten Entwurf (`POST /carts`, `/carts/{cartId}`) ab: S
 Kennung steht in einem HttpOnly-Cookie statt im Pfad, damit kein Skript sie liest und
 keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 
+**Auftritt** · `/api/v1/store` und `/api/v1/admin` (ADR 0012)
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| GET | `/store/fairs` | kommende Messen und die letzten vier (60 s cachebar) |
+| GET | `/store/fairs/calendar.ics` | alle veröffentlichten Messen als Kalender-Feed (Abo per `webcal://`) |
+| GET | `/store/fairs/{id}/calendar.ics` | eine Messe als Termin zum Herunterladen |
+| POST | `/store/fair-news/subscriptions` | Messe-Post bestellen; immer `202`, Mail mit Bestätigungslink |
+| POST | `/store/fair-news/confirmations` · `/unsubscriptions` | bestätigen mit dem Link aus der Mail; abmelden (löscht die Adresse) |
+| GET | `/store/imprint` | Anbieterangaben aus `MB_IMPRINT_*` |
+| GET · POST | `/admin/fairs` | Messen auflisten, anlegen (Inhaber, Mitarbeiter) |
+| PUT · DELETE | `/admin/fairs/{id}` | ändern, löschen |
+| POST | `/admin/fairs/{id}/announcement` | einmal ankündigen, `202` mit Zahl der Empfänger |
+| GET | `/admin/fair-news` | Zahl der bestätigten und wartenden Anmeldungen |
+
 **Kundenkonto** · `/api/v1/store/account`
 
 | Methode | Pfad | Zweck |
@@ -1482,7 +1505,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011).
+**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1512,10 +1535,14 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
 | 8 | Etiketten und Kasse (26.10.2026) | A4-Bögen 70 × 37 mm und Brother QL 62 mm. **Strichcodes statt QR**, weil die Kasse (SumUp) nur Strichcodes liest: EAN-13 je Variante, Code 128 je Stück und Platz. Der Shop liefert die Artikelliste als CSV für die Kasse (ADR 0011) |
 | 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe 4 bis 6 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
+| 10 | Name und Impressum (28.10.2026) | Der Shop heißt **adp-Modelle**, konfigurierbar über `MB_SMTP_FROM` und `NEXT_PUBLIC_SHOP_NAME`. Die Anbieterangaben stehen in `MB_IMPRINT_*`, nie im Code (ADR 0012) |
+| 11 | Wohin wird geliefert? (28.10.2026) | Nach Deutschland für 5,90 € und in alle übrigen EU-Länder für 16,90 €; versandkostenfrei nie (ADR 0012) |
+| 12 | Messen (28.10.2026) | Termine im Shop und als Kalender, Messe-Post mit Double-Opt-in, Hinweis auf die nächste Messe in Bestell- und Versandmails (ADR 0012) |
 
 Noch offen:
 
 | Frage | Wovon es abhängt |
 | --- | --- |
 | Zahlungsanbieter | Bis dahin bezahlt der Shop mit einer sichtbaren Testzahlung (ADR 0009). Vor dem Start mit echtem Geld wird ein Anbieter als weiterer Adapter angebunden, mit Webhooks. |
-| Name des Shops, Domain, Angaben fürs Impressum | Gebraucht für E-Mails, Rechtstexte und den Start. Bis dahin ist der Name konfigurierbar. |
+| USt-IdNr. | Reicht der Inhaber nach; dann genügt `MB_IMPRINT_VAT_ID` in `.env`. |
+| Domain und Umzug | adp-modelle.de läuft noch bei Shopify. Der Umzug braucht `SITE_ADDRESS`, `MB_PUBLIC_BASE_URL` und einen Mail-Relay, der für die Domain senden darf. |
