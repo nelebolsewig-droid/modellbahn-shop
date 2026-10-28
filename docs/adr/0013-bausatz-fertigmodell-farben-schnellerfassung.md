@@ -123,6 +123,15 @@ eine **Schnellerfassung** fürs Handy; die bekannten Modelle als Startbestand, d
   „Tatra 148 Kipper“ oder „Militär-Lkw mit Plane“. Aufteilen, benennen und mit Preisen
   versehen gehört in die Schnellerfassung, Kiste für Kiste.
 
+### Kürzere Lieferzeit auf Bestellung
+
+- **Ohne Angabe gilt jetzt 1 bis 2 Wochen** statt 4 bis 6 (ADR 0011). Die Werkstatt hat
+  12 Drucker, defekte werden repariert. Das passt auch zu einer eBay-Bearbeitungszeit von
+  höchstens 10 Werktagen, so dass Modelle auf Bestellung dort angeboten werden können.
+- Gespeichert wird die Lieferzeit beim Umschalten auf „auf Bestellung“. Schon gespeicherte
+  Varianten behalten ihre Werte; der Shop war noch nicht live, eine Umstellung bestehender
+  Daten braucht es nicht. Je Variante bleibt die Lieferzeit im Editor einstellbar.
+
 ## Folgen
 
 - **Shop:** Auf der Produktseite folgt der Ausführung die Farbwahl. Die Fotobühne springt

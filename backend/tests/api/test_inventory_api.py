@@ -347,4 +347,4 @@ class TestShop:
             "vorrätig",
             "ja",
         )
-        assert lines[skus["unpainted"]][7] == "auf Bestellung (4-6 Wochen)"
+        assert lines[skus["unpainted"]][7] == "auf Bestellung (1-2 Wochen)"

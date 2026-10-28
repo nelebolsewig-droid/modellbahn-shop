@@ -1047,7 +1047,7 @@ class Demo:
         expect(all(g.startswith("2") and ean13_valid(g) for g in gtins), f"EANs {gtins}")
         painted = self._variant("painted")
         lead_time = (painted["lead_time_min_weeks"], painted["lead_time_max_weeks"])
-        expect(lead_time == (4, 6), f"Lieferzeit auf Bestellung: {lead_time}")
+        expect(lead_time == (1, 2), f"Lieferzeit auf Bestellung: {lead_time}")
         return ", ".join(skus)
 
     def unsigned_upload(self) -> str | None:
@@ -1388,7 +1388,12 @@ class Demo:
             f"Bausatz: {unpainted}",
         )
         expect(
-            (painted["availability"], painted["lead_time_min_weeks"]) == ("made_to_order", 4),
+            (
+                painted["availability"],
+                painted["lead_time_min_weeks"],
+                painted["lead_time_max_weeks"],
+            )
+            == ("made_to_order", 1, 2),
             f"Fertigmodell: {painted}",
         )
         articles = self.staff_browser._send(
@@ -1398,8 +1403,8 @@ class Demo:
         expect(articles.content_type == "text/csv", f"Artikelliste: {articles.content_type}")
         text = articles.text
         expect(self._variant("unpainted")["gtin"] in text, "Artikelliste ohne die EAN")
-        expect("auf Bestellung (4-6 Wochen)" in text, "Artikelliste ohne Lieferzeit")
-        return "Bausatz sofort (2), Fertigmodell in Gelb auf Bestellung in 4 bis 6 Wochen"
+        expect("auf Bestellung (1-2 Wochen)" in text, "Artikelliste ohne Lieferzeit")
+        return "Bausatz sofort (2), Fertigmodell in Gelb auf Bestellung in 1 bis 2 Wochen"
 
     def cart(self) -> str | None:
         empty = self.guest_browser.api("GET", f"{SHOP}/cart")

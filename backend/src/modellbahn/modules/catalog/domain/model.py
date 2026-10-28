@@ -57,9 +57,10 @@ SCALE_NAME_MAX_LENGTH: Final = 20
 SCALE_RATIO_MIN: Final = Decimal(1)
 SCALE_RATIO_MAX: Final = Decimal(1000)
 TRACK_GAUGE_MAX_MM: Final = Decimal("999.9")
-# Made to order: how long the workshop needs, as a range of weeks the shop shows.
+# Made to order: how long the workshop needs, as a range of weeks the shop shows. Without
+# a word from the workshop, one to two weeks: it prints on twelve machines (ADR 0013).
 LEAD_TIME_MAX_WEEKS: Final = 52
-DEFAULT_LEAD_TIME_WEEKS: Final = (4, 6)
+DEFAULT_LEAD_TIME_WEEKS: Final = (1, 2)
 # GS1 reserves the prefixes 20 to 29 for numbers used inside one company.
 INTERNAL_GTIN_PREFIX: Final = "20"
 _GTIN_SERIAL_DIGITS: Final = 10

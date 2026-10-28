@@ -71,7 +71,7 @@ Was sich vorführen lässt:
   Bestellpult am Rechner zieht mit. Jeder Scan gibt Ton, Vibration und eine große Antwort,
   lässt sich zehn Sekunden lang zurücknehmen und wartet ohne Netz auf dem Gerät.
 - **Lieferbarkeit.** Jede Ausführung ist vorrätig oder wird auf Bestellung gefertigt. Die
-  Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 4–6 Wochen“
+  Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 1–2 Wochen“
   oder „Derzeit nicht lieferbar“; Warenkorb und Kasse nehmen nicht mehr an, als lieferbar
   ist, und nennen die Lieferzeit vor dem Kauf.
 - **Messen.** Im Stellwerk unter „Messen“ trägt ein Mitarbeiter Messen mit Tagen, Ort, Stand

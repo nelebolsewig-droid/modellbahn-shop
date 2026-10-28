@@ -256,14 +256,14 @@ class TestGaugesAndVariants:
             scale.id, VariantDraft(finish=PAINTED, price_cents=4990), gtin="2x", now=NOW
         )
         assert weeks(stocked) is None
-        # Switched to made to order without a lead time: the default of 4 to 6 weeks.
+        # Switched to made to order without a lead time: the default of 1 to 2 weeks.
         item.change_variant(stocked.id, allow_backorder=True, now=NOW)
-        assert weeks(stocked) == (4, 6)
+        assert weeks(stocked) == (1, 2)
         item.change_variant(stocked.id, lead_time_weeks=(8, 12), now=NOW)
         assert (stocked.lead_time_min_weeks, stocked.lead_time_max_weeks) == (8, 12)
         # Clearing it while made to order brings the default back.
         item.change_variant(stocked.id, lead_time_weeks=None, now=NOW)
-        assert weeks(stocked) == (4, 6)
+        assert weeks(stocked) == (1, 2)
         item.change_variant(stocked.id, allow_backorder=False, lead_time_weeks=None, now=NOW)
         assert weeks(stocked) is None
         made = item.add_variant(

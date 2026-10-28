@@ -148,7 +148,7 @@ export type ScaleValues = z.input<typeof scaleSchema>;
 
 /** Made to order: delivered within 1 to 52 weeks (catalog: domain/model.py, check_lead_time). */
 export const LEAD_TIME_MAX_WEEKS = 52;
-export const DEFAULT_LEAD_TIME = [4, 6] as const;
+export const DEFAULT_LEAD_TIME = [1, 2] as const;
 
 const weeks = (message: string) =>
   z

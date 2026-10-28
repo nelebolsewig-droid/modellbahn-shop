@@ -1540,12 +1540,13 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
 | 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
 | 8 | Etiketten und Kasse (26.10.2026) | A4-Bögen 70 × 37 mm und Brother QL 62 mm. **Strichcodes statt QR**, weil die Kasse (SumUp) nur Strichcodes liest: EAN-13 je Variante, Code 128 je Stück und Platz. Der Shop liefert die Artikelliste als CSV für die Kasse (ADR 0011) |
-| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe 4 bis 6 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
+| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe zunächst 4 bis 6 Wochen, seit Entscheidung 15 1 bis 2 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
 | 10 | Name und Impressum (28.10.2026) | Der Shop heißt **adp-Modelle**, konfigurierbar über `MB_SMTP_FROM` und `NEXT_PUBLIC_SHOP_NAME`. Die Anbieterangaben stehen in `MB_IMPRINT_*`, nie im Code (ADR 0012) |
 | 11 | Wohin wird geliefert? (28.10.2026) | Nach Deutschland für 5,90 € und in alle übrigen EU-Länder für 16,90 €; versandkostenfrei nie (ADR 0012) |
 | 12 | Messen (28.10.2026) | Termine im Shop und als Kalender, Messe-Post mit Double-Opt-in, Hinweis auf die nächste Messe in Bestell- und Versandmails (ADR 0012) |
 | 13 | Ausführungen (28.10.2026) | **Bausatz** und **Fertigmodell**; grundiert entfällt. Farben gibt es nur beim Fertigmodell, als eigene Varianten (ADR 0013) |
 | 14 | Katalog befüllen (28.10.2026) | Schnellerfassung fürs Handy; die bekannten Modelle mit Preisen als Startbestand, dazu Entwürfe aus den Lagerfotos ohne Preis (ADR 0013) |
+| 15 | Lieferzeit auf Bestellung (28.10.2026) | Ohne Angabe **1 bis 2 Wochen** statt 4 bis 6: Die Werkstatt hat 12 Drucker, defekte werden repariert. Je Variante bleibt die Lieferzeit einstellbar. Die Drucker mit ihrem Zustand (in Betrieb, defekt, in Reparatur) gehören in Schritt 6 (ADR 0013) |
 
 Noch offen:
 
