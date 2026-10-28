@@ -17,8 +17,8 @@
  */
 export interface ShippingCountryOut {
   code: string;
-  /** @minimum 0 */
-  free_from_cents: number;
+  /** Null: shipping is never free. */
+  free_from_cents: number | null;
   name: string;
   /** @minimum 0 */
   rate_cents: number;

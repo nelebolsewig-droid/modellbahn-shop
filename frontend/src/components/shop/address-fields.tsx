@@ -5,9 +5,8 @@ import type { FieldErrors, FieldValues, Path, UseFormRegister } from "react-hook
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SHIPPING_COUNTRY_LIST } from "@/lib/sales/countries";
 import type { AddressValues } from "@/lib/validation/checkout";
-
-const COUNTRY_NAMES = { DE: "Deutschland", AT: "Österreich" } as const;
 
 type AddressFieldsProps<T extends FieldValues & AddressValues> = {
   register: UseFormRegister<T>;
@@ -38,8 +37,8 @@ export function AddressFields<T extends FieldValues & AddressValues>({
           <Input
             {...control}
             {...register(field("postal_code"))}
-            inputMode="numeric"
             autoComplete="shipping postal-code"
+            autoCapitalize="characters"
           />
         )}
       </FormField>
@@ -49,9 +48,9 @@ export function AddressFields<T extends FieldValues & AddressValues>({
       <FormField label="Land" error={message("country_code")} className="sm:col-span-6">
         {(control) => (
           <Select {...control} {...register(field("country_code"))} autoComplete="shipping country">
-            {Object.entries(COUNTRY_NAMES).map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
+            {SHIPPING_COUNTRY_LIST.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
               </option>
             ))}
           </Select>

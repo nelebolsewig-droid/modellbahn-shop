@@ -79,7 +79,7 @@ SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
 PAINTED_CENTS: Final = 7990
-SHIPPING_DE_CENTS: Final = 490
+SHIPPING_DE_CENTS: Final = 590
 GUEST_TOTAL_CENTS: Final = UNPAINTED_CENTS + SHIPPING_DE_CENTS
 
 HTTP_TIMEOUT: Final = 15.0
@@ -1363,11 +1363,11 @@ class Demo:
             "subtotal_cents": UNPAINTED_CENTS,
             "shipping_cents": SHIPPING_DE_CENTS,
             "total_cents": GUEST_TOTAL_CENTS,
-            "tax_cents": 635,  # 19 % contained in 39,80 €
+            "tax_cents": 651,  # 19 % contained in 40,80 €
         }
         expect(totals == expected, f"Summen {totals}, erwartet {expected}")
         expect(cart["ready_for_checkout"] is True, "Warenkorb nicht bereit für die Kasse")
-        return "34,90 € + 4,90 € Versand = 39,80 €"
+        return "34,90 € + 5,90 € Versand = 40,80 €"
 
     def price_check(self) -> str | None:
         refused = self._checkout(
@@ -1415,7 +1415,7 @@ class Demo:
         text = str(message.get("Text", ""))
         link = f"{self.base_url}/bestellung/{self._order['public_token']}/bezahlen"
         expect(link in text, f"Eingangsbestätigung ohne Zahlungslink {link}")
-        expect("39,80" in text, "Eingangsbestätigung ohne Summe")
+        expect("40,80" in text, "Eingangsbestätigung ohne Summe")
         return "mit Link auf /bestellung/…/bezahlen"
 
     def status_page(self) -> str | None:
@@ -1568,7 +1568,8 @@ class Demo:
         added = self.buyer_browser.api("PUT", f"{SHOP}/cart/lines/{variant['id']}", {"quantity": 1})
         expect_status(added, 200, "Warenkorb des Kunden")
         total = added.json()["totals"]["total_cents"]
-        expect(total == PAINTED_CENTS, f"Ab 50 € versandkostenfrei, Summe aber {total}")
+        expected = PAINTED_CENTS + SHIPPING_DE_CENTS
+        expect(total == expected, f"Versand ist nie frei: Summe {total}, erwartet {expected}")
         body = {**self._guest_body(total), "save_address": True}
         del body["email"]
         placed = self._checkout(self.buyer_browser, body, str(uuid.uuid4()))
@@ -1621,7 +1622,7 @@ class Demo:
         text = str(message.get("Text", ""))
         expect("erstatt" in text, "Stornomail erwähnt die Erstattung nicht")
         expect("Smoke-Test: nicht lieferbar" in text, "Stornomail ohne Hinweis")
-        return f"{number} storniert, 79,90 € erstattet"
+        return f"{number} storniert, 85,80 € erstattet"
 
     def order_pages(self) -> str | None:
         mine = self.buyer_browser.page("/konto/bestellungen")

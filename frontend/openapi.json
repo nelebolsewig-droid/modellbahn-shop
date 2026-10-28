@@ -4607,12 +4607,20 @@
             "type": "string"
           },
           "free_from_cents": {
-            "examples": [
-              8480
+            "anyOf": [
+              {
+                "examples": [
+                  8480
+                ],
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "minimum": 0.0,
-            "title": "Free From Cents",
-            "type": "integer"
+            "description": "Null: shipping is never free.",
+            "title": "Free From Cents"
           },
           "name": {
             "examples": [

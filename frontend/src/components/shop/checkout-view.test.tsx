@@ -51,7 +51,7 @@ describe("CheckoutView", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/bestellung/status-token/bezahlen"));
     const [request] = requestsTo(fetchMock, CHECKOUT);
     expect(request?.body).toEqual({
-      expected_total_cents: 7990,
+      expected_total_cents: 8580,
       email: "erika@example.de",
       address: {
         recipient: "Erika Mustermann",
@@ -72,7 +72,7 @@ describe("CheckoutView", () => {
 
     await user.selectOptions(await screen.findByLabelText("Land"), "AT");
     expect(screen.getByText("Versand nach Österreich")).toBeInTheDocument();
-    expect(screen.getByText("89,80 €")).toBeInTheDocument();
+    expect(screen.getByText("96,80 €")).toBeInTheDocument();
   });
 
   it("names the delivery time before ordering when a model is built to order", async () => {

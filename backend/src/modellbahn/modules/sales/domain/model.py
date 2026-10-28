@@ -61,26 +61,67 @@ def included_vat(gross_cents: int) -> int:
 
 @dataclass(frozen=True, slots=True)
 class ShippingZone:
-    """A country the shop ships to, with its flat rate and the order value that ships free."""
+    """A country the shop ships to, with its flat rate and, if any, the order value that
+    ships free."""
 
     country_code: str
     name: str
     rate_cents: int
-    free_from_cents: int
     postal_code: re.Pattern[str]
+    free_from_cents: int | None = None
 
     def cost(self, subtotal_cents: int) -> int:
         """Shipping for goods worth ``subtotal_cents``; nothing to ship costs nothing."""
-        if subtotal_cents == 0 or subtotal_cents >= self.free_from_cents:
+        if subtotal_cents == 0:
+            return 0
+        if self.free_from_cents is not None and subtotal_cents >= self.free_from_cents:
             return 0
         return self.rate_cents
 
 
+DOMESTIC_RATE_CENTS: Final = 590
+EU_RATE_CENTS: Final = 1690
+
+# The other member states of the EU, by German name, with the shape of their postal
+# codes (upper case, a space where people write one, the country prefix optional).
+_EU_COUNTRIES: Final = (
+    ("BE", "Belgien", r"\d{4}"),
+    ("BG", "Bulgarien", r"\d{4}"),
+    ("DK", "Dänemark", r"\d{4}"),
+    ("EE", "Estland", r"\d{5}"),
+    ("FI", "Finnland", r"\d{5}"),
+    ("FR", "Frankreich", r"\d{5}"),
+    ("GR", "Griechenland", r"\d{3} ?\d{2}"),
+    ("IE", "Irland", r"(?:[AC-FHKNPRTV-Y]\d{2}|D6W) ?[0-9AC-FHKNPRTV-Y]{4}"),
+    ("IT", "Italien", r"\d{5}"),
+    ("HR", "Kroatien", r"\d{5}"),
+    ("LV", "Lettland", r"(?:LV-)?\d{4}"),
+    ("LT", "Litauen", r"(?:LT-)?\d{5}"),
+    ("LU", "Luxemburg", r"(?:L-)?\d{4}"),
+    ("MT", "Malta", r"[A-Z]{3} ?\d{2,4}"),
+    ("NL", "Niederlande", r"\d{4} ?[A-Z]{2}"),
+    ("AT", "Österreich", r"\d{4}"),
+    ("PL", "Polen", r"\d{2}-\d{3}"),
+    ("PT", "Portugal", r"\d{4}-\d{3}"),
+    ("RO", "Rumänien", r"\d{6}"),
+    ("SE", "Schweden", r"\d{3} ?\d{2}"),
+    ("SK", "Slowakei", r"\d{3} ?\d{2}"),
+    ("SI", "Slowenien", r"(?:SI-)?\d{4}"),
+    ("ES", "Spanien", r"\d{5}"),
+    ("CZ", "Tschechien", r"\d{3} ?\d{2}"),
+    ("HU", "Ungarn", r"\d{4}"),
+    ("CY", "Zypern", r"\d{4}"),
+)
+
+# Germany first, then the rest of the EU; no order ships free (owner, 28.10.2026).
 SHIPPING_ZONES: Final = {
     zone.country_code: zone
     for zone in (
-        ShippingZone("DE", "Deutschland", 490, 5_000, re.compile(r"^[0-9]{5}$")),
-        ShippingZone("AT", "Österreich", 990, 10_000, re.compile(r"^[0-9]{4}$")),
+        ShippingZone("DE", "Deutschland", DOMESTIC_RATE_CENTS, re.compile(r"^[0-9]{5}$")),
+        *(
+            ShippingZone(code, name, EU_RATE_CENTS, re.compile(f"^{pattern}$"))
+            for code, name, pattern in _EU_COUNTRIES
+        ),
     )
 }
 DEFAULT_COUNTRY: Final = "DE"
@@ -146,7 +187,8 @@ class PostalAddress:
     ) -> "PostalAddress":
         country = country_code.strip().upper()
         zone = shipping_zone(country)
-        code = postal_code.strip()
+        # "1012 ab" is written "1012 AB": upper case, single spaces.
+        code = " ".join(postal_code.upper().split())
         if not zone.postal_code.match(code):
             raise InvalidFieldError("postal_code", "invalid", f"not a postal code in {country}")
         return cls(

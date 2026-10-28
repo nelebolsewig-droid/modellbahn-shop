@@ -1,6 +1,8 @@
 """The sales model without a database: money, addresses, cart, order life cycle, address book."""
 
+import re
 from datetime import UTC, datetime, timedelta
+from typing import Final
 from uuid import UUID, uuid4
 
 import pytest
@@ -22,7 +24,10 @@ from modellbahn.modules.sales.domain.model import (
     ADDRESS_BOOK_MAX_SIZE,
     CART_LIFETIME,
     CART_MAX_LINES,
+    DOMESTIC_RATE_CENTS,
+    EU_RATE_CENTS,
     PAYMENT_TIMEOUT,
+    SHIPPING_ZONES,
     CancelReason,
     Cart,
     ChargeResult,
@@ -32,6 +37,7 @@ from modellbahn.modules.sales.domain.model import (
     PaymentStatus,
     PostalAddress,
     PricedItem,
+    ShippingZone,
     Totals,
     after_removal,
     included_vat,
@@ -42,6 +48,7 @@ from modellbahn.modules.sales.domain.model import (
 )
 
 NOW = datetime(2026, 10, 25, 9, 0, tzinfo=UTC)
+EU_MEMBER_STATES: Final = 27
 
 
 def address(country: str = "DE", postal_code: str = "38707") -> PostalAddress:
@@ -104,21 +111,63 @@ class TestMoney:
         with pytest.raises(ValueError, match="never negative"):
             included_vat(-1)
 
-    def test_shipping_is_free_from_the_zone_threshold(self) -> None:
+    def test_shipping_is_a_flat_rate_and_never_free(self) -> None:
         germany = shipping_zone("DE")
-        assert germany.cost(4999) == 490
-        assert germany.cost(5000) == 0
-        assert shipping_zone("AT").cost(9999) == 990
+        assert germany.cost(4999) == DOMESTIC_RATE_CENTS
+        assert germany.cost(500_000) == DOMESTIC_RATE_CENTS
+        assert shipping_zone("AT").cost(9999) == EU_RATE_CENTS
+        assert shipping_zone("FR").cost(100_000) == EU_RATE_CENTS
         assert germany.cost(0) == 0
+
+    def test_a_zone_may_still_ship_free_from_a_threshold(self) -> None:
+        zone = ShippingZone("DE", "Deutschland", 490, re.compile(r"^\d{5}$"), free_from_cents=5000)
+        assert (zone.cost(4999), zone.cost(5000)) == (490, 0)
+
+    def test_the_whole_eu_is_shipped_to_with_germany_first(self) -> None:
+        codes = list(SHIPPING_ZONES)
+        assert codes[0] == "DE"
+        assert len(codes) == EU_MEMBER_STATES
+        assert {"AT", "FR", "NL", "PL", "IE", "CY"} <= set(codes)
+
+    @pytest.mark.parametrize(
+        ("country", "typed", "stored"),
+        [
+            ("NL", "1012 ab", "1012 AB"),
+            ("PL", "00-950", "00-950"),
+            ("IE", "d02  x285", "D02 X285"),
+            ("SE", "114 55", "114 55"),
+            ("LU", "L-1450", "L-1450"),
+        ],
+    )
+    def test_eu_postal_codes_are_normalised(self, country: str, typed: str, stored: str) -> None:
+        address = PostalAddress.create(
+            recipient="Erika Mustermann",
+            street="Hauptstraße 1",
+            postal_code=typed,
+            city="Irgendwo",
+            country_code=country,
+        )
+        assert address.postal_code == stored
+
+    def test_a_postal_code_of_another_country_is_refused(self) -> None:
+        with pytest.raises(InvalidFieldError) as error:
+            PostalAddress.create(
+                recipient="Erika Mustermann",
+                street="Hauptstraße 1",
+                postal_code="12345",
+                city="Wien",
+                country_code="AT",
+            )
+        assert error.value.field == "postal_code"
 
     def test_totals_add_shipping_and_contain_vat(self) -> None:
         totals = Totals.of(3990, shipping_zone("DE"))
         assert (totals.subtotal_cents, totals.shipping_cents, totals.total_cents) == (
             3990,
-            490,
-            4480,
+            590,
+            4580,
         )
-        assert totals.tax_cents == included_vat(4480)
+        assert totals.tax_cents == included_vat(4580)
 
     def test_unknown_countries_are_not_shipped_to(self) -> None:
         with pytest.raises(InvalidFieldError) as error:
@@ -245,8 +294,12 @@ class TestOrder:
         assert order.status is OrderStatus.PENDING_PAYMENT
         assert [line.line_total_cents for line in order.lines] == [9980, 1290]
         assert [line.position for line in order.lines] == [0, 1]
-        assert (order.subtotal_cents, order.shipping_cents, order.total_cents) == (11270, 0, 11270)
-        assert order.tax_cents == included_vat(11270)
+        assert (order.subtotal_cents, order.shipping_cents, order.total_cents) == (
+            11270,
+            590,
+            11860,
+        )
+        assert order.tax_cents == included_vat(11860)
         assert order.email == "Erika@example.de"
         assert order.item_count == 3
         assert order.is_guest_order
@@ -254,12 +307,12 @@ class TestOrder:
         assert event.public_payload() == {
             "order_id": str(order.id),
             "number": "MB-2026-00042",
-            "total_cents": 11270,
+            "total_cents": 11860,
         }
 
     def test_shipping_depends_on_the_country(self) -> None:
         order, _ = placed(item(4990), country="AT")
-        assert order.shipping_cents == 990
+        assert order.shipping_cents == EU_RATE_CENTS
 
     def test_an_order_needs_lines(self) -> None:
         with pytest.raises(ValueError, match="at least one line"):

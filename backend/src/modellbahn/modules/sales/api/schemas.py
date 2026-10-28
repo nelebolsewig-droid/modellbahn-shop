@@ -84,7 +84,7 @@ class ShippingCountryOut(BaseModel):
     code: str = Field(examples=["DE"])
     name: str = Field(examples=["Deutschland"])
     rate_cents: Cents
-    free_from_cents: Cents
+    free_from_cents: Cents | None = Field(description="Null: shipping is never free.")
 
     @classmethod
     def from_zone(cls, zone: ShippingZone) -> Self:

@@ -3,14 +3,20 @@ import type { CartLineOut, CartOut, OrderOut, ShippingCountryOut } from "@/lib/a
 export const GERMANY: ShippingCountryOut = {
   code: "DE",
   name: "Deutschland",
-  rate_cents: 490,
-  free_from_cents: 5000,
+  rate_cents: 590,
+  free_from_cents: null,
 };
 export const AUSTRIA: ShippingCountryOut = {
   code: "AT",
   name: "Österreich",
-  rate_cents: 990,
-  free_from_cents: 10000,
+  rate_cents: 1690,
+  free_from_cents: null,
+};
+export const FRANCE: ShippingCountryOut = {
+  code: "FR",
+  name: "Frankreich",
+  rate_cents: 1690,
+  free_from_cents: null,
 };
 
 export function cartLine(overrides: Partial<CartLineOut> = {}): CartLineOut {
@@ -40,7 +46,7 @@ export function cartLine(overrides: Partial<CartLineOut> = {}): CartLineOut {
 /** A cart as the API answers, with totals computed like the backend does (shipping to DE). */
 export function cartOut(...lines: CartLineOut[]): CartOut {
   const subtotal = lines.filter((l) => l.available).reduce((sum, l) => sum + l.line_total_cents, 0);
-  const shipping = subtotal === 0 || subtotal >= GERMANY.free_from_cents ? 0 : GERMANY.rate_cents;
+  const shipping = subtotal === 0 ? 0 : GERMANY.rate_cents;
   const total = subtotal + shipping;
   return {
     lines,
@@ -53,7 +59,7 @@ export function cartOut(...lines: CartLineOut[]): CartOut {
     },
     shipping_country: GERMANY,
     ready_for_checkout: lines.length > 0 && lines.every((l) => l.available),
-    countries: [GERMANY, AUSTRIA],
+    countries: [GERMANY, FRANCE, AUSTRIA],
   };
 }
 

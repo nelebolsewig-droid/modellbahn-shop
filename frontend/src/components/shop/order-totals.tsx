@@ -51,10 +51,11 @@ type FreeShippingMeterProps = {
  * the sleepers stay, the rails turn black as the goods add up.
  */
 export function FreeShippingMeter({ country, subtotalCents, className }: FreeShippingMeterProps) {
-  if (subtotalCents === 0) {
+  const missing = missingForFreeShipping(country, subtotalCents);
+  // Nothing to fill up where shipping is never free.
+  if (subtotalCents === 0 || missing === null || country.free_from_cents === null) {
     return null;
   }
-  const missing = missingForFreeShipping(country, subtotalCents);
   const share = Math.min(1, subtotalCents / country.free_from_cents);
   return (
     <div className={className}>

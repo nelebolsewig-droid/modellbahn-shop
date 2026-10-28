@@ -123,7 +123,7 @@ class TestCart:
         ]
         assert view.items[0].variant.title == "Stellwerk Altenau · H0 · bemalt"
         assert view.items[0].image is not None
-        assert (view.totals.subtotal_cents, view.totals.shipping_cents) == (12970, 0)
+        assert (view.totals.subtotal_cents, view.totals.shipping_cents) == (12970, 590)
         assert view.item_count == 3
         assert view.ready_for_checkout
 
@@ -132,7 +132,7 @@ class TestCart:
 
     async def test_small_orders_pay_shipping(self, carts: CartService, unpainted: UUID) -> None:
         view = await carts.view(await filled_cart(carts, (unpainted, 1)))
-        assert (view.totals.shipping_cents, view.totals.total_cents) == (490, 3480)
+        assert (view.totals.shipping_cents, view.totals.total_cents) == (590, 3580)
 
     async def test_quantities_change_and_lines_leave(
         self, carts: CartService, painted: UUID
@@ -187,7 +187,11 @@ class TestCheckout:
             ("B", 1, 4990),
             ("U", 2, 2990),
         ]
-        assert (order.subtotal_cents, order.shipping_cents, order.total_cents) == (10970, 0, 10970)
+        assert (order.subtotal_cents, order.shipping_cents, order.total_cents) == (
+            10970,
+            590,
+            11560,
+        )
         assert order.shipping_address.city == "Altenau"
         assert set(result.details.images) == {order.lines[0].image_asset_id}
         assert len(order.public_token) >= 40
@@ -199,7 +203,7 @@ class TestCheckout:
     ) -> None:
         cart = await filled_cart(carts, (unpainted, 1))
         request = CheckoutRequest(
-            expected_total_cents=2990 + 990,
+            expected_total_cents=2990 + 1690,
             email="erika@example.at",
             address=AddressInput(
                 recipient="Erika",
@@ -212,7 +216,7 @@ class TestCheckout:
         result = await checkout.place_order(
             cart_id=cart, request=request, buyer=None, idempotency_key=uuid4()
         )
-        assert result.details.order.shipping_cents == 990
+        assert result.details.order.shipping_cents == 1690
 
     async def test_the_same_key_never_orders_twice(
         self, carts: CartService, checkout: CheckoutService, engine: AsyncEngine, painted: UUID
@@ -220,7 +224,7 @@ class TestCheckout:
         cart = await filled_cart(carts, (painted, 1))
         key = uuid4()
         request = CheckoutRequest(
-            expected_total_cents=5480, email="erika@example.de", address=ADDRESS
+            expected_total_cents=5580, email="erika@example.de", address=ADDRESS
         )
         first = await checkout.place_order(
             cart_id=cart, request=request, buyer=None, idempotency_key=key
@@ -232,7 +236,7 @@ class TestCheckout:
         assert again.details.order.id == first.details.order.id
         assert await order_count(engine) == 1
         other = CheckoutRequest(
-            expected_total_cents=5480, email="mallory@example.de", address=ADDRESS
+            expected_total_cents=5580, email="mallory@example.de", address=ADDRESS
         )
         with pytest.raises(IdempotencyKeyReusedError):
             await checkout.place_order(cart_id=cart, request=other, buyer=None, idempotency_key=key)
@@ -243,7 +247,7 @@ class TestCheckout:
         cart = await filled_cart(carts, (painted, 1))
         key = uuid4()
         request = CheckoutRequest(
-            expected_total_cents=5480, email="erika@example.de", address=ADDRESS
+            expected_total_cents=5580, email="erika@example.de", address=ADDRESS
         )
         results = await asyncio.gather(
             *(
@@ -265,13 +269,13 @@ class TestCheckout:
         cart = await filled_cart(carts, (painted, 1))
         await catalog.change_variant(painted, expected_version=None, price_cents=5990)
         request = CheckoutRequest(
-            expected_total_cents=5480, email="erika@example.de", address=ADDRESS
+            expected_total_cents=5580, email="erika@example.de", address=ADDRESS
         )
         with pytest.raises(PriceChangedError) as error:
             await checkout.place_order(
                 cart_id=cart, request=request, buyer=None, idempotency_key=uuid4()
             )
-        assert (error.value.expected_cents, error.value.actual_cents) == (5480, 5990)
+        assert (error.value.expected_cents, error.value.actual_cents) == (5580, 6580)
         assert await order_count(engine) == 0
         assert len((await carts.view(cart)).items) == 1
 
@@ -325,7 +329,7 @@ class TestCheckout:
 
         book = await addresses.add(account, label="Werkstatt", address=ADDRESS, default=False)
         cart = await filled_cart(carts, (painted, 1))
-        request = CheckoutRequest(expected_total_cents=5480, address_id=book[0].id)
+        request = CheckoutRequest(expected_total_cents=5580, address_id=book[0].id)
         second = await checkout.place_order(
             cart_id=cart, request=request, buyer=buyer, idempotency_key=uuid4()
         )
@@ -335,12 +339,12 @@ class TestCheckout:
         with pytest.raises(AddressNotFoundError):
             await checkout.place_order(
                 cart_id=cart,
-                request=CheckoutRequest(expected_total_cents=5480, address_id=uuid4()),
+                request=CheckoutRequest(expected_total_cents=5580, address_id=uuid4()),
                 buyer=buyer,
                 idempotency_key=uuid4(),
             )
         saving = CheckoutRequest(
-            expected_total_cents=5480,
+            expected_total_cents=5580,
             address=AddressInput("Kundin", "Weg 2", "10115", "Berlin", "DE"),
             save_address=True,
         )

@@ -1,6 +1,6 @@
 """Sales over HTTP: cart cookie, checkout with Idempotency-Key, payment, account, admin area."""
 
-from typing import Any
+from typing import Any, Final
 from uuid import UUID, uuid4
 
 import pytest
@@ -28,6 +28,7 @@ from tests.sales_support import shop_product, variant_id
 from tests.support import mails_to
 
 ADMIN_ORDERS = "/api/v1/admin/orders"
+EU_MEMBER_STATES: Final = 27
 INVENTORY = "/api/v1/admin/inventory"
 ADDRESS = {
     "recipient": "Erika Mustermann",
@@ -115,7 +116,20 @@ class TestCart:
         assert empty.status_code == 200
         assert empty.headers["cache-control"] == "no-store"
         assert empty.json()["lines"] == []
-        assert [c["code"] for c in empty.json()["countries"]] == ["DE", "AT"]
+        countries = empty.json()["countries"]
+        assert len(countries) == EU_MEMBER_STATES
+        assert countries[0] == {
+            "code": "DE",
+            "name": "Deutschland",
+            "rate_cents": 590,
+            "free_from_cents": None,
+        }
+        assert {
+            "code": "AT",
+            "name": "Österreich",
+            "rate_cents": 1690,
+            "free_from_cents": None,
+        } in (countries)
 
         response = await put_line(client, painted, 2)
         assert response.status_code == 200, response.text
@@ -162,15 +176,15 @@ class TestCheckout:
         assert order["number"].startswith("MB-")
         assert order["totals"] == {
             "subtotal_cents": 4990,
-            "shipping_cents": 490,
-            "total_cents": 5480,
-            "tax_cents": 875,
+            "shipping_cents": 590,
+            "total_cents": 5580,
+            "tax_cents": 891,
         }
         assert order["payment_due_at"] is not None
         assert "Idempotent-Replayed" not in first.headers
         assert (await client.get(f"{SHOP}/cart")).json()["lines"] == []
 
-        payload = {"expected_total_cents": 5480, "email": "gast@example.de", "address": ADDRESS}
+        payload = {"expected_total_cents": 5580, "email": "gast@example.de", "address": ADDRESS}
         replay = await client.post(
             f"{SHOP}/checkouts", json=payload, headers={"Idempotency-Key": key}
         )
@@ -182,7 +196,7 @@ class TestCheckout:
         await put_line(client, painted, 1)
         response = await client.post(
             f"{SHOP}/checkouts",
-            json={"expected_total_cents": 5480, "email": "a@b.de", "address": ADDRESS},
+            json={"expected_total_cents": 5580, "email": "a@b.de", "address": ADDRESS},
         )
         assert_problem(response, 422, "validation_failed")
 
@@ -194,7 +208,7 @@ class TestCheckout:
         await catalog.change_variant(painted, expected_version=None, price_cents=3990)
         stale = await client.post(
             f"{SHOP}/checkouts",
-            json={"expected_total_cents": 5480, "email": "a@b.de", "address": ADDRESS},
+            json={"expected_total_cents": 5580, "email": "a@b.de", "address": ADDRESS},
             headers={"Idempotency-Key": str(uuid4())},
         )
         assert_problem(stale, 409, "price_changed")
