@@ -67,6 +67,7 @@ class Article:
     category_name: str | None
     scale_name: str
     finish_name: str
+    color: str
     sku: str
     gtin: str
     price_cents: int

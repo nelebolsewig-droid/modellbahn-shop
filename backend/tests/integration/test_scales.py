@@ -50,9 +50,9 @@ async def test_a_new_scale_takes_products_and_sku(
         details.product.id, expected_version=None, scale_code="S", dimensions=Dimensions()
     )
     details = await catalog.add_variant(
-        details.product.scales[0].id, expected_version=None, finish_code="primed", price_cents=990
+        details.product.scales[0].id, expected_version=None, finish_code="painted", price_cents=990
     )
-    assert details.product.scales[0].variants[0].sku.endswith("-S-G")
+    assert details.product.scales[0].variants[0].sku.endswith("-S-F")
 
 
 async def test_road_scales_need_no_track_and_ratios_may_have_a_decimal(

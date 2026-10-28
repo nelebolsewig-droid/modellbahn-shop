@@ -1,7 +1,8 @@
 """The catalogue model: products, the scales they come in, their variants and gallery.
 
-A *product* ("Stellwerk Altenau") comes *in scales* (H0, N), and each scale is sold as
-*variants*, one per finish (unbemalt, grundiert, bemalt). The product is the aggregate
+A *product* ("IFA ADK 70 Autokran") comes *in scales* (H0, TT), and each scale is sold
+as *variants*: as a kit (*Bausatz*) and as a finished model (*Fertigmodell*), the
+latter in one variant per colour. The product is the aggregate
 root: every change goes through it and raises its version, so two people editing the
 same product cannot overwrite each other unnoticed.
 
@@ -44,6 +45,7 @@ DESCRIPTION_MAX_LENGTH: Final = 10_000
 PROTOTYPE_MAX_LENGTH: Final = 200
 CATEGORY_NAME_MAX_LENGTH: Final = 60
 ALT_TEXT_MAX_LENGTH: Final = 250
+COLOR_MAX_LENGTH: Final = 40
 GALLERY_MAX_SIZE: Final = 40
 # 100 000 €: far above anything this shop sells, low enough to catch a typo.
 PRICE_MAX_CENTS: Final = 10_000_000
@@ -167,12 +169,19 @@ def _track_gauge(value: Decimal | None) -> Decimal | None:
 
 @dataclass(frozen=True, slots=True)
 class Finish:
-    """How a variant is delivered; its letter ends the SKU."""
+    """How a variant is delivered; its letter ends the SKU.
+
+    A finished model comes in colours (``colored``), a kit does not. A finish that is
+    no longer ``offered`` (primed, since October 2026) takes no new variants; the old
+    ones stay for the stock and the orders that name them.
+    """
 
     code: str
     name: str
     sku_letter: str
     position: int
+    colored: bool = False
+    offered: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,9 +215,19 @@ def internal_gtin(serial: int) -> str:
     return f"{body}{ean13_check_digit(body)}"
 
 
-def variant_sku(product_number: int, scale_code: str, finish: Finish) -> str:
-    """Readable article number, e.g. ``MB-000042-H0-B`` for a painted H0 variant."""
-    return f"MB-{product_number:06d}-{scale_code.upper()}-{finish.sku_letter}"
+def variant_sku(product_number: int, scale_code: str, finish: Finish, sequence: int = 1) -> str:
+    """Readable article number, e.g. ``MB-000042-H0-F`` for a finished H0 model.
+
+    Further colours of the same finish count on: ``MB-000042-H0-F2``, ``-F3``.
+    """
+    suffix = "" if sequence == 1 else str(sequence)
+    return f"MB-{product_number:06d}-{scale_code.upper()}-{finish.sku_letter}{suffix}"
+
+
+def normalize_color(value: str) -> str:
+    """A colour as the shop shows it: one line, first letter capital ("hellblau" → "Hellblau")."""
+    cleaned = single_line(value, field="color", max_length=COLOR_MAX_LENGTH, required=False)
+    return cleaned[:1].upper() + cleaned[1:]
 
 
 def check_lead_time(lead_time_weeks: tuple[int, int]) -> tuple[int, int]:
@@ -308,16 +327,18 @@ class Category:
 
 @dataclass(eq=False, kw_only=True)
 class Variant:
-    """What a customer buys: one scale in one finish, with SKU, EAN and price.
+    """What a customer buys: one scale in one finish (and colour), with SKU, EAN and price.
 
     A variant is either *in stock* (sold from the shelves, sold out when they are
     empty) or *made to order* (``allow_backorder``: always for sale, made within its
-    lead time, a range of weeks).
+    lead time, a range of weeks). ``color`` is empty for a kit and may be empty for a
+    finished model that comes in one colour only.
     """
 
     id: UUID
     product_scale_id: UUID
     finish_code: str
+    color: str = ""
     sku: str
     gtin: str
     price_cents: int
@@ -358,8 +379,17 @@ class ProductScale:
     weight_g: int | None
     variants: list[Variant] = field(default_factory=list)
 
-    def variant_for(self, finish_code: str) -> Variant | None:
-        return next((v for v in self.variants if v.finish_code == finish_code), None)
+    def variant_for(self, finish_code: str, color: str = "") -> Variant | None:
+        """The variant in this finish and colour (colours compared without case)."""
+        wanted = color.casefold()
+        return next(
+            (
+                v
+                for v in self.variants
+                if v.finish_code == finish_code and v.color.casefold() == wanted
+            ),
+            None,
+        )
 
 
 @dataclass(eq=False, kw_only=True)
@@ -383,6 +413,7 @@ class ProductMedia:
     alt_text: str
     scale_code: str | None
     finish_code: str | None
+    color: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,6 +425,7 @@ class GalleryEntry:
     alt_text: str = ""
     scale_code: str | None = None
     finish_code: str | None = None
+    color: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -402,6 +434,7 @@ class VariantDraft:
 
     finish: Finish
     price_cents: int
+    color: str = ""
     compare_at_price_cents: int | None = None
     allow_backorder: bool = False
     lead_time_weeks: tuple[int, int] | None = None
@@ -597,14 +630,24 @@ class Product:
         self, product_scale_id: UUID, draft: VariantDraft, *, gtin: str, now: datetime
     ) -> Variant:
         product_scale = self.scale(product_scale_id)
-        if product_scale.variant_for(draft.finish.code) is not None:
+        if not draft.finish.offered:
+            raise InvalidFieldError("finish_code", "not_offered", "no longer offered")
+        color = _check_color(draft.color, colored=draft.finish.colored)
+        if product_scale.variant_for(draft.finish.code, color) is not None:
             raise VariantAlreadyExistsError
         check_price(draft.price_cents, draft.compare_at_price_cents)
+        taken = {v.sku for v in product_scale.variants}
+        sequence = 1
+        while (
+            sku := variant_sku(self.number, product_scale.scale_code, draft.finish, sequence)
+        ) in taken:
+            sequence += 1
         variant = Variant(
             id=new_id(),
             product_scale_id=product_scale.id,
             finish_code=draft.finish.code,
-            sku=variant_sku(self.number, product_scale.scale_code, draft.finish),
+            color=color,
+            sku=sku,
             gtin=gtin,
             price_cents=draft.price_cents,
             compare_at_price_cents=draft.compare_at_price_cents,
@@ -627,10 +670,21 @@ class Product:
         allow_backorder: Maybe[bool] = UNSET,
         lead_time_weeks: Maybe[tuple[int, int] | None] = UNSET,
         active: Maybe[bool] = UNSET,
+        color: Maybe[str] = UNSET,
+        colored: bool = False,
         now: datetime,
     ) -> None:
-        """Change what is given; a variant made to order always keeps a lead time."""
-        _, variant = self.scale_with_variant(variant_id)
+        """Change what is given; a variant made to order always keeps a lead time.
+
+        ``colored`` says whether the variant's finish comes in colours (a kit does not).
+        """
+        product_scale, variant = self.scale_with_variant(variant_id)
+        if color is not UNSET:
+            new_color = _check_color(color, colored=colored)
+            other = product_scale.variant_for(variant.finish_code, new_color)
+            if other is not None and other is not variant:
+                raise VariantAlreadyExistsError
+            variant.color = new_color
         new_price = variant.price_cents if price_cents is UNSET else price_cents
         new_compare = (
             variant.compare_at_price_cents
@@ -681,10 +735,29 @@ class Product:
             ),
             scale_code=None,
             finish_code=None,
+            color=None,
         )
         self.media.append(entry)
         self.updated_at = now
         return entry
+
+    def tag_image(
+        self,
+        asset_id: UUID,
+        *,
+        scale_code: str | None,
+        finish_code: str | None,
+        color: str,
+        now: datetime,
+    ) -> None:
+        """Say which scale, finish and colour one image of the gallery shows."""
+        entry = next((m for m in self.media if m.asset_id == asset_id), None)
+        if entry is None:
+            raise UnknownReferenceError("asset_id", str(asset_id))
+        entry.scale_code = scale_code
+        entry.finish_code = finish_code
+        entry.color = normalize_color(color) or None
+        self.updated_at = now
 
     def arrange_gallery(
         self, entries: list[GalleryEntry], *, main_image_ready: bool, now: datetime
@@ -718,6 +791,7 @@ class Product:
             )
             entry.scale_code = wanted.scale_code
             entry.finish_code = wanted.finish_code
+            entry.color = None if wanted.color is None else normalize_color(wanted.color) or None
             arranged.append(entry)
         self.media = arranged
         self._ensure_still_sellable(main_image_ready=main_image_ready)
@@ -775,3 +849,10 @@ class Product:
         blockers = self.publish_blockers(main_image_ready=main_image_ready)
         if blockers:
             raise ProductNotPublishableError(blockers)
+
+
+def _check_color(value: str, *, colored: bool) -> str:
+    color = normalize_color(value)
+    if color and not colored:
+        raise InvalidFieldError("color", "not_colored", "a kit comes without a colour")
+    return color

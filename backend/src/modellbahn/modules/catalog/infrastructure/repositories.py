@@ -118,6 +118,7 @@ class SqlProductRepository:
                 categories.c.name.label("category_name"),
                 scales.c.name.label("scale_name"),
                 finishes.c.name.label("finish_name"),
+                variants.c.color,
                 variants.c.sku,
                 variants.c.gtin,
                 variants.c.price_cents,
@@ -132,7 +133,12 @@ class SqlProductRepository:
             .join(finishes, finishes.c.code == variants.c.finish_code)
             .outerjoin(categories, categories.c.id == products.c.primary_category_id)
             .where(products.c.status != ProductStatus.ARCHIVED)
-            .order_by(products.c.name, scales.c.ratio_denominator.desc(), finishes.c.position)
+            .order_by(
+                products.c.name,
+                scales.c.ratio_denominator.desc(),
+                finishes.c.position,
+                variants.c.color,
+            )
         )
         return [
             Article(
@@ -141,6 +147,7 @@ class SqlProductRepository:
                 category_name=row.category_name,
                 scale_name=row.scale_name,
                 finish_name=row.finish_name,
+                color=row.color,
                 sku=row.sku,
                 gtin=row.gtin,
                 price_cents=row.price_cents,
@@ -325,7 +332,14 @@ class SqlReferenceData:
     async def finishes(self) -> list[Finish]:
         rows = await self._session.execute(select(finishes).order_by(finishes.c.position))
         return [
-            Finish(code=row.code, name=row.name, sku_letter=row.sku_letter, position=row.position)
+            Finish(
+                code=row.code,
+                name=row.name,
+                sku_letter=row.sku_letter,
+                position=row.position,
+                colored=row.colored,
+                offered=row.offered,
+            )
             for row in rows
         ]
 

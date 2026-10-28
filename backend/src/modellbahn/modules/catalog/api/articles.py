@@ -47,7 +47,14 @@ def articles_csv(articles: Sequence[Article]) -> bytes:
         writer.writerow(
             (
                 article.product_name,
-                f"{article.scale_name} · {article.finish_name}",
+                " · ".join(
+                    (
+                        article.scale_name,
+                        f"{article.finish_name}, {article.color}"
+                        if article.color
+                        else article.finish_name,
+                    )
+                ),
                 article.sku,
                 article.gtin,
                 _euros(article.price_cents),

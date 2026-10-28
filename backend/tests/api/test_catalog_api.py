@@ -125,6 +125,39 @@ class TestEditing:
         assert body["errors"][0]["field"] == "epoch_codes"
         assert body["errors"][0]["code"] == "unknown"
 
+    async def test_colours_of_a_finished_model(self, staff_client: AsyncClient) -> None:
+        product = (await create(staff_client)).json()
+        scales = await staff_client.post(
+            f"{PRODUCTS}/{product['id']}/scales", json={"scale_code": "H0"}
+        )
+        url = f"/api/v1/admin/product-scales/{scales.json()['scales'][0]['id']}/variants"
+        await staff_client.post(
+            url, json={"finish_code": "painted", "color": "gelb", "price_cents": 8000}
+        )
+        response = await staff_client.post(
+            url, json={"finish_code": "painted", "color": "Blau", "price_cents": 8000}
+        )
+        variants = response.json()["scales"][0]["variants"]
+        number = f"MB-{product['number']:06d}-H0"
+        assert [(v["color"], v["sku"]) for v in variants] == [
+            ("Gelb", f"{number}-F"),
+            ("Blau", f"{number}-F2"),
+        ]
+        kit = await staff_client.post(
+            url, json={"finish_code": "unpainted", "color": "Rot", "price_cents": 3000}
+        )
+        assert_problem(kit, 422, "validation_failed")
+        assert kit.json()["errors"][0]["code"] == "not_colored"
+        primed = await staff_client.post(url, json={"finish_code": "primed", "price_cents": 3000})
+        assert primed.json()["errors"][0]["code"] == "not_offered"
+        assert_problem(
+            await staff_client.patch(
+                f"/api/v1/admin/variants/{variants[1]['id']}", json={"color": "GELB"}
+            ),
+            409,
+            "variant_exists",
+        )
+
     async def test_variants(self, staff_client: AsyncClient) -> None:
         product = (await create(staff_client)).json()
         scales = await staff_client.post(
@@ -134,13 +167,13 @@ class TestEditing:
         url = f"/api/v1/admin/product-scales/{scale_id}/variants"
         response = await staff_client.post(
             url,
-            json={"finish_code": "primed", "price_cents": 1990, "compare_at_price_cents": 2490},
+            json={"finish_code": "unpainted", "price_cents": 1990, "compare_at_price_cents": 2490},
         )
         (variant,) = response.json()["scales"][0]["variants"]
-        assert variant["sku"] == f"MB-{product['number']:06d}-N-G"
+        assert variant["sku"] == f"MB-{product['number']:06d}-N-B"
         assert len(variant["gtin"]) == 13
         assert_problem(
-            await staff_client.post(url, json={"finish_code": "primed", "price_cents": 1}),
+            await staff_client.post(url, json={"finish_code": "unpainted", "price_cents": 1}),
             409,
             "variant_exists",
         )
@@ -248,7 +281,7 @@ class TestPublishing:
         (item,) = page["gallery"]
         assert item["alt_text"] == "Front"
         assert {r["format"] for r in item["image"]["renditions"]} == {"webp", "avif"}
-        assert [f["name"] for f in page["finishes"]] == ["unbemalt", "grundiert", "bemalt"]
+        assert [f["name"] for f in page["finishes"]] == ["Bausatz", "Fertigmodell"]
 
         assert_problem(
             await staff_client.patch(
@@ -319,7 +352,11 @@ class TestCategoriesAndLists:
         drafts = (await staff_client.get(PRODUCTS, params={"status": "active"})).json()
         assert drafts["items"] == []
         references = (await staff_client.get("/api/v1/admin/catalog/references")).json()
-        assert [f["sku_letter"] for f in references["finishes"]] == ["U", "G", "B"]
+        assert [(f["sku_letter"], f["offered"]) for f in references["finishes"]] == [
+            ("B", True),
+            ("F", True),
+            ("G", False),
+        ]
 
     @pytest.mark.parametrize(
         ("path", "status", "code"),

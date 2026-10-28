@@ -134,6 +134,8 @@ EXPECTED_OPERATIONS = {
     ("DELETE", "/api/v1/admin/scales/{code}"): ("deleteScale", "admin-catalog"),
     ("GET", "/api/v1/admin/products"): ("listProducts", "admin-catalog"),
     ("POST", "/api/v1/admin/products"): ("createProduct", "admin-catalog"),
+    ("POST", "/api/v1/admin/catalog/quick-entries"): ("createQuickEntry", "admin-catalog"),
+    ("POST", "/api/v1/admin/catalog/publish-ready"): ("publishReadyProducts", "admin-catalog"),
     ("GET", "/api/v1/admin/products/{product_id}"): ("getProduct", "admin-catalog"),
     ("PATCH", "/api/v1/admin/products/{product_id}"): ("updateProduct", "admin-catalog"),
     ("DELETE", "/api/v1/admin/products/{product_id}"): ("deleteProduct", "admin-catalog"),

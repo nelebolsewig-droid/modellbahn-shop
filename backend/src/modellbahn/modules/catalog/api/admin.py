@@ -39,10 +39,15 @@ from modellbahn.modules.catalog.api.schemas import (
     ProductPageOut,
     ProductPatchIn,
     ProductScaleIn,
+    PublishedOut,
+    PublishedProductOut,
+    QuickEntryIn,
+    QuickEntryOut,
     ReferencesOut,
     ScaleCreateIn,
     ScalePatchIn,
     VariantCreateIn,
+    VariantOut,
     VariantPatchIn,
     exact_decimal,
 )
@@ -254,6 +259,57 @@ async def create_product(
     details = await service.create_product(name=body.name, slug=body.slug)
     response.headers["Location"] = f"/api/v1/admin/products/{details.product.id}"
     return _product(details, response)
+
+
+@router.post(
+    "/catalog/quick-entries",
+    operation_id="createQuickEntry",
+    summary="Record one model: product, scale, variant in finish and colour, price and photo",
+    responses=problems(
+        {**ACCESS, **PRODUCT_NOT_FOUND, 409: ["slug_taken"], 422: ["not_publishable"]}
+    ),
+)
+async def create_quick_entry(
+    body: QuickEntryIn, response: Response, _: CatalogEditor, service: CatalogServiceDep
+) -> QuickEntryOut:
+    """Made for the phone, shelf by shelf: what is missing is created, what exists is reused.
+
+    The product keeps its state: a new one is a draft, until it is published (on its
+    own or with ``publish-ready``). The pieces themselves are registered by the
+    inventory (``POST /admin/inventory/units``) with the variant returned here.
+    """
+    entry = await service.quick_entry(
+        product_id=body.product_id,
+        name=body.name,
+        category_id=body.category_id,
+        scale_code=body.scale_code,
+        finish_code=body.finish_code,
+        color=body.color,
+        price_cents=body.price_cents,
+        allow_backorder=body.allow_backorder,
+        asset_id=body.asset_id,
+    )
+    set_etag(response, entry.details.product.version)
+    return QuickEntryOut(
+        product=ProductOut.from_details(entry.details),
+        variant=VariantOut.from_variant(entry.variant),
+        new_product=entry.new_product,
+        new_variant=entry.new_variant,
+    )
+
+
+@router.post(
+    "/catalog/publish-ready",
+    operation_id="publishReadyProducts",
+    summary="Put every draft into the shop that meets the rules",
+    responses=problems(ACCESS),
+)
+async def publish_ready(_: CatalogEditor, service: CatalogServiceDep) -> PublishedOut:
+    """Drafts that still lack a category, an active variant or a ready photo stay drafts."""
+    published = await service.publish_ready()
+    return PublishedOut(
+        published=[PublishedProductOut(id=p.id, name=p.name, slug=p.slug) for p in published]
+    )
 
 
 @router.get(
@@ -469,6 +525,7 @@ async def add_variant(
         product_scale_id,
         expected_version=expected_version(if_match, required=False),
         finish_code=body.finish_code,
+        color=body.color,
         price_cents=body.price_cents,
         compare_at_price_cents=body.compare_at_price_cents,
         allow_backorder=body.allow_backorder,
@@ -481,8 +538,16 @@ async def add_variant(
 @router.patch(
     "/variants/{variant_id}",
     operation_id="updateVariant",
-    summary="Change price, former price, made to order with lead time, or availability",
-    responses=problems({**ACCESS, **_VARIANT_NOT_FOUND, **VERSIONED, 422: ["not_publishable"]}),
+    summary="Change price, former price, made to order with lead time, colour or availability",
+    responses=problems(
+        {
+            **ACCESS,
+            **_VARIANT_NOT_FOUND,
+            **VERSIONED,
+            409: ["variant_exists"],
+            422: ["not_publishable"],
+        }
+    ),
 )
 async def update_variant(
     variant_id: UUID,
@@ -505,6 +570,7 @@ async def update_variant(
             else UNSET
         ),
         active=_given(body, "active"),
+        color=_given(body, "color"),
     )
     return _product(details, response)
 

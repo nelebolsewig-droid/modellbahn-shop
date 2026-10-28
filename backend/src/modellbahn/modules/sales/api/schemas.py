@@ -151,6 +151,7 @@ class CartLineOut(BaseModel):
     scale_name: str
     finish_code: str
     finish_name: str
+    color: str = Field(description="Empty for a kit or a finished model in one colour.")
     sku: str
     quantity: int
     unit_price_cents: Cents
@@ -181,6 +182,7 @@ class CartLineOut(BaseModel):
             scale_name=variant.scale_name,
             finish_code=variant.finish_code,
             finish_name=variant.finish_name,
+            color=variant.color,
             sku=variant.sku,
             quantity=item.quantity,
             unit_price_cents=variant.price_cents,

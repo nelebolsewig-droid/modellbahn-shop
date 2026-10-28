@@ -68,8 +68,8 @@ def item(price: int = 4990, quantity: int = 1) -> PricedItem:
     return PricedItem(
         variant_id=uuid4(),
         product_slug="stellwerk-altenau",
-        sku="MB-000001-H0-B",
-        title="Stellwerk Altenau · H0 · bemalt",
+        sku="MB-000001-H0-F",
+        title="Stellwerk Altenau · H0 · Fertigmodell",
         scale_code="H0",
         finish_code="painted",
         unit_price_cents=price,

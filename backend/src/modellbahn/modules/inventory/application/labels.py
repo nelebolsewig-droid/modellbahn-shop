@@ -66,7 +66,7 @@ class LabelService:
                         ean13=variant.gtin if variant else None,
                         code_text=format_unit_code(unit.code),
                         title=variant.product_name if variant else "",
-                        detail=f"{variant.scale_name} · {variant.finish_name}" if variant else "",
+                        detail=variant.variant_name if variant else "",
                         reference=variant.sku if variant else "",
                     )
                 )

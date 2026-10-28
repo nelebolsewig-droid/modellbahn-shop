@@ -24,6 +24,7 @@ from modellbahn.modules.catalog.domain.errors import (
     CategoryNotFoundError,
     InvalidFieldError,
     ProductNotFoundError,
+    ProductNotPublishableError,
     ProductScaleNotFoundError,
     PublishBlocker,
     ScaleAlreadyAddedError,
@@ -45,8 +46,10 @@ from modellbahn.modules.catalog.domain.model import (
     Product,
     ProductStatus,
     Scale,
+    Variant,
     VariantDraft,
     internal_gtin,
+    normalize_color,
 )
 from modellbahn.modules.catalog.domain.text import check_slug, slugify
 from modellbahn.modules.media.contracts.images import AssetStatus, ImageView
@@ -71,7 +74,7 @@ _UNIQUE_RULES: Final[dict[str, type[Exception]]] = {
     "uq_products_slug": SlugTakenError,
     "uq_categories_slug": SlugTakenError,
     "uq_product_scales_product_id_scale_code": ScaleAlreadyAddedError,
-    "uq_variants_product_scale_id_finish_code": VariantAlreadyExistsError,
+    "uq_variants_product_scale_id_finish_code_color": VariantAlreadyExistsError,
 }
 
 
@@ -109,6 +112,16 @@ class ProductDetails:
     product: Product
     images: dict[UUID, ImageView]
     blockers: list[PublishBlocker]
+
+
+@dataclass(frozen=True, slots=True)
+class QuickEntry:
+    """What one quick entry left behind: the product, the variant, and what was new."""
+
+    details: ProductDetails
+    variant: Variant
+    new_product: bool
+    new_variant: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,22 +285,106 @@ class CatalogService:
     async def create_product(self, *, name: str, slug: str | None = None) -> ProductDetails:
         now = self._clock.now()
         async with self._uow() as uow:
-            number = await uow.products.next_number()
-            if slug is not None:
-                address = check_slug(slug)
-                if await uow.products.slug_taken(address):
-                    raise SlugTakenError
-            else:
-                address = slugify(name)
-                if await uow.products.slug_taken(address):
-                    # The number makes a generated address unique.
-                    address = check_slug(f"{address[:70]}-{number}")
-                    if await uow.products.slug_taken(address):
-                        raise SlugTakenError
-            product = Product.create(number=number, name=name, slug=address, now=now)
-            uow.products.add(product)
+            product = await _new_product(uow, name=name, slug=slug, now=now)
             await _commit(uow)
             return await _details(uow, product)
+
+    async def quick_entry(
+        self,
+        *,
+        product_id: UUID | None,
+        name: str | None,
+        category_id: UUID | None,
+        scale_code: str,
+        finish_code: str,
+        color: str,
+        price_cents: int,
+        allow_backorder: bool = False,
+        asset_id: UUID | None = None,
+    ) -> QuickEntry:
+        """One model off the shelf in one step, for the quick entry on the phone.
+
+        Takes an existing product (a draft from the stock photos, say) or creates one
+        named ``name``; adds the scale and the variant in this finish and colour if they
+        are missing, sets the price, and puts the photo into the gallery, tagged with
+        scale, finish and colour. The product stays as it was (a draft stays a draft).
+        """
+        now = self._clock.now()
+        async with self._uow() as uow:
+            references = await _references(uow)
+            scale = references.scale(scale_code)
+            finish = references.finish(finish_code)
+            if product_id is not None:
+                product = await uow.products.get(product_id, for_update=True)
+                if product is None:
+                    raise ProductNotFoundError
+                new_product = False
+            else:
+                if not name or not name.strip():
+                    raise InvalidFieldError("name", "required", "a new product needs a name")
+                product = await _new_product(uow, name=name, slug=None, now=now)
+                new_product = True
+            if category_id is not None and product.primary_category_id is None:
+                if await uow.categories.get(category_id) is None:
+                    raise UnknownReferenceError("category_id", str(category_id))
+                product.change_details(primary_category_id=category_id, now=now)
+            product_scale = next(
+                (s for s in product.scales if s.scale_code == scale.code), None
+            ) or product.add_scale(scale, Dimensions(), now)
+            variant = product_scale.variant_for(finish.code, normalize_color(color))
+            new_variant = variant is None
+            if variant is None:
+                draft = VariantDraft(
+                    finish=finish,
+                    price_cents=price_cents,
+                    color=color,
+                    allow_backorder=allow_backorder,
+                )
+                gtin = internal_gtin(await uow.products.next_gtin_serial())
+                variant = product.add_variant(product_scale.id, draft, gtin=gtin, now=now)
+            elif variant.price_cents != price_cents:
+                product.change_variant(variant.id, price_cents=price_cents, now=now)
+            if asset_id is not None:
+                await _attach(uow, product, asset_id, alt_text=product.name, now=now)
+                product.tag_image(
+                    asset_id,
+                    scale_code=scale.code,
+                    finish_code=finish.code,
+                    color=variant.color,
+                    now=now,
+                )
+            if not new_product:
+                uow.products.mark_changed(product)
+                notice = product.change_notice(now)
+                uow.publish(*([] if notice is None else [notice]))
+            await _commit(uow)
+            return QuickEntry(
+                details=await _details(uow, product),
+                variant=variant,
+                new_product=new_product,
+                new_variant=new_variant,
+            )
+
+    async def publish_ready(self) -> list[Product]:
+        """Put every draft into the shop that meets the rules: the end of a day of quick entries.
+
+        Drafts that still lack something (category, active variant, a ready photo) stay.
+        """
+        ready: list[Product] = []
+        cursor: str | None = None
+        while True:
+            page = await self.list_products(
+                status=ProductStatus.DRAFT, cursor=cursor, limit=ADMIN_PAGE_MAX
+            )
+            for card in page.items:
+                try:
+                    details = await self.publish(card.product.id, expected_version=None)
+                except ProductNotPublishableError:
+                    continue
+                ready.append(details.product)
+            if page.next_cursor is None:
+                return ready
+            cursor = page.next_cursor
 
     async def change_product(
         self,
@@ -379,6 +476,7 @@ class CatalogService:
         expected_version: int | None,
         finish_code: str,
         price_cents: int,
+        color: str = "",
         compare_at_price_cents: int | None = None,
         allow_backorder: bool = False,
         lead_time_weeks: tuple[int, int] | None = None,
@@ -390,6 +488,7 @@ class CatalogService:
             draft = VariantDraft(
                 finish=(await _references(uow)).finish(finish_code),
                 price_cents=price_cents,
+                color=color,
                 compare_at_price_cents=compare_at_price_cents,
                 allow_backorder=allow_backorder,
                 lead_time_weeks=lead_time_weeks,
@@ -412,10 +511,13 @@ class CatalogService:
         allow_backorder: Maybe[bool] = UNSET,
         lead_time_weeks: Maybe[tuple[int, int] | None] = UNSET,
         active: Maybe[bool] = UNSET,
+        color: Maybe[str] = UNSET,
     ) -> ProductDetails:
         async def change(
             uow: CatalogUnitOfWork, product: Product, now: datetime
         ) -> list[DomainEvent]:
+            _, variant = product.scale_with_variant(variant_id)
+            finish = (await _references(uow)).finish(variant.finish_code)
             product.change_variant(
                 variant_id,
                 price_cents=price_cents,
@@ -423,6 +525,8 @@ class CatalogService:
                 allow_backorder=allow_backorder,
                 lead_time_weeks=lead_time_weeks,
                 active=active,
+                color=color,
+                colored=finish.colored,
                 now=now,
             )
             return []
@@ -452,12 +556,7 @@ class CatalogService:
         async def change(
             uow: CatalogUnitOfWork, product: Product, now: datetime
         ) -> list[DomainEvent]:
-            image = (await uow.images.load([asset_id])).get(asset_id)
-            if image is None:
-                raise UnknownReferenceError("asset_id", str(asset_id))
-            if image.status not in _ATTACHABLE:
-                raise InvalidFieldError("asset_id", "not_uploaded", "the upload is not complete")
-            product.attach_image(asset_id, alt_text=alt_text, now=now)
+            await _attach(uow, product, asset_id, alt_text=alt_text, now=now)
             return []
 
         return await self._change(_by_id(product_id), None, change)
@@ -640,6 +739,37 @@ async def _commit(uow: CatalogUnitOfWork) -> None:
         if rule is None:
             raise
         raise rule from exc
+
+
+async def _new_product(
+    uow: CatalogUnitOfWork, *, name: str, slug: str | None, now: datetime
+) -> Product:
+    number = await uow.products.next_number()
+    if slug is not None:
+        address = check_slug(slug)
+        if await uow.products.slug_taken(address):
+            raise SlugTakenError
+    else:
+        address = slugify(name)
+        if await uow.products.slug_taken(address):
+            # The number makes a generated address unique.
+            address = check_slug(f"{address[:70]}-{number}")
+            if await uow.products.slug_taken(address):
+                raise SlugTakenError
+    product = Product.create(number=number, name=name, slug=address, now=now)
+    uow.products.add(product)
+    return product
+
+
+async def _attach(
+    uow: CatalogUnitOfWork, product: Product, asset_id: UUID, *, alt_text: str, now: datetime
+) -> None:
+    image = (await uow.images.load([asset_id])).get(asset_id)
+    if image is None:
+        raise UnknownReferenceError("asset_id", str(asset_id))
+    if image.status not in _ATTACHABLE:
+        raise InvalidFieldError("asset_id", "not_uploaded", "the upload is not complete")
+    product.attach_image(asset_id, alt_text=alt_text, now=now)
 
 
 async def _references(uow: CatalogUnitOfWork) -> References:

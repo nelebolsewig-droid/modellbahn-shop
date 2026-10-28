@@ -118,10 +118,10 @@ class TestCart:
         cart = await filled_cart(carts, (painted, 2), (unpainted, 1))
         view = await carts.view(cart)
         assert [(i.variant.sku[-1], i.quantity, i.line_total_cents) for i in view.items] == [
-            ("B", 2, 9980),
-            ("U", 1, 2990),
+            ("F", 2, 9980),
+            ("B", 1, 2990),
         ]
-        assert view.items[0].variant.title == "Stellwerk Altenau · H0 · bemalt"
+        assert view.items[0].variant.title == "Stellwerk Altenau · H0 · Fertigmodell"
         assert view.items[0].image is not None
         assert (view.totals.subtotal_cents, view.totals.shipping_cents) == (12970, 590)
         assert view.item_count == 3
@@ -184,8 +184,8 @@ class TestCheckout:
         assert order.is_guest_order
         assert order.email == "Erika@example.de"
         assert [(line.sku[-1], line.quantity, line.unit_price_cents) for line in order.lines] == [
-            ("B", 1, 4990),
-            ("U", 2, 2990),
+            ("F", 1, 4990),
+            ("B", 2, 2990),
         ]
         assert (order.subtotal_cents, order.shipping_cents, order.total_cents) == (
             10970,
@@ -396,7 +396,7 @@ class TestPayment:
         assert f"{PUBLIC_BASE_URL}/bestellung/{token}/bezahlen" in received.text
         # Placed at 10:00 UTC on 22 October, due 24 hours later, shown in German summer time.
         assert "23.10.2026, 12:00 Uhr" in received.text
-        assert "Stellwerk Altenau · H0 · bemalt" in received.text
+        assert "Stellwerk Altenau · H0 · Fertigmodell" in received.text
         assert "49,90\u00a0€" in received.text
 
         declined = await checkout.pay(
