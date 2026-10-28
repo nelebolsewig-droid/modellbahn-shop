@@ -28,7 +28,9 @@ import { scaleLabel } from "@/lib/catalog/scales";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
 import {
+  DEFAULT_LEAD_TIME,
   euroPrice,
+  leadTimeSchema,
   optionalEuroPrice,
   optionalGrams,
   optionalMillimetres,
@@ -149,7 +151,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
                   <th scope="col" className="pb-2 font-medium">Preis €</th>
                   <th scope="col" className="pb-2 font-medium">Früher €</th>
                   <th scope="col" className="pb-2 font-medium">Im Shop</th>
-                  <th scope="col" className="pb-2 font-medium">Rückstand</th>
+                  <th scope="col" className="pb-2 font-medium">Auf Bestellung</th>
                   <th scope="col" className="pb-2"><span className="sr-only">Aktionen</span></th>
                 </tr>
               </thead>
@@ -253,7 +255,25 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
     variant.compare_at_price_cents === null ? "" : centsToEuroInput(variant.compare_at_price_cents),
   );
   const [error, setError] = useState<string | null>(null);
+  const [leadMin, setLeadMin] = useState(String(variant.lead_time_min_weeks ?? DEFAULT_LEAD_TIME[0]));
+  const [leadMax, setLeadMax] = useState(String(variant.lead_time_max_weeks ?? DEFAULT_LEAD_TIME[1]));
   const fieldError = command.error?.fieldErrors[0];
+
+  function saveLeadTime() {
+    const parsed = leadTimeSchema.safeParse({ min: leadMin, max: leadMax });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? null);
+      return;
+    }
+    setError(null);
+    const { min, max } = parsed.data;
+    if (min === variant.lead_time_min_weeks && max === variant.lead_time_max_weeks) {
+      return;
+    }
+    command.mutate(() =>
+      updateVariant(variant.id, { lead_time_min_weeks: min, lead_time_max_weeks: max }, ifMatch(product.version)),
+    );
+  }
 
   function savePrices() {
     const parsedPrice = euroPrice.safeParse(price);
@@ -324,18 +344,42 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
           />
         </td>
         <td className="py-2 pr-3">
-          <input
-            type="checkbox"
-            aria-label={`${finish.name} auch ohne Lagerbestand bestellbar`}
-            checked={variant.allow_backorder}
-            disabled={command.isPending}
-            onChange={(event) =>
-              command.mutate(() =>
-                updateVariant(variant.id, { allow_backorder: event.target.checked }, ifMatch(product.version)),
-              )
-            }
-            className="size-4 cursor-pointer accent-selected"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label={`${finish.name} auf Bestellung fertigen (auch ohne Lagerbestand bestellbar)`}
+              checked={variant.allow_backorder}
+              disabled={command.isPending}
+              onChange={(event) =>
+                command.mutate(() =>
+                  updateVariant(variant.id, { allow_backorder: event.target.checked }, ifMatch(product.version)),
+                )
+              }
+              className="size-4 cursor-pointer accent-selected"
+            />
+            {variant.allow_backorder ? (
+              <span className="flex items-center gap-1 text-hint text-ink-secondary">
+                <Input
+                  aria-label={`Lieferzeit ${finish.name}: frühestens nach Wochen`}
+                  inputMode="numeric"
+                  value={leadMin}
+                  onChange={(event) => setLeadMin(event.target.value)}
+                  onBlur={saveLeadTime}
+                  className="w-11 px-2 text-center werkstatt:h-8"
+                />
+                <span aria-hidden="true">–</span>
+                <Input
+                  aria-label={`Lieferzeit ${finish.name}: spätestens nach Wochen`}
+                  inputMode="numeric"
+                  value={leadMax}
+                  onChange={(event) => setLeadMax(event.target.value)}
+                  onBlur={saveLeadTime}
+                  className="w-11 px-2 text-center werkstatt:h-8"
+                />
+                <span>Wo.</span>
+              </span>
+            ) : null}
+          </div>
         </td>
         <td className="py-2 text-right">
           <Button

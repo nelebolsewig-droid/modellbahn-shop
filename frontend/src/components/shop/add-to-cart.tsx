@@ -6,24 +6,33 @@ import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { VariantAvailabilityOut } from "@/lib/api/generated/model";
 import { errorMessage } from "@/lib/i18n/problems";
+import { availabilityFor, availabilityNote, orderableMax } from "@/lib/sales/availability";
 import { useCart, useCartChange } from "@/lib/sales/cart";
 
 type AddToCartProps = {
   variantId: string;
   /** "Stellwerk Altenau · H0 · bemalt", for the confirmation. */
   title: string;
+  /** What the shelf says; undefined while it loads (the cart checks again anyway). */
+  availability?: VariantAvailabilityOut;
 };
 
 /**
  * Quantity and "In den Warenkorb". Adding counts on top of what is already in the
  * cart; the confirmation stays until the selection changes (the parent remounts it).
  */
-export function AddToCart({ variantId, title }: AddToCartProps) {
+export function AddToCart({ variantId, title, availability }: AddToCartProps) {
   const [quantity, setQuantity] = useState(1);
   const cart = useCart();
   const change = useCartChange();
   const inCart = cart.data?.lines.find((line) => line.variant_id === variantId)?.quantity ?? 0;
+  const max = Math.max(1, orderableMax(availability) - inCart);
+  const state = availability ? availabilityFor(availability, inCart + quantity) : null;
+  const note = availability && state ? availabilityNote(state, availability.free_units, availability) : null;
+  const soldOut = state === "unavailable";
 
   const add = () => {
     change.mutate({ variantId, quantity: Math.min(99, inCart + quantity) });
@@ -31,16 +40,32 @@ export function AddToCart({ variantId, title }: AddToCartProps) {
 
   return (
     <div>
+      <div aria-live="polite" className="mb-5 min-h-6">
+        {note ? (
+          <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <StatusBadge tone={note.tone} className="text-small">
+              {note.label}
+            </StatusBadge>
+            {note.detail ? <span className="text-small text-ink-secondary">{note.detail}</span> : null}
+          </p>
+        ) : null}
+      </div>
       <div className="flex flex-wrap items-center gap-3">
-        <QuantityStepper value={quantity} onChange={setQuantity} label="Menge" disabled={change.isPending} />
+        <QuantityStepper
+          value={Math.min(quantity, max)}
+          onChange={setQuantity}
+          max={max}
+          label="Menge"
+          disabled={change.isPending || soldOut}
+        />
         <Button
           type="button"
           onClick={add}
-          disabled={change.isPending || cart.isPending}
+          disabled={change.isPending || cart.isPending || soldOut}
           aria-busy={change.isPending || undefined}
           className="min-w-52"
         >
-          {change.isPending ? "Wird hinzugefügt …" : "In den Warenkorb"}
+          {change.isPending ? "Wird hinzugefügt …" : soldOut ? "Derzeit nicht lieferbar" : "In den Warenkorb"}
         </Button>
       </div>
       <div role="status" className="not-empty:mt-4">

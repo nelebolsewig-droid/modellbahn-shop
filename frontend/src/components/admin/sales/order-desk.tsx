@@ -1,10 +1,12 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
+import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -26,19 +28,30 @@ import { PendingNotice } from "@/components/ui/pending-notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  allocateOrder,
+  getGetPickListQueryKey,
+  useGetPickList,
+} from "@/lib/api/generated/admin-inventory/admin-inventory";
+import {
   cancelOrder,
   getGetOrderQueryKey,
   getListOrdersQueryKey,
   shipOrder,
   useGetOrder,
 } from "@/lib/api/generated/admin-sales/admin-sales";
-import type { AdminOrderOut, StaffRole } from "@/lib/api/generated/model";
+import type { AdminOrderOut, PickListOut, StaffRole } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { SHOP_NAME } from "@/lib/config";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
-import { ADMIN_EVENTS_URL, ORDER_EVENT_TYPES, orderEventOf } from "@/lib/realtime/events";
+import {
+  ADMIN_EVENTS_URL,
+  INVENTORY_EVENT_TYPES,
+  ORDER_EVENT_TYPES,
+  orderEventOf,
+  stockEventOf,
+} from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import {
   CANCEL_REASON_LABELS,
@@ -52,6 +65,11 @@ import { cancelSchema, shipSchema } from "@/lib/validation/orders";
 /** Packers ship, but cancelling (and with it refunding) is for owner and staff. */
 const MAY_CANCEL: ReadonlySet<StaffRole> = new Set(["owner", "staff"]);
 
+/** The orders whose pieces come off the shelves: paid ones, and shipped ones for the record. */
+function hasPickList(order: AdminOrderOut | undefined): boolean {
+  return order?.status === "paid" || order?.status === "shipped";
+}
+
 type OrderDeskProps = {
   orderId: string;
   staffRole: StaffRole;
@@ -62,13 +80,18 @@ type OrderDeskProps = {
 export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps) {
   const queryClient = useQueryClient();
   const order = useGetOrder(orderId);
-  // A payment or a colleague's dispatch shows up without reloading.
+  const pickList = useGetPickList(orderId, { query: { enabled: hasPickList(order.data) } });
+  // A payment, a colleague's dispatch or a piece picked on the phone shows up without reloading.
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
-    eventTypes: ORDER_EVENT_TYPES,
+    eventTypes: [...ORDER_EVENT_TYPES, ...INVENTORY_EVENT_TYPES],
     onMessage(data) {
       if (orderEventOf(data)?.orderId === orderId) {
         void queryClient.invalidateQueries({ queryKey: getGetOrderQueryKey(orderId) });
+        void queryClient.invalidateQueries({ queryKey: getGetPickListQueryKey(orderId) });
+      }
+      if (stockEventOf(data)?.orderId === orderId) {
+        void queryClient.invalidateQueries({ queryKey: getGetPickListQueryKey(orderId) });
       }
     },
     onClosed: onStreamClosed,
@@ -127,13 +150,18 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
             <OrderLines lines={data.lines} linkToProducts={false} />
             <OrderTotals totals={data.totals} countryName={data.shipping_address.country_name} className="mt-5 sm:ml-auto sm:max-w-sm" />
           </Panel>
+          {hasPickList(data) ? (
+            <Panel title="Kommissionieren" code="VK 16">
+              <Picking order={data} list={pickList.data} error={pickList.error} mayAllocate={MAY_CANCEL.has(staffRole)} />
+            </Panel>
+          ) : null}
         </div>
 
         <div className="space-y-6">
           <Panel title="Versand" code="VK 13">
             <ParcelLabel order={data} />
             <div className="mt-5">
-              <Dispatch order={data} onShipped={store} />
+              <Dispatch order={data} pickList={pickList.data} onShipped={store} />
             </div>
           </Panel>
           <Panel title="Kunde" code="VK 14">
@@ -261,7 +289,15 @@ function Barcode({ value, className }: { value: string; className?: string }) {
   );
 }
 
-function Dispatch({ order, onShipped }: { order: AdminOrderOut; onShipped: (order: AdminOrderOut) => void }) {
+function Dispatch({
+  order,
+  pickList,
+  onShipped,
+}: {
+  order: AdminOrderOut;
+  pickList: PickListOut | undefined;
+  onShipped: (order: AdminOrderOut) => void;
+}) {
   if (order.status === "shipped" && order.shipped_at) {
     return (
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-small">
@@ -282,7 +318,83 @@ function Dispatch({ order, onShipped }: { order: AdminOrderOut; onShipped: (orde
   if (order.status === "cancelled") {
     return <p className="text-small text-ink-secondary">Storniert – nicht verschicken.</p>;
   }
+  if (pickList === undefined) {
+    return <p className="text-small text-ink-secondary">Die Pickliste wird geladen …</p>;
+  }
+  if (!pickList.complete) {
+    return (
+      <p className="text-small text-ink-secondary">
+        Verschickt wird, wenn alles kommissioniert ist: noch {pickList.total - pickList.picked} von {pickList.total} Stück.
+      </p>
+    );
+  }
   return <ShipForm order={order} onShipped={onShipped} />;
+}
+
+/** The pieces of a paid order: where they lie, what is picked, what is still being made. */
+function Picking({
+  order,
+  list,
+  error,
+  mayAllocate,
+}: {
+  order: AdminOrderOut;
+  list: PickListOut | undefined;
+  error: unknown;
+  mayAllocate: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [allocating, setAllocating] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function allocate() {
+    setAllocating(true);
+    setProblem(null);
+    try {
+      queryClient.setQueryData(getGetPickListQueryKey(order.id), await allocateOrder(order.id));
+    } catch (failure) {
+      setProblem(errorMessage(failure));
+    } finally {
+      setAllocating(false);
+    }
+  }
+
+  if (error) {
+    return <p className="text-small text-danger">{errorMessage(error)}</p>;
+  }
+  if (list === undefined) {
+    return <PendingNotice>Die Pickliste wird geladen …</PendingNotice>;
+  }
+  if (!list.allocated) {
+    return (
+      <div className="space-y-3">
+        <p className="text-small text-ink-secondary">
+          Bezahlt, aber noch ohne Stücke aus dem Lager. Das System teilt gleich nach der Zahlung zu; hängt es, hilft der Knopf.
+        </p>
+        {mayAllocate ? (
+          <Button type="button" size="sm" onClick={() => void allocate()} disabled={allocating} aria-busy={allocating || undefined}>
+            {allocating ? "Wird zugeteilt …" : "Jetzt zuteilen"}
+          </Button>
+        ) : null}
+        <p role="alert" className="text-small font-medium text-danger">
+          {problem}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <PickProgress list={list} className="min-w-56 flex-1" />
+        {order.status === "paid" && !list.complete ? (
+          <Button asChild size="sm">
+            <Link href={`/admin/scanner?bestellung=${order.id}` as Route}>Mit dem Scanner kommissionieren</Link>
+          </Button>
+        ) : null}
+      </div>
+      <PickList list={list} className="mt-5" />
+    </>
+  );
 }
 
 function ShipForm({ order, onShipped }: { order: AdminOrderOut; onShipped: (order: AdminOrderOut) => void }) {

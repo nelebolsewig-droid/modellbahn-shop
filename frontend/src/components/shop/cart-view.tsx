@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { CartLineOut, CartOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { errorMessage } from "@/lib/i18n/problems";
+import { availabilityNote, cartLeadTime, leadTimeText } from "@/lib/sales/availability";
 import { useCart, useCartChange } from "@/lib/sales/cart";
 import { cn } from "@/lib/utils";
 
@@ -40,10 +42,11 @@ export function CartView() {
     <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-14">
       <section aria-label="Artikel">
         {unavailable.length > 0 ? (
-          <Alert tone="danger" title="Nicht mehr alles ist erhältlich" className="mb-6">
+          <Alert tone="danger" title="Nicht alles ist so lieferbar" className="mb-6">
             <p>
-              {unavailable.length === 1 ? "Ein Artikel ist" : `${unavailable.length} Artikel sind`} nicht
-              mehr im Shop. Entferne {unavailable.length === 1 ? "ihn" : "sie"}, dann geht es weiter zur Kasse.
+              {unavailable.length === 1 ? "Ein Artikel ist" : `${unavailable.length} Artikel sind`} nicht mehr
+              erhältlich oder nicht in dieser Menge vorrätig. Passe die Menge an oder entferne{" "}
+              {unavailable.length === 1 ? "ihn" : "sie"}, dann geht es weiter zur Kasse.
             </p>
           </Alert>
         ) : null}
@@ -81,6 +84,8 @@ function CartLine({
   onQuantity: (quantity: number) => void;
 }) {
   const productHref = `/produkte/${line.product_slug}` as Route;
+  // Still for sale, just not that many: the customer can bring the quantity down.
+  const short = !line.available && line.free_units > 0;
   return (
     <li className={cn("grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-5 gap-y-4 py-6 sm:grid-cols-[7rem_minmax(0,1fr)_auto]", busy && "opacity-70")}>
       <Link
@@ -103,16 +108,15 @@ function CartLine({
         <p className="mt-1 font-mono text-hint text-ink-tertiary">{line.sku}</p>
         {line.available ? (
           <p className="mt-2 text-hint text-ink-tertiary tabular-nums">je {formatPrice(line.unit_price_cents)}</p>
-        ) : (
-          <p className="mt-2 text-hint font-medium text-danger">Nicht mehr erhältlich</p>
-        )}
+        ) : null}
+        <LineAvailability line={line} />
       </div>
       <div className="col-span-2 flex items-center justify-between gap-4 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start">
         <p className={cn("text-body font-medium tabular-nums sm:order-last sm:mt-auto", !line.available && "text-ink-tertiary line-through")}>
           {formatPrice(line.line_total_cents)}
         </p>
         <div className="flex items-center gap-2">
-          {line.available ? (
+          {line.available || short ? (
             <QuantityStepper
               value={line.quantity}
               onChange={onQuantity}
@@ -136,6 +140,39 @@ function CartLine({
   );
 }
 
+/** "Sofort lieferbar", "Wird für dich gefertigt · 4–6 Wochen", or what keeps it from the checkout. */
+function LineAvailability({ line }: { line: CartLineOut }) {
+  if (!line.available) {
+    return (
+      <p className="mt-2 text-hint font-medium text-danger">
+        {line.free_units > 0
+          ? `Nur noch ${line.free_units} Stück vorrätig`
+          : "Derzeit nicht lieferbar"}
+      </p>
+    );
+  }
+  const note = availabilityNote(line.availability, line.free_units, line);
+  return (
+    <p className="mt-2 flex flex-wrap items-baseline gap-x-2">
+      <StatusBadge tone={note.tone}>{note.label}</StatusBadge>
+      {line.availability === "made_to_order" && note.detail ? <span className="text-hint text-ink-tertiary">{note.detail}</span> : null}
+    </p>
+  );
+}
+
+/** When the parcel can leave: at once, or once the last piece built to order is done. */
+export function DeliveryNote({ cart, className }: { cart: CartOut; className?: string }) {
+  const weeks = cartLeadTime(cart.lines);
+  if (weeks === null) {
+    return null;
+  }
+  return (
+    <p className={cn("rounded-sm bg-accent-subtle px-4 py-3 text-small text-accent", className)}>
+      Mindestens ein Modell wird für dich gefertigt. Wir schicken alles zusammen in voraussichtlich {leadTimeText(weeks)}.
+    </p>
+  );
+}
+
 function CartSummary({ cart }: { cart: CartOut }) {
   const other = cart.countries.filter((country) => country.code !== cart.shipping_country.code);
   return (
@@ -147,6 +184,7 @@ function CartSummary({ cart }: { cart: CartOut }) {
         subtotalCents={cart.totals.subtotal_cents}
         className="mt-6"
       />
+      <DeliveryNote cart={cart} className="mt-6" />
       {cart.ready_for_checkout ? (
         <Button asChild className="mt-8 w-full">
           <Link href="/kasse">Zur Kasse</Link>
