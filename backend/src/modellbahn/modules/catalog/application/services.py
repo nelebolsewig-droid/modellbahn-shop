@@ -282,6 +282,11 @@ class CatalogService:
 
     # --- Products: changing -------------------------------------------------------------
 
+    async def find_product(self, slug: str) -> Product | None:
+        """The product at this address, whatever its state (for imports)."""
+        async with self._uow() as uow:
+            return await uow.products.get_by_slug(slug)
+
     async def create_product(self, *, name: str, slug: str | None = None) -> ProductDetails:
         now = self._clock.now()
         async with self._uow() as uow:

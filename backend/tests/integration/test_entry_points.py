@@ -166,6 +166,38 @@ class TestCreateStaff:
         assert bad_role.exit_code == 2
 
 
+@pytest.mark.usefixtures("cli_env")
+class TestImportCatalog:
+    async def test_imports_the_start_file_and_runs_again(self) -> None:
+        runner = CliRunner()
+        start = str(BACKEND_ROOT / "seed" / "startbestand.json")
+        first = await asyncio.to_thread(runner.invoke, cli, ["import-catalog", start])
+        assert first.exit_code == 0, first.output
+        assert "Entwurf angelegt:   IFA ADK 70 Autokran" in first.output
+        assert "Hinweis zu IFA ADK 70 Autokran: laut Shopify 2 Stück vorrätig" in first.output
+
+        again = await asyncio.to_thread(runner.invoke, cli, ["import-catalog", start])
+        assert again.exit_code == 0, again.output
+        assert "0 Produkte und 0 Kategorien angelegt" in again.output
+
+    async def test_a_wrong_file_fails(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        missing = await asyncio.to_thread(
+            runner.invoke, cli, ["import-catalog", str(tmp_path / "fehlt.json")]
+        )
+        assert missing.exit_code == 1
+        assert "Datei nicht gefunden" in missing.output
+
+        unknown = tmp_path / "seed.json"
+        unknown.write_text(
+            json.dumps({"categories": [], "products": [{"name": "Kran", "category": "Kräne"}]}),
+            encoding="utf-8",
+        )
+        result = await asyncio.to_thread(runner.invoke, cli, ["import-catalog", str(unknown)])
+        assert result.exit_code == 1
+        assert "Nichts eingespielt. Kran: unknown category 'Kräne'" in result.output
+
+
 def test_export_openapi_writes_sorted_json(tmp_path: Path) -> None:
     target = tmp_path / "nested" / "openapi.json"
     result = CliRunner().invoke(cli, ["export-openapi", "--output", str(target)])
