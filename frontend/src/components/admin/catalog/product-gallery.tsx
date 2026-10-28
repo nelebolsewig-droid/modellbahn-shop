@@ -23,6 +23,7 @@ import type {
 import { isApiProblem } from "@/lib/api/problem";
 import { sameColor } from "@/lib/catalog/colors";
 import { readyPicture } from "@/lib/catalog/images";
+import { productColors } from "@/lib/catalog/quick-entry";
 import { ASSET_STATUS_LABELS, failureLabel, MEDIA_ROLE_LABELS } from "@/lib/catalog/labels";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage } from "@/lib/i18n/problems";
@@ -55,12 +56,6 @@ function entryOf(item: GalleryItemOut): GalleryEntryIn {
     finish_code: item.finish_code,
     color: item.color,
   };
-}
-
-/** Every colour of the product, once, in the order of the alphabet. */
-function productColors(product: ProductOut): string[] {
-  const all = product.scales.flatMap((scale) => scale.variants.map((variant) => variant.color));
-  return [...new Set(all.filter((color) => color !== ""))].sort((a, b) => a.localeCompare(b, "de"));
 }
 
 /**
