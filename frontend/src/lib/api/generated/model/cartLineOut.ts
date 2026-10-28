@@ -11,15 +11,23 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { Availability } from './availability';
 import type { LineImageOut } from './lineImageOut';
 
 export interface CartLineOut {
-  /** False if the variant is no longer for sale. */
+  /** `in_stock`: ships at once; `made_to_order`: printed for the customer; `unavailable`: cannot be ordered like this. */
+  availability: Availability;
+  /** False if the variant is no longer for sale, or not deliverable in this quantity (not enough in stock and not made to order). */
   available: boolean;
   compare_at_price_cents: number | null;
   finish_code: string;
   finish_name: string;
+  /** Units of the variant on the shelves right now. */
+  free_units: number;
   image: LineImageOut | null;
+  lead_time_max_weeks: number | null;
+  /** Set for variants made to order. */
+  lead_time_min_weeks: number | null;
   /** @minimum 0 */
   line_total_cents: number;
   product_name: string;

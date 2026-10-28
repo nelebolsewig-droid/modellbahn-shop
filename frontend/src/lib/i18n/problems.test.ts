@@ -100,6 +100,8 @@ describe("field messages", () => {
       "invalid_type",
       "invalid",
       "equals_email",
+      "invalid_parent",
+      "holds_no_goods",
     ]) {
       expect(FIELD_MESSAGES[code], code).toBeDefined();
     }

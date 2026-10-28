@@ -76,6 +76,106 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+export const getExportArticlesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/catalog/articles.csv`
+}
+
+/**
+ * @summary Every variant with EAN, article number and price, as CSV for the till
+ */
+export const exportArticles = async ( options?: Parameters<typeof apiFetch>[1]): Promise<string> => {
+
+  return apiFetch<string>(getExportArticlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportArticlesQueryKey = () => {
+    return [
+    `/api/v1/admin/catalog/articles.csv`
+    ] as const;
+    }
+
+
+export const getExportArticlesQueryOptions = <TData = Awaited<ReturnType<typeof exportArticles>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportArticlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportArticles>>> = ({ signal }) => exportArticles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportArticlesQueryResult = NonNullable<Awaited<ReturnType<typeof exportArticles>>>
+export type ExportArticlesQueryError = ErrorType<Problem>
+
+
+export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticles>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportArticles>>,
+          TError,
+          Awaited<ReturnType<typeof exportArticles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticles>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportArticles>>,
+          TError,
+          Awaited<ReturnType<typeof exportArticles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticles>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Every variant with EAN, article number and price, as CSV for the till
+ */
+
+export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticles>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportArticles>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportArticlesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 export const getGetCatalogReferencesUrl = () => {
 
 
@@ -1931,7 +2031,7 @@ export const useUpdateScale = <TError = ErrorType<Problem | ValidationProblem>,
 }
 
 /**
- * @summary Remove a variant
+ * @summary Remove a variant (one with units in the workshop can only be deactivated)
  */
 export const deleteVariant = async (variantId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
 
@@ -1983,7 +2083,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteVariantMutationVariables = {variantId: string}
 
     /**
- * @summary Remove a variant
+ * @summary Remove a variant (one with units in the workshop can only be deactivated)
  */
 export const useDeleteVariant = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVariant>>, TError,DeleteVariantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -2005,7 +2105,7 @@ export const useDeleteVariant = <TError = ErrorType<Problem | ValidationProblem>
 
 /**
  * Only the fields sent change; ``compare_at_price_cents: null`` removes the former price.
- * @summary Change price, former price, backorders or availability
+ * @summary Change price, former price, made to order with lead time, or availability
  */
 export const updateVariant = async (variantId: string,
     variantPatchIn: VariantPatchIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
@@ -2072,7 +2172,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateVariantMutationVariables = {variantId: string;data: VariantPatchIn}
 
     /**
- * @summary Change price, former price, backorders or availability
+ * @summary Change price, former price, made to order with lead time, or availability
  */
 export const useUpdateVariant = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVariant>>, TError,UpdateVariantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

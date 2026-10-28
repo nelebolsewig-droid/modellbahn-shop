@@ -13,11 +13,13 @@
  */
 
 /**
- * Only the fields sent are changed.
+ * Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time.
  */
 export interface VariantPatchIn {
   active?: boolean | null;
   allow_backorder?: boolean | null;
   compare_at_price_cents?: number | null;
+  lead_time_max_weeks?: number | null;
+  lead_time_min_weeks?: number | null;
   price_cents?: number | null;
 }

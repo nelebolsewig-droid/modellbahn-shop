@@ -14,9 +14,14 @@
 
 export interface VariantCreateIn {
   active?: boolean;
+  /** Made to order. */
   allow_backorder?: boolean;
   compare_at_price_cents?: number | null;
   finish_code: string;
+  /** Defaults to the minimum. */
+  lead_time_max_weeks?: number | null;
+  /** Made to order without a lead time: 4 to 6 weeks. */
+  lead_time_min_weeks?: number | null;
   /**
      * @minimum 0
      * @maximum 10000000

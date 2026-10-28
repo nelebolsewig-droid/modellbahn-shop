@@ -23,6 +23,8 @@ import { StaffPasswordDialog } from "./staff-password-dialog";
 const SECTIONS = [
   { href: "/admin", label: "Übersicht", exact: true },
   { href: "/admin/bestellungen", label: "Bestellungen", exact: false },
+  { href: "/admin/lager", label: "Lager", exact: false },
+  { href: "/admin/scanner", label: "Scanner", exact: true },
   { href: "/admin/katalog", label: "Katalog", exact: false },
   { href: "/admin/katalog/kategorien", label: "Kategorien", exact: true },
   { href: "/admin/katalog/massstaebe", label: "Maßstäbe", exact: true },

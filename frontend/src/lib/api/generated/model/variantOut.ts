@@ -14,11 +14,14 @@
 
 export interface VariantOut {
   active: boolean;
+  /** Made to order: always for sale, made within the lead time; otherwise sold from stock and sold out when the shelves are empty. */
   allow_backorder: boolean;
   compare_at_price_cents: number | null;
   finish_code: string;
   gtin: string;
   id: string;
+  lead_time_max_weeks: number | null;
+  lead_time_min_weeks: number | null;
   price_cents: number;
   sku: string;
 }

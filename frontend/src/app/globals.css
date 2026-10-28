@@ -58,6 +58,17 @@
   --animate-feed-in: feed-in 320ms ease-out;
   /* The product stage swaps its photo by cross-fading (§11.3: 320 ms). */
   --animate-stage-in: stage-in 320ms ease-out;
+  /* The scanner's viewfinder lights up once per scan and fades. */
+  --animate-scan-flash: scan-flash 650ms ease-out forwards;
+
+  @keyframes scan-flash {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
 
   @keyframes lamp-pulse {
     0%,
