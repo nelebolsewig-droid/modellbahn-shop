@@ -52,7 +52,7 @@ describe("scan session", () => {
   });
 
   it("sends the order while picking and forgets the location on a mode change", () => {
-    let session = { ...initialSession(), locationCode: "R01-F01" };
+    let session: ScanSession = { ...initialSession(), locationCode: "R01-F01" };
     session = scanSession(session, { type: "mode", mode: "pick" });
     expect(session.locationCode).toBeNull();
     expect(contextFor(session)).toEqual({});
@@ -81,6 +81,6 @@ describe("scan session", () => {
       session = scanned(session, `s${index}`);
     }
     expect(session.entries).toHaveLength(HISTORY_LENGTH);
-    expect(session.entries[0].scanId).toBe(`s${HISTORY_LENGTH + 4}`);
+    expect(session.entries[0]?.scanId).toBe(`s${HISTORY_LENGTH + 4}`);
   });
 });

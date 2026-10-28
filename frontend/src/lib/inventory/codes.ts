@@ -35,7 +35,7 @@ function luhnSum(code: string, startFactor: 1 | 2): number {
 /** The check character for nine characters of the alphabet. */
 export function checkCharacter(body: string): string {
   const remainder = luhnSum(body, 2) % 32;
-  return ALPHABET[(32 - remainder) % 32];
+  return ALPHABET.charAt((32 - remainder) % 32);
 }
 
 export function isValidUnitCode(code: string): boolean {
@@ -47,7 +47,7 @@ export function normalizeUnitCode(text: string): string {
   return text
     .replace(/[\s-]+/g, "")
     .toUpperCase()
-    .replace(/[OIL]/g, (char) => READ_AS[char]);
+    .replace(/[OIL]/g, (char) => READ_AS[char] ?? char);
 }
 
 /** `7KQ2X9F4MZ` as people read it aloud: `7KQ2 X9F4 MZ`. */
@@ -80,7 +80,7 @@ function fromUrl(text: string): Reading[] | null {
   if (segments.length < 2) {
     return [];
   }
-  const [marker, code] = segments.slice(-2);
+  const [marker = "", code = ""] = segments.slice(-2);
   if (marker === "u") {
     const unit = normalizeUnitCode(code);
     return isValidUnitCode(unit) ? [{ kind: "unit", code: unit }] : [];

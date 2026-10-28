@@ -28,6 +28,10 @@ export function cartLine(overrides: Partial<CartLineOut> = {}): CartLineOut {
     compare_at_price_cents: null,
     line_total_cents: 7990,
     available: true,
+    availability: "in_stock",
+    free_units: 5,
+    lead_time_min_weeks: null,
+    lead_time_max_weeks: null,
     image: null,
     ...overrides,
   };
