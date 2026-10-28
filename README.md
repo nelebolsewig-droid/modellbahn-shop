@@ -6,13 +6,13 @@ Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Ca
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
 die tragenden Entscheidungen in [docs/adr/](docs/adr/).
 
-**Stand: Schritt 4 – Shop und Verkauf.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
+**Stand: Schritt 5 – Lager und Barcodes.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
 mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit Kundenkonten
-und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln) und den Modulen *Katalog* und
-*Medien* aus Schritt 3 steht jetzt das Modul *Verkauf*: Warenkorb, Bestellung mit Konto oder
-als Gast, Testzahlung, Adressbuch, Bestellhistorie und im Stellwerk Versand und Storno.
-Der Katalog ist nach **Maßstab** geordnet, darunter nach Kategorie (ADR 0010).
-Lager und Barcodes folgen mit Schritt 5.
+und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln), den Modulen *Katalog* und
+*Medien* aus Schritt 3 und *Verkauf* aus Schritt 4 steht jetzt das Modul *Lager*:
+Lagerplätze, jedes Stück mit eigenem Etikett, ein Scanner fürs Handy, Kommissionieren live
+und Lieferbarkeit im Shop (ADR 0011). Der Katalog ist nach **Maßstab** geordnet, darunter
+nach Kategorie (ADR 0010). Die Fertigung folgt mit Schritt 6.
 
 Was sich vorführen lässt:
 
@@ -43,9 +43,25 @@ Was sich vorführen lässt:
   und Storno kommen als E-Mail (in Mailpit). Wer als Gast bestellt und später ein Konto mit
   derselben Adresse bestätigt, findet die Bestellung unter „Mein Konto → Bestellungen“.
 - **Bestellungen im Stellwerk.** Unter „Bestellungen“ erscheinen neue Bestellungen live mit
-  blinkendem Signal. Das Bestellpult zeigt Verlauf, Zahlungen, Artikel und einen
-  Paketaufkleber; Packer melden den Versand mit Sendungsnummer, Inhaber und Mitarbeiter
-  können stornieren, eine Zahlung wird dabei erstattet.
+  blinkendem Signal. Das Bestellpult zeigt Verlauf, Zahlungen, Artikel, die Pickliste und
+  einen Paketaufkleber; Packer melden den Versand mit Sendungsnummer, sobald alles
+  kommissioniert ist. Inhaber und Mitarbeiter können stornieren, eine Zahlung wird dabei
+  erstattet.
+- **Lager.** Unter „Lager“ legt ein Mitarbeiter Lager, Regale, Fächer und Boxen an und druckt
+  ihre Etiketten. „Einheiten erfassen“ gibt jedem neuen Stück einen eigenen Code und druckt
+  Etiketten mit der EAN für die Kasse und dem Code 128 des Stücks, als PDF für A4-Bögen
+  (70 × 37 mm, ab einem freien Feld) oder den Brother QL (62 mm). Der Bestand zeigt je
+  Artikel, was frei, reserviert, kommissioniert, noch einzulagern oder in Fertigung ist,
+  live. Die Artikelliste für die Kasse (SumUp) gibt es als CSV.
+- **Scanner.** Unter „Scanner“ arbeitet das Handy mit der Kamera, ein Handscanner per
+  Tastatureingabe oder die Eingabe von Hand: Platz scannen, dann die Ware, und sie ist
+  eingelagert. Beim Kommissionieren wählt man die Bestellung und scannt die Pickliste ab; das
+  Bestellpult am Rechner zieht mit. Jeder Scan gibt Ton, Vibration und eine große Antwort,
+  lässt sich zehn Sekunden lang zurücknehmen und wartet ohne Netz auf dem Gerät.
+- **Lieferbarkeit.** Jede Ausführung ist vorrätig oder wird auf Bestellung gefertigt. Die
+  Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 4–6 Wochen“
+  oder „Derzeit nicht lieferbar“; Warenkorb und Kasse nehmen nicht mehr an, als lieferbar
+  ist, und nennen die Lieferzeit vor dem Kauf.
 
 ## Voraussetzungen
 
@@ -199,8 +215,11 @@ modellbahn-shop/
 │   │   └── modules/            je Modul domain, application, infrastructure, api, contracts
 │   │       ├── identity/       Kundenkonten, Mitarbeiter, Sitzungen
 │   │       ├── media/          Uploads, Bildstufen, Objektspeicher
-│   │       ├── catalog/        Produkte, Maßstäbe, Varianten, Kategorien, Galerie
-│   │       └── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch
+│   │       ├── catalog/        Produkte, Maßstäbe, Varianten, Kategorien, Galerie,
+│   │       │                   Artikelliste für die Kasse
+│   │       ├── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch
+│   │       └── inventory/      Lagerplätze, Einheiten, Journal, Scans, Zuteilung,
+│   │                           Etiketten (PDF mit EAN-13 und Code 128), Lieferbarkeit
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
     ├── Dockerfile
@@ -209,6 +228,8 @@ modellbahn-shop/
         ├── app/                Seiten: Startseite, /katalog, /produkte/…, /warenkorb, /kasse,
         │                       /bestellung/…, /konto/…, /admin/…
         ├── components/ui/      Bausteine des Designsystems (Konzept §11.3)
+        ├── lib/inventory/      Scanner ohne Browser testbar: Codes, Handscanner, Scan-Sitzung,
+        │                       Offline-Warteschlange
         └── lib/api/generated/  von Orval erzeugter API-Client, committet
 ```
 
@@ -323,3 +344,4 @@ secrets:
   - [0008 Objektspeicher und Medien-Pipeline](docs/adr/0008-objektspeicher-und-medien-pipeline.md)
   - [0009 Warenkorb, Checkout und Mock-Zahlung](docs/adr/0009-warenkorb-checkout-und-mock-zahlung.md)
   - [0010 Katalog nach Maßstab statt nach Spurweite](docs/adr/0010-katalog-nach-massstab.md)
+  - [0011 Lager, Barcodes und Lieferbarkeit](docs/adr/0011-lager-barcodes-und-lieferbarkeit.md)
