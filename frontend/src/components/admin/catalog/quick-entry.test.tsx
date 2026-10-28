@@ -179,6 +179,9 @@ describe("QuickEntryDesk", () => {
     await user.type(await screen.findByLabelText("Name oder Nummer"), "IFA W50 Kipper");
     await user.click(await screen.findByRole("button", { name: "„IFA W50 Kipper“ neu anlegen" }));
     await user.selectOptions(screen.getByLabelText("Kategorie"), "c2");
+    // A new model starts with nothing chosen: a guess would file it under the first scale.
+    expect(screen.getByText("Noch Maßstab und Ausführung antippen.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "H0 · 1:87" })).not.toBeChecked();
     await user.click(screen.getByRole("radio", { name: "TT · 1:120" }));
     await user.click(screen.getByRole("radio", { name: "Fertigmodell" }));
     // The retired finish is not offered any more.
@@ -223,7 +226,9 @@ describe("QuickEntryDesk", () => {
 
     await user.type(await screen.findByLabelText("Name oder Nummer"), "Puma");
     await user.click(await screen.findByRole("button", { name: /ADK III3 Puma Kran-2/ }));
-    await user.click(screen.getByRole("radio", { name: "Fertigmodell" }));
+    // A model from the catalogue brings its own scale and finish.
+    await waitFor(() => expect(screen.getByRole("radio", { name: "H0 · 1:87" })).toBeChecked());
+    expect(screen.getByRole("radio", { name: "Fertigmodell" })).toBeChecked();
     // The product's own colours come first.
     const paints = screen.getByRole("list", { name: "Häufige Farben" });
     expect(
@@ -255,5 +260,39 @@ describe("QuickEntryDesk", () => {
     expect(requestsTo(fetchMock, UNITS)).toHaveLength(0);
     await user.click(screen.getByRole("button", { name: "Gleiches Modell, andere Farbe" }));
     await waitFor(() => expect(screen.getByText("ADK III3 Puma Kran-2")).toBeInTheDocument());
+  });
+  it("names the colour of a model from the start inventory and brings its price along", async () => {
+    const crane = product({
+      id: "p17",
+      number: 17,
+      name: "IFA ADK 70 Autokran",
+      slug: "ifa-adk-70-autokran",
+      scales: [
+        {
+          id: "s17",
+          scale_code: "H0",
+          length_mm: null,
+          width_mm: null,
+          height_mm: null,
+          weight_g: null,
+          variants: [variant({ id: "v17", sku: "MB-000017-H0-F", price_cents: 8000 })],
+        },
+      ],
+    });
+    desk({
+      "GET /api/v1/admin/products": () => jsonResponse({ items: [listItem(crane)], next_cursor: null }),
+      "GET /api/v1/admin/products/p17": () => jsonResponse(crane),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<QuickEntryDesk />);
+
+    await user.type(await screen.findByLabelText("Name oder Nummer"), "ADK 70");
+    await user.click(await screen.findByRole("button", { name: /IFA ADK 70 Autokran/ }));
+    await user.click(await screen.findByRole("button", { name: "Gelb" }));
+
+    expect(
+      screen.getByText("MB-000017-H0-F hat noch keine Farbe und wird zu H0 · Fertigmodell, Gelb"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Preis")).toHaveValue("80,00");
   });
 });

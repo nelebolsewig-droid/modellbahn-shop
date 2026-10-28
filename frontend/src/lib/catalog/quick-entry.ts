@@ -14,7 +14,11 @@ export type EntryChoice = { scaleCode: string; finishCode: string; color: string
 export type EntryPlan =
   | { kind: "new-product" }
   | { kind: "new-variant"; newScale: boolean }
-  | { kind: "existing"; variant: VariantOut };
+  | { kind: "existing"; variant: VariantOut }
+  /** The one variant of the finish has no colour yet: this entry names it. */
+  | { kind: "names"; variant: VariantOut }
+  /** The finish comes in named colours here: one more needs a name too. */
+  | { kind: "needs-color" };
 
 /** The variant of the product in this scale, finish and colour, if there is one. */
 export function variantOf(product: ProductOut, choice: EntryChoice): VariantOut | undefined {
@@ -31,7 +35,16 @@ export function entryPlan(product: ProductOut | null, choice: EntryChoice): Entr
   if (variant) {
     return { kind: "existing", variant };
   }
-  return { kind: "new-variant", newScale: !product.scales.some((scale) => scale.scale_code === choice.scaleCode) };
+  const scale = product.scales.find((s) => s.scale_code === choice.scaleCode);
+  const siblings = scale?.variants.filter((v) => v.finish_code === choice.finishCode) ?? [];
+  const [only] = siblings;
+  if (choice.color !== "" && siblings.length === 1 && only && only.color === "") {
+    return { kind: "names", variant: only };
+  }
+  if (choice.color === "" && siblings.length > 0) {
+    return { kind: "needs-color" };
+  }
+  return { kind: "new-variant", newScale: scale === undefined };
 }
 
 /** The colours the product already comes in, for one tap; in the order of the alphabet. */

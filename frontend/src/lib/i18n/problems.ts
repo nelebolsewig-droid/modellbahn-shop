@@ -204,7 +204,11 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
   website_url: { invalid: "Bitte eine vollständige Adresse mit https://, z. B. https://www.messe.de." },
   consent: { required: "Bitte setz den Haken, damit wir dir die Messe-Post schicken dürfen." },
   segment: { invalid: "Ein bis acht Großbuchstaben oder Ziffern, z. B. R02 oder B12." },
-  color: { too_long: "Die Farbe darf höchstens 40 Zeichen lang sein." },
+  color: {
+    too_long: "Die Farbe darf höchstens 40 Zeichen lang sein.",
+    required: "Bitte gib eine Farbe an: Das Fertigmodell gibt es hier schon in Farben.",
+    unnamed_sibling: "Gib zuerst der Variante ohne Farbe ihre Farbe; dann kann eine weitere dazukommen.",
+  },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },

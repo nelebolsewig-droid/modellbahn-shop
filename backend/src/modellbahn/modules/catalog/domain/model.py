@@ -635,6 +635,8 @@ class Product:
         color = _check_color(draft.color, colored=draft.finish.colored)
         if product_scale.variant_for(draft.finish.code, color) is not None:
             raise VariantAlreadyExistsError
+        if draft.finish.colored:
+            _check_colour_siblings(product_scale, draft.finish.code, color)
         check_price(draft.price_cents, draft.compare_at_price_cents)
         taken = {v.sku for v in product_scale.variants}
         sequence = 1
@@ -684,6 +686,8 @@ class Product:
             other = product_scale.variant_for(variant.finish_code, new_color)
             if other is not None and other is not variant:
                 raise VariantAlreadyExistsError
+            if colored:
+                _check_colour_siblings(product_scale, variant.finish_code, new_color, variant)
             variant.color = new_color
         new_price = variant.price_cents if price_cents is UNSET else price_cents
         new_compare = (
@@ -849,6 +853,27 @@ class Product:
         blockers = self.publish_blockers(main_image_ready=main_image_ready)
         if blockers:
             raise ProductNotPublishableError(blockers)
+
+
+def _check_colour_siblings(
+    product_scale: ProductScale, finish_code: str, color: str, variant: Variant | None = None
+) -> None:
+    """A finished model comes in one colour left unnamed, or in named colours: never both.
+
+    The shop offers the named colours as a choice; a variant without a name next to them
+    could not be chosen.
+    """
+    siblings = [
+        v for v in product_scale.variants if v.finish_code == finish_code and v is not variant
+    ]
+    if not siblings:
+        return
+    if not color:
+        raise InvalidFieldError("color", "required", "the other variants have colours")
+    if any(not v.color for v in siblings):
+        raise InvalidFieldError(
+            "color", "unnamed_sibling", "name the colour of the variant without one first"
+        )
 
 
 def _check_color(value: str, *, colored: bool) -> str:

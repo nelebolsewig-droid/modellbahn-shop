@@ -63,7 +63,7 @@ async def test_imports_the_start_file_once(catalog: CatalogService) -> None:
     seed = SeedFile.read(START).to_seed()
     first = await import_catalog(catalog, seed)
     assert len(first.products) == len(seed.products)
-    assert "Lkw / Kipper" in first.categories
+    assert "Straßenfahrzeuge / LKW / Kipper" in first.categories
     assert ("IFA ADK 125 Autokran", "laut Shopify ausverkauft") in first.notes
 
     puma = await catalog.find_product("adk-iii3-puma-kran-2")
@@ -89,17 +89,43 @@ async def test_imports_the_start_file_once(catalog: CatalogService) -> None:
     assert len(await catalog.list_categories()) == len(categories)
 
 
+async def test_joins_the_tree_that_exists_and_finds_free_addresses(catalog: CatalogService) -> None:
+    roads = await catalog.create_category(name="Straßenfahrzeuge")
+    trucks = await catalog.create_category(name="Lkw", parent_id=roads.id)
+    # Another "Kipper" elsewhere already has the address "kipper".
+    trailers = await catalog.create_category(name="Anhänger")
+    await catalog.create_category(name="Kipper", parent_id=trailers.id)
+    seed = CatalogSeed(
+        categories=[
+            CategorySeed(
+                name="Straßenfahrzeuge", children=[CategorySeed("LKW", [CategorySeed("Kipper")])]
+            ),
+        ],
+        products=[ProductSeed(name="Tatra 148 Kipper", category="Straßenfahrzeuge / LKW / Kipper")],
+    )
+
+    report = await import_catalog(catalog, seed)
+
+    assert report.categories == ["Straßenfahrzeuge / LKW / Kipper"]
+    by_id = {c.id: c for c in await catalog.list_categories()}
+    tipper = await catalog.find_product("tatra-148-kipper")
+    assert tipper is not None
+    assert tipper.primary_category_id is not None
+    category = by_id[tipper.primary_category_id]
+    assert (category.parent_id, category.slug) == (trucks.id, "lkw-kipper")
+
+
 async def test_an_unknown_category_or_scale_writes_nothing(catalog: CatalogService) -> None:
     seed = CatalogSeed(
         categories=[CategorySeed(name="Kranfahrzeuge")],
         products=[
             ProductSeed(name="Kran", category="Kranfahrzeuge", scales=[ScaleSeed("Q7")]),
-            ProductSeed(name="Kipper", category="Lkw / Kipper"),
+            ProductSeed(name="Kipper", category="LKW / Kipper"),
         ],
     )
     with pytest.raises(SeedError) as raised:
         await import_catalog(catalog, seed)
     assert "Kran: unknown scale 'Q7'" in str(raised.value)
-    assert "Kipper: unknown category 'Lkw / Kipper'" in str(raised.value)
+    assert "Kipper: unknown category 'LKW / Kipper'" in str(raised.value)
     assert await catalog.list_categories() == []
     assert await catalog.find_product("kran") is None

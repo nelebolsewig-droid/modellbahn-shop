@@ -84,14 +84,22 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
     setSelection(selectionOf(product.scales.find((s) => s.code === code), selection.finish, selection.color));
   }
 
+  // On the phone one column that never grows past the screen, however long a word is.
   return (
-    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
       {/* A new selection starts the stage at its best matching photo. */}
       <ProductStage key={`${selection.scale}-${selection.finish}-${selection.color}`} items={items} aspect="4/5" />
 
       <div className="lg:sticky lg:top-8">
         <p className="font-mono text-hint text-ink-tertiary">{formatProductNumber(product.number)}</p>
-        <h1 className={cn("mt-3 text-title hyphens-auto break-words", !longWord && "sm:text-display")}>{product.name}</h1>
+        <h1
+          className={cn(
+            "mt-3 hyphens-auto break-words",
+            longWord ? "text-heading sm:text-title" : "text-title sm:text-display",
+          )}
+        >
+          {product.name}
+        </h1>
         {scale ? (
           <SpecLine values={[scaleLabel(scale), ...(finishName ? [finishName] : [])]} className="mt-4" />
         ) : null}

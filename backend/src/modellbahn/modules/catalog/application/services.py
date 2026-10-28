@@ -44,6 +44,7 @@ from modellbahn.modules.catalog.domain.model import (
     GalleryEntry,
     Maybe,
     Product,
+    ProductScale,
     ProductStatus,
     Scale,
     Variant,
@@ -337,6 +338,11 @@ class CatalogService:
                 (s for s in product.scales if s.scale_code == scale.code), None
             ) or product.add_scale(scale, Dimensions(), now)
             variant = product_scale.variant_for(finish.code, normalize_color(color))
+            unnamed = _only_unnamed(product_scale, finish.code) if color.strip() else None
+            if variant is None and unnamed is not None:
+                # The one finished model without a colour is this one: it gets its name.
+                product.change_variant(unnamed.id, color=color, colored=finish.colored, now=now)
+                variant = unnamed
             new_variant = variant is None
             if variant is None:
                 draft = VariantDraft(
@@ -764,6 +770,12 @@ async def _new_product(
     product = Product.create(number=number, name=name, slug=address, now=now)
     uow.products.add(product)
     return product
+
+
+def _only_unnamed(product_scale: ProductScale, finish_code: str) -> Variant | None:
+    """The variant of this finish if it is the only one and has no colour yet."""
+    variants = [v for v in product_scale.variants if v.finish_code == finish_code]
+    return variants[0] if len(variants) == 1 and not variants[0].color else None
 
 
 async def _attach(

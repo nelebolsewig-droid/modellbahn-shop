@@ -37,7 +37,7 @@ import { PAINT_SUGGESTIONS, sameColor } from "@/lib/catalog/colors";
 import { centsToEuroInput, finishLabel, formatPrice, formatProductNumber } from "@/lib/catalog/format";
 import { readyPicture } from "@/lib/catalog/images";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalog/labels";
-import { entryPlan, productColors, variantOf, type EntryPlan } from "@/lib/catalog/quick-entry";
+import { entryPlan, productColors, type EntryPlan } from "@/lib/catalog/quick-entry";
 import { scaleLabel } from "@/lib/catalog/scales";
 import { formatUnitCode } from "@/lib/inventory/codes";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
@@ -94,15 +94,18 @@ export function QuickEntryDesk() {
 
   const scales = references.data?.scales ?? [];
   const finishes = (references.data?.finishes ?? []).filter((finish) => finish.offered);
-  const scale = scales.find((s) => s.code === scaleCode) ?? scales[0];
-  const finish = finishes.find((f) => f.code === finishCode) ?? finishes[0];
+  // What was tapped counts; until then a model from the catalogue brings its own scale and
+  // finish. A new model starts with nothing chosen: guessing would file it under Z.
+  const own = current?.scales.find((s) => s.variants.length > 0) ?? current?.scales[0];
+  const scale = scales.find((s) => s.code === (scaleCode || own?.scale_code));
+  const finish = finishes.find((f) => f.code === (finishCode || own?.variants[0]?.finish_code));
   const paint = finish?.colored ? color.trim() : "";
   const choice = { scaleCode: scale?.code ?? "", finishCode: finish?.code ?? "", color: paint };
-  const plan: EntryPlan | null = model === null ? null : entryPlan(current, choice);
+  const plan: EntryPlan | null = model === null || !scale || !finish ? null : entryPlan(current, choice);
   const needsCategory = model?.kind === "new" || (current !== null && current.primary_category_id === null);
 
   // A variant that exists brings its price along, so a repeat entry is one tap.
-  const known = current ? variantOf(current, choice) : undefined;
+  const known = plan?.kind === "existing" || plan?.kind === "names" ? plan.variant : undefined;
   const shownPrice = price ?? (known ? centsToEuroInput(known.price_cents) : "");
 
   const previewUrl = photo?.previewUrl;
@@ -131,13 +134,17 @@ export function QuickEntryDesk() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!model || !scale || !finish) {
-      setProblem("Bitte wähle zuerst das Modell.");
+      setProblem(!model ? "Bitte wähle zuerst das Modell." : "Bitte wähle Maßstab und Ausführung.");
       return;
     }
     const parsedPrice = euroPrice.safeParse(shownPrice);
     const parsedColor = colorName.safeParse(paint);
     if (!parsedPrice.success || !parsedColor.success) {
       setProblem((parsedPrice.error ?? parsedColor.error)?.issues[0]?.message ?? null);
+      return;
+    }
+    if (plan?.kind === "needs-color") {
+      setProblem("Bitte gib eine Farbe an: Das Fertigmodell gibt es hier schon in Farben.");
       return;
     }
     if (photo && photo.assetId === null && photo.error === null) {
@@ -254,9 +261,9 @@ export function QuickEntryDesk() {
               ) : null}
               {finish?.colored ? (
                 <ColorField value={color} onChange={setColor} own={productColors(current)} />
-              ) : (
+              ) : finish ? (
                 <p className="text-hint text-ink-tertiary">Ein Bausatz kommt ohne Farbe.</p>
-              )}
+              ) : null}
             </div>
           </Step>
 
@@ -427,7 +434,7 @@ function PhotoField({
         <figure className="relative m-0 overflow-hidden rounded-md bg-stage">
           {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the file, no rendition yet */}
           <img src={photo.previewUrl} alt="Vorschau des Fotos" className="mx-auto aspect-[4/3] w-full object-contain" />
-          <figcaption className="flex items-center justify-between gap-3 border-t border-line bg-surface px-3 py-2">
+          <figcaption className="flex flex-wrap items-center justify-between gap-x-3 border-t border-line bg-surface px-3 py-1.5">
             <span
               className={cn(
                 "text-hint",
@@ -437,11 +444,11 @@ function PhotoField({
             >
               {status}
             </span>
-            <span className="flex gap-1">
-              <Button type="button" variant="ghost" size="sm" onClick={() => camera.current?.click()}>
+            <span className="-mr-2 flex">
+              <Button type="button" variant="ghost" size="sm" className="px-3" onClick={() => camera.current?.click()}>
                 Neu aufnehmen
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+              <Button type="button" variant="ghost" size="sm" className="px-3" onClick={onClear}>
                 Ohne Foto
               </Button>
             </span>
@@ -509,7 +516,16 @@ function ModelField({ model, onChange }: { model: Model | null; onChange: (model
     return (
       <div className="flex items-center gap-4 rounded-sm border border-line bg-canvas p-3">
         <span className="relative size-14 shrink-0 rounded-sm bg-stage p-1">
-          {picture ? <ResponsivePicture image={picture} alt="" sizes="56px" variant="thumb" /> : null}
+          {picture ? (
+            <ResponsivePicture image={picture} alt="" sizes="56px" variant="thumb" />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 grid place-items-center text-center text-[0.6875rem] leading-tight text-ink-tertiary"
+            >
+              ohne Foto
+            </span>
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small font-medium">{model.product.name}</span>
@@ -520,7 +536,7 @@ function ModelField({ model, onChange }: { model: Model | null; onChange: (model
             </StatusBadge>
           </span>
         </span>
-        <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+        <Button type="button" size="sm" variant="ghost" aria-label="Modell ändern" onClick={() => onChange(null)}>
           Ändern
         </Button>
       </div>
@@ -535,7 +551,7 @@ function ModelField({ model, onChange }: { model: Model | null; onChange: (model
             Neues Produkt
           </Badge>
         </span>
-        <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+        <Button type="button" size="sm" variant="ghost" aria-label="Modell ändern" onClick={() => onChange(null)}>
           Ändern
         </Button>
       </div>
@@ -708,6 +724,29 @@ function LocationField({ value, onChange }: { value: string; onChange: (code: st
   );
 }
 
+const PLAN_TONES = {
+  "new-product": "bg-success",
+  "new-variant": "bg-success",
+  existing: "bg-accent",
+  names: "bg-accent",
+  "needs-color": "bg-warning",
+} as const satisfies Record<EntryPlan["kind"], string>;
+
+function planText(plan: EntryPlan, what: string, scale: string): string {
+  switch (plan.kind) {
+    case "new-product":
+      return `Neues Produkt mit ${what}`;
+    case "new-variant":
+      return `Neue Variante ${what}${plan.newScale ? `, erster Artikel in ${scale}` : ""}`;
+    case "existing":
+      return `${what} gibt es schon (${plan.variant.sku}) · Preis bisher ${formatPrice(plan.variant.price_cents)}`;
+    case "names":
+      return `${plan.variant.sku} hat noch keine Farbe und wird zu ${what}`;
+    case "needs-color":
+      return "Das Fertigmodell gibt es hier schon in Farben: Bitte eine Farbe wählen.";
+  }
+}
+
 /** What tapping the button will do, in one line. */
 function PlanLine({
   plan,
@@ -720,23 +759,19 @@ function PlanLine({
   choice: string;
   scale: string;
 }) {
-  if (plan === null || model === null) {
+  if (model === null) {
     return <p className="text-hint text-ink-tertiary">Zuerst das Modell suchen oder neu anlegen.</p>;
   }
-  const what = `${scale} · ${choice}`;
-  const text =
-    plan.kind === "new-product"
-      ? `Neues Produkt mit ${what}`
-      : plan.kind === "new-variant"
-        ? `Neue Variante ${what}${plan.newScale ? `, erster Artikel in ${scale}` : ""}`
-        : `${what} gibt es schon (${plan.variant.sku}) · Preis bisher ${formatPrice(plan.variant.price_cents)}`;
+  if (plan === null) {
+    return <p className="text-hint text-ink-tertiary">Noch Maßstab und Ausführung antippen.</p>;
+  }
   return (
-    <p className="flex items-center gap-2 text-hint text-ink-secondary">
+    <p className="flex items-baseline gap-2 text-hint text-ink-secondary">
       <span
         aria-hidden="true"
-        className={cn("size-2 shrink-0 rounded-full", plan.kind === "existing" ? "bg-accent" : "bg-success")}
+        className={cn("size-2 shrink-0 translate-y-[-1px] rounded-full", PLAN_TONES[plan.kind])}
       />
-      <span className="truncate">{text}</span>
+      <span className="line-clamp-2">{planText(plan, `${scale} · ${choice}`, scale)}</span>
     </p>
   );
 }

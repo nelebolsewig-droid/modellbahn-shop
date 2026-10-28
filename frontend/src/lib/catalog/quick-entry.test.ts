@@ -49,6 +49,15 @@ describe("entryPlan", () => {
     expect(blue.kind === "existing" && blue.variant.sku).toBe("MB-000005-H0-F2");
   });
 
+  it("names the one finished model without a colour, and asks for a colour next to named ones", () => {
+    const plain = {
+      scales: [{ ...PUMA.scales[0], variants: [variant("painted", "", "MB-000007-H0-F")] }],
+    } as unknown as ProductOut;
+    const named = entryPlan(plain, { scaleCode: "H0", finishCode: "painted", color: "Gelb" });
+    expect(named.kind === "names" && named.variant.sku).toBe("MB-000007-H0-F");
+    expect(entryPlan(PUMA, { scaleCode: "H0", finishCode: "painted", color: "" })).toEqual({ kind: "needs-color" });
+  });
+
   it("lists the product's colours once, in alphabetical order", () => {
     expect(productColors(PUMA)).toEqual(["Blau", "Grün"]);
     expect(productColors(null)).toEqual([]);

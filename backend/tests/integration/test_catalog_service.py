@@ -10,7 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.ports import ProductOrder
-from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.catalog.application.services import (
+    CatalogService,
+    ProductDetails,
+    QuickEntry,
+)
 from modellbahn.modules.catalog.domain.errors import (
     CategoryCycleError,
     CategoryNotFoundError,
@@ -670,6 +674,33 @@ class TestQuickEntry:
         )
         assert unready.details.blockers  # no category, no photo: it stays a draft
         assert await catalog.publish_ready() == []
+
+    async def test_names_the_colour_of_the_one_finished_model_without_one(
+        self, catalog: CatalogService
+    ) -> None:
+        async def enter(product_id: UUID | None, color: str) -> QuickEntry:
+            return await catalog.quick_entry(
+                product_id=product_id,
+                name="IFA ADK 80 Autokran" if product_id is None else None,
+                category_id=None,
+                scale_code="H0",
+                finish_code="painted",
+                color=color,
+                price_cents=8000,
+            )
+
+        # The start inventory knows the crane, but not its colour.
+        plain = await enter(None, "")
+        product_id = plain.details.product.id
+        yellow = await enter(product_id, "gelb")
+        assert (yellow.new_variant, yellow.variant.id) == (False, plain.variant.id)
+        assert (yellow.variant.color, yellow.variant.sku[-2:]) == ("Gelb", "-F")
+        # Now it has a named colour: the next one is a variant of its own.
+        blue = await enter(product_id, "Blau")
+        assert (blue.new_variant, blue.variant.sku[-3:]) == (True, "-F2")
+        with pytest.raises(InvalidFieldError) as refused:
+            await enter(product_id, "")
+        assert (refused.value.field, refused.value.code) == ("color", "required")
 
     async def test_a_new_product_needs_a_name(self, catalog: CatalogService) -> None:
         with pytest.raises(InvalidFieldError):

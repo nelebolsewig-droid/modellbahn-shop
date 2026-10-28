@@ -160,10 +160,10 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
         <DimensionsForm product={product} productScale={productScale} />
         {variants.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-small">
+            <table className="w-full min-w-[46rem] text-small">
               <caption className="sr-only">Varianten in {scale.name}</caption>
               <thead>
-                <tr className="text-left text-hint text-ink-tertiary">
+                <tr className="text-left text-hint whitespace-nowrap text-ink-tertiary [&>th]:pr-3">
                   <th scope="col" className="pb-2 font-medium">Ausführung</th>
                   <th scope="col" className="pb-2 font-medium">SKU · EAN</th>
                   <th scope="col" className="pb-2 font-medium">Preis €</th>
@@ -343,7 +343,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
                 maxLength={40}
                 onChange={(event) => setColor(event.target.value)}
                 onBlur={saveColor}
-                className="w-28 font-normal werkstatt:h-8"
+                className="w-40 font-normal werkstatt:h-8"
               />
             </span>
           ) : null}
@@ -354,7 +354,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
           )}
         </th>
         <td className="py-2 pr-3 font-mono text-hint text-ink-secondary">
-          <span className="block">{variant.sku}</span>
+          <span className="block whitespace-nowrap">{variant.sku}</span>
           <span className="block text-ink-tertiary">{variant.gtin}</span>
         </td>
         <td className="py-2 pr-3">
@@ -384,11 +384,11 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
             aria-label={`${label} im Shop anbieten`}
             checked={variant.active}
             disabled={command.isPending}
-            onChange={(event) =>
-              command.mutate(() =>
-                updateVariant(variant.id, { active: event.target.checked }, ifMatch(product.version)),
-              )
-            }
+            onChange={(event) => {
+              // Read now: React puts the controlled box back before the request runs.
+              const active = event.target.checked;
+              command.mutate(() => updateVariant(variant.id, { active }, ifMatch(product.version)));
+            }}
             className="size-4 cursor-pointer accent-selected"
           />
         </td>
@@ -399,11 +399,12 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
               aria-label={`${label} auf Bestellung fertigen (auch ohne Lagerbestand bestellbar)`}
               checked={variant.allow_backorder}
               disabled={command.isPending}
-              onChange={(event) =>
+              onChange={(event) => {
+                const allowBackorder = event.target.checked;
                 command.mutate(() =>
-                  updateVariant(variant.id, { allow_backorder: event.target.checked }, ifMatch(product.version)),
-                )
-              }
+                  updateVariant(variant.id, { allow_backorder: allowBackorder }, ifMatch(product.version)),
+                );
+              }}
               className="size-4 cursor-pointer accent-selected"
             />
             {variant.allow_backorder ? (
@@ -498,7 +499,19 @@ function NewVariantForm({
       );
       return;
     }
+    // One colour left unnamed, or only named ones (the shop could not offer the unnamed one).
+    const siblings = productScale.variants.filter((v) => v.finish_code === finish.code);
+    const unnamed = siblings.find((v) => v.color === "");
+    if (finish.colored && siblings.length > 0 && (parsedColor.data === "" || unnamed)) {
+      setError(
+        unnamed
+          ? `Gib zuerst ${unnamed.sku} eine Farbe; dann kann ${parsedColor.data} dazukommen.`
+          : fieldErrorMessage("color", "required"),
+      );
+      return;
+    }
     setError(null);
+    const submitted = color;
     command.mutate(
       () =>
         addVariant(
@@ -506,8 +519,8 @@ function NewVariantForm({
           { finish_code: finish.code, color: parsedColor.data, price_cents: parsedPrice.data },
           ifMatch(product.version),
         ),
-      // The price stays: the next colour usually costs the same.
-      { onSuccess: () => setColor("") },
+      // The price stays: the next colour usually costs the same. A colour typed meanwhile stays too.
+      { onSuccess: () => setColor((now) => (now === submitted ? "" : now)) },
     );
   }
 

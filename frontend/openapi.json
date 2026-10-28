@@ -7239,7 +7239,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content. Problem codes: `not_publishable`, `validation_failed`."
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
           },
           "503": {
             "content": {

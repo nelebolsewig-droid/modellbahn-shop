@@ -1,75 +1,169 @@
 {
-  "about": "Startbestand von adp-Modelle (ADR 0013). Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Einspielen: make catalog-import.",
+  "about": "Startbestand von adp-Modelle (ADR 0013), geordnet wie mit dem Inhaber festgelegt: Straßenfahrzeuge → LKW → Feuerwehr. Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Einspielen: make catalog-import.",
   "categories": [
     {
-      "name": "Lkw",
+      "name": "Straßenfahrzeuge",
       "children": [
-        { "name": "Pritsche und Plane" },
-        { "name": "Kipper" },
-        { "name": "Tank- und Silofahrzeuge" },
-        { "name": "Sattelzüge" },
-        { "name": "Kofferaufbau" },
-        { "name": "Kommunalfahrzeuge" }
+        {
+          "name": "LKW",
+          "children": [
+            {
+              "name": "Pritsche und Plane"
+            },
+            {
+              "name": "Kipper"
+            },
+            {
+              "name": "Tank- und Silofahrzeuge"
+            },
+            {
+              "name": "Sattelzüge"
+            },
+            {
+              "name": "Kofferaufbau"
+            },
+            {
+              "name": "Kommunalfahrzeuge"
+            },
+            {
+              "name": "Feuerwehr"
+            }
+          ]
+        },
+        {
+          "name": "Kranfahrzeuge"
+        },
+        {
+          "name": "Rettungsdienst"
+        },
+        {
+          "name": "Militärfahrzeuge"
+        },
+        {
+          "name": "Pkw"
+        },
+        {
+          "name": "Busse"
+        },
+        {
+          "name": "Baumaschinen und Traktoren"
+        },
+        {
+          "name": "Wohnwagen und Anhänger"
+        }
       ]
     },
-    { "name": "Kranfahrzeuge" },
-    { "name": "Feuerwehr und Rettung" },
-    { "name": "Militärfahrzeuge" },
-    { "name": "Pkw" },
-    { "name": "Busse" },
-    { "name": "Baumaschinen und Traktoren" },
-    { "name": "Wohnwagen und Anhänger" },
     {
       "name": "Schienenfahrzeuge",
-      "children": [{ "name": "Straßenbahnen" }]
+      "children": [
+        {
+          "name": "Straßenbahn"
+        }
+      ]
     }
   ],
   "products": [
     {
       "name": "IFA ADK 70 Autokran",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran der DDR, als Fertigmodell in H0.",
       "prototype": "IFA ADK 70",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }],
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ],
       "note": "laut Shopify 2 Stück vorrätig"
     },
     {
       "name": "IFA ADK 80 Autokran",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran der DDR, als Fertigmodell in H0.",
       "prototype": "IFA ADK 80",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }],
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ],
       "note": "laut Shopify 1 Stück vorrätig"
     },
     {
       "name": "IFA ADK 100 Autokran",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran der DDR, als Fertigmodell in H0.",
       "prototype": "IFA ADK 100",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }],
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ],
       "note": "laut Shopify 1 Stück vorrätig"
     },
     {
       "name": "IFA ADK 125 Autokran",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran der DDR, als Fertigmodell in H0.",
       "prototype": "IFA ADK 125",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }],
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ],
       "note": "laut Shopify ausverkauft"
     },
     {
       "name": "ADK III3 Puma Kran-2",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran in vier Farben, als Fertigmodell in H0.",
       "prototype": "ADK III3 Puma",
       "scales": [
         {
           "code": "H0",
           "variants": [
-            { "finish": "painted", "color": "Blau", "price_cents": 6500 },
-            { "finish": "painted", "color": "Grün", "price_cents": 6500 },
-            { "finish": "painted", "color": "Grau", "price_cents": 6500 },
-            { "finish": "painted", "color": "Hellblau", "price_cents": 6500 }
+            {
+              "finish": "painted",
+              "color": "Blau",
+              "price_cents": 6500
+            },
+            {
+              "finish": "painted",
+              "color": "Grün",
+              "price_cents": 6500
+            },
+            {
+              "finish": "painted",
+              "color": "Grau",
+              "price_cents": 6500
+            },
+            {
+              "finish": "painted",
+              "color": "Hellblau",
+              "price_cents": 6500
+            }
           ]
         }
       ],
@@ -77,169 +171,291 @@
     },
     {
       "name": "HG 125 auf T-34",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Hebegerät HG 125 auf dem Fahrgestell des T-34, als Fertigmodell in H0.",
       "prototype": "HG 125 auf T-34",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }],
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ],
       "note": "laut Shopify 2 Stück vorrätig"
     },
     {
       "name": "KrAZ-250K Autodrehkran KS-4562",
-      "category": "Kranfahrzeuge",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Autodrehkran KS-4562 auf KrAZ-250K, als Fertigmodell in H0.",
       "prototype": "KrAZ-250K mit KS-4562",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 8000 }] }]
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 8000
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "IFA S4000 Müllwagen",
-      "category": "Lkw / Kommunalfahrzeuge",
+      "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
       "summary": "Müllwagen auf IFA S4000, als Fertigmodell in H0.",
       "prototype": "IFA S4000",
-      "scales": [{ "code": "H0", "variants": [{ "finish": "painted", "price_cents": 3800 }] }]
+      "scales": [
+        {
+          "code": "H0",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 3800
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "IFA W50 Müllcontainerfahrzeug mit Kran",
-      "category": "Lkw / Kommunalfahrzeuge",
+      "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
       "summary": "Müllcontainerfahrzeug mit Kran auf IFA W50, als Fertigmodell in TT.",
       "prototype": "IFA W50",
-      "scales": [{ "code": "TT", "variants": [{ "finish": "painted", "price_cents": 3000 }] }]
+      "scales": [
+        {
+          "code": "TT",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 3000
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Arbeitstriebwagen der Thüringer Waldbahn, motorisiert",
-      "category": "Schienenfahrzeuge / Straßenbahnen",
+      "category": "Schienenfahrzeuge / Straßenbahn",
       "summary": "Straßenbahn-Arbeitstriebwagen (ATW) für Meterspur, motorisiert.",
       "description": "Für Meterspur in TT (TTm).",
       "prototype": "Arbeitstriebwagen der Thüringer Waldbahn",
-      "scales": [{ "code": "TT", "variants": [{ "finish": "painted", "price_cents": 12500 }] }]
+      "scales": [
+        {
+          "code": "TT",
+          "variants": [
+            {
+              "finish": "painted",
+              "price_cents": 12500
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Straßenbahnzug T5 der Kirnitzschtalbahn, motorisiert",
-      "category": "Schienenfahrzeuge / Straßenbahnen",
+      "category": "Schienenfahrzeuge / Straßenbahn",
       "summary": "Straßenbahnzug T5 für Meterspur, motorisiert.",
       "description": "Für Meterspur in TT (TTm).",
       "prototype": "T5 der Kirnitzschtalbahn",
-      "scales": [{ "code": "TT" }],
+      "scales": [
+        {
+          "code": "TT"
+        }
+      ],
       "note": "Preis fehlt (nicht im Export)"
     },
     {
       "name": "Wohnanhänger Intercamp IC 355",
-      "category": "Wohnwagen und Anhänger",
+      "category": "Straßenfahrzeuge / Wohnwagen und Anhänger",
       "summary": "Wohnanhänger Intercamp IC 355 in H0.",
       "prototype": "Intercamp IC 355",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "Preis fehlt; laut Shopify je 1 Stück in Blau, Beige und Gold"
     },
     {
       "name": "Dreiseitenkipper mit Stahlpritsche",
-      "category": "Lkw / Kipper",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
       "description": "Entwurf aus den Lagerfotos (Etikett „Dreiseitenkipper TT Stahlpritsche“), mehrere Farben. Bitte prüfen: Fahrgestell, Farben, Preis.",
-      "scales": [{ "code": "TT" }],
+      "scales": [
+        {
+          "code": "TT"
+        }
+      ],
       "note": "aus Lagerfoto: Etikett lesbar"
     },
     {
       "name": "Kirowez K-700",
-      "category": "Baumaschinen und Traktoren",
+      "category": "Straßenfahrzeuge / Baumaschinen und Traktoren",
       "description": "Entwurf aus den Lagerfotos, gelb, in mehreren Kisten. Bitte prüfen: Maßstab, Farben, Preis.",
       "prototype": "Kirowez K-700",
-      "scales": [{ "code": "TT" }],
+      "scales": [
+        {
+          "code": "TT"
+        }
+      ],
       "note": "aus Lagerfoto"
     },
     {
       "name": "ZIL-130 Pritschenwagen",
-      "category": "Lkw / Pritsche und Plane",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
       "description": "Entwurf aus den Lagerfotos, viele Farben. Bitte prüfen: Typ, Maßstab, Farben, Preis.",
-      "scales": [{ "code": "TT" }],
+      "scales": [
+        {
+          "code": "TT"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "MAZ-500 Pritschenwagen mit Plane",
-      "category": "Lkw / Pritsche und Plane",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
       "description": "Entwurf aus den Lagerfotos, gesehen in Rot mit blauer Plane und in Grün. Bitte prüfen: Typ, Farben, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "MAZ-504 Sattelzug mit Kühlauflieger",
-      "category": "Lkw / Sattelzüge",
+      "category": "Straßenfahrzeuge / LKW / Sattelzüge",
       "description": "Entwurf aus den Lagerfotos, Zugmaschine orange, Auflieger silbern. Bitte prüfen: Typ, Farben, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "MAZ-500 Tankwagen",
-      "category": "Lkw / Tank- und Silofahrzeuge",
+      "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
       "description": "Entwurf aus den Lagerfotos, gelber Tank. Bitte prüfen: Typ, Farben, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "Tatra 148 Kipper",
-      "category": "Lkw / Kipper",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
       "description": "Entwurf aus den Lagerfotos, Mulde grau, Fahrerhaus rot oder beige. Bitte prüfen: Typ, Farben, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "Betonmischer",
-      "category": "Baumaschinen und Traktoren",
+      "category": "Straßenfahrzeuge / Baumaschinen und Traktoren",
       "description": "Entwurf aus den Lagerfotos, Trommel grau oder orange. Bitte prüfen: Fahrgestell, Maßstab, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto"
     },
     {
       "name": "Postkoffer-Lkw Deutsche Post",
-      "category": "Lkw / Kofferaufbau",
+      "category": "Straßenfahrzeuge / LKW / Kofferaufbau",
       "description": "Entwurf aus den Lagerfotos, gelb mit Aufschrift „Deutsche Post“. Bitte prüfen: Fahrgestell, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto"
     },
     {
       "name": "Gerätewagen Feuerschutzpolizei",
-      "category": "Feuerwehr und Rettung",
+      "category": "Straßenfahrzeuge / LKW / Feuerwehr",
       "description": "Entwurf aus den Lagerfotos, grün mit Aufschrift „Feuerschutzpolizei“. Bitte prüfen: Fahrgestell, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto"
     },
     {
       "name": "Krankenwagen",
-      "category": "Feuerwehr und Rettung",
+      "category": "Straßenfahrzeuge / Rettungsdienst",
       "description": "Entwurf aus den Lagerfotos, beige mit rotem Kreuz. Bitte prüfen: Typ, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto"
     },
     {
       "name": "Tanklöschfahrzeug",
-      "category": "Feuerwehr und Rettung",
+      "category": "Straßenfahrzeuge / LKW / Feuerwehr",
       "description": "Entwurf aus den Lagerfotos, rot, mehrere Stück. Bitte prüfen: Fahrgestell, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "Drehleiter",
-      "category": "Feuerwehr und Rettung",
+      "category": "Straßenfahrzeuge / LKW / Feuerwehr",
       "description": "Entwurf aus den Lagerfotos, rot mit Leiter. Bitte prüfen: Fahrgestell, Maßstab, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "Militär-Lkw mit Plane",
-      "category": "Militärfahrzeuge",
+      "category": "Straßenfahrzeuge / Militärfahrzeuge",
       "description": "Entwurf aus den Lagerfotos: viele olivgrüne Lkw in drei Kisten. Bitte prüfen und in einzelne Typen aufteilen.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Sammelentwurf"
     },
     {
       "name": "Wartburg 353 Tourist",
-      "category": "Pkw",
+      "category": "Straßenfahrzeuge / Pkw",
       "description": "Entwurf aus den Lagerfotos, weiß. Bitte prüfen: Typ, Maßstab, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     },
     {
       "name": "Ikarus-Reisebus",
-      "category": "Busse",
+      "category": "Straßenfahrzeuge / Busse",
       "description": "Entwurf aus den Lagerfotos, rot-weiß und blau-weiß. Bitte prüfen: Typ, Maßstab, Preis.",
-      "scales": [{ "code": "H0" }],
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
       "note": "aus Lagerfoto: Typ geschätzt"
     }
   ]

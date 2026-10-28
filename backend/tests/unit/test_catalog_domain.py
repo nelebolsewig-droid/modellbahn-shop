@@ -200,6 +200,30 @@ class TestGaugesAndVariants:
         item.remove_variant(yellow.id, NOW)
         assert add(PAINTED, "Grün", "2f").sku == "MB-000042-H0-F"
 
+    def test_one_colour_left_unnamed_or_only_named_colours(self) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+
+        def add(color: str, gtin: str) -> Variant:
+            draft = VariantDraft(finish=PAINTED, price_cents=8000, color=color)
+            return item.add_variant(scale.id, draft, gtin=gtin, now=NOW)
+
+        plain = add("", "2a")
+        # Next to the unnamed one, a second colour could not be chosen in the shop.
+        with pytest.raises(InvalidFieldError) as unnamed:
+            add("Blau", "2b")
+        assert (unnamed.value.field, unnamed.value.code) == ("color", "unnamed_sibling")
+        item.change_variant(plain.id, color="Gelb", colored=True, now=NOW)
+        add("Blau", "2b")
+        with pytest.raises(InvalidFieldError) as required:
+            add("", "2c")
+        assert (required.value.field, required.value.code) == ("color", "required")
+        with pytest.raises(InvalidFieldError):
+            item.change_variant(plain.id, color="", colored=True, now=NOW)
+        # The kit stays on its own: one per scale, without colour.
+        kit = VariantDraft(finish=UNPAINTED, price_cents=2990)
+        item.add_variant(scale.id, kit, gtin="2d", now=NOW)
+
     def test_primed_takes_no_new_variants(self) -> None:
         item = product()
         scale = item.add_scale(H0, Dimensions(), NOW)

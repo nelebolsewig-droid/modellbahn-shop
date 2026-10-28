@@ -145,7 +145,7 @@ async def _categories(
     paths: dict[str, Category] = {}
 
     async def walk(nodes: Sequence[CategorySeed], parent: Category | None, prefix: str) -> None:
-        for position, node in enumerate(nodes):
+        for node in nodes:
             path = f"{prefix}{node.name}"
             found = next(
                 (
@@ -159,8 +159,8 @@ async def _categories(
             if found is None:
                 found = await service.create_category(
                     name=node.name,
+                    slug=_free_slug(node.name, parent, {c.slug for c in existing}),
                     parent_id=parent.id if parent else None,
-                    position=position,
                 )
                 existing.append(found)
                 report.categories.append(path)
@@ -169,3 +169,20 @@ async def _categories(
 
     await walk(seeds, None, "")
     return paths
+
+
+def _free_slug(name: str, parent: Category | None, taken: set[str]) -> str:
+    """A new category's address: its name, else with its parent's ("lkw-kipper"), else numbered.
+
+    Addresses are unique across the whole tree, while names only among siblings: a shop
+    may well have "Kipper" under "LKW" and under "Anhänger".
+    """
+    base = slugify(name)
+    candidates = [base] + ([f"{parent.slug}-{base}"] if parent else [])
+    for candidate in candidates:
+        if candidate not in taken:
+            return candidate
+    number = 2
+    while f"{candidates[-1]}-{number}" in taken:
+        number += 1
+    return f"{candidates[-1]}-{number}"

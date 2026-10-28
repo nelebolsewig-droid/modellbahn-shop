@@ -265,9 +265,7 @@ async def create_product(
     "/catalog/quick-entries",
     operation_id="createQuickEntry",
     summary="Record one model: product, scale, variant in finish and colour, price and photo",
-    responses=problems(
-        {**ACCESS, **PRODUCT_NOT_FOUND, 409: ["slug_taken"], 422: ["not_publishable"]}
-    ),
+    responses=problems({**ACCESS, **PRODUCT_NOT_FOUND, 409: ["slug_taken"]}),
 )
 async def create_quick_entry(
     body: QuickEntryIn, response: Response, _: CatalogEditor, service: CatalogServiceDep
