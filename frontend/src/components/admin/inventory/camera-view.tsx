@@ -161,7 +161,7 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
   }, []);
 
   return (
-    <div className={cn("overflow-hidden rounded-md border border-line bg-[#15171a] text-white", className)}>
+    <div className={cn("overflow-hidden rounded-md border border-line bg-viewfinder text-on-viewfinder", className)}>
       <div className="relative aspect-[4/3] sm:aspect-video">
         <video
           ref={video}
@@ -175,11 +175,11 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
         {!running ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
             {state.phase === "problem" ? (
-              <p role="alert" className="max-w-sm text-small text-white/85">
+              <p role="alert" className="max-w-sm text-small text-on-viewfinder">
                 {PROBLEMS[state.problem]}
               </p>
             ) : (
-              <p className="max-w-xs text-small text-white/70">
+              <p className="max-w-xs text-small text-on-viewfinder-muted">
                 Etikett in den Rahmen halten. Ein Handscanner funktioniert jederzeit, auch ohne Kamera.
               </p>
             )}
@@ -189,7 +189,7 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
               disabled={state.phase === "starting"}
               aria-busy={state.phase === "starting" || undefined}
               onClick={() => void start()}
-              className="border-white/40 bg-white/10 text-white hover:border-white hover:bg-white/20"
+              className="border-on-viewfinder/40 bg-on-viewfinder/10 text-on-viewfinder hover:border-on-viewfinder hover:bg-on-viewfinder/20"
             >
               {state.phase === "starting" ? "Kamera startet …" : state.phase === "problem" ? "Erneut versuchen" : "Kamera starten"}
             </Button>
@@ -197,9 +197,9 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
         ) : null}
       </div>
       {running ? (
-        <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-2.5">
-          <p className="flex items-center gap-2 text-hint text-white/70">
-            <span aria-hidden="true" className="size-1.5 animate-lamp-pulse rounded-full bg-[#ff4d3d]" />
+        <div className="flex items-center justify-between gap-3 border-t border-on-viewfinder/10 px-4 py-2.5">
+          <p className="flex items-center gap-2 text-hint text-on-viewfinder-muted">
+            <span aria-hidden="true" className="size-1.5 animate-lamp-pulse rounded-full bg-aim" />
             Kamera sucht
           </p>
           <div className="flex gap-2">
@@ -210,7 +210,7 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
                 variant="secondary"
                 aria-pressed={state.torch}
                 onClick={() => void toggleTorch()}
-                className="border-white/30 bg-transparent text-white hover:border-white hover:bg-white/10 aria-pressed:bg-white aria-pressed:text-ink"
+                className="border-on-viewfinder/30 bg-transparent text-on-viewfinder hover:border-on-viewfinder hover:bg-on-viewfinder/10 aria-pressed:bg-on-viewfinder aria-pressed:text-ink"
               >
                 Licht
               </Button>
@@ -220,7 +220,7 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
               size="sm"
               variant="secondary"
               onClick={stop}
-              className="border-white/30 bg-transparent text-white hover:border-white hover:bg-white/10"
+              className="border-on-viewfinder/30 bg-transparent text-on-viewfinder hover:border-on-viewfinder hover:bg-on-viewfinder/10"
             >
               Kamera aus
             </Button>
@@ -233,7 +233,7 @@ export function CameraView({ onFrame, onStart, flash, className }: CameraViewPro
 
 /** Corner marks and a red aiming line, like the window of a hand scanner. */
 function Viewfinder({ active }: { active: boolean }) {
-  const corner = "absolute size-7 border-white/90";
+  const corner = "absolute size-7 border-on-viewfinder/90";
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-[12%_10%]">
       <span className={cn(corner, "top-0 left-0 rounded-tl-sm border-t-2 border-l-2")} />
@@ -242,7 +242,7 @@ function Viewfinder({ active }: { active: boolean }) {
       <span className={cn(corner, "right-0 bottom-0 rounded-br-sm border-r-2 border-b-2")} />
       <span
         className={cn(
-          "absolute inset-x-3 top-1/2 h-px -translate-y-1/2 bg-[#ff4d3d] shadow-[0_0_8px_1px_rgb(255_77_61/0.7)] transition-opacity",
+          "absolute inset-x-3 top-1/2 h-px -translate-y-1/2 bg-aim shadow-[0_0_8px_1px_var(--aim)] transition-opacity",
           active ? "animate-lamp-pulse opacity-100" : "opacity-30",
         )}
       />
@@ -253,7 +253,7 @@ function Viewfinder({ active }: { active: boolean }) {
 const FLASH_COLOURS: Readonly<Record<FlashTone, string>> = {
   success: "shadow-[inset_0_0_0_6px_var(--success)] bg-success/15",
   error: "shadow-[inset_0_0_0_6px_var(--danger)] bg-danger/20",
-  info: "shadow-[inset_0_0_0_6px_var(--accent-subtle)] bg-white/10",
+  info: "shadow-[inset_0_0_0_6px_var(--accent-subtle)] bg-on-viewfinder/10",
 };
 
 function Flash({ tone }: { tone: FlashTone }) {

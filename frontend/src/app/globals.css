@@ -131,6 +131,10 @@
   --color-danger: var(--danger);
   --color-danger-subtle: var(--danger-subtle);
   --color-scrim: var(--scrim);
+  --color-viewfinder: var(--viewfinder);
+  --color-on-viewfinder: var(--on-viewfinder);
+  --color-on-viewfinder-muted: var(--on-viewfinder-muted);
+  --color-aim: var(--aim);
 
   /* The font files come from next/font (src/app/fonts.ts), which sets these variables. */
   --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;

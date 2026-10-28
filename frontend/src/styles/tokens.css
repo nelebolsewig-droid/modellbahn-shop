@@ -23,6 +23,7 @@
   --gray-600: #666b70;
   --gray-700: #4e5357;
   --gray-900: #1e2124;
+  --gray-950: #15171a;
   --prussian-50: #eef3f7;
   --prussian-100: #d9e4ee;
   --prussian-300: #8fa9c0;
@@ -34,6 +35,7 @@
   --amber-700: #8a5a00;
   --red-50: #f8e6e4;
   --red-700: #a8322b;
+  --red-500: #ff4d3d;
 
   /* Grounds */
   --canvas: var(--gray-50);
@@ -74,6 +76,13 @@
   --warning-subtle: var(--amber-50);
   --danger: var(--red-700);
   --danger-subtle: var(--red-50);
+
+  /* The scanner's viewfinder: the only dark field, so the camera picture stands out;
+     the red aiming line is the one of a hand scanner. */
+  --viewfinder: var(--gray-950);
+  --on-viewfinder: var(--gray-0);
+  --on-viewfinder-muted: var(--gray-400);
+  --aim: var(--red-500);
 
   /* Dims the page behind a dialog. */
   --scrim: rgb(30 33 36 / 0.32);

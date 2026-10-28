@@ -90,11 +90,14 @@ export function PickList({ list, linkUnits = true, className }: PickListProps) {
                   <>
                     {" · "}
                     {linkUnits ? (
-                      <Link href={`/admin/lager/einheiten/${item.unit_code}` as Route} className="hover:text-ink hover:underline">
+                      <Link
+                        href={`/admin/lager/einheiten/${item.unit_code}` as Route}
+                        className="whitespace-nowrap hover:text-ink hover:underline"
+                      >
                         {formatUnitCode(item.unit_code)}
                       </Link>
                     ) : (
-                      formatUnitCode(item.unit_code)
+                      <span className="whitespace-nowrap">{formatUnitCode(item.unit_code)}</span>
                     )}
                   </>
                 ) : null}
@@ -112,6 +115,16 @@ export function PickList({ list, linkUnits = true, className }: PickListProps) {
 
 /** The place as it stands on the shelf label, or the workbench for a piece still to make. */
 function PlaceTag({ item }: { item: PickItemOut }) {
+  if (item.state === "picked" || item.state === "shipped") {
+    return (
+      <span className="inline-flex h-7 items-center justify-center gap-1.5 rounded-xs bg-success-subtle px-2 text-hint font-medium text-success">
+        <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-3.5">
+          <path d="m3.5 8.5 3 3 6-7" />
+        </svg>
+        {item.state === "picked" ? "Entnommen" : "Versendet"}
+      </span>
+    );
+  }
   if (item.location === null) {
     return (
       <span className="inline-flex h-7 items-center justify-center rounded-xs border border-dashed border-warning px-2 text-hint font-medium text-warning">

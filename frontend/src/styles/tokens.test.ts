@@ -65,6 +65,8 @@ const TEXT_PAIRS: [string, string][] = [
   ["ink", "danger-subtle"],
   ["danger", "danger-subtle"],
   ["drawing-dimension", "stage"],
+  ["on-viewfinder", "viewfinder"],
+  ["on-viewfinder-muted", "viewfinder"],
 ];
 
 const MARK_PAIRS: [string, string][] = [

@@ -398,7 +398,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
               id="scan-manual"
               value={manual}
               onChange={(event) => setManual(event.target.value)}
-              placeholder="Code eintippen, z. B. R01-F02"
+              placeholder="Code eintippen"
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
@@ -454,7 +454,7 @@ function ScanGlyph({ className }: { className?: string }) {
         x += width * 1.6 + 2.4;
         return bar;
       })}
-      <rect x={0} y={19.5} width={96} height={1.2} fill="#ff4d3d" />
+      <rect x={0} y={19.5} width={96} height={1.2} fill="var(--aim)" />
     </svg>
   );
 }

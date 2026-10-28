@@ -130,6 +130,7 @@ describe("OrderDesk", () => {
     );
     expect(screen.getByText("Als Nächstes")).toBeInTheDocument();
     expect(screen.getByText("Fertigung")).toBeInTheDocument();
+    expect(screen.getByText("Entnommen")).toBeInTheDocument();
   });
 
   it("refreshes the pick list when a piece of this order is picked", async () => {

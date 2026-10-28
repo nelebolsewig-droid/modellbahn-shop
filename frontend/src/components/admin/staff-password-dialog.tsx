@@ -20,8 +20,13 @@ export function StaffPasswordDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm">
-          Passwort ändern
+        <Button type="button" variant="ghost" size="sm" className="max-sm:px-2.5">
+          {/* A key on the phone, where the header has room for little else. */}
+          <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5 sm:hidden">
+            <circle cx="6.5" cy="13.5" r="3.5" />
+            <path d="m9 11 7.5-7.5M14 6l2 2M12 8l1.5 1.5" strokeLinecap="round" />
+          </svg>
+          <span className="max-sm:sr-only">Passwort ändern</span>
         </Button>
       </DialogTrigger>
       <DialogContent>

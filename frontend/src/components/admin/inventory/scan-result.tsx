@@ -193,7 +193,7 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
           <>
             <Line label="Artikel">
               {unit.title ?? "Unbekannter Artikel"}
-              {unit.sku ? <span className="ml-2 font-mono text-hint text-ink-tertiary">{unit.sku}</span> : null}
+              {unit.sku ? <span className="ml-2 font-mono text-hint whitespace-nowrap text-ink-tertiary">{unit.sku}</span> : null}
             </Line>
             <Line label="Zustand">{UNIT_STATUS_LABELS[unit.status]}</Line>
             {unit.location_code ? <Line label="Platz">{<span className="font-mono">{unit.location_code}</span>}</Line> : null}
@@ -204,7 +204,7 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
           <>
             <Line label="Artikel">
               {variant.title}
-              <span className="ml-2 font-mono text-hint text-ink-tertiary">{variant.sku}</span>
+              <span className="ml-2 font-mono text-hint whitespace-nowrap text-ink-tertiary">{variant.sku}</span>
             </Line>
             <Line label="Im Lager">{variant.free_units === 1 ? "1 Stück frei" : `${variant.free_units} Stück frei`}</Line>
           </>

@@ -87,40 +87,43 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <>
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4 sm:px-8">
-          <div className="flex flex-wrap items-center gap-x-10 gap-y-3">
-            <Link href="/admin" className="flex items-center gap-3 rounded-sm">
-              <LogoMark />
-              <span>
-                <span className="block label-caps text-ink-tertiary">{SHOP_NAME}</span>
-                <span className="block text-[1.25rem] leading-6 font-medium tracking-[-0.01em]">
-                  Stellwerk
-                </span>
+        {/* On the phone: logo and actions in one row, the sections in a strip that scrolls
+            sideways, so the scanner's camera starts high up on the screen. */}
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-10 gap-y-3 px-5 pt-3 sm:px-8 sm:py-4">
+          <Link href="/admin" className="flex items-center gap-3 rounded-sm">
+            <LogoMark />
+            <span>
+              <span className="block label-caps text-ink-tertiary max-sm:hidden">{SHOP_NAME}</span>
+              <span className="block text-[1.25rem] leading-6 font-medium tracking-[-0.01em]">
+                Stellwerk
               </span>
-            </Link>
-            <nav aria-label="Stellwerk">
-              <ul className="flex flex-wrap gap-1">
-                {SECTIONS.map((section) => {
-                  const active = isActive(pathname, section);
-                  return (
-                    <li key={section.href}>
-                      <Link
-                        href={section.href}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium transition-colors",
-                          active ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
-                        )}
-                      >
-                        {section.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+            </span>
+          </Link>
+          <nav
+            aria-label="Stellwerk"
+            className="order-3 -mx-5 w-[calc(100%+2.5rem)] overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:order-2 sm:mx-0 sm:w-auto sm:flex-1 sm:overflow-visible sm:px-0 sm:pb-0"
+          >
+            <ul className="flex gap-1 sm:flex-wrap">
+              {SECTIONS.map((section) => {
+                const active = isActive(pathname, section);
+                return (
+                  <li key={section.href} className="shrink-0">
+                    <Link
+                      href={section.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors",
+                        active ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
+                      )}
+                    >
+                      {section.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="order-2 flex items-center gap-2 sm:order-3">
             <StaffPasswordDialog />
             <Button
               type="button"

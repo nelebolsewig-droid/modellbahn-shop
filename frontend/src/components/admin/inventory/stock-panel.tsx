@@ -21,11 +21,7 @@ const PARTS: readonly Part[] = [
   { key: "allocated", label: "Reserviert", bar: "bg-accent" },
   { key: "picked", label: "Kommissioniert", bar: "bg-ink-secondary" },
   { key: "labeled", label: "Unverbucht", bar: "border border-warning bg-warning-subtle" },
-  {
-    key: "backordered",
-    label: "In Fertigung",
-    bar: "border border-warning bg-[repeating-linear-gradient(135deg,var(--warning-subtle)_0_3px,transparent_3px_6px)]",
-  },
+  { key: "backordered", label: "In Fertigung", bar: "bg-warning" },
 ];
 
 function matches(line: StockLineOut, query: string): boolean {
