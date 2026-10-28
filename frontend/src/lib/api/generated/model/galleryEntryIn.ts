@@ -17,6 +17,7 @@ export interface GalleryEntryIn {
   /** @maxLength 250 */
   alt_text?: string;
   asset_id: string;
+  color?: string | null;
   finish_code?: string | null;
   role?: MediaRole;
   scale_code?: string | null;

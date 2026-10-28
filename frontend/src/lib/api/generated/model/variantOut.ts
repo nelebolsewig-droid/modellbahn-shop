@@ -16,6 +16,8 @@ export interface VariantOut {
   active: boolean;
   /** Made to order: always for sale, made within the lead time; otherwise sold from stock and sold out when the shelves are empty. */
   allow_backorder: boolean;
+  /** Empty for a kit or a finished model in one colour. */
+  color: string;
   compare_at_price_cents: number | null;
   finish_code: string;
   gtin: string;

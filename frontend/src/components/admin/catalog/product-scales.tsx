@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 
 import { Panel } from "@/components/admin/panel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ColorDot } from "@/components/ui/color-dot";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SpecLine } from "@/components/ui/spec-line";
@@ -23,12 +25,14 @@ import type {
   ScaleOut,
   VariantOut,
 } from "@/lib/api/generated/model";
-import { centsToEuroInput, scaleSpec } from "@/lib/catalog/format";
+import { PAINT_SUGGESTIONS, sameColor } from "@/lib/catalog/colors";
+import { centsToEuroInput, finishLabel, scaleSpec } from "@/lib/catalog/format";
 import { scaleLabel } from "@/lib/catalog/scales";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
 import {
   DEFAULT_LEAD_TIME,
+  colorName,
   euroPrice,
   leadTimeSchema,
   optionalEuroPrice,
@@ -39,6 +43,9 @@ import {
 import { useProductCommand } from "./use-product";
 
 type Props = { product: ProductOut; references: ReferencesOut };
+
+/** The suggestions of every colour field on the page. */
+const PAINT_LIST = "paint-names";
 
 /** The scales of a product, each with its dimensions and the variants sold in it. */
 export function ProductScales({ product, references }: Props) {
@@ -52,6 +59,11 @@ export function ProductScales({ product, references }: Props) {
 
   return (
     <Panel title="Maßstäbe und Varianten" code="PRD 03">
+      <datalist id={PAINT_LIST}>
+        {PAINT_SUGGESTIONS.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
       {ordered.length === 0 ? (
         <p className="text-small text-ink-secondary">
           Noch kein Maßstab. Wähle unten, in welchen Maßstäben es das Modell gibt.
@@ -108,11 +120,17 @@ type ScaleBlockProps = {
 
 function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps) {
   const remove = useProductCommand(product.id);
-  const offeredFinishes = new Set(productScale.variants.map((v) => v.finish_code));
-  const variants = finishes.flatMap((finish) => {
-    const variant = productScale.variants.find((v) => v.finish_code === finish.code);
-    return variant ? [{ finish, variant }] : [];
-  });
+  // In the order of the shop: by finish, then by colour.
+  const variants = finishes.flatMap((finish) =>
+    productScale.variants
+      .filter((v) => v.finish_code === finish.code)
+      .sort((a, b) => a.color.localeCompare(b.color, "de"))
+      .map((variant) => ({ finish, variant })),
+  );
+  // A kit exists once per scale; a finished model once per colour. Primed is history.
+  const addable = finishes.filter(
+    (finish) => finish.offered && (finish.colored || !productScale.variants.some((v) => v.finish_code === finish.code)),
+  );
 
   return (
     <section aria-label={`Maßstab ${scaleLabel(scale)}`} className="rounded-md border border-line">
@@ -165,12 +183,8 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
         ) : (
           <p className="text-small text-ink-secondary">Noch keine Variante in {scale.name}.</p>
         )}
-        {offeredFinishes.size < finishes.length ? (
-          <NewVariantForm
-            product={product}
-            productScale={productScale}
-            finishes={finishes.filter((f) => !offeredFinishes.has(f.code))}
-          />
+        {addable.length > 0 ? (
+          <NewVariantForm product={product} productScale={productScale} finishes={addable} />
         ) : null}
       </div>
     </section>
@@ -257,7 +271,22 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
   const [error, setError] = useState<string | null>(null);
   const [leadMin, setLeadMin] = useState(String(variant.lead_time_min_weeks ?? DEFAULT_LEAD_TIME[0]));
   const [leadMax, setLeadMax] = useState(String(variant.lead_time_max_weeks ?? DEFAULT_LEAD_TIME[1]));
+  const [color, setColor] = useState(variant.color);
   const fieldError = command.error?.fieldErrors[0];
+  const label = finishLabel(finish.name, variant.color);
+
+  function saveColor() {
+    const parsed = colorName.safeParse(color);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? null);
+      return;
+    }
+    setError(null);
+    if (parsed.data === variant.color) {
+      return;
+    }
+    command.mutate(() => updateVariant(variant.id, { color: parsed.data }, ifMatch(product.version)));
+  }
 
   function saveLeadTime() {
     const parsed = leadTimeSchema.safeParse({ min: leadMin, max: leadMax });
@@ -302,7 +331,27 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
     <>
       <tr>
         <th scope="row" className="py-2 pr-3 text-left font-medium">
-          {finish.name}
+          <span className="block">{finish.name}</span>
+          {finish.colored ? (
+            <span className="mt-1 flex items-center gap-2">
+              <ColorDot color={color} size="sm" />
+              <Input
+                aria-label={`Farbe ${label}`}
+                value={color}
+                placeholder="einfarbig"
+                list={PAINT_LIST}
+                maxLength={40}
+                onChange={(event) => setColor(event.target.value)}
+                onBlur={saveColor}
+                className="w-28 font-normal werkstatt:h-8"
+              />
+            </span>
+          ) : null}
+          {finish.offered ? null : (
+            <Badge tone="warning" className="mt-1">
+              nicht mehr angeboten
+            </Badge>
+          )}
         </th>
         <td className="py-2 pr-3 font-mono text-hint text-ink-secondary">
           <span className="block">{variant.sku}</span>
@@ -310,7 +359,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
         </td>
         <td className="py-2 pr-3">
           <Input
-            aria-label={`Preis ${finish.name} in Euro`}
+            aria-label={`Preis ${label} in Euro`}
             inputMode="decimal"
             value={price}
             onChange={(event) => setPrice(event.target.value)}
@@ -320,7 +369,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
         </td>
         <td className="py-2 pr-3">
           <Input
-            aria-label={`Früherer Preis ${finish.name} in Euro`}
+            aria-label={`Früherer Preis ${label} in Euro`}
             inputMode="decimal"
             value={former}
             placeholder="–"
@@ -332,7 +381,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
         <td className="py-2 pr-3">
           <input
             type="checkbox"
-            aria-label={`${finish.name} im Shop anbieten`}
+            aria-label={`${label} im Shop anbieten`}
             checked={variant.active}
             disabled={command.isPending}
             onChange={(event) =>
@@ -347,7 +396,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              aria-label={`${finish.name} auf Bestellung fertigen (auch ohne Lagerbestand bestellbar)`}
+              aria-label={`${label} auf Bestellung fertigen (auch ohne Lagerbestand bestellbar)`}
               checked={variant.allow_backorder}
               disabled={command.isPending}
               onChange={(event) =>
@@ -360,7 +409,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
             {variant.allow_backorder ? (
               <span className="flex items-center gap-1 text-hint text-ink-secondary">
                 <Input
-                  aria-label={`Lieferzeit ${finish.name}: frühestens nach Wochen`}
+                  aria-label={`Lieferzeit ${label}: frühestens nach Wochen`}
                   inputMode="numeric"
                   value={leadMin}
                   onChange={(event) => setLeadMin(event.target.value)}
@@ -369,7 +418,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
                 />
                 <span aria-hidden="true">–</span>
                 <Input
-                  aria-label={`Lieferzeit ${finish.name}: spätestens nach Wochen`}
+                  aria-label={`Lieferzeit ${label}: spätestens nach Wochen`}
                   inputMode="numeric"
                   value={leadMax}
                   onChange={(event) => setLeadMax(event.target.value)}
@@ -388,7 +437,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
             size="sm"
             disabled={command.isPending}
             onClick={() => {
-              if (window.confirm(`Variante ${variant.sku} entfernen?`)) {
+              if (window.confirm(`Variante ${variant.sku} (${label}) entfernen?`)) {
                 command.mutate(() => deleteVariant(variant.id, ifMatch(product.version)));
               }
             }}
@@ -420,29 +469,53 @@ function NewVariantForm({
   finishes: readonly FinishOut[];
 }) {
   const command = useProductCommand(product.id);
-  const [finish, setFinish] = useState(finishes[0]?.code ?? "");
+  const [finishCode, setFinishCode] = useState(finishes[0]?.code ?? "");
+  const [color, setColor] = useState("");
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // The list shrinks once the kit exists; then the finished model is the one left.
+  const finish = finishes.find((f) => f.code === finishCode) ?? finishes[0];
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = euroPrice.safeParse(price);
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? null);
+    if (!finish) {
+      return;
+    }
+    const parsedPrice = euroPrice.safeParse(price);
+    const parsedColor = colorName.safeParse(finish.colored ? color : "");
+    if (!parsedPrice.success || !parsedColor.success) {
+      setError((parsedPrice.error ?? parsedColor.error)?.issues[0]?.message ?? null);
+      return;
+    }
+    const taken = productScale.variants.some(
+      (v) => v.finish_code === finish.code && sameColor(v.color, parsedColor.data),
+    );
+    if (taken) {
+      setError(
+        parsedColor.data === ""
+          ? `${finish.name} ohne Farbe gibt es in dem Maßstab schon. Gib eine Farbe an.`
+          : `${finishLabel(finish.name, parsedColor.data)} gibt es in dem Maßstab schon.`,
+      );
       return;
     }
     setError(null);
     command.mutate(
-      () => addVariant(productScale.id, { finish_code: finish, price_cents: parsed.data }, ifMatch(product.version)),
-      { onSuccess: () => setPrice("") },
+      () =>
+        addVariant(
+          productScale.id,
+          { finish_code: finish.code, color: parsedColor.data, price_cents: parsedPrice.data },
+          ifMatch(product.version),
+        ),
+      // The price stays: the next colour usually costs the same.
+      { onSuccess: () => setColor("") },
     );
   }
 
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
       <label className="w-44">
-        <span className="block text-hint text-ink-tertiary">Neue Ausführung</span>
-        <Select value={finish} onChange={(event) => setFinish(event.target.value)} className="mt-1">
+        <span className="block text-hint text-ink-tertiary">Neue Variante</span>
+        <Select value={finish?.code ?? ""} onChange={(event) => setFinishCode(event.target.value)} className="mt-1">
           {finishes.map((option) => (
             <option key={option.code} value={option.code}>
               {option.name}
@@ -450,6 +523,21 @@ function NewVariantForm({
           ))}
         </Select>
       </label>
+      {finish?.colored ? (
+        <label className="w-40">
+          <span className="block text-hint text-ink-tertiary">Farbe</span>
+          <span className="mt-1 flex items-center gap-2">
+            <Input
+              value={color}
+              maxLength={40}
+              onChange={(event) => setColor(event.target.value)}
+              placeholder="z. B. Gelb"
+              list={PAINT_LIST}
+            />
+            {color.trim() !== "" ? <ColorDot color={color} /> : null}
+          </span>
+        </label>
+      ) : null}
       <label className="w-28">
         <span className="block text-hint text-ink-tertiary">Preis €</span>
         <Input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="49,90" className="mt-1" />

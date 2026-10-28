@@ -48,6 +48,16 @@ export const euroPrice = z.string().transform((value, context) => {
   return cents;
 });
 
+/** A paint as the shop shows it, like the backend: one line, first letter capital. */
+export const colorName = z.string().transform((value, context) => {
+  const tidy = value.trim().replace(/\s+/g, " ");
+  if (Array.from(tidy).length > 40) {
+    context.addIssue({ code: "custom", message: "Die Farbe darf höchstens 40 Zeichen lang sein." });
+    return z.NEVER;
+  }
+  return tidy.charAt(0).toLocaleUpperCase("de-DE") + tidy.slice(1);
+});
+
 /** An optional price: empty means "none". */
 export const optionalEuroPrice = z.string().transform((value, context) => {
   if (value.trim() === "") {

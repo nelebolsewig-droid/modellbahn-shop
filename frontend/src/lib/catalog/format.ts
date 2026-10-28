@@ -29,6 +29,11 @@ export function formatProductNumber(value: number): string {
   return `MB-${String(value).padStart(6, "0")}`;
 }
 
+/** "Fertigmodell, Gelb": the finish, and the colour where the model comes in several. */
+export function finishLabel(finish: string, color: string): string {
+  return color === "" ? finish : `${finish}, ${color}`;
+}
+
 /** The technical line of a scale: ["H0", "1:87", "Gleis 16,5 mm"]; ["1:24"] for a road scale. */
 export function scaleSpec(scale: { name: string; ratio: string; track_gauge_mm: number | null }): string[] {
   return [

@@ -45,6 +45,9 @@ import type {
   ProductPageOut,
   ProductPatchIn,
   ProductScaleIn,
+  PublishedOut,
+  QuickEntryIn,
+  QuickEntryOut,
   ReferencesOut,
   ScaleCreateIn,
   ScalePatchIn,
@@ -176,7 +179,173 @@ export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticl
 
 
 
-export const getGetCatalogReferencesUrl = () => {
+export const getPublishReadyProductsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/catalog/publish-ready`
+}
+
+/**
+ * Drafts that still lack a category, an active variant or a ready photo stay drafts.
+ * @summary Put every draft into the shop that meets the rules
+ */
+export const publishReadyProducts = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PublishedOut> => {
+
+  return apiFetch<PublishedOut>(getPublishReadyProductsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishReadyProductsMutationKey = () => ['publishReadyProducts'] as const;
+
+export const getPublishReadyProductsMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishReadyProducts>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishReadyProducts>>, TError,void, TContext> => {
+
+const mutationKey = getPublishReadyProductsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishReadyProducts>>, void> = () => {
+
+
+          return  publishReadyProducts(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishReadyProductsMutationResult = NonNullable<Awaited<ReturnType<typeof publishReadyProducts>>>
+
+    export type PublishReadyProductsMutationError = ErrorType<Problem | ValidationProblem>
+
+
+    /**
+ * @summary Put every draft into the shop that meets the rules
+ */
+export const usePublishReadyProducts = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishReadyProducts>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof publishReadyProducts>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPublishReadyProductsMutationOptions(options), queryClient);
+    }
+    export const getCreateQuickEntryUrl = () => {
+
+
+
+
+  return `/api/v1/admin/catalog/quick-entries`
+}
+
+/**
+ * Made for the phone, shelf by shelf: what is missing is created, what exists is reused.
+ *
+ * The product keeps its state: a new one is a draft, until it is published (on its
+ * own or with ``publish-ready``). The pieces themselves are registered by the
+ * inventory (``POST /admin/inventory/units``) with the variant returned here.
+ * @summary Record one model: product, scale, variant in finish and colour, price and photo
+ */
+export const createQuickEntry = async (quickEntryIn: QuickEntryIn, options?: Parameters<typeof apiFetch>[1]): Promise<QuickEntryOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<QuickEntryOut>(getCreateQuickEntryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(quickEntryIn)
+  }
+);}
+
+
+
+
+
+export const getCreateQuickEntryMutationKey = () => ['createQuickEntry'] as const;
+
+export const getCreateQuickEntryMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQuickEntry>>, TError,CreateQuickEntryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createQuickEntry>>, TError,CreateQuickEntryMutationVariables, TContext> => {
+
+const mutationKey = getCreateQuickEntryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createQuickEntry>>, CreateQuickEntryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createQuickEntry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateQuickEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createQuickEntry>>>
+    export type CreateQuickEntryMutationBody = QuickEntryIn
+    export type CreateQuickEntryMutationError = ErrorType<Problem | ValidationProblem>
+    export type CreateQuickEntryMutationVariables = {data: QuickEntryIn}
+
+    /**
+ * @summary Record one model: product, scale, variant in finish and colour, price and photo
+ */
+export const useCreateQuickEntry = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQuickEntry>>, TError,CreateQuickEntryMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createQuickEntry>>,
+        TError,
+        CreateQuickEntryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateQuickEntryMutationOptions(options), queryClient);
+    }
+    export const getGetCatalogReferencesUrl = () => {
 
 
 
@@ -2105,7 +2274,7 @@ export const useDeleteVariant = <TError = ErrorType<Problem | ValidationProblem>
 
 /**
  * Only the fields sent change; ``compare_at_price_cents: null`` removes the former price.
- * @summary Change price, former price, made to order with lead time, or availability
+ * @summary Change price, former price, made to order with lead time, colour or availability
  */
 export const updateVariant = async (variantId: string,
     variantPatchIn: VariantPatchIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductOut> => {
@@ -2172,7 +2341,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateVariantMutationVariables = {variantId: string;data: VariantPatchIn}
 
     /**
- * @summary Change price, former price, made to order with lead time, or availability
+ * @summary Change price, former price, made to order with lead time, colour or availability
  */
 export const useUpdateVariant = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVariant>>, TError,UpdateVariantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

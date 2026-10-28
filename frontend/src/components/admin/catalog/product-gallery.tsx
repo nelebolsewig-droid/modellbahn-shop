@@ -5,6 +5,7 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 import { Panel } from "@/components/admin/panel";
 import { Button } from "@/components/ui/button";
+import { ColorDot } from "@/components/ui/color-dot";
 import { Input } from "@/components/ui/input";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { Select } from "@/components/ui/select";
@@ -20,6 +21,7 @@ import type {
   ReferencesOut,
 } from "@/lib/api/generated/model";
 import { isApiProblem } from "@/lib/api/problem";
+import { sameColor } from "@/lib/catalog/colors";
 import { readyPicture } from "@/lib/catalog/images";
 import { ASSET_STATUS_LABELS, failureLabel, MEDIA_ROLE_LABELS } from "@/lib/catalog/labels";
 import { ifMatch } from "@/lib/catalog/versions";
@@ -51,7 +53,14 @@ function entryOf(item: GalleryItemOut): GalleryEntryIn {
     alt_text: item.alt_text,
     scale_code: item.scale_code,
     finish_code: item.finish_code,
+    color: item.color,
   };
+}
+
+/** Every colour of the product, once, in the order of the alphabet. */
+function productColors(product: ProductOut): string[] {
+  const all = product.scales.flatMap((scale) => scale.variants.map((variant) => variant.color));
+  return [...new Set(all.filter((color) => color !== ""))].sort((a, b) => a.localeCompare(b, "de"));
 }
 
 /**
@@ -96,6 +105,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
   const images = new Map(product.media.map((item) => [item.asset_id, item.image]));
   const dirty = edits !== null;
   const draft = edits === null ? product.media.map(entryOf) : mergeDraft(edits, product.media);
+  const colors = productColors(product);
 
   function change(next: GalleryEntryIn[]) {
     setEdits(next);
@@ -211,6 +221,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
               count={draft.length}
               references={references}
               scaleCodes={product.scales.map((s) => s.scale_code)}
+              colors={colors}
               onMove={move}
               onEdit={edit}
               onRemove={() => change(draft.filter((_, position) => position !== index))}
@@ -289,6 +300,8 @@ type GalleryTileProps = {
   count: number;
   references: ReferencesOut;
   scaleCodes: readonly string[];
+  /** The colours the product comes in, to say which one a photo shows. */
+  colors: readonly string[];
   onMove: (from: number, to: number) => void;
   onEdit: (index: number, patch: Partial<GalleryEntryIn>) => void;
   onRemove: () => void;
@@ -301,11 +314,15 @@ function GalleryTile({
   count,
   references,
   scaleCodes,
+  colors,
   onMove,
   onEdit,
   onRemove,
 }: GalleryTileProps) {
   const picture = readyPicture(image);
+  // A tag from before keeps its option even when no variant has the colour any more.
+  const tileColors = entry.color && !colors.some((c) => sameColor(c, entry.color ?? "")) ? [...colors, entry.color] : colors;
+  const coloredFinish = references.finishes.find((finish) => finish.colored)?.code ?? null;
   const status = image?.status ?? "failed";
   const label = `Foto ${index + 1}${index === 0 ? " (Hauptbild)" : ""}`;
   return (
@@ -379,13 +396,40 @@ function GalleryTile({
               className="mt-1"
             >
               <option value="">alle</option>
-              {references.finishes.map((finish) => (
-                <option key={finish.code} value={finish.code}>
-                  {finish.name}
-                </option>
-              ))}
+              {references.finishes
+                .filter((finish) => finish.offered || finish.code === entry.finish_code)
+                .map((finish) => (
+                  <option key={finish.code} value={finish.code}>
+                    {finish.name}
+                  </option>
+                ))}
             </Select>
           </label>
+          {tileColors.length > 0 ? (
+            <label className="col-span-2">
+              <span className="block text-hint text-ink-tertiary">Farbe</span>
+              <span className="mt-1 flex items-center gap-2">
+                <Select
+                  value={entry.color ?? ""}
+                  onChange={(event) =>
+                    onEdit(index, {
+                      color: event.target.value || null,
+                      // A colour is a finished model's: tagging one says so too.
+                      ...(event.target.value && entry.finish_code === null ? { finish_code: coloredFinish } : {}),
+                    })
+                  }
+                >
+                  <option value="">alle</option>
+                  {tileColors.map((color) => (
+                    <option key={color} value={color}>
+                      {color}
+                    </option>
+                  ))}
+                </Select>
+                {entry.color ? <ColorDot color={entry.color} /> : null}
+              </span>
+            </label>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-1">
           <Button type="button" variant="ghost" size="sm" disabled={index === 0} onClick={() => onMove(index, 0)}>
