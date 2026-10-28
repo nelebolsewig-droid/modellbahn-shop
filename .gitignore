@@ -29,6 +29,8 @@ node_modules/
 .next/
 out/
 coverage/
+# Copied from node_modules on every build (frontend/scripts/copy-zxing-wasm.mjs)
+frontend/public/zxing/
 next-env.d.ts
 *.tsbuildinfo
 npm-debug.log*

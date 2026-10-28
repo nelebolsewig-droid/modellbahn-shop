@@ -21,6 +21,7 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.paid": "Bestellung bezahlt",
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
+  "inventory.allocation.backordered": "Stück muss gefertigt werden",
 } as const satisfies Record<string, string>;
 
 /** The media events, for pages that wait for their uploads (the product editor). */
@@ -32,6 +33,17 @@ export const ORDER_EVENT_TYPES = [
   "sales.order.paid",
   "sales.order.shipped",
   "sales.order.cancelled",
+] as const;
+
+/**
+ * The stock events, for the stock pages, the scanner and the pick list. Every scan
+ * moves a unit, so these stay out of the feed on the start page; only a piece that
+ * has to be made shows up there.
+ */
+export const INVENTORY_EVENT_TYPES = [
+  "inventory.stock.changed",
+  "inventory.location.changed",
+  "inventory.allocation.backordered",
 ] as const;
 
 export type StaffEventType = keyof typeof STAFF_EVENT_LABELS;
@@ -67,6 +79,16 @@ const euro = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR"
 
 /** Public payload of the media events: the page fetches the asset itself. */
 const assetPayloadSchema = z.object({ asset_id: z.string() });
+
+/** Public payload of the stock events: codes and ids, never who did it. */
+const stockPayloadSchema = z.object({
+  variant_id: z.string().optional(),
+  order_id: z.string().nullable().optional(),
+  unit_code: z.string().optional(),
+  location_code: z.string().nullable().optional(),
+  previous_location_code: z.string().nullable().optional(),
+  code: z.string().optional(),
+});
 
 export type FeedEntry = {
   id: string;
@@ -143,6 +165,34 @@ export function assetIdOf(raw: string): string | null {
 export function orderEventOf(raw: string): { type: string; orderId: string } | null {
   const event = eventOf(raw, orderPayloadSchema);
   return event === null ? null : { type: event.type, orderId: event.payload.order_id };
+}
+
+export type StockEvent = {
+  type: string;
+  variantId: string | null;
+  orderId: string | null;
+  unitCode: string | null;
+  /** The locations the event touched: where a unit went and came from, or the changed location. */
+  locationCodes: string[];
+};
+
+/** What an SSE message of the stock events is about; null for anything else. */
+export function stockEventOf(raw: string): StockEvent | null {
+  const event = eventOf(raw, stockPayloadSchema);
+  if (event === null || !event.type.startsWith("inventory.")) {
+    return null;
+  }
+  const { payload } = event;
+  const locationCodes = [payload.location_code, payload.previous_location_code, payload.code].filter(
+    (code): code is string => typeof code === "string" && code !== "",
+  );
+  return {
+    type: event.type,
+    variantId: payload.variant_id ?? null,
+    orderId: payload.order_id ?? null,
+    unitCode: payload.unit_code ?? null,
+    locationCodes,
+  };
 }
 
 /** Newest first, without duplicates (a replay after reconnecting may repeat events). */

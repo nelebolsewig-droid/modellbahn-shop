@@ -125,12 +125,59 @@ async def test_failure_schedules_a_retry_with_backoff(
     stored = await row(engine, event.event_id)
     assert stored["status"] == "pending"
     assert stored["attempts"] == 1
-    assert stored["last_error"] == "RuntimeError: SMTP kaputt"
+    assert str(stored["last_error"]).endswith("broken: RuntimeError: SMTP kaputt")
+    assert stored["handled_by"] == []
     delay = stored["next_attempt_at"] - stored["db_now"]  # type: ignore[operator]
     assert timedelta(seconds=29) < delay <= timedelta(seconds=30)
 
     # Not due yet, so the next batch leaves it alone.
     assert await dispatcher.dispatch_batch() == 0
+
+
+async def test_a_retry_runs_only_the_handlers_that_failed(
+    make_dispatcher: Callable[..., OutboxDispatcher],
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+    engine: AsyncEngine,
+) -> None:
+    mails: list[SampleHappened] = []
+    allocations: list[SampleHappened] = []
+    stock_ready = False
+
+    async def send_mail(event: SampleHappened) -> None:
+        mails.append(event)
+
+    async def allocate(event: SampleHappened) -> None:
+        if not stock_ready:
+            raise RuntimeError("Lager gesperrt")
+        allocations.append(event)
+
+    handlers = HandlerRegistry()
+    handlers.register(SampleHappened, send_mail, name="mail")
+    handlers.register(SampleHappened, allocate, name="allocate")
+    dispatcher = make_dispatcher(handlers)
+    (event,) = await publish(1)
+
+    await dispatcher.dispatch_batch()
+    stored = await row(engine, event.event_id)
+    assert stored["status"] == "pending"
+    assert stored["handled_by"] == ["mail"]
+    assert stored["last_error"] == "allocate: RuntimeError: Lager gesperrt"
+
+    stock_ready = True
+    async with engine.begin() as connection:
+        await connection.execute(
+            update(outbox_table)
+            .where(outbox_table.c.id == event.event_id)
+            .values(next_attempt_at=func.now())
+        )
+    await dispatcher.dispatch_batch()
+
+    stored = await row(engine, event.event_id)
+    assert stored["status"] == "published"
+    assert stored["handled_by"] == ["mail", "allocate"]
+    # The mail went out once, the allocation happened on the retry.
+    assert mails == [event]
+    assert allocations == [event]
 
 
 async def test_event_is_dead_after_max_attempts(
@@ -177,7 +224,7 @@ async def test_unknown_event_types_fail_instead_of_vanishing(
     await make_dispatcher(HandlerRegistry()).dispatch_batch()
     stored = await row(engine, event_id)
     assert stored["status"] == "pending"
-    assert stored["last_error"] == "UnknownEventTypeError: test.unknown"
+    assert stored["last_error"] == "deserialize: UnknownEventTypeError: test.unknown"
 
 
 async def test_two_concurrent_dispatchers_never_process_the_same_event(

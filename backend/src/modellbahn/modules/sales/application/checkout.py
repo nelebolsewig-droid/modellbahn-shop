@@ -22,6 +22,7 @@ from modellbahn.modules.sales.domain.errors import (
     CartItemsUnavailableError,
     EmptyCartError,
     IdempotencyKeyReusedError,
+    InsufficientStockError,
     InvalidFieldError,
     OrderNotFoundError,
     PriceChangedError,
@@ -199,9 +200,18 @@ class CheckoutService:
         if cart is None or cart.is_expired(now) or not cart.lines:
             raise EmptyCartError
         priced = await price_cart(uow, cart)
-        unavailable = [item.variant.variant_id for item in priced.items if not item.available]
+        unavailable = [
+            item.variant.variant_id for item in priced.items if not item.variant.purchasable
+        ]
         if unavailable:
             raise CartItemsUnavailableError(unavailable)
+        # Stock is only counted here; two customers may take the last piece at once.
+        # Then the later one is backordered, and the workshop makes another.
+        short = {
+            item.variant.variant_id: item.free_units for item in priced.items if not item.available
+        }
+        if short:
+            raise InsufficientStockError(short)
         if not priced.items:
             raise EmptyCartError
 

@@ -54,6 +54,14 @@ export async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<
 }
 
 async function readBody<T>(response: Response): Promise<T> {
+  // Labels come as PDF, the article list as CSV: those are handed over as they are.
+  const type = response.headers.get("Content-Type") ?? "";
+  if (type.startsWith("application/pdf")) {
+    return (await response.blob()) as T;
+  }
+  if (type.startsWith("text/csv")) {
+    return (await response.text()) as T;
+  }
   // 202 and 200 carry JSON; 204 (logout, password change, ...) carries nothing.
   const text = await response.text();
   if (text === "") {

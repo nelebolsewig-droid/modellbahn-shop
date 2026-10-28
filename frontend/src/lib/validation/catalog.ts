@@ -135,3 +135,22 @@ export const scaleSchema = z.object({
 });
 
 export type ScaleValues = z.input<typeof scaleSchema>;
+
+/** Made to order: delivered within 1 to 52 weeks (catalog: domain/model.py, check_lead_time). */
+export const LEAD_TIME_MAX_WEEKS = 52;
+export const DEFAULT_LEAD_TIME = [4, 6] as const;
+
+const weeks = (message: string) =>
+  z
+    .string()
+    .trim()
+    .regex(/^\d{1,2}$/, message)
+    .transform(Number)
+    .refine((value) => value >= 1 && value <= LEAD_TIME_MAX_WEEKS, { error: message });
+
+export const leadTimeSchema = z
+  .object({
+    min: weeks(`Die Lieferzeit beginnt bei 1 bis ${LEAD_TIME_MAX_WEEKS} Wochen.`),
+    max: weeks(`Die Lieferzeit endet bei 1 bis ${LEAD_TIME_MAX_WEEKS} Wochen.`),
+  })
+  .refine((value) => value.min <= value.max, { error: "„Von“ darf nicht nach „bis“ liegen.", path: ["max"] });

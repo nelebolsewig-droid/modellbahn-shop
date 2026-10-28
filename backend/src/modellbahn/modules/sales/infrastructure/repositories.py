@@ -16,6 +16,8 @@ from modellbahn.modules.identity.contracts.accounts import (
     find_verified_customer,
     get_account_summary,
 )
+from modellbahn.modules.inventory.contracts.availability import PickProgress
+from modellbahn.modules.inventory.contracts.stock import load_free_units, load_pick_progress
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.ports import OrderQuery
 from modellbahn.modules.sales.domain.model import Cart, CustomerAddress, Order, OrderStatus
@@ -186,6 +188,19 @@ class SqlAccounts:
         return account.email
 
 
+class SqlInventory:
+    """The inventory module's stock facade, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def free_units(self, variant_ids: Collection[UUID]) -> dict[UUID, int]:
+        return await load_free_units(self._uow, variant_ids)
+
+    async def pick_progress(self, order_id: UUID) -> PickProgress:
+        return await load_pick_progress(self._uow, order_id)
+
+
 class SqlSalesUnitOfWork(UnitOfWork):
     """Unit of work with the sales repositories attached."""
 
@@ -195,6 +210,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     catalog: SqlCatalog
     images: SqlImages
     accounts: SqlAccounts
+    inventory: SqlInventory
 
     def __init__(
         self, session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str
@@ -210,6 +226,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.catalog = SqlCatalog(self)
         self.images = SqlImages(self, self._public_base_url)
         self.accounts = SqlAccounts(self)
+        self.inventory = SqlInventory(self)
 
 
 def sales_uow_factory(

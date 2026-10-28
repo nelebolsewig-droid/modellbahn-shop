@@ -12,7 +12,12 @@ from sqlalchemy import ColumnElement, Select, exists, func, literal, select, tup
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
-from modellbahn.modules.catalog.application.ports import ProductCursor, ProductOrder, ProductQuery
+from modellbahn.modules.catalog.application.ports import (
+    Article,
+    ProductCursor,
+    ProductOrder,
+    ProductQuery,
+)
 from modellbahn.modules.catalog.domain.model import (
     Category,
     Epoch,
@@ -104,6 +109,51 @@ class SqlProductRepository:
 
     async def delete(self, product: Product) -> None:
         await self._session.delete(product)
+
+    async def articles(self) -> list[Article]:
+        statement = (
+            select(
+                products.c.name,
+                products.c.status,
+                categories.c.name.label("category_name"),
+                scales.c.name.label("scale_name"),
+                finishes.c.name.label("finish_name"),
+                variants.c.sku,
+                variants.c.gtin,
+                variants.c.price_cents,
+                variants.c.active,
+                variants.c.allow_backorder,
+                variants.c.lead_time_min_weeks,
+                variants.c.lead_time_max_weeks,
+            )
+            .join(product_scales, product_scales.c.id == variants.c.product_scale_id)
+            .join(products, products.c.id == product_scales.c.product_id)
+            .join(scales, scales.c.code == product_scales.c.scale_code)
+            .join(finishes, finishes.c.code == variants.c.finish_code)
+            .outerjoin(categories, categories.c.id == products.c.primary_category_id)
+            .where(products.c.status != ProductStatus.ARCHIVED)
+            .order_by(products.c.name, scales.c.ratio_denominator.desc(), finishes.c.position)
+        )
+        return [
+            Article(
+                product_name=row.name,
+                product_status=str(row.status),
+                category_name=row.category_name,
+                scale_name=row.scale_name,
+                finish_name=row.finish_name,
+                sku=row.sku,
+                gtin=row.gtin,
+                price_cents=row.price_cents,
+                active=row.active and row.status == ProductStatus.ACTIVE,
+                allow_backorder=row.allow_backorder,
+                lead_time_weeks=(
+                    (row.lead_time_min_weeks, row.lead_time_max_weeks)
+                    if row.lead_time_min_weeks is not None
+                    else None
+                ),
+            )
+            for row in await self._session.execute(statement)
+        ]
 
     async def offered_counts(self) -> dict[tuple[UUID, str], int]:
         statement = (

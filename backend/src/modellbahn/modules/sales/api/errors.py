@@ -12,10 +12,12 @@ from modellbahn.modules.sales.domain.errors import (
     CartItemsUnavailableError,
     EmptyCartError,
     IdempotencyKeyReusedError,
+    InsufficientStockError,
     InvalidFieldError,
     InvalidOrderStateError,
     OrderNotFoundError,
     OrderNotPayableError,
+    OrderNotPickedError,
     PaymentUnavailableError,
     PriceChangedError,
     VariantUnavailableError,
@@ -62,6 +64,13 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "The cart holds no more different articles.", code="cart_full"
     ),
     EmptyCartError: lambda _: ConflictError("The cart is empty.", code="cart_empty"),
+    InsufficientStockError: lambda _: ConflictError(
+        "Not enough in stock, and the article is not made to order.", code="insufficient_stock"
+    ),
+    OrderNotPickedError: lambda error: ConflictError(
+        f"Only {error.picked} of {error.total} pieces are picked; pick the order first.",
+        code="order_not_picked",
+    ),
     CartItemsUnavailableError: lambda _: ConflictError(
         "Some articles in the cart can no longer be bought; remove them first.",
         code="cart_items_unavailable",

@@ -55,6 +55,9 @@ SCALE_NAME_MAX_LENGTH: Final = 20
 SCALE_RATIO_MIN: Final = Decimal(1)
 SCALE_RATIO_MAX: Final = Decimal(1000)
 TRACK_GAUGE_MAX_MM: Final = Decimal("999.9")
+# Made to order: how long the workshop needs, as a range of weeks the shop shows.
+LEAD_TIME_MAX_WEEKS: Final = 52
+DEFAULT_LEAD_TIME_WEEKS: Final = (4, 6)
 # GS1 reserves the prefixes 20 to 29 for numbers used inside one company.
 INTERNAL_GTIN_PREFIX: Final = "20"
 _GTIN_SERIAL_DIGITS: Final = 10
@@ -208,6 +211,20 @@ def variant_sku(product_number: int, scale_code: str, finish: Finish) -> str:
     return f"MB-{product_number:06d}-{scale_code.upper()}-{finish.sku_letter}"
 
 
+def check_lead_time(lead_time_weeks: tuple[int, int]) -> tuple[int, int]:
+    """A range of weeks from 1 to 52, the upper bound not below the lower one."""
+    shortest, longest = lead_time_weeks
+    if not 1 <= shortest <= LEAD_TIME_MAX_WEEKS:
+        raise InvalidFieldError(
+            "lead_time_min_weeks", "out_of_range", f"1 to {LEAD_TIME_MAX_WEEKS} weeks"
+        )
+    if not shortest <= longest <= LEAD_TIME_MAX_WEEKS:
+        raise InvalidFieldError(
+            "lead_time_max_weeks", "out_of_range", f"the minimum to {LEAD_TIME_MAX_WEEKS} weeks"
+        )
+    return shortest, longest
+
+
 def check_price(price_cents: int, compare_at_price_cents: int | None) -> None:
     if not 0 <= price_cents <= PRICE_MAX_CENTS:
         raise InvalidFieldError("price_cents", "out_of_range", "price out of range")
@@ -291,7 +308,12 @@ class Category:
 
 @dataclass(eq=False, kw_only=True)
 class Variant:
-    """What a customer buys: one scale in one finish, with SKU, EAN and price."""
+    """What a customer buys: one scale in one finish, with SKU, EAN and price.
+
+    A variant is either *in stock* (sold from the shelves, sold out when they are
+    empty) or *made to order* (``allow_backorder``: always for sale, made within its
+    lead time, a range of weeks).
+    """
 
     id: UUID
     product_scale_id: UUID
@@ -304,6 +326,23 @@ class Variant:
     active: bool
     created_at: datetime
     updated_at: datetime
+    lead_time_min_weeks: int | None = None
+    lead_time_max_weeks: int | None = None
+
+    @property
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        if self.lead_time_min_weeks is None or self.lead_time_max_weeks is None:
+            return None
+        return self.lead_time_min_weeks, self.lead_time_max_weeks
+
+    def set_lead_time(self, lead_time_weeks: tuple[int, int] | None) -> None:
+        """Change the lead time; one made to order gets the default if it has none."""
+        if self.allow_backorder and lead_time_weeks is None:
+            lead_time_weeks = DEFAULT_LEAD_TIME_WEEKS
+        if lead_time_weeks is None:
+            self.lead_time_min_weeks = self.lead_time_max_weeks = None
+        else:
+            self.lead_time_min_weeks, self.lead_time_max_weeks = check_lead_time(lead_time_weeks)
 
 
 @dataclass(eq=False, kw_only=True)
@@ -365,6 +404,8 @@ class VariantDraft:
     price_cents: int
     compare_at_price_cents: int | None = None
     allow_backorder: bool = False
+    lead_time_weeks: tuple[int, int] | None = None
+    """For a variant made to order; without one it gets the default of 4 to 6 weeks."""
     active: bool = True
 
 
@@ -572,6 +613,7 @@ class Product:
             created_at=now,
             updated_at=now,
         )
+        variant.set_lead_time(draft.lead_time_weeks)
         product_scale.variants.append(variant)
         self.updated_at = now
         return variant
@@ -583,9 +625,11 @@ class Product:
         price_cents: Maybe[int] = UNSET,
         compare_at_price_cents: Maybe[int | None] = UNSET,
         allow_backorder: Maybe[bool] = UNSET,
+        lead_time_weeks: Maybe[tuple[int, int] | None] = UNSET,
         active: Maybe[bool] = UNSET,
         now: datetime,
     ) -> None:
+        """Change what is given; a variant made to order always keeps a lead time."""
         _, variant = self.scale_with_variant(variant_id)
         new_price = variant.price_cents if price_cents is UNSET else price_cents
         new_compare = (
@@ -598,6 +642,9 @@ class Product:
         variant.compare_at_price_cents = new_compare
         if allow_backorder is not UNSET:
             variant.allow_backorder = allow_backorder
+        variant.set_lead_time(
+            variant.lead_time_weeks if lead_time_weeks is UNSET else lead_time_weeks
+        )
         if active is not UNSET:
             variant.active = active
         variant.updated_at = now

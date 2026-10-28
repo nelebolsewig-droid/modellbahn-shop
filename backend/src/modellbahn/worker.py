@@ -16,6 +16,9 @@ from modellbahn.modules.identity.infrastructure.mapping import (
     start_mappers as start_identity_mappers,
 )
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.handlers import InventoryHandlers
+from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.ports import ImageProcessor, MediaStorage
 from modellbahn.modules.media.application.services import MediaService
@@ -79,6 +82,11 @@ async def run_worker(
         clock=clock,
         public_base_url=settings.public_base_url,
         shop_name=settings.shop_name,
+    ).register(handlers)
+    InventoryHandlers(
+        allocation=AllocationService(
+            uow_factory=inventory_uow_factory(session_factory), clock=clock
+        ),
     ).register(handlers)
     MediaProcessingHandlers(
         uow_factory=media_uow,

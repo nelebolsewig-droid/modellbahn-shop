@@ -56,6 +56,7 @@ STORE: Final = f"{API}/store/account"
 ADMIN_AUTH: Final = f"{API}/admin/auth"
 ADMIN_EVENTS: Final = f"{API}/admin/events"
 ADMIN: Final = f"{API}/admin"
+INVENTORY: Final = f"{ADMIN}/inventory"
 SHOP: Final = f"{API}/store"
 
 CLIENT_HEADER: Final = "X-Modellbahn-Client"
@@ -72,6 +73,8 @@ ASSET_READY: Final = "media.asset.ready"
 PRODUCT_PUBLISHED: Final = "catalog.product.published"
 ORDER_PLACED: Final = "sales.order.placed"
 ORDER_PAID: Final = "sales.order.paid"
+STOCK_CHANGED: Final = "inventory.stock.changed"
+BACKORDERED: Final = "inventory.allocation.backordered"
 SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
@@ -83,6 +86,9 @@ HTTP_TIMEOUT: Final = 15.0
 MAIL_TIMEOUT: Final = 30.0
 # The worker adopts guest orders after the verification event; it polls the outbox.
 ADOPTION_TIMEOUT: Final = 30.0
+# The worker hands out stock to a paid order (sales.order.paid → allocation).
+ALLOCATION_TIMEOUT: Final = 30.0
+UNITS_LABELLED: Final = 2
 EVENT_TIMEOUT: Final = 30.0
 # Longer than the API's 15 s heartbeat: a silent stream for this long is broken.
 STREAM_READ_TIMEOUT: Final = 45.0
@@ -601,6 +607,8 @@ class Demo:
         self._product_name = f"Smoke-Stellwerk {tag[-6:]}"
         self._order: dict[str, Any] = {}
         self._account_order: dict[str, Any] = {}
+        self._compartment = ""
+        self._units: list[str] = []
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -634,6 +642,8 @@ class Demo:
             ("Veröffentlichen mit If-Match, Ereignis im Stellwerk", self.publish),
             ("Shop: Maßstab-Einstieg, Liste in H0, Produktseite, alte Adressen", self.shop),
             ("Maßstäbe: 1:43,5 anlegen, nach Größe einsortiert, benutzte bleiben", self.scales),
+            ("Lager: Plätze, Einheiten mit Etiketten-PDF, Einlagern per Scan", self.stock),
+            ("Lieferbarkeit im Shop, Artikelliste für die Kasse (CSV)", self.availability),
             ("Warenkorb: Cookie mb_cart, Preise und Versand vom Server", self.cart),
             ("Kasse: falsche erwartete Summe wird abgelehnt (409 price_changed)", self.price_check),
             ("Gastbestellung mit Idempotency-Key, keine Doppelbestellung", self.guest_order),
@@ -642,8 +652,11 @@ class Demo:
             ("Testzahlung: abgelehnt, Dienst gestört (503), dann bezahlt", self.payments),
             ("Zahlungsmail kommt an, Ereignis sales.order.paid im Stellwerk", self.paid_mail),
             ("Gast registriert sich: Bestellung erscheint im Konto", self.adoption),
+            ("Versand erst nach dem Kommissionieren (409), Pickliste vom Worker", self.pick_list),
+            ("Kommissionieren per Scan, live im Ereignisstrom", self.pick),
             ("Stellwerk: Bestellung finden und versenden, Versandmail", self.ship),
             ("Kundenbestellung speichert die Adresse im Adressbuch", self.account_order),
+            ("Auf Bestellung: Stück wird zur Fertigung vorgemerkt", self.backorder),
             ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
             ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
             ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
@@ -968,11 +981,15 @@ class Demo:
         )
         expect_status(scale, 201, "Maßstab H0")
         scale_id = scale.json()["scales"][0]["id"]
-        for finish, price in (("unpainted", UNPAINTED_CENTS), ("painted", PAINTED_CENTS)):
+        # Unpainted ones come from the shelf, painted ones are made to order.
+        for finish, price, made_to_order in (
+            ("unpainted", UNPAINTED_CENTS, False),
+            ("painted", PAINTED_CENTS, True),
+        ):
             variant = self._staff(
                 "POST",
                 f"{ADMIN}/product-scales/{scale_id}/variants",
-                {"finish_code": finish, "price_cents": price},
+                {"finish_code": finish, "price_cents": price, "allow_backorder": made_to_order},
             )
             expect_status(variant, 201, f"Variante {finish}")
         product = self._remember(variant)
@@ -981,6 +998,9 @@ class Demo:
         expect(sorted(skus) == [prefix + "B", prefix + "U"], f"SKUs {skus}")
         gtins = [v["gtin"] for v in product["scales"][0]["variants"]]
         expect(all(g.startswith("2") and ean13_valid(g) for g in gtins), f"EANs {gtins}")
+        painted = self._variant("painted")
+        lead_time = (painted["lead_time_min_weeks"], painted["lead_time_max_weeks"])
+        expect(lead_time == (4, 6), f"Lieferzeit auf Bestellung: {lead_time}")
         return ", ".join(skus)
 
     def unsigned_upload(self) -> str | None:
@@ -1179,6 +1199,146 @@ class Demo:
                 what=f"{event_type} für {number}",
             )
 
+    def _scan(
+        self, mode: str, raw: str, context: Mapping[str, str] | None = None, scan_id: str = ""
+    ) -> dict[str, Any]:
+        body = {
+            "scan_id": scan_id or str(uuid.uuid4()),
+            "raw": raw,
+            "mode": mode,
+            "source": "scanner",
+            "context": dict(context or {}),
+        }
+        response = self._staff("POST", f"{INVENTORY}/scans", body)
+        expect_status(response, 200, f"Scan {raw} ({mode})")
+        answer: dict[str, Any] = response.json()
+        return answer
+
+    def _stock_of(self, variant_id: str) -> dict[str, Any]:
+        stock = self._staff("GET", f"{INVENTORY}/stock")
+        expect_status(stock, 200, "Bestand")
+        line: dict[str, Any] = next(
+            (item for item in stock.json()["items"] if item["variant_id"] == variant_id), {}
+        )
+        return line
+
+    def _wait_for_stock_event(self, what: str, **data: str) -> None:
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == STOCK_CHANGED
+                    and all(e.json().get("data", {}).get(k) == v for k, v in data.items())
+                ),
+                what=what,
+            )
+
+    def _allocated_pick_list(self, order_id: str) -> dict[str, Any]:
+        deadline = time.monotonic() + ALLOCATION_TIMEOUT
+        while True:
+            response = self._staff("GET", f"{INVENTORY}/orders/{order_id}/pick-list")
+            expect_status(response, 200, "Pickliste")
+            pick_list: dict[str, Any] = response.json()
+            if pick_list["allocated"]:
+                return pick_list
+            if time.monotonic() > deadline:
+                raise SmokeCheckError(
+                    f"Bestellung nach {ALLOCATION_TIMEOUT:.0f} s nicht zugeteilt. "
+                    "Läuft der Worker? make logs SERVICE=worker"
+                )
+            time.sleep(0.5)
+
+    def stock(self) -> str | None:
+        tag = secrets.token_hex(3).upper()
+        site, shelf = f"SM{tag}", f"R{tag}"
+        for body in (
+            {"segment": site, "kind": "site", "name": "Smoke-Lager"},
+            {"segment": shelf, "kind": "shelf", "parent_code": site},
+            {"segment": "F01", "kind": "compartment", "parent_code": shelf, "name": "Fach 1"},
+        ):
+            created = self._staff("POST", f"{INVENTORY}/locations", body)
+            expect_status(created, 201, f"Lagerplatz {body['segment']}")
+        self._compartment = created.json()["code"]
+        expect(self._compartment == f"{shelf}-F01", f"Code des Fachs: {self._compartment}")
+
+        variant = self._variant("unpainted")
+        batch = self._staff(
+            "POST",
+            f"{INVENTORY}/units",
+            {"variant_id": variant["id"], "quantity": UNITS_LABELLED},
+        )
+        expect_status(batch, 201, "Einheiten erfassen")
+        units = batch.json()["items"]
+        expect(
+            [u["status"] for u in units] == ["labeled"] * UNITS_LABELLED, f"Neue Einheiten: {units}"
+        )
+        self._units = [u["code"] for u in units]
+
+        labels = self.staff_browser._send(  # a PDF, not JSON
+            "POST",
+            f"{INVENTORY}/labels",
+            accept="application/pdf",
+            body={
+                "sheet": "a4_70x37",
+                "skip": 3,
+                "unit_codes": self._units,
+                "location_codes": [self._compartment],
+            },
+            headers={CLIENT_HEADER: "web"},
+            cookies=None,
+        )
+        expect_status(labels, 200, "Etiketten")
+        expect(
+            labels.content_type == "application/pdf" and labels.body.startswith(b"%PDF"),
+            f"Etiketten sind kein PDF: {labels.content_type}",
+        )
+
+        place = {"location_code": self._compartment}
+        chosen = self._scan("put_away", self._compartment)
+        expect(chosen["outcome"] == "selected", f"Platz-Scan: {chosen['outcome']}")
+        scan_id = str(uuid.uuid4())
+        stored = self._scan("put_away", self._units[0], place, scan_id)
+        expect(stored["message"] == "put_away", f"Einlagern: {stored['message']}")
+        repeated = self._scan("put_away", self._units[0], place, scan_id)
+        expect(repeated == stored, "Wiederholter Scan bucht anders als der erste")
+        by_ean = self._scan("put_away", variant["gtin"], place)
+        expect(
+            by_ean["outcome"] == "applied" and by_ean["effect"]["unit_code"] == self._units[1],
+            f"Einlagern per EAN: {by_ean['outcome']} {by_ean['effect']}",
+        )
+        self._wait_for_stock_event(
+            f"{STOCK_CHANGED} für {self._units[1]}",
+            unit_code=self._units[1],
+            location_code=self._compartment,
+        )
+        line = self._stock_of(variant["id"])
+        expect(line.get("in_stock") == UNITS_LABELLED, f"Bestand nach dem Einlagern: {line}")
+        return f"{self._compartment}: 2 Stück, eines per Einheiten-Code, eines per EAN"
+
+    def availability(self) -> str | None:
+        slug = self._product["slug"]
+        response = self.visitor.api("GET", f"{SHOP}/products/{slug}/availability")
+        expect_status(response, 200, "Lieferbarkeit")
+        by_variant = {item["variant_id"]: item for item in response.json()["items"]}
+        unpainted = by_variant[self._variant("unpainted")["id"]]
+        painted = by_variant[self._variant("painted")["id"]]
+        expect(
+            (unpainted["availability"], unpainted["free_units"]) == ("in_stock", UNITS_LABELLED),
+            f"Unbemalt: {unpainted}",
+        )
+        expect(
+            (painted["availability"], painted["lead_time_min_weeks"]) == ("made_to_order", 4),
+            f"Bemalt: {painted}",
+        )
+        articles = self.staff_browser._send(
+            "GET", f"{ADMIN}/catalog/articles.csv", accept="text/csv", cookies=None
+        )
+        expect_status(articles, 200, "Artikelliste")
+        expect(articles.content_type == "text/csv", f"Artikelliste: {articles.content_type}")
+        text = articles.text
+        expect(self._variant("unpainted")["gtin"] in text, "Artikelliste ohne die EAN")
+        expect("auf Bestellung (4-6 Wochen)" in text, "Artikelliste ohne Lieferzeit")
+        return "unbemalt sofort (2), bemalt auf Bestellung in 4 bis 6 Wochen"
+
     def cart(self) -> str | None:
         empty = self.guest_browser.api("GET", f"{SHOP}/cart")
         expect_status(empty, 200, "Leerer Warenkorb")
@@ -1192,6 +1352,10 @@ class Demo:
         expect_session_cookie(
             added, CART_COOKIE, same_site="lax", max_age=CART_COOKIE_MAX_AGE, what="Warenkorb"
         )
+        too_many = self.guest_browser.api(
+            "PUT", f"{SHOP}/cart/lines/{variant['id']}", {"quantity": 3}
+        )
+        expect_problem(too_many, 409, "insufficient_stock", "Mehr als im Lager liegt")
         cart = self.guest_browser.api("GET", f"{SHOP}/cart").json()
         expect(cart["item_count"] == 1, f"Warenkorb: {cart['item_count']} Artikel")
         totals = cart["totals"]
@@ -1336,14 +1500,47 @@ class Demo:
         expect_problem(stranger, 404, "order_not_found", "Fremde Bestellung im Konto")
         return f"{number} im Konto von {self.buyer.email}"
 
-    def ship(self) -> str | None:
+    def pick_list(self) -> str | None:
         number = self._order["number"]
         found = self._staff("GET", f"{ADMIN}/orders?{urllib.parse.urlencode({'q': number})}")
         expect_status(found, 200, "Bestellungen im Stellwerk")
         items = found.json()["items"]
         expect([item["number"] for item in items] == [number], f"Suche nach {number}: {items}")
         expect(items[0]["guest"] is False, "Übernommene Bestellung gilt noch als Gastbestellung")
-        order_id = items[0]["id"]
+        self._order["id"] = items[0]["id"]
+        early = self._staff("POST", f"{ADMIN}/orders/{self._order['id']}/ship", {"carrier": "DHL"})
+        expect_problem(early, 409, "order_not_picked", "Versand vor dem Kommissionieren")
+        pick_list = self._allocated_pick_list(self._order["id"])
+        piece = pick_list["items"][0]
+        expect(
+            (piece["state"], piece["location"]["code"]) == ("reserved", self._compartment),
+            f"Pickliste: {piece}",
+        )
+        expect(piece["unit_code"] == self._units[0], "Nicht das älteste Stück reserviert (FIFO)")
+        return f"{piece['unit_code']} in {self._compartment} reserviert"
+
+    def pick(self) -> str | None:
+        order_id = self._order["id"]
+        context = {"order_id": order_id}
+        wrong = self._scan("pick", self._compartment, context)
+        expect(wrong["outcome"] != "applied", f"Ein Platz wurde kommissioniert: {wrong}")
+        picked = self._scan("pick", self._units[0], context)
+        expect(
+            (picked["message"], picked["progress"]) == ("picked", {"picked": 1, "total": 1}),
+            f"Kommissionieren: {picked['message']} {picked['progress']}",
+        )
+        self._wait_for_stock_event(
+            f"{STOCK_CHANGED} für {order_id}", unit_code=self._units[0], order_id=order_id
+        )
+        again = self._scan("pick", self._units[0], context)
+        expect(again["message"] == "already_picked", f"Zweiter Scan: {again['message']}")
+        pick_list = self._staff("GET", f"{INVENTORY}/orders/{order_id}/pick-list").json()
+        expect(pick_list["complete"] is True, f"Pickliste nicht vollständig: {pick_list}")
+        return "1 von 1, Paket kann gepackt werden"
+
+    def ship(self) -> str | None:
+        number = self._order["number"]
+        order_id = self._order["id"]
         shipped = self._staff(
             "POST",
             f"{ADMIN}/orders/{order_id}/ship",
@@ -1359,6 +1556,11 @@ class Demo:
             self.buyer.email, f"Deine Bestellung {number} ist unterwegs"
         )
         expect("SMOKE-0042" in str(message.get("Text", "")), "Versandmail ohne Sendungsnummer")
+        unit = self._staff("GET", f"{INVENTORY}/units/{self._units[0]}")
+        expect_status(unit, 200, "Versendete Einheit")
+        expect(unit.json()["status"] == "shipped", f"Einheit nach dem Versand: {unit.json()}")
+        line = self._stock_of(self._variant("unpainted")["id"])
+        expect(line.get("in_stock") == 1, f"Bestand nach dem Versand: {line}")
         return "DHL · SMOKE-0042"
 
     def account_order(self) -> str | None:
@@ -1381,6 +1583,24 @@ class Demo:
         expect_status(paid, 200, "Zahlung der Kundenbestellung")
         self._account_order = paid.json()
         return f"{self._account_order['number']} · Adresse gespeichert"
+
+    def backorder(self) -> str | None:
+        number = self._account_order["number"]
+        found = self._staff("GET", f"{ADMIN}/orders?{urllib.parse.urlencode({'q': number})}")
+        order_id = found.json()["items"][0]["id"]
+        pick_list = self._allocated_pick_list(order_id)
+        states = [item["state"] for item in pick_list["items"]]
+        expect(states == ["backordered"], f"Pickliste auf Bestellung: {states}")
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == BACKORDERED and e.json().get("data", {}).get("order_id") == order_id
+                ),
+                what=f"{BACKORDERED} für {number}",
+            )
+        line = self._stock_of(self._variant("painted")["id"])
+        expect(line.get("backordered") == 1, f"Fertigungsbedarf: {line}")
+        return f"{number}: 1 Stück in Fertigung"
 
     def cancel(self) -> str | None:
         number = self._account_order["number"]
@@ -1412,6 +1632,13 @@ class Demo:
         )
         desk = self.staff_browser.page(f"/admin/bestellungen/{self._account_order['id']}")
         expect_status(desk, 200, "/admin/bestellungen/… mit Admin-Sitzung")
+        for path in (
+            "/admin/lager",
+            "/admin/scanner",
+            f"/admin/lager/plaetze/{self._compartment}",
+            f"/admin/lager/einheiten/{self._units[0]}",
+        ):
+            expect_status(self.staff_browser.page(path), 200, f"{path} mit Admin-Sitzung")
         return None
 
     def archive(self) -> str | None:

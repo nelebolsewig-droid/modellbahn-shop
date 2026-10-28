@@ -9,6 +9,7 @@ import { ProductStage, type StageItem } from "@/components/ui/product-stage";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { ScaleTile } from "@/components/ui/scale-tile";
 import { SpecLine } from "@/components/ui/spec-line";
+import { useGetProductAvailability } from "@/lib/api/generated/store-inventory/store-inventory";
 import type { StoreGalleryItemOut, StoreProductOut } from "@/lib/api/generated/model";
 import {
   dimensionsLine,
@@ -57,6 +58,8 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
   const variant = scale?.variants.find((v) => v.finish_code === selection.finish) ?? scale?.variants[0];
   const finish = product.finishes.find((f) => f.code === variant?.finish_code);
   const items = useMemo(() => galleryFor(product.gallery, selection), [product.gallery, selection]);
+  // Stock changes by the minute, so it is fetched live; the page itself stays cached.
+  const availability = useGetProductAvailability(product.slug, { query: { refetchOnWindowFocus: true } });
   // German compounds ("Löschgruppenfahrzeug") do not fit the column in display size.
   const longWord = product.name.split(/\s+/).some((word) => word.length > 14);
 
@@ -151,6 +154,7 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
                   key={variant.id}
                   variantId={variant.id}
                   title={[product.name, scale.name, ...(finish ? [finish.name] : [])].join(" · ")}
+                  availability={availability.data?.items.find((item) => item.variant_id === variant.id)}
                 />
               </div>
             </div>

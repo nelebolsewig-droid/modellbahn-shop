@@ -58,6 +58,17 @@
   --animate-feed-in: feed-in 320ms ease-out;
   /* The product stage swaps its photo by cross-fading (§11.3: 320 ms). */
   --animate-stage-in: stage-in 320ms ease-out;
+  /* The scanner's viewfinder lights up once per scan and fades. */
+  --animate-scan-flash: scan-flash 650ms ease-out forwards;
+
+  @keyframes scan-flash {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
 
   @keyframes lamp-pulse {
     0%,
@@ -120,6 +131,10 @@
   --color-danger: var(--danger);
   --color-danger-subtle: var(--danger-subtle);
   --color-scrim: var(--scrim);
+  --color-viewfinder: var(--viewfinder);
+  --color-on-viewfinder: var(--on-viewfinder);
+  --color-on-viewfinder-muted: var(--on-viewfinder-muted);
+  --color-aim: var(--aim);
 
   /* The font files come from next/font (src/app/fonts.ts), which sets these variables. */
   --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;

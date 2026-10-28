@@ -567,6 +567,31 @@
         "title": "AssetStatus",
         "type": "string"
       },
+      "Availability": {
+        "enum": [
+          "in_stock",
+          "made_to_order",
+          "unavailable"
+        ],
+        "title": "Availability",
+        "type": "string"
+      },
+      "AvailabilityOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VariantAvailabilityOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AvailabilityOut",
+        "type": "object"
+      },
       "CancelIn": {
         "additionalProperties": false,
         "properties": {
@@ -607,8 +632,12 @@
       },
       "CartLineOut": {
         "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/Availability",
+            "description": "`in_stock`: ships at once; `made_to_order`: printed for the customer; `unavailable`: cannot be ordered like this."
+          },
           "available": {
-            "description": "False if the variant is no longer for sale.",
+            "description": "False if the variant is no longer for sale, or not deliverable in this quantity (not enough in stock and not made to order).",
             "title": "Available",
             "type": "boolean"
           },
@@ -635,6 +664,11 @@
             "title": "Finish Name",
             "type": "string"
           },
+          "free_units": {
+            "description": "Units of the variant on the shelves right now.",
+            "title": "Free Units",
+            "type": "integer"
+          },
           "image": {
             "anyOf": [
               {
@@ -644,6 +678,29 @@
                 "type": "null"
               }
             ]
+          },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for variants made to order.",
+            "title": "Lead Time Min Weeks"
           },
           "line_total_cents": {
             "examples": [
@@ -705,6 +762,10 @@
           "compare_at_price_cents",
           "line_total_cents",
           "available",
+          "availability",
+          "free_units",
+          "lead_time_min_weeks",
+          "lead_time_max_weeks",
           "image"
         ],
         "title": "CartLineOut",
@@ -990,6 +1051,15 @@
         ],
         "title": "CheckoutIn",
         "type": "object"
+      },
+      "CodeKind": {
+        "enum": [
+          "unit",
+          "location",
+          "variant"
+        ],
+        "title": "CodeKind",
+        "type": "string"
       },
       "CustomerAddressIn": {
         "additionalProperties": false,
@@ -1514,6 +1584,117 @@
         "title": "HealthOut",
         "type": "object"
       },
+      "HistoryEntryOut": {
+        "properties": {
+          "from_location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location Code"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MovementReason"
+          },
+          "reverses_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reverses Id"
+          },
+          "scan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Name"
+          },
+          "to_location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location Code"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "from_status",
+          "to_status",
+          "from_location_code",
+          "to_location_code",
+          "order_number",
+          "staff_name",
+          "scan_id",
+          "reverses_id",
+          "occurred_at"
+        ],
+        "title": "HistoryEntryOut",
+        "type": "object"
+      },
       "ImageFactsOut": {
         "properties": {
           "dominant_color": {
@@ -1626,6 +1807,55 @@
         "title": "ImageRenditionOut",
         "type": "object"
       },
+      "LabelSheet": {
+        "description": "The label stock the printer is loaded with.",
+        "enum": [
+          "a4_70x37",
+          "ql_62x29"
+        ],
+        "title": "LabelSheet",
+        "type": "string"
+      },
+      "LabelsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_codes": {
+            "items": {
+              "maxLength": 44,
+              "type": "string"
+            },
+            "maxItems": 240,
+            "title": "Location Codes",
+            "type": "array"
+          },
+          "sheet": {
+            "$ref": "#/components/schemas/LabelSheet",
+            "description": "`a4_70x37`: A4 sheet, 3 x 8 labels; `ql_62x29`: Brother QL, 62 mm roll."
+          },
+          "skip": {
+            "default": 0,
+            "description": "Labels of a started A4 sheet to leave empty.",
+            "exclusiveMaximum": 24.0,
+            "minimum": 0.0,
+            "title": "Skip",
+            "type": "integer"
+          },
+          "unit_codes": {
+            "items": {
+              "maxLength": 20,
+              "type": "string"
+            },
+            "maxItems": 240,
+            "title": "Unit Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sheet"
+        ],
+        "title": "LabelsIn",
+        "type": "object"
+      },
       "LineImageOut": {
         "description": "The photo of a cart or order line: placeholder, dominant colour, rendered sizes.",
         "properties": {
@@ -1707,6 +1937,344 @@
         "title": "LineImageRenditionOut",
         "type": "object"
       },
+      "LocatedUnitOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "display_code": {
+            "title": "Display Code",
+            "type": "string"
+          },
+          "location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Code"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "sku": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "display_code",
+          "status",
+          "variant_id",
+          "title",
+          "sku",
+          "location_code",
+          "order_number"
+        ],
+        "title": "LocatedUnitOut",
+        "type": "object"
+      },
+      "LocationContentsOut": {
+        "properties": {
+          "ancestors": {
+            "description": "From the site down to the parent.",
+            "items": {
+              "$ref": "#/components/schemas/LocationOut"
+            },
+            "title": "Ancestors",
+            "type": "array"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/LocationNodeOut"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationNodeOut"
+          },
+          "units": {
+            "description": "In this location and below it, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/LocatedUnitOut"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location",
+          "ancestors",
+          "children",
+          "units"
+        ],
+        "title": "LocationContentsOut",
+        "type": "object"
+      },
+      "LocationCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LocationKind"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "maxLength": 44,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Empty for a site.",
+            "examples": [
+              "R02-F04"
+            ],
+            "title": "Parent Code"
+          },
+          "segment": {
+            "examples": [
+              "B12"
+            ],
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Segment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "segment",
+          "kind"
+        ],
+        "title": "LocationCreateIn",
+        "type": "object"
+      },
+      "LocationKind": {
+        "enum": [
+          "site",
+          "shelf",
+          "compartment",
+          "box",
+          "staging"
+        ],
+        "title": "LocationKind",
+        "type": "string"
+      },
+      "LocationNodeOut": {
+        "properties": {
+          "code": {
+            "examples": [
+              "R02-F04-B12"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "holds_goods": {
+            "title": "Holds Goods",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LocationKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "path": {
+            "examples": [
+              "LAGER.R02.F04.B12"
+            ],
+            "title": "Path",
+            "type": "string"
+          },
+          "total_count": {
+            "description": "Units in this location and everything below it.",
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "unit_count": {
+            "description": "Units lying in this location itself.",
+            "title": "Unit Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "path",
+          "kind",
+          "name",
+          "parent_id",
+          "holds_goods",
+          "depth",
+          "unit_count",
+          "total_count"
+        ],
+        "title": "LocationNodeOut",
+        "type": "object"
+      },
+      "LocationOut": {
+        "properties": {
+          "code": {
+            "examples": [
+              "R02-F04-B12"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "holds_goods": {
+            "title": "Holds Goods",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LocationKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "path": {
+            "examples": [
+              "LAGER.R02.F04.B12"
+            ],
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "path",
+          "kind",
+          "name",
+          "parent_id",
+          "holds_goods",
+          "depth"
+        ],
+        "title": "LocationOut",
+        "type": "object"
+      },
+      "LocationPatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "LocationPatchIn",
+        "type": "object"
+      },
+      "LocationTreeOut": {
+        "properties": {
+          "items": {
+            "description": "Path order: every parent before its children.",
+            "items": {
+              "$ref": "#/components/schemas/LocationNodeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "LocationTreeOut",
+        "type": "object"
+      },
       "LoginIn": {
         "additionalProperties": false,
         "properties": {
@@ -1737,6 +2305,21 @@
           "scale_comparison"
         ],
         "title": "MediaRole",
+        "type": "string"
+      },
+      "MovementReason": {
+        "enum": [
+          "label",
+          "put_away",
+          "move",
+          "allocate",
+          "release",
+          "pick",
+          "ship",
+          "scrap",
+          "undo"
+        ],
+        "title": "MovementReason",
         "type": "string"
       },
       "NavigationCategoryOut": {
@@ -2333,6 +2916,150 @@
           "refunded"
         ],
         "title": "PaymentStatus",
+        "type": "string"
+      },
+      "PickItemOut": {
+        "properties": {
+          "allocation_id": {
+            "format": "uuid",
+            "title": "Allocation Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order_line_id": {
+            "format": "uuid",
+            "title": "Order Line Id",
+            "type": "string"
+          },
+          "piece": {
+            "title": "Piece",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PieceState"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Code"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "allocation_id",
+          "order_line_id",
+          "position",
+          "piece",
+          "variant_id",
+          "sku",
+          "title",
+          "state",
+          "unit_code",
+          "location"
+        ],
+        "title": "PickItemOut",
+        "type": "object"
+      },
+      "PickListOut": {
+        "properties": {
+          "allocated": {
+            "description": "False for an order paid before the workshop allocated.",
+            "title": "Allocated",
+            "type": "boolean"
+          },
+          "complete": {
+            "description": "Every piece picked: the parcel can be packed.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "items": {
+            "description": "Walking order: by location, backorders after.",
+            "items": {
+              "$ref": "#/components/schemas/PickItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "order_status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "picked": {
+            "title": "Picked",
+            "type": "integer"
+          },
+          "ship_recipient": {
+            "title": "Ship Recipient",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "order_number",
+          "order_status",
+          "ship_recipient",
+          "allocated",
+          "complete",
+          "picked",
+          "total",
+          "items"
+        ],
+        "title": "PickListOut",
+        "type": "object"
+      },
+      "PieceState": {
+        "description": "How far one piece of an order has come.",
+        "enum": [
+          "backordered",
+          "reserved",
+          "picked",
+          "shipped",
+          "released"
+        ],
+        "title": "PieceState",
         "type": "string"
       },
       "Problem": {
@@ -3297,6 +4024,556 @@
         "title": "ScalePatchIn",
         "type": "object"
       },
+      "ScanEffectOut": {
+        "properties": {
+          "from_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "released_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unit given back when another one was picked.",
+            "title": "Released Unit"
+          },
+          "reserved_for": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Order number a stored unit went to at once.",
+            "title": "Reserved For"
+          },
+          "to_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The unit the scan moved.",
+            "title": "Unit Code"
+          }
+        },
+        "required": [
+          "unit_code",
+          "from_status",
+          "to_status",
+          "from_location",
+          "to_location",
+          "reserved_for",
+          "released_unit"
+        ],
+        "title": "ScanEffectOut",
+        "type": "object"
+      },
+      "ScanExpectedOut": {
+        "properties": {
+          "location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Code"
+          },
+          "location_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Name"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Code"
+          }
+        },
+        "required": [
+          "unit_code",
+          "sku",
+          "title",
+          "location_code",
+          "location_name"
+        ],
+        "title": "ScanExpectedOut",
+        "type": "object"
+      },
+      "ScanIn": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "`location_code` when putting away, `order_id` when picking.",
+            "propertyNames": {
+              "enum": [
+                "location_code",
+                "order_id"
+              ]
+            },
+            "title": "Context",
+            "type": "object"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ScanMode"
+          },
+          "raw": {
+            "examples": [
+              "https://shop/u/7KQ2X9F4MZ"
+            ],
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Raw",
+            "type": "string"
+          },
+          "scan_id": {
+            "description": "Generated on the device; repeat it when retrying.",
+            "format": "uuid",
+            "title": "Scan Id",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "camera",
+              "scanner",
+              "keyboard"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scan_id",
+          "raw",
+          "mode",
+          "source"
+        ],
+        "title": "ScanIn",
+        "type": "object"
+      },
+      "ScanLocationOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "holds_goods": {
+            "title": "Holds Goods",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LocationKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit_count": {
+            "title": "Unit Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "kind",
+          "holds_goods",
+          "unit_count"
+        ],
+        "title": "ScanLocationOut",
+        "type": "object"
+      },
+      "ScanMode": {
+        "enum": [
+          "put_away",
+          "pick",
+          "lookup"
+        ],
+        "title": "ScanMode",
+        "type": "string"
+      },
+      "ScanOut": {
+        "description": "The answer to a scan; the same scan id always gets the same answer.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanEffectOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanLocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "description": "Stable code the client turns into text.",
+            "enum": [
+              "unknown_code",
+              "not_found",
+              "unit",
+              "location",
+              "variant",
+              "location_selected",
+              "location_required",
+              "location_unknown",
+              "holds_no_goods",
+              "already_there",
+              "unit_gone",
+              "unit_picked",
+              "put_away",
+              "move",
+              "scan_unit_label",
+              "order_unknown",
+              "order_not_pickable",
+              "picked",
+              "already_picked",
+              "reserved_for_other_order",
+              "variant_complete",
+              "not_in_order",
+              "unit_not_stored",
+              "no_unit_to_store",
+              "variant_not_in_stock"
+            ],
+            "title": "Message",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ScanMode"
+          },
+          "next_expected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanExpectedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ScanOutcome"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanProgressOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanResolvedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scan_id": {
+            "format": "uuid",
+            "title": "Scan Id",
+            "type": "string"
+          },
+          "undoable": {
+            "title": "Undoable",
+            "type": "boolean"
+          },
+          "undone": {
+            "title": "Undone",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanUnitOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanVariantOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "scan_id",
+          "mode",
+          "outcome",
+          "message",
+          "resolved",
+          "unit",
+          "location",
+          "variant",
+          "effect",
+          "progress",
+          "next_expected",
+          "undoable",
+          "undone"
+        ],
+        "title": "ScanOut",
+        "type": "object"
+      },
+      "ScanOutcome": {
+        "enum": [
+          "applied",
+          "selected",
+          "info",
+          "rejected",
+          "unknown"
+        ],
+        "title": "ScanOutcome",
+        "type": "string"
+      },
+      "ScanProgressOut": {
+        "properties": {
+          "picked": {
+            "title": "Picked",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "picked",
+          "total"
+        ],
+        "title": "ScanProgressOut",
+        "type": "object"
+      },
+      "ScanResolvedOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CodeKind"
+          }
+        },
+        "required": [
+          "kind",
+          "code"
+        ],
+        "title": "ScanResolvedOut",
+        "type": "object"
+      },
+      "ScanUnitOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Code"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "sku": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "variant_id",
+          "title",
+          "sku",
+          "location_code",
+          "order_id",
+          "order_number"
+        ],
+        "title": "ScanUnitOut",
+        "type": "object"
+      },
+      "ScanVariantOut": {
+        "properties": {
+          "free_units": {
+            "title": "Free Units",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "title",
+          "sku",
+          "free_units"
+        ],
+        "title": "ScanVariantOut",
+        "type": "object"
+      },
+      "ScrapIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "ScrapIn",
+        "type": "object"
+      },
       "ShipIn": {
         "additionalProperties": false,
         "properties": {
@@ -3399,6 +4676,77 @@
         ],
         "title": "StaffRole",
         "type": "string"
+      },
+      "StockLineOut": {
+        "properties": {
+          "allocated": {
+            "description": "On the shelves, reserved for an order.",
+            "title": "Allocated",
+            "type": "integer"
+          },
+          "backordered": {
+            "description": "Paid pieces still waiting for a unit.",
+            "title": "Backordered",
+            "type": "integer"
+          },
+          "in_stock": {
+            "description": "On the shelves and free: what the shop can sell.",
+            "title": "In Stock",
+            "type": "integer"
+          },
+          "labeled": {
+            "description": "Labelled, not yet put away.",
+            "title": "Labeled",
+            "type": "integer"
+          },
+          "picked": {
+            "description": "Picked for an order, being packed.",
+            "title": "Picked",
+            "type": "integer"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "variant",
+          "labeled",
+          "in_stock",
+          "allocated",
+          "picked",
+          "backordered"
+        ],
+        "title": "StockLineOut",
+        "type": "object"
+      },
+      "StockOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StockLineOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StockOut",
+        "type": "object"
       },
       "StoreGalleryItemOut": {
         "properties": {
@@ -3801,6 +5149,288 @@
         "title": "TotalsOut",
         "type": "object"
       },
+      "UnitBatchOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UnitOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "UnitBatchOut",
+        "type": "object"
+      },
+      "UnitDetailsOut": {
+        "properties": {
+          "code": {
+            "examples": [
+              "7KQ2X9F4MZ"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_code": {
+            "description": "Grouped for reading.",
+            "examples": [
+              "7KQ2 X9F4 MZ"
+            ],
+            "title": "Display Code",
+            "type": "string"
+          },
+          "history": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/HistoryEntryOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "scrap_note": {
+            "title": "Scrap Note",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "display_code",
+          "status",
+          "variant_id",
+          "variant",
+          "location",
+          "order_id",
+          "order_number",
+          "scrap_note",
+          "created_at",
+          "updated_at",
+          "history"
+        ],
+        "title": "UnitDetailsOut",
+        "type": "object"
+      },
+      "UnitOut": {
+        "properties": {
+          "code": {
+            "examples": [
+              "7KQ2X9F4MZ"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_code": {
+            "description": "Grouped for reading.",
+            "examples": [
+              "7KQ2 X9F4 MZ"
+            ],
+            "title": "Display Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "scrap_note": {
+            "title": "Scrap Note",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UnitStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "display_code",
+          "status",
+          "variant_id",
+          "variant",
+          "location",
+          "order_id",
+          "order_number",
+          "scrap_note",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UnitOut",
+        "type": "object"
+      },
+      "UnitStatus": {
+        "enum": [
+          "labeled",
+          "in_stock",
+          "allocated",
+          "picked",
+          "shipped",
+          "scrapped"
+        ],
+        "title": "UnitStatus",
+        "type": "string"
+      },
+      "UnitsCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_code": {
+            "anyOf": [
+              {
+                "maxLength": 44,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Put the units away here at once; otherwise they wait for a scan.",
+            "title": "Location Code"
+          },
+          "quantity": {
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "quantity"
+        ],
+        "title": "UnitsCreateIn",
+        "type": "object"
+      },
       "UploadOut": {
         "description": "Send the file with exactly this method and these headers before ``expires_at``.",
         "properties": {
@@ -3952,6 +5582,55 @@
         "title": "ValidationProblem",
         "type": "object"
       },
+      "VariantAvailabilityOut": {
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/Availability",
+            "description": "`in_stock`: ships at once; `made_to_order`: printed for the customer; `unavailable`: not for sale right now."
+          },
+          "free_units": {
+            "title": "Free Units",
+            "type": "integer"
+          },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for variants made to order.",
+            "title": "Lead Time Min Weeks"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "availability",
+          "free_units",
+          "lead_time_min_weeks",
+          "lead_time_max_weeks"
+        ],
+        "title": "VariantAvailabilityOut",
+        "type": "object"
+      },
       "VariantCreateIn": {
         "additionalProperties": false,
         "properties": {
@@ -3962,6 +5641,7 @@
           },
           "allow_backorder": {
             "default": false,
+            "description": "Made to order.",
             "title": "Allow Backorder",
             "type": "boolean"
           },
@@ -3988,6 +5668,40 @@
             "title": "Finish Code",
             "type": "string"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "examples": [
+                  4
+                ],
+                "maximum": 52.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Defaults to the minimum.",
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "examples": [
+                  4
+                ],
+                "maximum": 52.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Made to order without a lead time: 4 to 6 weeks.",
+            "title": "Lead Time Min Weeks"
+          },
           "price_cents": {
             "examples": [
               4990
@@ -4012,6 +5726,7 @@
             "type": "boolean"
           },
           "allow_backorder": {
+            "description": "Made to order: always for sale, made within the lead time; otherwise sold from stock and sold out when the shelves are empty.",
             "title": "Allow Backorder",
             "type": "boolean"
           },
@@ -4042,6 +5757,28 @@
             "title": "Id",
             "type": "string"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Min Weeks"
+          },
           "price_cents": {
             "title": "Price Cents",
             "type": "integer"
@@ -4062,6 +5799,8 @@
           "price_cents",
           "compare_at_price_cents",
           "allow_backorder",
+          "lead_time_min_weeks",
+          "lead_time_max_weeks",
           "active"
         ],
         "title": "VariantOut",
@@ -4069,7 +5808,7 @@
       },
       "VariantPatchIn": {
         "additionalProperties": false,
-        "description": "Only the fields sent are changed.",
+        "description": "Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time.",
         "properties": {
           "active": {
             "anyOf": [
@@ -4109,6 +5848,38 @@
             ],
             "title": "Compare At Price Cents"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "examples": [
+                  4
+                ],
+                "maximum": 52.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "examples": [
+                  4
+                ],
+                "maximum": 52.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Min Weeks"
+          },
           "price_cents": {
             "anyOf": [
               {
@@ -4127,6 +5898,58 @@
           }
         },
         "title": "VariantPatchIn",
+        "type": "object"
+      },
+      "VariantRefOut": {
+        "description": "The variant a unit is a piece of, as the catalogue names it now.",
+        "properties": {
+          "allow_backorder": {
+            "title": "Allow Backorder",
+            "type": "boolean"
+          },
+          "gtin": {
+            "title": "Gtin",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_slug": {
+            "title": "Product Slug",
+            "type": "string"
+          },
+          "sku": {
+            "examples": [
+              "MB-000042-H0-B"
+            ],
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "examples": [
+              "Stellwerk Altenau · H0 · bemalt"
+            ],
+            "title": "Title",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_id",
+          "product_slug",
+          "title",
+          "sku",
+          "gtin",
+          "allow_backorder"
+        ],
+        "title": "VariantRefOut",
         "type": "object"
       }
     },
@@ -4431,6 +6254,62 @@
         "summary": "Log in to the admin area",
         "tags": [
           "admin-auth"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/articles.csv": {
+      "get": {
+        "operationId": "exportArticles",
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Semicolon-separated, UTF-8 with byte order mark, prices in euros."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Every variant with EAN, article number and price, as CSV for the till",
+        "tags": [
+          "admin-catalog"
         ]
       }
     },
@@ -4874,6 +6753,1299 @@
         "summary": "Live stream of events for the 'staff' audience",
         "tags": [
           "admin-realtime"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/labels": {
+      "post": {
+        "operationId": "printLabels",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabelsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The labels as PDF."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Labels for units and locations as PDF, for A4 sheets or the Brother QL",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/locations": {
+      "get": {
+        "operationId": "listLocations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationTreeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The location tree with unit counts",
+        "tags": [
+          "admin-inventory"
+        ]
+      },
+      "post": {
+        "operationId": "createLocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `location_code_taken`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Add a site, shelf, compartment, box or staging area",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/locations/{code}": {
+      "delete": {
+        "operationId": "deleteLocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `location_in_use`, `location_not_empty`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Remove an empty location that never held goods",
+        "tags": [
+          "admin-inventory"
+        ]
+      },
+      "get": {
+        "operationId": "getLocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationContentsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A location with its sub-locations and the units in it",
+        "tags": [
+          "admin-inventory"
+        ]
+      },
+      "patch": {
+        "operationId": "renameLocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Rename a location (its code stays: it is on the label)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/orders/{order_id}/allocation": {
+      "post": {
+        "operationId": "allocateOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `order_not_allocatable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Allocate a paid order now (happens by itself when the payment comes in)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/orders/{order_id}/pick-list": {
+      "get": {
+        "operationId": "getPickList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The order's pieces in walking order, with units and locations",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/scans": {
+      "post": {
+        "operationId": "recordScan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `scan_id_reused`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The central scan command: put away, pick or look up; idempotent by scan id",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/scans/{scan_id}/undo": {
+      "post": {
+        "operationId": "undoScan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `scan_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `scan_already_undone`, `scan_changed_since`, `scan_nothing_booked`, `scan_too_old`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Book a scan backwards (within ten minutes, while its units have not moved on)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock": {
+      "get": {
+        "operationId": "listStock",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Units per variant and state, with backorders",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units": {
+      "post": {
+        "operationId": "labelUnits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitsCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitBatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`, `variant_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "New units of a variant, ready for their labels (optionally put away at once)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/{code}": {
+      "get": {
+        "operationId": "getUnit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitDetailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `unit_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A unit with what it is, where it lies and its whole history",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/{code}/scrap": {
+      "post": {
+        "operationId": "scrapUnit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrapIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `unit_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_unit_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Take a broken or lost unit out of stock; its order gets another one",
+        "tags": [
+          "admin-inventory"
         ]
       }
     },
@@ -5785,7 +8957,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `invalid_order_state`."
+            "description": "Conflict. Problem codes: `invalid_order_state`, `order_not_picked`."
           },
           "415": {
             "content": {
@@ -5823,7 +8995,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Mark a paid order as shipped (the customer gets an e-mail)",
+        "summary": "Ship a paid, completely picked order (the customer gets an e-mail)",
         "tags": [
           "admin-sales"
         ]
@@ -5903,6 +9075,16 @@
               }
             },
             "description": "Not Found. Problem codes: `product_scale_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `variant_has_units`."
           },
           "412": {
             "content": {
@@ -6539,7 +9721,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `product_not_deletable`."
+            "description": "Conflict. Problem codes: `product_not_deletable`, `variant_has_units`."
           },
           "412": {
             "content": {
@@ -7930,6 +11112,16 @@
             },
             "description": "Not Found. Problem codes: `variant_not_found`."
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `variant_has_units`."
+          },
           "412": {
             "content": {
               "application/problem+json": {
@@ -7976,7 +11168,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Remove a variant",
+        "summary": "Remove a variant (one with units in the workshop can only be deactivated)",
         "tags": [
           "admin-catalog"
         ]
@@ -8111,7 +11303,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Change price, former price, backorders or availability",
+        "summary": "Change price, former price, made to order with lead time, or availability",
         "tags": [
           "admin-catalog"
         ]
@@ -9683,7 +12875,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `cart_full`, `variant_unavailable`."
+            "description": "Conflict. Problem codes: `cart_full`, `insufficient_stock`, `variant_unavailable`."
           },
           "415": {
             "content": {
@@ -9794,7 +12986,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `cart_empty`, `cart_items_unavailable`, `idempotency_key_reused`, `price_changed`."
+            "description": "Conflict. Problem codes: `cart_empty`, `cart_items_unavailable`, `idempotency_key_reused`, `insufficient_stock`, `price_changed`."
           },
           "415": {
             "content": {
@@ -10304,6 +13496,68 @@
         ]
       }
     },
+    "/api/v1/store/products/{slug}/availability": {
+      "get": {
+        "operationId": "getProductAvailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `product_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "How soon each variant of a product can be delivered",
+        "tags": [
+          "store-inventory"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "description": "The process is up and serving requests. Does not touch the database.",
@@ -10373,6 +13627,10 @@
       "name": "store-account"
     },
     {
+      "description": "How soon products can be delivered.",
+      "name": "store-inventory"
+    },
+    {
       "description": "Staff login for the admin area.",
       "name": "admin-auth"
     },
@@ -10387,6 +13645,10 @@
     {
       "description": "Orders: overview, dispatch, cancellation.",
       "name": "admin-sales"
+    },
+    {
+      "description": "Locations, units, scans, picking and labels of the workshop.",
+      "name": "admin-inventory"
     },
     {
       "description": "Live events for the admin area (SSE).",

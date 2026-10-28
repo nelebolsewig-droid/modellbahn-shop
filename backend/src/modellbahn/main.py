@@ -6,6 +6,7 @@ from functools import partial
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, FastAPI
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn import __version__
 from modellbahn.modules.catalog.api import admin as catalog_admin
@@ -37,6 +38,25 @@ from modellbahn.modules.identity.infrastructure.mapping import (
     start_mappers as start_identity_mappers,
 )
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
+from modellbahn.modules.inventory.api import admin as inventory_admin
+from modellbahn.modules.inventory.api import store as inventory_store
+from modellbahn.modules.inventory.api.errors import (
+    install_error_translations as install_inventory_error_translations,
+)
+from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.availability import AvailabilityService
+from modellbahn.modules.inventory.application.common import (
+    UnitOfWorkFactory as InventoryUnitOfWorkFactory,
+)
+from modellbahn.modules.inventory.application.labels import LabelService
+from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.units import UnitService
+from modellbahn.modules.inventory.infrastructure.labels import ReportLabLabelRenderer
+from modellbahn.modules.inventory.infrastructure.mapping import (
+    start_mappers as start_inventory_mappers,
+)
+from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.media.api import admin as media_admin
 from modellbahn.modules.media.api.errors import (
     install_error_translations as install_media_error_translations,
@@ -91,10 +111,15 @@ _TAGS: Final = [
     {"name": "store-catalog", "description": "Products of the shop, public."},
     {"name": "store-sales", "description": "Cart, checkout, order status and payment."},
     {"name": "store-account", "description": "Customer accounts, their orders and addresses."},
+    {"name": "store-inventory", "description": "How soon products can be delivered."},
     {"name": "admin-auth", "description": "Staff login for the admin area."},
     {"name": "admin-catalog", "description": "Products, scales, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
     {"name": "admin-sales", "description": "Orders: overview, dispatch, cancellation."},
+    {
+        "name": "admin-inventory",
+        "description": "Locations, units, scans, picking and labels of the workshop.",
+    },
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -116,6 +141,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     start_media_mappers()
     start_catalog_mappers()
     start_sales_mappers()
+    start_inventory_mappers()
     clock = SystemClock()
     identity_service = IdentityService(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
@@ -172,7 +198,58 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
         clock=clock,
     )
+    _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
     app.state.realtime_hub = hub
+    _attach_rate_limiters(app, settings)
+
+    app.add_middleware(RequestContextMiddleware)
+    install_exception_handlers(app)
+    for install_error_translations in (
+        install_identity_error_translations,
+        install_media_error_translations,
+        install_catalog_error_translations,
+        install_sales_error_translations,
+        install_inventory_error_translations,
+    ):
+        install_error_translations(app)
+
+    api = _api_router(hub, engine)
+    app.include_router(http.router)
+    app.include_router(api)
+    return app
+
+
+def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
+    """Every module's routes under ``/api/v1``, and the admin event stream."""
+    api = APIRouter(prefix=API_PREFIX)
+    api.include_router(catalog_store.router)
+    api.include_router(identity_store.router)
+    api.include_router(sales_store.router)
+    api.include_router(sales_account.router)
+    api.include_router(inventory_store.router)
+    api.include_router(identity_admin.router)
+    api.include_router(catalog_admin.router)
+    api.include_router(media_admin.router)
+    api.include_router(sales_admin.router)
+    api.include_router(inventory_admin.router)
+    api.include_router(
+        create_event_stream_router(
+            hub=hub,
+            engine=engine,
+            registry=event_registry,
+            audience="staff",
+            path="/admin/events",
+            operation_id="streamAdminEvents",
+            tags=["admin-realtime"],
+            dependencies=[Depends(current_staff)],
+            authorize=staff_session_is_valid,
+            responses=problems({401: ["not_authenticated"]}, unsafe=False),
+        )
+    )
+    return api
+
+
+def _attach_rate_limiters(app: FastAPI, settings: Settings) -> None:
     setattr(
         app.state,
         AUTH_RATE_LIMITER,
@@ -188,43 +265,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             window_seconds=settings.checkout_rate_window_seconds,
         ),
     )
-
-    app.add_middleware(RequestContextMiddleware)
-    install_exception_handlers(app)
-    for install_error_translations in (
-        install_identity_error_translations,
-        install_media_error_translations,
-        install_catalog_error_translations,
-        install_sales_error_translations,
-    ):
-        install_error_translations(app)
-
-    api = APIRouter(prefix=API_PREFIX)
-    api.include_router(catalog_store.router)
-    api.include_router(identity_store.router)
-    api.include_router(sales_store.router)
-    api.include_router(sales_account.router)
-    api.include_router(identity_admin.router)
-    api.include_router(catalog_admin.router)
-    api.include_router(media_admin.router)
-    api.include_router(sales_admin.router)
-    api.include_router(
-        create_event_stream_router(
-            hub=hub,
-            engine=engine,
-            registry=event_registry,
-            audience="staff",
-            path="/admin/events",
-            operation_id="streamAdminEvents",
-            tags=["admin-realtime"],
-            dependencies=[Depends(current_staff)],
-            authorize=staff_session_is_valid,
-            responses=problems({401: ["not_authenticated"]}, unsafe=False),
-        )
-    )
-    app.include_router(http.router)
-    app.include_router(api)
-    return app
 
 
 def _attach_catalog_services(
@@ -244,6 +284,19 @@ def _attach_sales_services(
     )
     app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
     app.state.address_service = AddressService(uow_factory=uow_factory, clock=clock)
+
+
+def _attach_inventory_services(
+    app: FastAPI, *, uow_factory: InventoryUnitOfWorkFactory, clock: SystemClock
+) -> None:
+    app.state.location_service = LocationService(uow_factory=uow_factory, clock=clock)
+    app.state.unit_service = UnitService(uow_factory=uow_factory, clock=clock)
+    app.state.scan_service = ScanService(uow_factory=uow_factory, clock=clock)
+    app.state.allocation_service = AllocationService(uow_factory=uow_factory, clock=clock)
+    app.state.label_service = LabelService(
+        uow_factory=uow_factory, renderer=ReportLabLabelRenderer()
+    )
+    app.state.availability_service = AvailabilityService(uow_factory=uow_factory)
 
 
 app = create_app()

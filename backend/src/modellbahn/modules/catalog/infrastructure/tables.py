@@ -181,6 +181,8 @@ variants = Table(
     Column("price_cents", Integer, nullable=False),
     Column("compare_at_price_cents", Integer),
     Column("allow_backorder", Boolean, nullable=False, server_default=text("false")),
+    Column("lead_time_min_weeks", SmallInteger),
+    Column("lead_time_max_weeks", SmallInteger),
     Column("active", Boolean, nullable=False, server_default=text("true")),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
@@ -193,6 +195,18 @@ variants = Table(
     ),
     # Internal numbers (GS1 prefix 20) only, until the shop has its own GS1 prefix.
     CheckConstraint("gtin ~ '^2[0-9]{12}$'", name="gtin_format"),
+    # Made to order means a lead time: a range of weeks within a year.
+    CheckConstraint(
+        "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)", name="lead_time_pair"
+    ),
+    CheckConstraint(
+        "lead_time_min_weeks IS NULL OR (lead_time_min_weeks BETWEEN 1 AND 52 "
+        "AND lead_time_max_weeks BETWEEN lead_time_min_weeks AND 52)",
+        name="lead_time_range",
+    ),
+    CheckConstraint(
+        "NOT allow_backorder OR lead_time_min_weeks IS NOT NULL", name="made_to_order_lead_time"
+    ),
     Index("variants_product_scale_idx", "product_scale_id"),
     schema=SCHEMA,
 )

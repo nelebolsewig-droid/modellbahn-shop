@@ -2,8 +2,9 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StoreGalleryItemOut, StoreProductOut } from "@/lib/api/generated/model";
+import type { CartOut, StoreGalleryItemOut, StoreProductOut, VariantAvailabilityOut } from "@/lib/api/generated/model";
 
+import { requestsTo, routeFetch, type RouteHandler } from "@/test/fetch-routes";
 import { jsonResponse, problemResponse, renderWithQueryClient } from "@/test/render";
 import { cartLine, cartOut } from "@/test/sales";
 
@@ -11,10 +12,36 @@ import { galleryFor, ProductView } from "./product-view";
 
 const fetchMock = vi.fn<typeof fetch>();
 
+const CART = "GET /api/v1/store/cart";
+const AVAILABILITY = "GET /api/v1/store/products/stellwerk-altenau/availability";
+const PUT_V2 = "PUT /api/v1/store/cart/lines/v2";
+
+function onShelf(variantId: string, free: number, lead: [number, number] | null = null): VariantAvailabilityOut {
+  return {
+    variant_id: variantId,
+    availability: free > 0 ? "in_stock" : lead ? "made_to_order" : "unavailable",
+    free_units: free,
+    lead_time_min_weeks: lead?.[0] ?? null,
+    lead_time_max_weeks: lead?.[1] ?? null,
+  };
+}
+
+/** An empty cart and five of everything on the shelf, unless a test says otherwise. */
+function shop({
+  cart = cartOut(),
+  shelf = [onShelf("v1", 5), onShelf("v2", 5), onShelf("v3", 5)],
+  put,
+}: { cart?: CartOut; shelf?: VariantAvailabilityOut[]; put?: RouteHandler } = {}) {
+  routeFetch(fetchMock, {
+    [CART]: () => jsonResponse(cart),
+    [AVAILABILITY]: () => jsonResponse({ items: shelf }),
+    ...(put && { [PUT_V2]: put }),
+  });
+}
+
 beforeEach(() => {
-  // The first request is always the cart; an empty one unless a test says otherwise.
   vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(cartOut())));
+  shop();
 });
 
 afterEach(() => {
@@ -127,33 +154,48 @@ describe("ProductView", () => {
 
   it("puts the chosen variant into the cart, on top of what is there", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(cartOut(cartLine({ variant_id: "v2", quantity: 1, line_total_cents: 8990 }))),
-    );
+    shop({
+      cart: cartOut(cartLine({ variant_id: "v2", quantity: 1, line_total_cents: 8990 })),
+      put: () => jsonResponse(cartOut(cartLine({ variant_id: "v2", quantity: 3, line_total_cents: 26970 }))),
+    });
     renderWithQueryClient(<ProductView product={PRODUCT} />);
     await user.click(screen.getByRole("radio", { name: "bemalt" }));
+    await screen.findByText("Sofort lieferbar");
     await user.click(screen.getByRole("button", { name: "Eins mehr" }));
     expect(screen.getByRole("group", { name: "Menge" })).toHaveTextContent("2");
 
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(cartOut(cartLine({ variant_id: "v2", quantity: 3, line_total_cents: 26970 }))),
-    );
     await user.click(screen.getByRole("button", { name: "In den Warenkorb" }));
 
     expect(await screen.findByText("Im Warenkorb: Stellwerk Altenau · H0 · bemalt")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zum Warenkorb (3)" })).toHaveAttribute("href", "/warenkorb");
-    const [url, init] = fetchMock.mock.calls[1] ?? [];
-    expect(String(url)).toBe("/api/v1/store/cart/lines/v2");
-    expect(init?.method).toBe("PUT");
-    expect(JSON.parse(String(init?.body))).toEqual({ quantity: 3 });
+    expect(requestsTo(fetchMock, PUT_V2).map((request) => request.body)).toEqual([{ quantity: 3 }]);
+  });
+
+  it("says when a finish is made to order, and how long it takes", async () => {
+    const user = userEvent.setup();
+    shop({ shelf: [onShelf("v1", 2), onShelf("v2", 0, [4, 6])] });
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
+
+    expect(await screen.findByText("Nur noch 2 Stück")).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "bemalt" }));
+    expect(screen.getByText("Wird für dich gefertigt")).toBeInTheDocument();
+    expect(screen.getByText("Lieferzeit 4–6 Wochen")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "In den Warenkorb" })).toBeEnabled();
+  });
+
+  it("does not sell what is neither on the shelf nor made to order", async () => {
+    shop({ shelf: [onShelf("v1", 0)] });
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
+
+    expect(await screen.findByRole("button", { name: "Derzeit nicht lieferbar" })).toBeDisabled();
   });
 
   it("explains a refusal in German", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValueOnce(jsonResponse(cartOut()));
-    fetchMock.mockResolvedValueOnce(problemResponse(409, "variant_unavailable"));
+    shop({ put: () => problemResponse(409, "variant_unavailable") });
     renderWithQueryClient(<ProductView product={PRODUCT} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "In den Warenkorb" })).toBeEnabled());
+    await user.click(screen.getByRole("radio", { name: "bemalt" }));
     await user.click(screen.getByRole("button", { name: "In den Warenkorb" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("gerade nicht erhältlich");
   });

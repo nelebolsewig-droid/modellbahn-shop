@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.identity.application.services import IdentityService
+from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
@@ -29,6 +33,7 @@ from modellbahn.modules.sales.domain.errors import (
     InvalidOrderStateError,
     OrderNotFoundError,
     OrderNotPayableError,
+    OrderNotPickedError,
     PaymentUnavailableError,
     PriceChangedError,
     VariantUnavailableError,
@@ -45,6 +50,7 @@ from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.mail import InMemoryMailer
 from modellbahn.platform.outbox import outbox_table
 from tests.conftest import PUBLIC_BASE_URL, Deliver
+from tests.inventory_support import pick_everything, staff_member, stock_up
 from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import ADDRESS, filled_cart, place, shop_product, variant_id
 from tests.support import mails_to, token_from
@@ -486,8 +492,19 @@ class TestAfterTheOrder:
         deliver: Deliver,
         mailer: InMemoryMailer,
         painted: UUID,
+        identity: IdentityService,
+        locations: LocationService,
+        units: UnitService,
+        scans: ScanService,
+        allocation: AllocationService,
     ) -> None:
+        await stock_up(locations, units, painted)
         order_id = await self.paid_order(carts, checkout, painted)
+        # Only a completely picked order leaves the workshop.
+        with pytest.raises(OrderNotPickedError):
+            await orders.ship(order_id, carrier="DHL", tracking_number="00340434")
+        await deliver()
+        await pick_everything(scans, allocation, order_id, await staff_member(identity))
         shipped = await orders.ship(order_id, carrier="DHL", tracking_number="00340434")
         assert shipped.order.status is OrderStatus.SHIPPED
         with pytest.raises(InvalidOrderStateError):

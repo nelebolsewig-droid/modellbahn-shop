@@ -42,6 +42,26 @@ class CartItemsUnavailableError(SalesError):
         self.variant_ids = list(variant_ids)
 
 
+class InsufficientStockError(SalesError):
+    """Not enough on the shelves, and the variant is not made to order."""
+
+    def __init__(self, variants: dict[UUID, int]) -> None:
+        super().__init__(
+            "not enough in stock: " + ", ".join(f"{v} ({n} left)" for v, n in variants.items())
+        )
+        self.variants = dict(variants)
+        """Free units per variant that is short."""
+
+
+class OrderNotPickedError(SalesError):
+    """Only an order whose pieces are all picked can be shipped."""
+
+    def __init__(self, *, picked: int, total: int) -> None:
+        super().__init__(f"{picked} of {total} pieces picked")
+        self.picked = picked
+        self.total = total
+
+
 class PriceChangedError(SalesError):
     """The total the customer confirmed is no longer the total of the cart."""
 

@@ -24,6 +24,7 @@ from modellbahn.modules.catalog.domain.model import (
     ALT_TEXT_MAX_LENGTH,
     CATEGORY_NAME_MAX_LENGTH,
     DESCRIPTION_MAX_LENGTH,
+    LEAD_TIME_MAX_WEEKS,
     PRICE_MAX_CENTS,
     PRODUCT_NAME_MAX_LENGTH,
     PROTOTYPE_MAX_LENGTH,
@@ -270,7 +271,12 @@ class VariantOut(BaseModel):
     gtin: str = Field(examples=["2000000000428"])
     price_cents: int
     compare_at_price_cents: int | None
-    allow_backorder: bool
+    allow_backorder: bool = Field(
+        description="Made to order: always for sale, made within the lead time; "
+        "otherwise sold from stock and sold out when the shelves are empty."
+    )
+    lead_time_min_weeks: int | None
+    lead_time_max_weeks: int | None
     active: bool
 
     @classmethod
@@ -283,6 +289,8 @@ class VariantOut(BaseModel):
             price_cents=variant.price_cents,
             compare_at_price_cents=variant.compare_at_price_cents,
             allow_backorder=variant.allow_backorder,
+            lead_time_min_weeks=variant.lead_time_min_weeks,
+            lead_time_max_weeks=variant.lead_time_max_weeks,
             active=variant.active,
         )
 
@@ -471,22 +479,45 @@ class ProductScaleIn(DimensionsIn):
     scale_code: str = Field(examples=["H0"])
 
 
+LeadTimeWeeks = Annotated[int, Field(ge=1, le=LEAD_TIME_MAX_WEEKS, examples=[4])]
+
+
 class VariantCreateIn(_Request):
     finish_code: str = Field(examples=["painted"])
     price_cents: Price
     # A former price, shown struck through; must be above the price.
     compare_at_price_cents: Price | None = None
-    allow_backorder: bool = False
+    allow_backorder: bool = Field(default=False, description="Made to order.")
+    lead_time_min_weeks: LeadTimeWeeks | None = Field(
+        default=None, description="Made to order without a lead time: 4 to 6 weeks."
+    )
+    lead_time_max_weeks: LeadTimeWeeks | None = Field(
+        default=None, description="Defaults to the minimum."
+    )
     active: bool = True
+
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        return _lead_time(self.lead_time_min_weeks, self.lead_time_max_weeks)
 
 
 class VariantPatchIn(_Request):
-    """Only the fields sent are changed."""
+    """Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time."""
 
     price_cents: Price | None = None
     compare_at_price_cents: Price | None = None
     allow_backorder: bool | None = None
+    lead_time_min_weeks: LeadTimeWeeks | None = None
+    lead_time_max_weeks: LeadTimeWeeks | None = None
     active: bool | None = None
+
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        return _lead_time(self.lead_time_min_weeks, self.lead_time_max_weeks)
+
+
+def _lead_time(shortest: int | None, longest: int | None) -> tuple[int, int] | None:
+    if shortest is None:
+        return None
+    return shortest, longest if longest is not None else shortest
 
 
 class GalleryAttachIn(_Request):

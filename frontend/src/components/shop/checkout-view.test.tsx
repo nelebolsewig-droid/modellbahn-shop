@@ -23,9 +23,9 @@ afterEach(() => {
   push.mockReset();
 });
 
-function guestShop(checkout: () => Response | Promise<Response>) {
+function guestShop(checkout: () => Response | Promise<Response>, cart = cartOut(cartLine())) {
   routeFetch(fetchMock, {
-    "GET /api/v1/store/cart": () => jsonResponse(cartOut(cartLine())),
+    "GET /api/v1/store/cart": () => jsonResponse(cart),
     "GET /api/v1/store/account/me": () => problemResponse(401, "not_authenticated"),
     [CHECKOUT]: checkout,
   });
@@ -73,6 +73,26 @@ describe("CheckoutView", () => {
     await user.selectOptions(await screen.findByLabelText("Land"), "AT");
     expect(screen.getByText("Versand nach Österreich")).toBeInTheDocument();
     expect(screen.getByText("89,80 €")).toBeInTheDocument();
+  });
+
+  it("names the delivery time before ordering when a model is built to order", async () => {
+    const madeToOrder = cartLine({ availability: "made_to_order", free_units: 0, lead_time_min_weeks: 4, lead_time_max_weeks: 6 });
+    guestShop(() => jsonResponse(orderOut(), 201), cartOut(madeToOrder));
+    renderWithQueryClient(<CheckoutView />);
+
+    expect(await screen.findByText(/alles zusammen in voraussichtlich 4–6 Wochen/)).toBeInTheDocument();
+  });
+
+  it("refreshes the cart when the shelf ran short in the meantime", async () => {
+    guestShop(() => problemResponse(409, "insufficient_stock"));
+    const user = userEvent.setup();
+    renderWithQueryClient(<CheckoutView />);
+
+    await fillGuestForm(user);
+    await user.click(screen.getByRole("button", { name: "Zahlungspflichtig bestellen" }));
+
+    expect(await screen.findByText(/So viele haben wir gerade nicht vorrätig/)).toBeInTheDocument();
+    await waitFor(() => expect(requestsTo(fetchMock, "GET /api/v1/store/cart").length).toBeGreaterThan(1));
   });
 
   it("checks the form before anything is sent", async () => {

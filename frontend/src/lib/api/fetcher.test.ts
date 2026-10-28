@@ -66,6 +66,19 @@ describe("apiFetch response", () => {
     });
   });
 
+  it("hands over a PDF as a blob and a CSV as text", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("%PDF-1.4", { status: 200, headers: { "Content-Type": "application/pdf" } }),
+    );
+    const pdf = await apiFetch<Blob>("/labels", { method: "POST" });
+    expect(pdf.type).toBe("application/pdf");
+    expect(await pdf.text()).toBe("%PDF-1.4");
+    fetchMock.mockResolvedValueOnce(
+      new Response("Name;EAN", { status: 200, headers: { "Content-Type": "text/csv; charset=utf-8" } }),
+    );
+    await expect(apiFetch<string>("/articles.csv")).resolves.toBe("Name;EAN");
+  });
+
   it("returns undefined for an empty body (204)", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(apiFetch("/x", { method: "DELETE" })).resolves.toBeUndefined();

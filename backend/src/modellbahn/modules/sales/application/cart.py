@@ -4,10 +4,14 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
+from modellbahn.modules.inventory.contracts.availability import Availability, availability
 from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.application.ports import SalesUnitOfWork
-from modellbahn.modules.sales.domain.errors import VariantUnavailableError
+from modellbahn.modules.sales.domain.errors import (
+    InsufficientStockError,
+    VariantUnavailableError,
+)
 from modellbahn.modules.sales.domain.model import (
     DEFAULT_COUNTRY,
     Cart,
@@ -25,10 +29,23 @@ class CartItem:
     variant: SaleVariant
     quantity: int
     image: ImageView | None
+    free_units: int
+
+    @property
+    def availability(self) -> Availability:
+        """How the quantity can be delivered: from stock, made to order, or not at all."""
+        if not self.variant.purchasable:
+            return Availability.UNAVAILABLE
+        return availability(
+            free_units=self.free_units,
+            wanted=self.quantity,
+            allow_backorder=self.variant.allow_backorder,
+        )
 
     @property
     def available(self) -> bool:
-        return self.variant.purchasable
+        """For sale, and deliverable in this quantity."""
+        return self.availability is not Availability.UNAVAILABLE
 
     @property
     def line_total_cents(self) -> int:
@@ -64,11 +81,13 @@ async def price_cart(uow: SalesUnitOfWork, cart: Cart | None) -> CartView:
     images = await uow.images.load(
         [v.image_asset_id for v in variants.values() if v.image_asset_id is not None]
     )
+    free = await uow.inventory.free_units(variants)
     items = [
         CartItem(
             variant=variant,
             quantity=line.quantity,
             image=_ready(images.get(variant.image_asset_id)) if variant.image_asset_id else None,
+            free_units=free.get(variant.variant_id, 0),
         )
         for line in sorted(lines, key=lambda line: line.added_at)
         if (variant := variants.get(line.variant_id)) is not None
@@ -80,6 +99,18 @@ async def price_cart(uow: SalesUnitOfWork, cart: Cart | None) -> CartView:
         totals=Totals.of(subtotal, zone),
         shipping_zone=zone,
     )
+
+
+async def _check_deliverable(uow: SalesUnitOfWork, variant_id: UUID, quantity: int) -> None:
+    variant = (await uow.catalog.sale_variants([variant_id])).get(variant_id)
+    if variant is None or not variant.purchasable:
+        raise VariantUnavailableError(variant_id)
+    free = (await uow.inventory.free_units([variant_id])).get(variant_id, 0)
+    deliverable = availability(
+        free_units=free, wanted=quantity, allow_backorder=variant.allow_backorder
+    )
+    if deliverable is Availability.UNAVAILABLE:
+        raise InsufficientStockError({variant_id: free})
 
 
 def _ready(image: ImageView | None) -> ImageView | None:
@@ -101,15 +132,15 @@ class CartService:
     async def set_quantity(self, cart_id: UUID | None, variant_id: UUID, quantity: int) -> CartView:
         """Put ``quantity`` pieces in the cart, starting a new cart if there is none.
 
-        Only variants on sale go in; taking something out (0) always works.
+        Only variants on sale go in, and more than the shelves hold only if the variant
+        is made to order. Taking something out always works.
         """
         now = self._clock.now()
         async with self._uow() as uow:
-            if quantity > 0:
-                variant = (await uow.catalog.sale_variants([variant_id])).get(variant_id)
-                if variant is None or not variant.purchasable:
-                    raise VariantUnavailableError(variant_id)
             cart = await self._live_cart(uow, cart_id, for_update=True)
+            line = cart.line_for(variant_id) if cart is not None else None
+            if quantity > (line.quantity if line is not None else 0):
+                await _check_deliverable(uow, variant_id, quantity)
             if cart is None:
                 if quantity == 0:
                     return await price_cart(uow, None)

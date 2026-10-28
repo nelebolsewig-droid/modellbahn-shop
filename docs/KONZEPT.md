@@ -33,7 +33,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
    kann die Druckplanung rechnen, und das Lager weiß, welche Teile in welcher Box liegen.
 2. **Kleinteile werden gezählt, fertige Ware wird einzeln geführt.** Ein Schornstein
    in H0 trägt kein Etikett, die Box trägt es. Ein fertiger Bausatz bekommt dagegen
-   einen eigenen QR-Code und ist über seinen ganzen Lebenslauf rückverfolgbar.
+   einen eigenen Code und ist über seinen ganzen Lebenslauf rückverfolgbar.
 3. **Die KI rechnet nicht, sie formuliert.** Prognose und Druckwarteschlange sind
    Mathematik (Croston, ETS, Sicherheitsbestand, Plattenbildung), lokal und
    nachvollziehbar. Das Sprachmodell schreibt Verkaufstexte aus geprüften Fakten.
@@ -102,7 +102,7 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 | Teil | `Part` | Ein druckbares Einzelteil, z. B. „Dach Stellwerk Altenau H0“ |
 | Stückliste | `BillOfMaterials` | Welche Teile in welcher Menge einen Bausatz bilden |
 | Druckplatte, Druckauftrag | `PrintJob` | Ein Druckvorgang; eine Platte trägt oft mehrere Teile |
-| Lagerplatz | `Location` | Lager → Regal → Fach → Box, jede Ebene mit eigenem QR-Code |
+| Lagerplatz | `Location` | Lager → Regal → Fach → Box, jede Ebene mit eigenem Code am Etikett |
 | Einheit, Exemplar | `Unit` | Ein physisches, fertiges Stück mit eigenem Code |
 | Montage | `Assembly` | Teile aus Boxen entnehmen und zu einer Einheit zusammenstellen |
 | Zuteilung | `Allocation` | Welche Ware eine Bestellposition bedient: Einheit, Montage oder Rückstand |
@@ -334,8 +334,7 @@ Verkauf bleiben zusammen, solange kein Grund dagegen spricht.
 | Bilder | **Pillow** + **pillow-heif** | WebP und AVIF; HEIC, weil Handyfotos vom iPhone so ankommen. |
 | 3D-Dateien | **trimesh** | Liest STL, 3MF und OBJ: Dreiecke, Maße, Volumen, Wasserdichtheit. |
 | Dubletten | **imagehash** | Wahrnehmungs-Hash erkennt dasselbe Foto auch nach erneutem Export. |
-| Barcodes | **segno** (QR), **python-barcode** (EAN-13, Code 128) | Reine Python-Bibliotheken, SVG-Ausgabe für gestochen scharfe Etiketten. |
-| Etiketten | **reportlab** (PDF) bzw. **brother_ql** | PDF für Bogenetiketten oder direkt an einen Etikettendrucker im Netz. |
+| Barcodes und Etiketten | **reportlab** (EAN-13, Code 128, PDF) | Ein Paket für Strichcodes und Etiketten, als Vektoren und damit gestochen scharf: A4-Bögen und Brother QL 62 mm, gedruckt aus dem Browser (ADR 0011). |
 | Prognose | **statsforecast** (Nixtla) | ETS, Croston-SBA, TSB, ADIDA: genau die Verfahren für sporadische Nachfrage, lokal und schnell. |
 | Optimierung | eigene Heuristik, später **OR-Tools CP-SAT** | Plattenbildung und Druckerzuteilung erst nachvollziehbar, dann optimal. |
 | Sprachmodell | **Claude Opus 5.5** (`claude-opus-5-5`) über das **Anthropic Python SDK** | Strukturierte Ausgaben gegen ein Pydantic-Schema, Prompt-Caching für den festen Teil, Batch-API zum halben Preis für Massenläufe. |
@@ -348,9 +347,9 @@ Verkauf bleiben zusammen, solange kein Grund dagegen spricht.
 | Gestaltung | **Tailwind CSS v4** mit Design-Tokens (§11) + **Radix**-Primitives | Eigenes, helles Designsystem ohne Template-Optik; Radix sorgt für Tastatur und ARIA. |
 | Serverzustand | **TanStack Query v5** | Optimistische Updates beim Scannen, gezielte Invalidierung per SSE. |
 | API-Client | **Orval** aus OpenAPI | Typisierte Hooks und Zod-Schemas, erzeugt aus dem Backend-Vertrag. |
-| Scan-Sitzung | **XState v5** | Der Scanablauf ist ein Zustandsautomat; XState macht ihn explizit, testbar und darstellbar. |
+| Scan-Sitzung | eigener **Reducer** | Der Scanablauf ist ein kleiner Zustandsautomat; als reine Funktion ist er ohne Browser testbar (ADR 0011). |
 | Globaler UI-Zustand | **Zustand** | Klein und ohne Boilerplate, z. B. für den Scan-Bus. |
-| Kamera-Scan | **html5-qrcode**, nativer **BarcodeDetector**, wo vorhanden | Wie gewünscht, mit schnellerem Weg auf Android-Chrome. |
+| Kamera-Scan | nativer **BarcodeDetector**, sonst **zxing-wasm** (`barcode-detector`) | Eine Schnittstelle auf Android und iPhone; das WebAssembly kommt vom eigenen Server. |
 | Galerie | **Embla Carousel** | Wischgesten, leicht, ohne Fremdgestaltung. |
 | Diagramme | **Recharts** | Dashboard und Prognosekurven. |
 
@@ -601,7 +600,7 @@ erDiagram
     LOCATION {
         uuid id PK
         uuid parent_id FK
-        text code UK "R02-F04-B12, steht im QR-Code"
+        text code UK "R02-F04-B12, steht als Code 128 am Regal"
         text kind "site, shelf, compartment, box, staging"
         ltree path UK "LAGER.R02.F04.B12"
     }
@@ -655,7 +654,7 @@ erDiagram
 | --- | --- | --- |
 | Was | Gedruckte Einzelteile | Fertige Bausätze und Modelle |
 | Geführt als | Menge je Teil und Platz | Jedes Stück einzeln |
-| Etikett | An der Box, nicht am Teil | Am Stück, mit eigenem QR-Code |
+| Etikett | An der Box, nicht am Teil | Am Stück, mit eigenem Code 128 und der EAN der Variante |
 | Entsteht durch | Abschluss eines Druckauftrags | Montage aus Teilen |
 
 **Lagerplätze** bilden einen Baum mit `ltree`-Pfad, etwa `LAGER.R02.F04.B12` für
@@ -668,21 +667,22 @@ Platz, Person und auslösendem Scan. Bei einer Montage verweist jede Teileentnah
 die erzeugte Einheit. Damit ist für jeden ausgelieferten Bausatz nachvollziehbar,
 aus welchen Boxen seine Teile stammen.
 
-**Barcode-Logik:**
+**Barcode-Logik** (Stand Schritt 5, ADR 0011: Strichcodes statt QR, weil die Kasse des
+Inhabers, SumUp, nur Strichcodes liest):
 
 | Code | Symbologie | Inhalt | Beispiel |
 | --- | --- | --- | --- |
-| Einheit | QR | URL mit Einheitencode | `https://shop.example/u/7KQ2X9F4MZ` |
-| Lagerplatz | QR | URL mit Platzcode | `https://shop.example/l/R02-F04-B12` |
-| Variante | EAN-13 | GTIN | `2001234000017` |
-| Teil | Code 128 | Teilenummer | `STW-ALT-DACH-H0` |
+| Einheit | Code 128 | Einheitencode | `7KQ2X9F4MZ`, gelesen `7KQ2 X9F4 MZ` |
+| Lagerplatz | Code 128 | Platzcode | `R02-F04-B12` |
+| Variante | EAN-13 | GTIN, auch in der Kasse | `2001234000017` |
+| Teil | Code 128 | Teilenummer | `STW-ALT-DACH-H0` (Schritt 6) |
 
 - **Einheitencodes** sind 10 Zeichen Crockford-Base32: 9 Zufallszeichen und ein
   Prüfzeichen. Das Alphabet verzichtet auf I, L, O und U; nichts ist verwechselbar,
   und eine falsch abgetippte Stelle fällt auf. 32⁹ ≈ 35 Billionen Möglichkeiten.
-- **QR-Codes tragen eine URL.** Scannt jemand das Etikett mit der normalen
-  Handykamera, öffnet sich die richtige Seite: für angemeldete Mitarbeiter die
-  Einheit im Admin, für Kunden die Produktseite mit Bauanleitung.
+- **Ein Stück trägt zwei Codes:** die EAN der Variante für die Kasse und den Code 128 der
+  Einheit für das Lager. Der Scanner bevorzugt den Einheiten-Code, wenn er beide sieht.
+  Adressen mit `/u/…` und `/l/…` versteht er weiterhin, falls später doch QR-Codes dazukommen.
 - **EAN-13 braucht GS1.** Echte GTINs setzen eine Mitgliedschaft bei GS1 Germany
   voraus. Bis dahin nutzt das System Nummern aus dem Bereich 20–29, der für den
   internen Umlauf reserviert ist. Das Feld ist dasselbe, später werden nur die Nummern ausgetauscht.
@@ -1006,10 +1006,10 @@ getan. Speicher und Einrichtung: ADR 0008.
 
 ```
   Kamera ──────┐
-  (html5-qrcode,│
-  BarcodeDetector)                                     ┌──────────────────────┐
+  (BarcodeDetector,                                    ┌──────────────────────┐
+   sonst zxing-wasm)
                ├──▶ Scan-Bus ──▶ Resolver ──▶ Scan-Sitzung ──▶ Befehl ──▶ │ POST /admin/inventory/scans │
-  Handscanner ─┤    entprellt     erkennt      (XState)        optimistisch└──────────────────────┘
+  Handscanner ─┤    entprellt     erkennt      (Reducer)       nacheinander└──────────────────────┘
   (Tastatur)   │    normalisiert  & prüft      prüft gegen                          │
   Eingabe ─────┘                  Prüfziffern  Modus & Kontext                      ▼
                                                     ▲                   Buchung + Journal + Outbox
@@ -1020,8 +1020,9 @@ getan. Speicher und Einrichtung: ADR 0008.
 **1 · Eingabeadapter.** Alle Quellen liefern dasselbe Ereignis `scan.detected` mit
 Rohwert, Symbologie, Quelle und Zeitstempel.
 
-- *Kamera:* `html5-qrcode`, auf Android-Chrome der schnellere native
-  `BarcodeDetector`. Formate: QR, EAN-13, EAN-8, Code 128.
+- *Kamera:* der native `BarcodeDetector` (Chrome auf Android), sonst dieselbe
+  Schnittstelle aus zxing-wasm, vom eigenen Server geladen. Formate: EAN-13 und
+  Code 128 (ADR 0011).
 - *Handscanner:* Er tippt wie eine Tastatur. Der Adapter erkennt ihn am Rhythmus:
   mindestens sechs Zeichen, weniger als 35 ms Abstand, abgeschlossen mit Enter.
   Menschliches Tippen ist zu langsam, um verwechselt zu werden. Steht der Fokus in
@@ -1042,8 +1043,9 @@ Groß- und Kleinschreibung, URL-Präfixe).
 | Teilenummernmuster | Teil |
 | alles andere | unbekannt; Fehlerton, kein Netzaufruf |
 
-**4 · Scan-Sitzung.** Ein Zustandsautomat je Modus. Er entscheidet, was ein Scan
-*bedeutet*:
+**4 · Scan-Sitzung.** Ein Zustandsautomat als reine Funktion (Reducer, kein XState;
+ADR 0011). Was ein Scan *bedeutet*, entscheidet der Server je Modus. Umgesetzt sind
+Einlagern, Kommissionieren und Auskunft; die übrigen folgen mit der Fertigung:
 
 | Modus | Ablauf |
 | --- | --- |
@@ -1054,9 +1056,9 @@ Groß- und Kleinschreibung, URL-Präfixe).
 | Inventur | Platz scannen → alles scannen, was dort liegt → Abweichungen erscheinen sofort |
 | Auskunft | Irgendetwas scannen → alles dazu anzeigen, nichts buchen |
 
-**5 · Befehl.** Jeder Scan bekommt im Gerät eine UUIDv7 (`scan_id`) und geht als
-TanStack-Mutation an die API. Die Oberfläche bucht optimistisch und rollt bei
-Ablehnung zurück. Ohne Netz wandert der Scan in eine Warteschlange (IndexedDB) und
+**5 · Befehl.** Jeder Scan bekommt im Gerät eine UUID (`scan_id`) und geht an die API,
+einer nach dem anderen, damit der Platz aus dem vorigen Scan mitgeht. Die Oberfläche
+zeigt die Antwort des Servers groß an. Ohne Netz wandert der Scan in eine Warteschlange (IndexedDB) und
 wird mit derselben `scan_id` nachgereicht. Die API erkennt die Wiederholung und
 liefert die gespeicherte Antwort zurück, ohne erneut zu buchen.
 
@@ -1480,7 +1482,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 25.10.2026:** Schritte 1 bis 4 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010).
+**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1488,7 +1490,7 @@ das man anfassen kann.
 | 2 | **Fundament:** Repository-Struktur, Docker Compose, CI, Plattform-Kern (Outbox, Unit of Work, Fehlerformat, IDs, Echtzeit), Identität mit **Kundenkonten** und Mitarbeiterzugang, Architekturregeln | Registrieren, E-Mail bestätigen, anmelden; der Mitarbeiter sieht die Registrierung live im Admin-Bereich |
 | 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Maßstäben und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne; veröffentlichte Produkte stehen im Shop-Katalog und auf ihrer Produktseite |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
-| 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken, mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen |
+| 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken (A4 und Brother QL), mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen, Lieferbarkeit im Shop, Artikelliste für die Kasse |
 | 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |
 | 7 | **KI-Produkttexte** | Text aus Fakten erzeugen, vergleichen, feldweise übernehmen |
 | 8 | **Planung + Dashboard** | Prognose, Druckwarteschlange mit Begründung, Auslastung, Annahme erzeugt Druckauftrag |
@@ -1508,11 +1510,12 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 5 | Wo liegt der Code? | Eigenes Repository |
 | 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
 | 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
+| 8 | Etiketten und Kasse (26.10.2026) | A4-Bögen 70 × 37 mm und Brother QL 62 mm. **Strichcodes statt QR**, weil die Kasse (SumUp) nur Strichcodes liest: EAN-13 je Variante, Code 128 je Stück und Platz. Der Shop liefert die Artikelliste als CSV für die Kasse (ADR 0011) |
+| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe 4 bis 6 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
 
 Noch offen:
 
 | Frage | Wovon es abhängt |
 | --- | --- |
-| Etikettendrucker | Das Gerät bestimmt Etikettenformat und Druckweg (Brother QL, Zebra oder A4-Bögen). Spätestens vor Schritt 5. |
 | Zahlungsanbieter | Bis dahin bezahlt der Shop mit einer sichtbaren Testzahlung (ADR 0009). Vor dem Start mit echtem Geld wird ein Anbieter als weiterer Adapter angebunden, mit Webhooks. |
 | Name des Shops, Domain, Angaben fürs Impressum | Gebraucht für E-Mails, Rechtstexte und den Start. Bis dahin ist der Name konfigurierbar. |

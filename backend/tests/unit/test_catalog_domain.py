@@ -29,6 +29,7 @@ from modellbahn.modules.catalog.domain.model import (
     Product,
     ProductStatus,
     Scale,
+    Variant,
     VariantDraft,
     check_price,
     ean13_check_digit,
@@ -144,6 +145,11 @@ class TestNumbers:
                 decode_cursor(broken)
 
 
+def weeks(variant: Variant) -> tuple[int, int] | None:
+    """The lead time, read afresh (an earlier assert must not narrow it for mypy)."""
+    return variant.lead_time_weeks
+
+
 class TestGaugesAndVariants:
     def test_each_scale_once_and_each_finish_once_per_scale(self) -> None:
         item = product()
@@ -178,6 +184,56 @@ class TestGaugesAndVariants:
         assert (variant.price_cents, variant.compare_at_price_cents) == (6990, None)
         with pytest.raises(VariantNotFoundError):
             item.change_variant(uuid4(), active=False, now=NOW)
+
+    def test_made_to_order_always_has_a_lead_time(self) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+        stocked = item.add_variant(
+            scale.id, VariantDraft(finish=PAINTED, price_cents=4990), gtin="2x", now=NOW
+        )
+        assert weeks(stocked) is None
+        # Switched to made to order without a lead time: the default of 4 to 6 weeks.
+        item.change_variant(stocked.id, allow_backorder=True, now=NOW)
+        assert weeks(stocked) == (4, 6)
+        item.change_variant(stocked.id, lead_time_weeks=(8, 12), now=NOW)
+        assert (stocked.lead_time_min_weeks, stocked.lead_time_max_weeks) == (8, 12)
+        # Clearing it while made to order brings the default back.
+        item.change_variant(stocked.id, lead_time_weeks=None, now=NOW)
+        assert weeks(stocked) == (4, 6)
+        item.change_variant(stocked.id, allow_backorder=False, lead_time_weeks=None, now=NOW)
+        assert weeks(stocked) is None
+        made = item.add_variant(
+            scale.id,
+            VariantDraft(
+                finish=UNPAINTED, price_cents=2990, allow_backorder=True, lead_time_weeks=(2, 2)
+            ),
+            gtin="2y",
+            now=NOW,
+        )
+        assert weeks(made) == (2, 2)
+
+    @pytest.mark.parametrize(
+        ("weeks", "field"),
+        [
+            ((0, 4), "lead_time_min_weeks"),
+            ((53, 60), "lead_time_min_weeks"),
+            ((6, 4), "lead_time_max_weeks"),
+            ((4, 53), "lead_time_max_weeks"),
+        ],
+    )
+    def test_lead_times_stay_within_a_year(self, weeks: tuple[int, int], field: str) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+        with pytest.raises(InvalidFieldError) as error:
+            item.add_variant(
+                scale.id,
+                VariantDraft(
+                    finish=PAINTED, price_cents=1, allow_backorder=True, lead_time_weeks=weeks
+                ),
+                gtin="2x",
+                now=NOW,
+            )
+        assert error.value.field == field
 
     def test_removing_a_scale_untags_its_photos(self) -> None:
         item = product()

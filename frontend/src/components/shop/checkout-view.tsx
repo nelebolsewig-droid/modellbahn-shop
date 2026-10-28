@@ -10,6 +10,7 @@ import { useForm, useWatch, type FieldErrors, type Resolver } from "react-hook-f
 
 import { FormError } from "@/components/forms/form-error";
 import { AddressFields } from "@/components/shop/address-fields";
+import { DeliveryNote } from "@/components/shop/cart-view";
 import { OrderTotals } from "@/components/shop/order-totals";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,12 @@ import { cn } from "@/lib/utils";
 import { checkoutSchema, EMPTY_ADDRESS, type CheckoutNeeds, type CheckoutValues } from "@/lib/validation/checkout";
 
 const NEW_ADDRESS = "new";
-const CART_PROBLEMS: ReadonlySet<string> = new Set(["price_changed", "cart_items_unavailable", "cart_empty"]);
+const CART_PROBLEMS: ReadonlySet<string> = new Set([
+  "price_changed",
+  "cart_items_unavailable",
+  "cart_empty",
+  "insufficient_stock",
+]);
 const FIELDS = ["email", "recipient", "street", "postal_code", "city", "country_code"] as const;
 
 /** The checkout: contact, shipping address and the binding order. */
@@ -68,7 +74,7 @@ export function CheckoutView() {
           <p>
             {cart.data.lines.length === 0
               ? "Leg zuerst etwas in den Warenkorb, dann geht es hier weiter."
-              : "Einige Artikel sind nicht mehr erhältlich. Entferne sie im Warenkorb, dann geht es weiter."}
+              : "Einige Artikel sind nicht mehr erhältlich oder nicht in dieser Menge vorrätig. Passe den Warenkorb an, dann geht es weiter."}
           </p>
         </Alert>
         <Button asChild variant="secondary">
@@ -242,6 +248,8 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
           ))}
         </ul>
         <OrderTotals totals={totals} countryName={country.name} className="mt-6 border-t border-line pt-6" />
+        {/* The delivery time belongs on the page before the binding order. */}
+        <DeliveryNote cart={cart} className="mt-6" />
         <FormError message={formError} className="mt-6" />
         <Button type="submit" className="mt-6 w-full" disabled={isSubmitting} aria-busy={isSubmitting || undefined}>
           {isSubmitting ? "Bestellung wird angelegt …" : "Zahlungspflichtig bestellen"}

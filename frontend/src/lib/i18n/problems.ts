@@ -65,6 +65,29 @@ export const PROBLEM_MESSAGES: Messages = {
     "Der Zahlungsdienst ist gerade nicht erreichbar. Es wurde nichts abgebucht; versuche es bitte gleich noch einmal.",
   address_not_found: "Diese Adresse gibt es nicht mehr.",
   address_book_full: "Dein Adressbuch ist voll. Lösche bitte zuerst eine Adresse.",
+  insufficient_stock:
+    "So viele haben wir gerade nicht vorrätig. Bitte verringere die Menge oder sieh später noch einmal nach.",
+  order_not_picked:
+    "Die Bestellung ist noch nicht vollständig kommissioniert. Scanne zuerst alle Stücke.",
+
+  // Inventory
+  location_not_found: "Diesen Lagerplatz gibt es nicht.",
+  location_code_taken: "Einen Lagerplatz mit diesem Code gibt es schon.",
+  location_not_empty: "Der Lagerplatz ist nicht leer: Es liegt Ware darin oder es gibt Plätze darunter.",
+  location_in_use:
+    "Hier lag schon einmal Ware. Der Lagerplatz bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist.",
+  unit_not_found: "Diese Einheit gibt es nicht.",
+  invalid_unit_state: "Das ist im aktuellen Zustand der Einheit nicht möglich.",
+  variant_has_units:
+    "Von dieser Variante gibt es Einheiten im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
+  order_not_allocatable: "Nur bezahlte Bestellungen bekommen Ware zugeteilt.",
+  scan_id_reused: "Dieser Scan wurde schon mit anderem Inhalt gesendet. Bitte scanne erneut.",
+  scan_not_found: "Diesen Scan gibt es nicht.",
+  scan_already_undone: "Dieser Scan ist schon rückgängig gemacht.",
+  scan_too_old: "Rückgängig geht nur zehn Minuten lang. Buche die Einheit stattdessen um.",
+  scan_nothing_booked: "Dieser Scan hat nichts gebucht; es gibt nichts rückgängig zu machen.",
+  scan_changed_since:
+    "Die Einheit wurde inzwischen weiter bewegt. Rückgängig ist deshalb nicht mehr möglich.",
 
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",
@@ -119,6 +142,8 @@ export const FIELD_MESSAGES: Messages = {
   too_large: "Die Datei ist größer als 50 MB.",
   invalid_filename: "Der Dateiname ist leer oder zu lang.",
   not_shipped: "Dorthin liefern wir leider nicht.",
+  invalid_parent: "Diese Art von Lagerplatz gehört nicht an diese Stelle.",
+  holds_no_goods: "In diesen Lagerplatz kommt keine Ware: nur Fächer, Boxen und Ablagen nehmen Ware auf.",
 };
 
 const PASSWORD_MESSAGES: Messages = {
@@ -162,6 +187,9 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
     out_of_range: "Bitte eine Spurweite über 0 mm.",
   },
   postal_code: { invalid: "Bitte prüfe die Postleitzahl (Deutschland 5, Österreich 4 Ziffern)." },
+  segment: { invalid: "Ein bis acht Großbuchstaben oder Ziffern, z. B. R02 oder B12." },
+  lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
+  lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },
   street: { required: "Bitte gib Straße und Hausnummer ein." },
   city: { required: "Bitte gib den Ort ein." },

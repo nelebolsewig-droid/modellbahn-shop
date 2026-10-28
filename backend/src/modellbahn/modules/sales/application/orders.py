@@ -17,7 +17,7 @@ from modellbahn.modules.sales.application.ports import (
     PaymentGateway,
     SalesUnitOfWork,
 )
-from modellbahn.modules.sales.domain.errors import OrderNotFoundError
+from modellbahn.modules.sales.domain.errors import OrderNotFoundError, OrderNotPickedError
 from modellbahn.modules.sales.domain.model import (
     PAYMENT_TIMEOUT,
     CancelReason,
@@ -88,8 +88,13 @@ class OrderService:
             return await order_details(uow, order)
 
     async def ship(self, order_id: UUID, *, carrier: str, tracking_number: str) -> OrderDetails:
+        """Ship a paid order whose pieces are all picked (the workshop scanned each one)."""
         async with self._uow() as uow:
             order = await self._locked(uow, order_id)
+            if order.status is OrderStatus.PAID:
+                progress = await uow.inventory.pick_progress(order.id)
+                if not progress.is_complete:
+                    raise OrderNotPickedError(picked=progress.picked, total=progress.total)
             uow.publish(
                 order.ship(carrier=carrier, tracking_number=tracking_number, now=self._clock.now())
             )

@@ -58,7 +58,7 @@ async def get_cart(cart: CartId, service: CartServiceDep, response: Response) ->
     "/cart/lines/{variant_id}",
     operation_id="setCartLine",
     summary="Set how many pieces of a variant are in the cart (0 takes it out)",
-    responses=problems({409: ["variant_unavailable", "cart_full"]}),
+    responses=problems({409: ["variant_unavailable", "insufficient_stock", "cart_full"]}),
 )
 async def set_cart_line(
     variant_id: UUID,
@@ -101,6 +101,7 @@ async def remove_cart_line(
             409: [
                 "cart_empty",
                 "cart_items_unavailable",
+                "insufficient_stock",
                 "price_changed",
                 "idempotency_key_reused",
             ],

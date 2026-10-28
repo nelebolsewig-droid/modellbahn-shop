@@ -7,17 +7,28 @@ import pytest
 from httpx import AsyncClient, Response
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.api.deps import CHECKOUT_RATE_LIMITER
 from modellbahn.platform.mail import InMemoryMailer
 from modellbahn.platform.ratelimit import RateLimiter
-from tests.api.helpers import EMAIL, SHOP, STORE, ClientFactory, assert_problem, cookie_attributes
+from tests.api.helpers import (
+    EMAIL,
+    SHOP,
+    STORE,
+    ClientFactory,
+    assert_problem,
+    cookie_attributes,
+)
 from tests.conftest import Deliver
+from tests.inventory_support import stock_up
 from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import shop_product, variant_id
 from tests.support import mails_to
 
 ADMIN_ORDERS = "/api/v1/admin/orders"
+INVENTORY = "/api/v1/admin/inventory"
 ADDRESS = {
     "recipient": "Erika Mustermann",
     "street": "Bahnhofstraße 12",
@@ -40,6 +51,26 @@ async def product(
 @pytest.fixture
 def painted(product: ProductDetails) -> UUID:
     return variant_id(product, "H0", "painted")
+
+
+async def pick_via_api(staff: AsyncClient, order_id: str) -> None:
+    """Scan every reserved unit of the order in pick mode, as the packer's phone does."""
+    pick_list = (await staff.get(f"{INVENTORY}/orders/{order_id}/pick-list")).json()
+    for item in pick_list["items"]:
+        if item["state"] == "reserved":
+            answer = await staff.post(
+                f"{INVENTORY}/scans",
+                json={
+                    "scan_id": str(uuid4()),
+                    "raw": item["unit_code"],
+                    "mode": "pick",
+                    "source": "scanner",
+                    "context": {"order_id": order_id},
+                },
+            )
+            assert answer.json()["outcome"] == "applied", answer.text
+    final = (await staff.get(f"{INVENTORY}/orders/{order_id}/pick-list")).json()
+    assert final["complete"], str(final["items"])
 
 
 async def put_line(client: AsyncClient, variant: UUID, quantity: int) -> Response:
@@ -311,7 +342,10 @@ class TestAdmin:
         deliver: Deliver,
         mailer: InMemoryMailer,
         painted: UUID,
+        locations: LocationService,
+        units: UnitService,
     ) -> None:
+        await stock_up(locations, units, painted, quantity=2)
         order = await paid_order(client, painted)
         await put_line(client, painted, 1)
         open_order = (await checkout(client, email="otto@example.de")).json()
@@ -332,6 +366,13 @@ class TestAdmin:
         assert detail["customer_account_id"] is None
 
         paid_id = listing.json()["items"][1]["id"]
+        assert_problem(
+            await staff_client.post(f"{ADMIN_ORDERS}/{paid_id}/ship", json={}),
+            409,
+            "order_not_picked",
+        )
+        await deliver()
+        await pick_via_api(staff_client, paid_id)
         shipped = await staff_client.post(
             f"{ADMIN_ORDERS}/{paid_id}/ship", json={"carrier": "DHL", "tracking_number": "0034"}
         )
@@ -354,11 +395,20 @@ class TestAdmin:
         assert mails_to(mailer, "gast@example.de")[-1].subject.endswith("ist unterwegs")
         assert "storniert" in mails_to(mailer, "otto@example.de")[-1].subject
 
-    async def test_packers_ship_but_do_not_cancel(
-        self, client: AsyncClient, packer_client: AsyncClient, painted: UUID
+    async def test_packers_pick_and_ship_but_do_not_cancel(
+        self,
+        client: AsyncClient,
+        packer_client: AsyncClient,
+        painted: UUID,
+        deliver: Deliver,
+        locations: LocationService,
+        units: UnitService,
     ) -> None:
+        await stock_up(locations, units, painted, quantity=2)
         await paid_order(client, painted)
+        await deliver()
         (summary,) = (await packer_client.get(ADMIN_ORDERS)).json()["items"]
+        await pick_via_api(packer_client, summary["id"])
         assert_problem(
             await packer_client.post(f"{ADMIN_ORDERS}/{summary['id']}/cancel", json={}),
             403,

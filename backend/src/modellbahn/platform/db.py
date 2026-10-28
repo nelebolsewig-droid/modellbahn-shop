@@ -5,6 +5,7 @@ from typing import Any, Final
 
 import asyncpg
 from sqlalchemy import MetaData, Text
+from sqlalchemy.dialects.postgresql.base import ischema_names
 from sqlalchemy.engine import Dialect, make_url
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import registry
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 # Every constraint gets a predictable name. The hand-written migrations use exactly
 # these names, so that errors can be matched on them and future migrations can
@@ -54,6 +55,23 @@ class StrEnumType[E: StrEnum](TypeDecorator[E]):
 
     def process_result_value(self, value: Any, dialect: Dialect) -> E | None:
         return None if value is None else self.enum_class(value)
+
+
+class Ltree(UserDefinedType[str]):
+    """PostgreSQL ``ltree`` (extension): a label path such as ``LAGER.R02.F04``.
+
+    A GiST index answers "everything below R02" (``path <@ 'LAGER.R02'``) in one indexed
+    query. Values travel as text.
+    """
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "LTREE"
+
+
+# Reflection (used when tests compare the tables with the migrations) learns the type too.
+ischema_names["ltree"] = Ltree
 
 
 def create_engine(database_url: str) -> AsyncEngine:

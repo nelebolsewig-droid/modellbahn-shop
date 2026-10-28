@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { assetIdOf, mergeFeed, orderEventOf, parseFeedEntry, STAFF_EVENT_TYPES, type FeedEntry } from "./events";
+import {
+  assetIdOf,
+  mergeFeed,
+  orderEventOf,
+  parseFeedEntry,
+  STAFF_EVENT_TYPES,
+  stockEventOf,
+  type FeedEntry,
+} from "./events";
 
 function message(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -72,6 +80,7 @@ describe("parseFeedEntry", () => {
       "sales.order.paid",
       "sales.order.shipped",
       "sales.order.cancelled",
+      "inventory.allocation.backordered",
     ]);
   });
 
@@ -114,6 +123,46 @@ describe("orderEventOf", () => {
     "is null for anything else (%s)",
     (_, raw) => {
       expect(orderEventOf(raw)).toBeNull();
+    },
+  );
+});
+
+describe("stockEventOf", () => {
+  it("reads unit, variant, order and both locations of a stock change", () => {
+    const raw = message({
+      type: "inventory.stock.changed",
+      data: {
+        unit_id: "u1",
+        unit_code: "J4WZXRT2S2",
+        variant_id: "v1",
+        reason: "move",
+        status: "in_stock",
+        location_code: "R01-F02",
+        previous_location_code: "R01-F01",
+        order_id: null,
+      },
+    });
+    expect(stockEventOf(raw)).toEqual({
+      type: "inventory.stock.changed",
+      variantId: "v1",
+      orderId: null,
+      unitCode: "J4WZXRT2S2",
+      locationCodes: ["R01-F02", "R01-F01"],
+    });
+  });
+
+  it("reads the code of a changed location", () => {
+    const raw = message({
+      type: "inventory.location.changed",
+      data: { location_id: "l1", code: "R03", change: "created" },
+    });
+    expect(stockEventOf(raw)?.locationCodes).toEqual(["R03"]);
+  });
+
+  it.each([["not json", "{"], ["an order event", message({ type: "sales.order.paid", data: { order_id: "o1" } })]])(
+    "is null for anything else (%s)",
+    (_, raw) => {
+      expect(stockEventOf(raw)).toBeNull();
     },
   );
 });

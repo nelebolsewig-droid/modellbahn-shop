@@ -9,6 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modellbahn.modules.inventory.contracts.availability import Availability
 from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
@@ -155,12 +156,23 @@ class CartLineOut(BaseModel):
     unit_price_cents: Cents
     compare_at_price_cents: Cents | None
     line_total_cents: Cents
-    available: bool = Field(description="False if the variant is no longer for sale.")
+    available: bool = Field(
+        description="False if the variant is no longer for sale, or not deliverable in "
+        "this quantity (not enough in stock and not made to order)."
+    )
+    availability: Availability = Field(
+        description="`in_stock`: ships at once; `made_to_order`: printed for the customer; "
+        "`unavailable`: cannot be ordered like this."
+    )
+    free_units: int = Field(description="Units of the variant on the shelves right now.")
+    lead_time_min_weeks: int | None = Field(description="Set for variants made to order.")
+    lead_time_max_weeks: int | None
     image: LineImageOut | None
 
     @classmethod
     def from_item(cls, item: CartItem) -> Self:
         variant = item.variant
+        lead_time = variant.lead_time_weeks if variant.allow_backorder else None
         return cls(
             variant_id=variant.variant_id,
             product_slug=variant.product_slug,
@@ -175,6 +187,10 @@ class CartLineOut(BaseModel):
             compare_at_price_cents=variant.compare_at_price_cents,
             line_total_cents=item.line_total_cents,
             available=item.available,
+            availability=item.availability,
+            free_units=item.free_units,
+            lead_time_min_weeks=lead_time[0] if lead_time else None,
+            lead_time_max_weeks=lead_time[1] if lead_time else None,
             image=LineImageOut.from_view(item.image),
         )
 

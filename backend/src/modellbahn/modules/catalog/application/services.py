@@ -13,6 +13,7 @@ from uuid import UUID
 
 from modellbahn.modules.catalog.application.cursors import decode_cursor, encode_cursor
 from modellbahn.modules.catalog.application.ports import (
+    Article,
     CatalogUnitOfWork,
     ProductCursor,
     ProductOrder,
@@ -29,6 +30,7 @@ from modellbahn.modules.catalog.domain.errors import (
     SlugTakenError,
     UnknownReferenceError,
     VariantAlreadyExistsError,
+    VariantHasUnitsError,
     VariantNotFoundError,
     VersionMismatchError,
 )
@@ -50,7 +52,11 @@ from modellbahn.modules.catalog.domain.text import check_slug, slugify
 from modellbahn.modules.media.contracts.images import AssetStatus, ImageView
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
-from modellbahn.platform.uow import ConcurrentUpdateError, UniqueViolationError
+from modellbahn.platform.uow import (
+    ConcurrentUpdateError,
+    ForeignKeyViolationError,
+    UniqueViolationError,
+)
 
 type UnitOfWorkFactory = Callable[[], CatalogUnitOfWork]
 type ProductChange = Callable[[CatalogUnitOfWork, Product, datetime], Awaitable[list[DomainEvent]]]
@@ -60,6 +66,7 @@ STORE_PAGE_MAX: Final = 48
 # Images that may join a gallery: the upload is complete (processing may still run).
 _ATTACHABLE: Final = frozenset({AssetStatus.UPLOADED, AssetStatus.READY})
 # Unique constraints that stand for a rule of the model.
+_UNITS_OF_VARIANT: Final = "fk_units_variant_id_variants"
 _UNIQUE_RULES: Final[dict[str, type[Exception]]] = {
     "uq_products_slug": SlugTakenError,
     "uq_categories_slug": SlugTakenError,
@@ -158,6 +165,11 @@ class CatalogService:
     async def references(self) -> References:
         async with self._uow() as uow:
             return await _references(uow)
+
+    async def articles(self) -> list[Article]:
+        """The article list for the till: every variant with EAN, article number and price."""
+        async with self._uow() as uow:
+            return await uow.products.articles()
 
     async def navigation(self) -> Navigation:
         async with self._uow() as uow:
@@ -369,6 +381,7 @@ class CatalogService:
         price_cents: int,
         compare_at_price_cents: int | None = None,
         allow_backorder: bool = False,
+        lead_time_weeks: tuple[int, int] | None = None,
         active: bool = True,
     ) -> ProductDetails:
         async def change(
@@ -379,6 +392,7 @@ class CatalogService:
                 price_cents=price_cents,
                 compare_at_price_cents=compare_at_price_cents,
                 allow_backorder=allow_backorder,
+                lead_time_weeks=lead_time_weeks,
                 active=active,
             )
             # Drawn before the checks: a refused variant leaves a gap, which is harmless.
@@ -396,6 +410,7 @@ class CatalogService:
         price_cents: Maybe[int] = UNSET,
         compare_at_price_cents: Maybe[int | None] = UNSET,
         allow_backorder: Maybe[bool] = UNSET,
+        lead_time_weeks: Maybe[tuple[int, int] | None] = UNSET,
         active: Maybe[bool] = UNSET,
     ) -> ProductDetails:
         async def change(
@@ -406,6 +421,7 @@ class CatalogService:
                 price_cents=price_cents,
                 compare_at_price_cents=compare_at_price_cents,
                 allow_backorder=allow_backorder,
+                lead_time_weeks=lead_time_weeks,
                 active=active,
                 now=now,
             )
@@ -614,6 +630,11 @@ async def _commit(uow: CatalogUnitOfWork) -> None:
         await uow.commit()
     except ConcurrentUpdateError as exc:
         raise VersionMismatchError from exc
+    except ForeignKeyViolationError as exc:
+        # The inventory refers to variants it has units of; removing them would lose history.
+        if exc.constraint != _UNITS_OF_VARIANT:
+            raise
+        raise VariantHasUnitsError from exc
     except UniqueViolationError as exc:
         rule = _UNIQUE_RULES.get(exc.constraint or "")
         if rule is None:

@@ -375,7 +375,7 @@ export const useCancelOrder = <TError = ErrorType<Problem | ValidationProblem>,
 }
 
 /**
- * @summary Mark a paid order as shipped (the customer gets an e-mail)
+ * @summary Ship a paid, completely picked order (the customer gets an e-mail)
  */
 export const shipOrder = async (orderId: string,
     shipIn: ShipIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
@@ -442,7 +442,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ShipOrderMutationVariables = {orderId: string;data: ShipIn}
 
     /**
- * @summary Mark a paid order as shipped (the customer gets an e-mail)
+ * @summary Ship a paid, completely picked order (the customer gets an e-mail)
  */
 export const useShipOrder = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shipOrder>>, TError,ShipOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
