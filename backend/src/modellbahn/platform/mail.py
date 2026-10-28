@@ -71,13 +71,19 @@ class Mailer(Protocol):
         ...
 
 
-def compose(content: MailContent, *, to: str, shop_name: str) -> OutgoingMail:
-    """Render ``content`` in the shop's German layout."""
+def compose(
+    content: MailContent, *, to: str, shop_name: str, sender: Sequence[str] = ()
+) -> OutgoingMail:
+    """Render ``content`` in the shop's German layout.
+
+    ``sender`` are the lines that say who sent the mail (name, address, contact), set
+    small at the very end, as the footer of a business letter.
+    """
     return OutgoingMail(
         to=to,
         subject=content.subject,
-        text=_render_text(content, shop_name),
-        html=_render_html(content, shop_name),
+        text=_render_text(content, shop_name, sender),
+        html=_render_html(content, shop_name, sender),
     )
 
 
@@ -85,7 +91,7 @@ _LABEL_WIDTH: Final = 40
 _FOOTER: Final = "Diese E-Mail wurde automatisch versendet. Antworten darauf erreichen niemanden."
 
 
-def _render_text(content: MailContent, shop_name: str) -> str:
+def _render_text(content: MailContent, shop_name: str, sender: Sequence[str]) -> str:
     blocks = [content.greeting, *content.paragraphs]
     if content.rows:
         blocks.append(_text_table(content.rows))
@@ -93,7 +99,7 @@ def _render_text(content: MailContent, shop_name: str) -> str:
         blocks.append(f"{content.action.label}:\n{content.action.url}")
     blocks.extend(content.closing)
     blocks.append(f"Viele Grüße\n{shop_name}")
-    blocks.append(f"-- \n{_FOOTER}")
+    blocks.append("\n".join(["-- ", *sender, _FOOTER]))
     return "\n\n".join(blocks) + "\n"
 
 
@@ -127,7 +133,7 @@ def _html_table(rows: Sequence[MailRow]) -> str:
     )
 
 
-def _render_html(content: MailContent, shop_name: str) -> str:
+def _render_html(content: MailContent, shop_name: str, sender: Sequence[str]) -> str:
     def paragraph(text: str) -> str:
         return f'<p style="margin:0 0 16px">{html.escape(text)}</p>'
 
@@ -157,9 +163,17 @@ def _render_html(content: MailContent, shop_name: str) -> str:
         'border-radius:6px">\n'
         f"{body}\n"
         f'<hr style="border:none;border-top:1px solid #d5d4ca;margin:24px 0">'
+        f"{_html_sender(sender)}"
         f'<p style="margin:0;font-size:12px;color:#666">{html.escape(_FOOTER)}</p>\n'
         "</div>\n</body>\n</html>\n"
     )
+
+
+def _html_sender(sender: Sequence[str]) -> str:
+    if not sender:
+        return ""
+    lines = "<br>".join(html.escape(line) for line in sender)
+    return f'<p style="margin:0 0 8px;font-size:12px;color:#666">{lines}</p>'
 
 
 class SmtpMailer:

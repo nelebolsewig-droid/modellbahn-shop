@@ -4,7 +4,7 @@ Repositories only read and stage changes; committing is the unit of work's job.
 """
 
 from collections.abc import Collection
-from datetime import datetime
+from datetime import date, datetime
 from functools import partial
 from uuid import UUID
 
@@ -28,6 +28,8 @@ from modellbahn.modules.sales.infrastructure.tables import (
     order_number_seq,
     orders,
 )
+from modellbahn.modules.site.contracts.fairs import load_next_fair
+from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.uow import UnitOfWork
 
 
@@ -201,6 +203,16 @@ class SqlInventory:
         return await load_pick_progress(self._uow, order_id)
 
 
+class SqlFairs:
+    """The site module's fair facade, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def next_fair(self, today: date) -> NextFair | None:
+        return await load_next_fair(self._uow, today)
+
+
 class SqlSalesUnitOfWork(UnitOfWork):
     """Unit of work with the sales repositories attached."""
 
@@ -211,6 +223,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     images: SqlImages
     accounts: SqlAccounts
     inventory: SqlInventory
+    fairs: SqlFairs
 
     def __init__(
         self, session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str
@@ -227,6 +240,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.images = SqlImages(self, self._public_base_url)
         self.accounts = SqlAccounts(self)
         self.inventory = SqlInventory(self)
+        self.fairs = SqlFairs(self)
 
 
 def sales_uow_factory(

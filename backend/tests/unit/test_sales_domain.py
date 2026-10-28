@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.domain.errors import (
     AddressBookFullError,
     CartFullError,
@@ -46,6 +47,8 @@ from modellbahn.modules.sales.domain.model import (
     order_number,
     shipping_zone,
 )
+from modellbahn.modules.site.contracts.next_fair import NextFair
+from modellbahn.platform.mail import compose
 
 NOW = datetime(2026, 10, 25, 9, 0, tzinfo=UTC)
 EU_MEMBER_STATES: Final = 27
@@ -460,3 +463,43 @@ class TestAddressBook:
         later = NOW + timedelta(days=1)
         entry.change(label="Büro", address=address("AT", "6020"), now=later)
         assert (entry.label, entry.address.country_code, entry.updated_at) == ("Büro", "AT", later)
+
+
+class TestMails:
+    def test_receipt_and_dispatch_name_the_next_fair(self) -> None:
+        order, _ = placed()
+        fair = NextFair(
+            name="Kleinserienmesse Dresden",
+            city="Dresden",
+            venue="JohannStadthalle",
+            booth="",
+            starts_on=datetime(2026, 11, 7, tzinfo=UTC).date(),
+            ends_on=datetime(2026, 11, 7, tzinfo=UTC).date(),
+        )
+        receipt = mails.received_mail(
+            order, base_url="https://shop.test", shop_name="adp-Modelle", next_fair=fair
+        )
+        hint = receipt.closing[-1]
+        assert "„Kleinserienmesse Dresden“" in hint
+        assert "7. November 2026, JohannStadthalle, Dresden" in hint
+        assert hint.endswith("Alle Termine: https://shop.test/termine")
+        shipped = mails.shipped_mail(order, base_url="https://shop.test", next_fair=fair)
+        assert shipped.closing[-1] == hint
+
+    def test_without_a_fair_the_mails_stay_as_they_were(self) -> None:
+        order, _ = placed()
+        shipped = mails.shipped_mail(order, base_url="https://shop.test")
+        assert shipped.closing == ("Viel Freude beim Bauen!",)
+
+
+class TestSenderFooter:
+    def test_every_mail_ends_with_who_sent_it(self) -> None:
+        order, _ = placed()
+        content = mails.shipped_mail(order, base_url="https://shop.test")
+        sender = (
+            "adp-Modelle · Johann-Leon Diesterhaupt",
+            "Glambecker Straße 2, 17235 Neustrelitz",
+        )
+        rendered = compose(content, to=order.email, shop_name="adp-Modelle", sender=sender)
+        assert "-- \nadp-Modelle · Johann-Leon Diesterhaupt\nGlambecker Straße 2" in rendered.text
+        assert "Glambecker Straße 2, 17235 Neustrelitz" in rendered.html

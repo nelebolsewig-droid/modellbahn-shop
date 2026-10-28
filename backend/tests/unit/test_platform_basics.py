@@ -2,6 +2,7 @@
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any, Final
 
 import pytest
 from pydantic import ValidationError
@@ -13,6 +14,17 @@ from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
 
 OWN_KEY = "GK0123456789abcdef01234567"
+
+
+# The provider details production insists on (§ 5 DDG).
+IMPRINT: Final[dict[str, Any]] = {
+    "imprint_company": "Gleiswerk",
+    "imprint_owner": "Erika Mustermann",
+    "imprint_street": "Bahnhofstraße 1",
+    "imprint_postal_code": "38707",
+    "imprint_city": "Altenau",
+    "imprint_email": "info@gleiswerk.example",
+}
 
 
 class TestSettings:
@@ -32,9 +44,24 @@ class TestSettings:
     def test_production_refuses_insecure_cookies(self) -> None:
         with pytest.raises(ValidationError, match="MB_COOKIE_SECURE"):
             Settings(
-                environment=Environment.PRODUCTION, cookie_secure=False, s3_access_key_id=OWN_KEY
+                environment=Environment.PRODUCTION,
+                cookie_secure=False,
+                s3_access_key_id=OWN_KEY,
+                **IMPRINT,
             )
-        assert Settings(environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY).is_production
+        production = Settings(
+            environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY, **IMPRINT
+        )
+        assert production.is_production
+
+    def test_production_needs_the_imprint(self) -> None:
+        with pytest.raises(ValidationError, match="MB_IMPRINT_"):
+            Settings(environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY)
+
+    def test_vat_id_is_checked_and_tidied(self) -> None:
+        assert Settings(imprint_vat_id="de 123 456 789").imprint.vat_id == "DE123456789"
+        with pytest.raises(ValidationError, match="nine digits"):
+            Settings(imprint_vat_id="DE12345")
 
     def test_production_refuses_the_development_storage_key(self) -> None:
         with pytest.raises(ValidationError, match="development storage key"):

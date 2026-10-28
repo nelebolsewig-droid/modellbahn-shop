@@ -8,6 +8,8 @@ Delivery is at least once. Adopting and removing are idempotent by nature; a not
 e-mail may in rare cases be sent twice.
 """
 
+from collections.abc import Sequence
+
 import structlog
 
 from modellbahn.modules.identity.contracts.events import AccountDeleted, EmailVerified
@@ -20,6 +22,7 @@ from modellbahn.modules.sales.domain.events import (
     OrderShipped,
 )
 from modellbahn.modules.sales.domain.model import Order
+from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
 from modellbahn.platform.mail import MailContent, Mailer, compose
@@ -37,12 +40,14 @@ class SalesHandlers:
         clock: Clock,
         public_base_url: str,
         shop_name: str,
+        sender: Sequence[str] = (),
     ) -> None:
         self._uow = uow_factory
         self._mailer = mailer
         self._clock = clock
         self._base_url = public_base_url
         self._shop_name = shop_name
+        self._sender = tuple(sender)
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -84,7 +89,12 @@ class SalesHandlers:
     async def send_receipt(self, event: OrderPlaced) -> None:
         order = await self._order(event)
         if order is not None:
-            content = mails.received_mail(order, base_url=self._base_url, shop_name=self._shop_name)
+            content = mails.received_mail(
+                order,
+                base_url=self._base_url,
+                shop_name=self._shop_name,
+                next_fair=await self._next_fair(),
+            )
             await self._send(event, order, content)
 
     async def send_confirmation(self, event: OrderPaid) -> None:
@@ -98,13 +108,21 @@ class SalesHandlers:
     async def send_shipped_notice(self, event: OrderShipped) -> None:
         order = await self._order(event)
         if order is not None:
-            await self._send(event, order, mails.shipped_mail(order, base_url=self._base_url))
+            content = mails.shipped_mail(
+                order, base_url=self._base_url, next_fair=await self._next_fair()
+            )
+            await self._send(event, order, content)
 
     async def send_cancellation_notice(self, event: OrderCancelled) -> None:
         order = await self._order(event)
         if order is not None:
             content = mails.cancelled_mail(order, base_url=self._base_url, refunded=event.refunded)
             await self._send(event, order, content)
+
+    async def _next_fair(self) -> NextFair | None:
+        today = self._clock.now().astimezone(mails.SHOP_TIME_ZONE).date()
+        async with self._uow() as uow:
+            return await uow.fairs.next_fair(today)
 
     async def _order(self, event: DomainEvent) -> Order | None:
         async with self._uow() as uow:
@@ -114,7 +132,9 @@ class SalesHandlers:
         return order
 
     async def _send(self, event: DomainEvent, order: Order, content: MailContent) -> None:
-        await self._mailer.send(compose(content, to=order.email, shop_name=self._shop_name))
+        await self._mailer.send(
+            compose(content, to=order.email, shop_name=self._shop_name, sender=self._sender)
+        )
         _logger.info(
             "sales.mail.sent",
             event_id=str(event.event_id),

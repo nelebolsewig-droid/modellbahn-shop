@@ -5,7 +5,7 @@ from this module: the dispatcher marks events without handlers as published (and
 still pushes ``email_verified`` to the admin area). Other modules subscribe to them.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import structlog
 
@@ -49,12 +49,14 @@ class IdentityMailHandlers:
         clock: Clock,
         public_base_url: str,
         shop_name: str,
+        sender: Sequence[str] = (),
     ) -> None:
         self._uow = uow_factory
         self._mailer = mailer
         self._clock = clock
         self._base_url = public_base_url
         self._shop_name = shop_name
+        self._sender = tuple(sender)
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -150,7 +152,9 @@ class IdentityMailHandlers:
         return account
 
     async def _send(self, event: DomainEvent, account: Account, content: MailContent) -> None:
-        await self._mailer.send(compose(content, to=account.email, shop_name=self._shop_name))
+        await self._mailer.send(
+            compose(content, to=account.email, shop_name=self._shop_name, sender=self._sender)
+        )
         _logger.info(
             "identity.mail.sent",
             event_id=str(event.event_id),

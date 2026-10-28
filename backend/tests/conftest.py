@@ -55,6 +55,11 @@ from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
+from modellbahn.modules.site.application.fairs import FairService
+from modellbahn.modules.site.application.handlers import SiteHandlers
+from modellbahn.modules.site.application.ports import UnitOfWorkFactory as SiteUnitOfWorkFactory
+from modellbahn.modules.site.application.subscriptions import SubscriptionService
+from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.config import Environment, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -69,6 +74,12 @@ DEFAULT_POSTGRES_IMAGE = "postgres:17-alpine"
 PUBLIC_BASE_URL = "https://shop.test"
 SHOP_NAME = "Modellbahn-Shop"
 MEDIA_BASE_URL = "/medien"
+# The sender lines the settings below produce (MB_IMPRINT_*).
+IMPRINT_FOOTER = (
+    "adp-Modelle · Johann-Leon Diesterhaupt",
+    "Glambecker Straße 2, 17235 Neustrelitz",
+    "info@adp-modelle.de · 0160 91515272",
+)
 
 
 @pytest.fixture(scope="session")
@@ -121,6 +132,13 @@ def settings(database_url: str) -> Settings:
         auth_rate_limit=0,
         media_public_base_url=MEDIA_BASE_URL,
         log_level="WARNING",
+        imprint_company="adp-Modelle",
+        imprint_owner="Johann-Leon Diesterhaupt",
+        imprint_street="Glambecker Straße 2",
+        imprint_postal_code="17235",
+        imprint_city="Neustrelitz",
+        imprint_phone="0160 91515272",
+        imprint_email="info@adp-modelle.de",
     )
 
 
@@ -141,6 +159,9 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
+    "site.mailings",
+    "site.subscriptions",
+    "site.fairs",
     "inventory.stock_ledger",
     "inventory.scans",
     "inventory.units",
@@ -355,6 +376,35 @@ def availability(inventory_uow: InventoryUnitOfWorkFactory) -> AvailabilityServi
     return AvailabilityService(uow_factory=inventory_uow)
 
 
+@pytest.fixture
+def site_uow(session_factory: async_sessionmaker[AsyncSession]) -> SiteUnitOfWorkFactory:
+    return site_uow_factory(session_factory)
+
+
+@pytest.fixture
+def fairs(site_uow: SiteUnitOfWorkFactory, clock: FixedClock) -> FairService:
+    return FairService(uow_factory=site_uow, clock=clock)
+
+
+@pytest.fixture
+def fair_news(site_uow: SiteUnitOfWorkFactory, clock: FixedClock) -> SubscriptionService:
+    return SubscriptionService(uow_factory=site_uow, clock=clock)
+
+
+@pytest.fixture
+def site_handlers(
+    site_uow: SiteUnitOfWorkFactory, mailer: InMemoryMailer, clock: FixedClock
+) -> SiteHandlers:
+    return SiteHandlers(
+        uow_factory=site_uow,
+        mailer=mailer,
+        clock=clock,
+        public_base_url=PUBLIC_BASE_URL,
+        shop_name=SHOP_NAME,
+        sender=IMPRINT_FOOTER,
+    )
+
+
 type Deliver = Callable[[], Awaitable[int]]
 
 
@@ -365,6 +415,7 @@ def deliver(
     mail_handlers: IdentityMailHandlers,
     media_handlers: MediaProcessingHandlers,
     sales_handlers: SalesHandlers,
+    site_handlers: SiteHandlers,
     allocation: AllocationService,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
@@ -372,6 +423,7 @@ def deliver(
     mail_handlers.register(handlers)
     media_handlers.register(handlers)
     sales_handlers.register(handlers)
+    site_handlers.register(handlers)
     InventoryHandlers(allocation=allocation).register(handlers)
     dispatcher = OutboxDispatcher(
         engine=engine,
