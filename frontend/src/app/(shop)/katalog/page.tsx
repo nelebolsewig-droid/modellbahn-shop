@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Katalog",
-  description: "3D-gedruckte Modelle von Z bis G und für Straßenfahrzeuge: erst den Maßstab wählen, dann die Kategorie.",
+  description: "Handgefertigte Modelle für Schiene und Straße: erst den Maßstab wählen, dann die Kategorie.",
 };
 
 const PAGE_SIZE = "24";

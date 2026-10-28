@@ -5,7 +5,7 @@ The infrastructure layer implements them; tests may substitute their own.
 
 from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
@@ -20,6 +20,7 @@ from modellbahn.modules.sales.domain.model import (
     Order,
     OrderStatus,
 )
+from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.events import DomainEvent
 
 
@@ -131,6 +132,12 @@ class Inventory(Protocol):
         ...
 
 
+class Fairs(Protocol):
+    """What sales may ask the site module: the next fair, for a line in the mails."""
+
+    async def next_fair(self, today: date) -> NextFair | None: ...
+
+
 class PaymentGateway(Protocol):
     """The payment provider behind an anti-corruption layer (KONZEPT §2.6).
 
@@ -168,6 +175,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def inventory(self) -> Inventory: ...
+
+    @property
+    def fairs(self) -> Fairs: ...
 
     async def __aenter__(self) -> Self: ...
 

@@ -1,17 +1,19 @@
 import { z } from "zod";
 
+import { normalizePostalCode, SHIPPING_COUNTRIES, shippingCountry, type ShippingCountry } from "@/lib/sales/countries";
+
 /*
  * Client-side mirror of the sales module's address rules (backend/src/modellbahn/
  * modules/sales/domain/model.py). The backend stays authoritative; these give
  * immediate feedback in German. Field names are the API's.
  */
 
-export const SHIPPING_COUNTRIES = ["DE", "AT"] as const;
-export type ShippingCountry = (typeof SHIPPING_COUNTRIES)[number];
+export { SHIPPING_COUNTRIES, type ShippingCountry };
 
-const POSTAL_CODES: Record<ShippingCountry, { pattern: RegExp; message: string }> = {
-  DE: { pattern: /^\d{5}$/, message: "Bitte gib eine fünfstellige Postleitzahl ein." },
-  AT: { pattern: /^\d{4}$/, message: "Bitte gib eine vierstellige Postleitzahl ein." },
+/** Germany's and Austria's codes are plain digits; the others get an example. */
+const DIGITS_ONLY: Partial<Record<ShippingCountry, string>> = {
+  DE: "Bitte gib eine fünfstellige Postleitzahl ein.",
+  AT: "Bitte gib eine vierstellige Postleitzahl ein.",
 };
 
 const collapse = (value: string): string => value.split(/\s+/u).filter(Boolean).join(" ");
@@ -31,7 +33,7 @@ const email = z
 const addressFields = {
   recipient: text("Bitte gib den Namen für das Paket ein.", 80),
   street: text("Bitte gib Straße und Hausnummer ein.", 100),
-  postal_code: z.string().trim(),
+  postal_code: z.string().transform(normalizePostalCode),
   city: text("Bitte gib den Ort ein.", 60),
   country_code: z.enum(SHIPPING_COUNTRIES, "Dorthin liefern wir leider nicht."),
 };
@@ -40,9 +42,11 @@ function checkPostalCode(
   value: { postal_code: string; country_code: ShippingCountry },
   context: z.RefinementCtx,
 ): void {
-  const rule = POSTAL_CODES[value.country_code];
-  if (!rule.pattern.test(value.postal_code)) {
-    context.addIssue({ code: "custom", path: ["postal_code"], message: rule.message });
+  const country = shippingCountry(value.country_code);
+  if (country && !country.postal.test(value.postal_code)) {
+    const message =
+      DIGITS_ONLY[value.country_code] ?? `Bitte gib eine Postleitzahl aus ${country.name} ein, z. B. ${country.example}.`;
+    context.addIssue({ code: "custom", path: ["postal_code"], message });
   }
 }
 

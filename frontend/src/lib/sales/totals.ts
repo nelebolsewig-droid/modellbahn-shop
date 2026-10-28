@@ -15,7 +15,10 @@ export function includedVat(grossCents: number): number {
 
 /** Shipping for goods worth ``subtotalCents``; nothing to ship costs nothing. */
 export function shippingCents(country: ShippingCountryOut, subtotalCents: number): number {
-  return subtotalCents === 0 || subtotalCents >= country.free_from_cents ? 0 : country.rate_cents;
+  if (subtotalCents === 0) {
+    return 0;
+  }
+  return country.free_from_cents !== null && subtotalCents >= country.free_from_cents ? 0 : country.rate_cents;
 }
 
 export function totalsFor(subtotalCents: number, country: ShippingCountryOut): TotalsOut {
@@ -29,7 +32,13 @@ export function totalsFor(subtotalCents: number, country: ShippingCountryOut): T
   };
 }
 
-/** How much more until shipping is free; 0 when it already is (or the cart is empty). */
-export function missingForFreeShipping(country: ShippingCountryOut, subtotalCents: number): number {
+/**
+ * How much more until shipping is free; 0 when it already is (or the cart is empty),
+ * null where shipping is never free.
+ */
+export function missingForFreeShipping(country: ShippingCountryOut, subtotalCents: number): number | null {
+  if (country.free_from_cents === null) {
+    return null;
+  }
   return subtotalCents === 0 ? 0 : Math.max(0, country.free_from_cents - subtotalCents);
 }

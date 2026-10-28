@@ -20,7 +20,7 @@ from modellbahn.platform import outbox
 from modellbahn.platform.db import create_engine, metadata
 from tests.support import create_database, downgrade, drop_database, migrate
 
-SCHEMAS = ("platform", "identity", "media", "catalog", "sales", "inventory")
+SCHEMAS = ("platform", "identity", "media", "catalog", "sales", "inventory", "site")
 
 
 @pytest.fixture
@@ -78,6 +78,9 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "inventory.units",
         "inventory.scans",
         "inventory.stock_ledger",
+        "site.fairs",
+        "site.subscriptions",
+        "site.mailings",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected

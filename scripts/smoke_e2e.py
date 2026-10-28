@@ -9,7 +9,9 @@ URL, its sizes appearing live, publishing and the shop's pages sorted by scale (
 the maintenance of scales); then the sale of step
 4: cart, a guest order with Idempotency-Key, a declined and a successful test payment,
 the order joining the account once the guest registers, dispatch and a cancellation
-with refund - plus the boundaries that keep it safe: shop and admin sessions do not
+with refund; the fairs: a fair on the "Termine" page with its calendar file, the fair
+news with double opt-in and its one announcement, and the imprint from the
+configuration - plus the boundaries that keep it safe: shop and admin sessions do not
 mix, state-changing requests without the CSRF header are refused, and the storage
 takes only signed uploads.
 
@@ -46,6 +48,7 @@ import uuid
 import zlib
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from http import HTTPStatus
 from http.cookies import Morsel, SimpleCookie
@@ -75,18 +78,24 @@ ORDER_PLACED: Final = "sales.order.placed"
 ORDER_PAID: Final = "sales.order.paid"
 STOCK_CHANGED: Final = "inventory.stock.changed"
 BACKORDERED: Final = "inventory.allocation.backordered"
+FAIR_ANNOUNCED: Final = "site.fair.announced"
 SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
 PAINTED_CENTS: Final = 7990
-SHIPPING_DE_CENTS: Final = 490
+SHIPPING_DE_CENTS: Final = 590
+SHIPPING_EU_CENTS: Final = 1690
+EU_MEMBER_STATES: Final = 27
+# The smoke fair lies this far ahead, so it is always still to come.
+FAIR_DAYS_AHEAD: Final = 40
 GUEST_TOTAL_CENTS: Final = UNPAINTED_CENTS + SHIPPING_DE_CENTS
 
 HTTP_TIMEOUT: Final = 15.0
 MAIL_TIMEOUT: Final = 30.0
 # The worker adopts guest orders after the verification event; it polls the outbox.
 ADOPTION_TIMEOUT: Final = 30.0
-# The worker hands out stock to a paid order (sales.order.paid → allocation).
+# The worker hands out stock to a paid order (sales.order.paid → allocation) and books
+# it out once the order is shipped.
 ALLOCATION_TIMEOUT: Final = 30.0
 UNITS_LABELLED: Final = 2
 EVENT_TIMEOUT: Final = 30.0
@@ -469,13 +478,15 @@ class Mailpit:
         self._base_url = base_url
         self._opener = opener
 
-    def wait_for(self, recipient: str, subject: str) -> dict[str, Any]:
-        """The full message to ``recipient`` with ``subject``, once it has arrived."""
+    def wait_for(self, recipient: str, subject: str, *, prefix: bool = False) -> dict[str, Any]:
+        """The full message to ``recipient`` with ``subject`` (or a subject starting with it,
+        for subjects that carry the shop's configured name), once it has arrived."""
         deadline = time.monotonic() + MAIL_TIMEOUT
         while True:
             found = self._get("/api/v1/search", query=f'to:"{recipient}"', limit="50")
             for summary in found.get("messages") or []:
-                if summary.get("Subject") == subject:
+                actual = str(summary.get("Subject", ""))
+                if actual == subject or (prefix and actual.startswith(subject)):
                     return self._get(f"/api/v1/message/{summary['ID']}")
             if time.monotonic() > deadline:
                 subjects = [m.get("Subject") for m in found.get("messages") or []]
@@ -593,6 +604,8 @@ class Demo:
         )
         # Orders first as a guest, registers afterwards and finds the order in the account.
         self.buyer = Customer(email=f"{tag}-kauf@example.com", display_name=f"Kauf {tag[-10:]}")
+        # Signs up for the fair news.
+        self.fan = f"{tag}-messe@example.com"
         self.guest_browser = Browser(settings.base_url, opener)
         self.buyer_browser = Browser(settings.base_url, opener)
         self.started_at = time.time()
@@ -609,6 +622,8 @@ class Demo:
         self._account_order: dict[str, Any] = {}
         self._compartment = ""
         self._units: list[str] = []
+        self._fair: dict[str, Any] = {}
+        self._leave_token = ""
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -660,6 +675,14 @@ class Demo:
             ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
             ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
             ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
+            ("Messe anlegen: unter /termine und als Kalenderdatei (.ics)", self.fair),
+            (
+                "Messe-Post: Anmeldung, Link aus Mailpit, Bestätigung (Double-Opt-in)",
+                self.fair_news,
+            ),
+            ("Ankündigung einmal an alle Bestätigten, Ereignis im Stellwerk", self.announce),
+            ("Abmelden per Link aus der Ankündigung, Messe löschen", self.fair_news_leave),
+            ("Impressum aus der Konfiguration, Versand in alle EU-Länder", self.imprint),
             ("Kunden-Sitzung wird im Admin-Bereich abgelehnt (401)", self.customer_on_admin),
             ("Admin-Sitzung wird im Shop abgelehnt (401)", self.staff_on_store),
             ("Ohne X-Modellbahn-Client: 403 problem+json", self.csrf),
@@ -673,7 +696,10 @@ class Demo:
         response = self.visitor.page("/")
         expect_status(response, 200, "GET /")
         expect('<html lang="de"' in response.text, 'Startseite ohne <html lang="de">')
-        expect("Hier entsteht" in response.text, "Startseite ohne „Hier entsteht …“")
+        expect(
+            "Jedes Modell ein Unikat" in response.text,
+            "Startseite ohne „Jedes Modell ein Unikat …“",
+        )
         policy = response.headers.get("content-security-policy", "")
         for directive in ("default-src 'self'", "frame-ancestors 'none'", "object-src 'none'"):
             expect(directive in policy, f"Content-Security-Policy ohne {directive!r}: {policy!r}")
@@ -1247,6 +1273,21 @@ class Demo:
                 )
             time.sleep(0.5)
 
+    def _shipped_unit(self, code: str) -> None:
+        # sales.order.shipped has two handlers: the mail can arrive before the stock is booked.
+        deadline = time.monotonic() + ALLOCATION_TIMEOUT
+        while True:
+            unit = self._staff("GET", f"{INVENTORY}/units/{code}")
+            expect_status(unit, 200, "Versendete Einheit")
+            if unit.json()["status"] == "shipped":
+                return
+            if time.monotonic() > deadline:
+                raise SmokeCheckError(
+                    f"Einheit nach {ALLOCATION_TIMEOUT:.0f} s nicht versendet: "
+                    f"{unit.json()['status']}. Läuft der Worker? make logs SERVICE=worker"
+                )
+            time.sleep(0.5)
+
     def stock(self) -> str | None:
         tag = secrets.token_hex(3).upper()
         site, shelf = f"SM{tag}", f"R{tag}"
@@ -1363,11 +1404,11 @@ class Demo:
             "subtotal_cents": UNPAINTED_CENTS,
             "shipping_cents": SHIPPING_DE_CENTS,
             "total_cents": GUEST_TOTAL_CENTS,
-            "tax_cents": 635,  # 19 % contained in 39,80 €
+            "tax_cents": 651,  # 19 % contained in 40,80 €
         }
         expect(totals == expected, f"Summen {totals}, erwartet {expected}")
         expect(cart["ready_for_checkout"] is True, "Warenkorb nicht bereit für die Kasse")
-        return "34,90 € + 4,90 € Versand = 39,80 €"
+        return "34,90 € + 5,90 € Versand = 40,80 €"
 
     def price_check(self) -> str | None:
         refused = self._checkout(
@@ -1415,7 +1456,7 @@ class Demo:
         text = str(message.get("Text", ""))
         link = f"{self.base_url}/bestellung/{self._order['public_token']}/bezahlen"
         expect(link in text, f"Eingangsbestätigung ohne Zahlungslink {link}")
-        expect("39,80" in text, "Eingangsbestätigung ohne Summe")
+        expect("40,80" in text, "Eingangsbestätigung ohne Summe")
         return "mit Link auf /bestellung/…/bezahlen"
 
     def status_page(self) -> str | None:
@@ -1556,9 +1597,7 @@ class Demo:
             self.buyer.email, f"Deine Bestellung {number} ist unterwegs"
         )
         expect("SMOKE-0042" in str(message.get("Text", "")), "Versandmail ohne Sendungsnummer")
-        unit = self._staff("GET", f"{INVENTORY}/units/{self._units[0]}")
-        expect_status(unit, 200, "Versendete Einheit")
-        expect(unit.json()["status"] == "shipped", f"Einheit nach dem Versand: {unit.json()}")
+        self._shipped_unit(self._units[0])
         line = self._stock_of(self._variant("unpainted")["id"])
         expect(line.get("in_stock") == 1, f"Bestand nach dem Versand: {line}")
         return "DHL · SMOKE-0042"
@@ -1568,7 +1607,8 @@ class Demo:
         added = self.buyer_browser.api("PUT", f"{SHOP}/cart/lines/{variant['id']}", {"quantity": 1})
         expect_status(added, 200, "Warenkorb des Kunden")
         total = added.json()["totals"]["total_cents"]
-        expect(total == PAINTED_CENTS, f"Ab 50 € versandkostenfrei, Summe aber {total}")
+        expected = PAINTED_CENTS + SHIPPING_DE_CENTS
+        expect(total == expected, f"Versand ist nie frei: Summe {total}, erwartet {expected}")
         body = {**self._guest_body(total), "save_address": True}
         del body["email"]
         placed = self._checkout(self.buyer_browser, body, str(uuid.uuid4()))
@@ -1621,7 +1661,7 @@ class Demo:
         text = str(message.get("Text", ""))
         expect("erstatt" in text, "Stornomail erwähnt die Erstattung nicht")
         expect("Smoke-Test: nicht lieferbar" in text, "Stornomail ohne Hinweis")
-        return f"{number} storniert, 79,90 € erstattet"
+        return f"{number} storniert, 85,80 € erstattet"
 
     def order_pages(self) -> str | None:
         mine = self.buyer_browser.page("/konto/bestellungen")
@@ -1648,6 +1688,122 @@ class Demo:
         gone = self.visitor.api("GET", f"{SHOP}/products/{self._product['slug']}")
         expect_problem(gone, 404, "product_not_found", "Archiviertes Produkt im Shop")
         return None
+
+    # Fairs, fair news and imprint ------------------------------------------------------
+
+    def fair(self) -> str | None:
+        starts = datetime.now(UTC).date() + timedelta(days=FAIR_DAYS_AHEAD)
+        created = self._staff(
+            "POST",
+            f"{ADMIN}/fairs",
+            {
+                "name": f"Smoke-Messe {secrets.token_hex(3)}",
+                "starts_on": starts.isoformat(),
+                "ends_on": (starts + timedelta(days=1)).isoformat(),
+                "venue": "Kulturhaus",
+                "street": "Hauptstraße 1",
+                "postal_code": "06237",
+                "city": "Leuna",
+                "booth": "Stand 7",
+                "published": True,
+            },
+        )
+        expect_status(created, 201, "Messe anlegen")
+        self._fair = created.json()
+        fair_id = self._fair["id"]
+        calendar = self.visitor.api("GET", f"{SHOP}/fairs")
+        expect_status(calendar, 200, "GET /store/fairs")
+        upcoming = [fair["id"] for fair in calendar.json()["upcoming"]]
+        expect(fair_id in upcoming, "Die neue Messe fehlt unter den kommenden")
+        event = self.visitor._send(
+            "GET", f"{SHOP}/fairs/{fair_id}/calendar.ics", accept="text/calendar", cookies=None
+        )
+        expect_status(event, 200, "Kalenderdatei der Messe")
+        expect(
+            event.headers.get("content-type", "").startswith("text/calendar"),
+            f"Kalenderdatei als {event.headers.get('content-type')}",
+        )
+        for line in (f"UID:fair-{fair_id}@", f"DTSTART;VALUE=DATE:{starts:%Y%m%d}", "END:VEVENT"):
+            expect(line in event.text, f"Kalenderdatei ohne {line!r}")
+        page = self.visitor.page("/termine")
+        expect_status(page, 200, "GET /termine")
+        expect(self._fair["name"] in page.text, "Die Messe fehlt auf /termine")
+        return f"{self._fair['name']} · {self._fair['when']}"
+
+    def fair_news(self) -> str | None:
+        asked = self.visitor.api(
+            "POST", f"{SHOP}/fair-news/subscriptions", {"email": self.fan, "consent": True}
+        )
+        expect_status(asked, 202, "Messe-Post bestellen")
+        message = self.mailpit.wait_for(self.fan, "Bitte bestätige die Messe-Post", prefix=True)
+        token = token_link(message, self.base_url, "/termine/bestaetigen")
+        page = self.visitor.page(f"/termine/bestaetigen?token={token}")
+        expect_status(page, 200, "Bestätigungsseite")
+        confirmed = self.visitor.api("POST", f"{SHOP}/fair-news/confirmations", {"token": token})
+        expect_status(confirmed, 204, "Messe-Post bestätigen")
+        again = self.visitor.api("POST", f"{SHOP}/fair-news/confirmations", {"token": token})
+        expect_problem(again, 400, "fair_news_token_invalid", "Derselbe Link ein zweites Mal")
+        counts = self._staff("GET", f"{ADMIN}/fair-news")
+        expect_status(counts, 200, "Zähler der Messe-Post")
+        expect(counts.json()["confirmed"] >= 1, f"Keine Bestätigten: {counts.text}")
+        return self.fan
+
+    def announce(self) -> str | None:
+        fair_id = self._fair["id"]
+        announced = self._staff("POST", f"{ADMIN}/fairs/{fair_id}/announcement")
+        expect_status(announced, 202, "Messe ankündigen")
+        recipients = announced.json()["recipients"]
+        expect(recipients >= 1, f"Ankündigung an {recipients} Empfänger")
+        again = self._staff("POST", f"{ADMIN}/fairs/{fair_id}/announcement")
+        expect_problem(again, 409, "fair_already_announced", "Zweite Ankündigung")
+        message = self.mailpit.wait_for(
+            self.fan, f"Wir stellen aus: {self._fair['name']}", prefix=True
+        )
+        text = str(message.get("Text", ""))
+        expect(f"{SHOP}/fairs/{fair_id}/calendar.ics" in text, "Ankündigung ohne Kalenderlink")
+        expect("Stand 7" in text, "Ankündigung ohne Stand")
+        self._leave_token = token_link(message, self.base_url, "/termine/abmelden")
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == FAIR_ANNOUNCED and e.json().get("data", {}).get("fair_id") == fair_id
+                ),
+                what=f"{FAIR_ANNOUNCED} für {fair_id}",
+            )
+        return f"an {recipients} Empfänger"
+
+    def fair_news_leave(self) -> str | None:
+        left = self.visitor.api(
+            "POST", f"{SHOP}/fair-news/unsubscriptions", {"token": self._leave_token}
+        )
+        expect_status(left, 204, "Abmelden")
+        removed = self._staff("DELETE", f"{ADMIN}/fairs/{self._fair['id']}")
+        expect_status(removed, 204, "Messe löschen")
+        gone = self.visitor.api("GET", f"{SHOP}/fairs/{self._fair['id']}/calendar.ics")
+        expect_problem(gone, 404, "fair_not_found", "Kalenderdatei einer gelöschten Messe")
+        return None
+
+    def imprint(self) -> str | None:
+        response = self.visitor.api("GET", f"{SHOP}/imprint")
+        expect_status(response, 200, "GET /store/imprint")
+        imprint = response.json()
+        expect(
+            imprint["complete"] is True,
+            f"Impressum unvollständig (MB_IMPRINT_* in .env): {imprint}",
+        )
+        page = self.visitor.page("/impressum")
+        expect_status(page, 200, "GET /impressum")
+        expect(imprint["street"] in page.text, "Die Anschrift fehlt auf /impressum")
+        countries = self.visitor.api("GET", f"{SHOP}/cart").json()["countries"]
+        expect(len(countries) == EU_MEMBER_STATES, f"{len(countries)} Lieferländer statt 27")
+        rates = {country["code"]: country["rate_cents"] for country in countries}
+        expect(rates.get("DE") == SHIPPING_DE_CENTS, f"Versand DE: {rates.get('DE')}")
+        expect(rates.get("AT") == SHIPPING_EU_CENTS, f"Versand AT: {rates.get('AT')}")
+        expect(
+            all(country["free_from_cents"] is None for country in countries),
+            "Versandkostenfrei sollte es nirgends geben",
+        )
+        return f"{imprint['company']}, {imprint['city']} · {len(countries)} Lieferländer"
 
     def customer_on_admin(self) -> str | None:
         session = self.customer_browser.cookies[CUSTOMER_COOKIE]

@@ -22,6 +22,7 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
   "inventory.allocation.backordered": "Stück muss gefertigt werden",
+  "site.fair.announced": "Messe angekündigt",
 } as const satisfies Record<string, string>;
 
 /** The media events, for pages that wait for their uploads (the product editor). */
@@ -67,6 +68,9 @@ const accountPayloadSchema = z.object({
 
 /** Public payload of the catalogue events. */
 const productPayloadSchema = z.object({ product_id: z.string(), name: z.string() });
+
+/** Public payload of the fair events. */
+const fairPayloadSchema = z.object({ fair_id: z.string(), name: z.string() });
 
 /** Public payload of the order events: number and total, never the customer's data. */
 const orderPayloadSchema = z.object({
@@ -124,6 +128,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
   const account = accountPayloadSchema.safeParse(event.data);
   const product = productPayloadSchema.safeParse(event.data);
   const order = orderPayloadSchema.safeParse(event.data);
+  const fair = fairPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
@@ -133,6 +138,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
       account: { id: account.data.account_id, displayName: account.data.display_name },
     }),
     ...(product.success && { subject: product.data.name }),
+    ...(fair.success && { subject: fair.data.name }),
     ...(order.success && {
       subject: `${order.data.number} · ${euro.format(order.data.total_cents / 100)}`,
     }),

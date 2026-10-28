@@ -12,8 +12,12 @@ import pytest
 from typer.testing import CliRunner
 
 from modellbahn.cli import app as cli
-from modellbahn.modules.identity.application.services import IdentityService, UnitOfWorkFactory
-from modellbahn.modules.identity.domain.errors import InvalidCredentialsError
+from modellbahn.modules.identity.application.services import (
+    IdentityService,
+    StartedSession,
+    UnitOfWorkFactory,
+)
+from modellbahn.modules.identity.domain.errors import InvalidCredentialsError, InvalidTokenError
 from modellbahn.modules.identity.domain.model import LOCKOUT_THRESHOLD, AccountKind, StaffRole
 from modellbahn.platform.config import Settings
 from modellbahn.platform.mail import InMemoryMailer
@@ -184,11 +188,16 @@ async def test_worker_sends_the_verification_mail(
             email="kunde@example.com", password=PASSWORD, display_name="Erika"
         )
 
-        async def mail() -> str | None:
-            return token_from(mailer.sent[0]) if mailer.sent else None
+        async def verified() -> StartedSession | None:
+            if not mailer.sent:
+                return None
+            token = token_from(mailer.sent[0])
+            try:
+                return await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
+            except InvalidTokenError:
+                return None  # the mail leaves before the worker commits its token
 
-        token = await eventually(mail)
-        started = await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
+        started = await eventually(verified)
         assert started.account.email_verified
     finally:
         stop.set()
@@ -203,6 +212,13 @@ async def test_worker_process_stops_gracefully_on_sigterm(settings: Settings) ->
         "MB_ENVIRONMENT": "production",
         # Production refuses the development key of .env.example.
         "MB_S3_ACCESS_KEY_ID": "GK000000000000000000000001",
+        # ... and starts only with an imprint.
+        "MB_IMPRINT_COMPANY": "adp-Modelle",
+        "MB_IMPRINT_OWNER": "Johann-Leon Diesterhaupt",
+        "MB_IMPRINT_STREET": "Glambecker Straße 2",
+        "MB_IMPRINT_POSTAL_CODE": "17235",
+        "MB_IMPRINT_CITY": "Neustrelitz",
+        "MB_IMPRINT_EMAIL": "info@adp-modelle.de",
         "MB_LOG_LEVEL": "INFO",
     }
     process = await asyncio.create_subprocess_exec(

@@ -1,5 +1,6 @@
 """Application settings, read from ``MB_*`` environment variables."""
 
+import re
 from email.utils import parseaddr
 from enum import StrEnum
 from typing import Literal, Self
@@ -8,10 +9,14 @@ from argon2 import DEFAULT_MEMORY_COST, DEFAULT_PARALLELISM, DEFAULT_TIME_COST
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from modellbahn.platform.imprint import Imprint
+
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 _ASYNC_DRIVER_PREFIX = "postgresql+asyncpg://"
 _DEFAULT_SHOP_NAME = "Modellbahn-Shop"
+# German VAT identification number: DE and nine digits (§ 27a UStG).
+_VAT_ID = re.compile(r"^DE[0-9]{9}$")
 # The development key of .env.example, which init-storage imports into the local storage.
 _DEVELOPMENT_S3_ACCESS_KEY_ID = "GKba9ff40c8a82b4ef09ebaf72"
 _DEVELOPMENT_S3_SECRET_ACCESS_KEY = (
@@ -84,6 +89,21 @@ class Settings(BaseSettings):
 
     log_level: LogLevel = "INFO"
 
+    # The provider details of the imprint and the e-mail footer (§ 5 DDG). Personal data
+    # of the owner, so they live in the environment, never in the code.
+    imprint_company: str = ""
+    imprint_owner: str = ""
+    imprint_street: str = ""
+    imprint_postal_code: str = ""
+    imprint_city: str = ""
+    imprint_country: str = "Deutschland"
+    imprint_phone: str = ""
+    imprint_email: str = ""
+    imprint_vat_id: str = ""
+
+    fair_news_rate_limit: int = Field(default=10, ge=0)
+    fair_news_rate_window_seconds: float = Field(default=600.0, gt=0)
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg_driver(cls, value: str) -> str:
@@ -117,6 +137,15 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("imprint_vat_id")
+    @classmethod
+    def _check_vat_id(cls, value: str) -> str:
+        cleaned = value.replace(" ", "").upper()
+        if cleaned and not _VAT_ID.fullmatch(cleaned):
+            msg = "must be DE followed by nine digits, e.g. DE123456789"
+            raise ValueError(msg)
+        return cleaned
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _upper_case_log_level(cls, value: object) -> object:
@@ -132,6 +161,9 @@ class Settings(BaseSettings):
         if self.s3_access_key_id == _DEVELOPMENT_S3_ACCESS_KEY_ID:
             msg = "the development storage key of .env.example is not allowed in production"
             raise ValueError(msg)
+        if not self.imprint.is_complete:
+            msg = "the shop needs its imprint in production: set the MB_IMPRINT_* variables"
+            raise ValueError(msg)
         return self
 
     @property
@@ -143,3 +175,19 @@ class Settings(BaseSettings):
     def shop_name(self) -> str:
         """Display name of the shop, taken from the sender of outgoing e-mails."""
         return parseaddr(self.smtp_from)[0] or _DEFAULT_SHOP_NAME
+
+    @property
+    def imprint(self) -> Imprint:
+        """The provider details as the imprint, the API and the e-mails show them."""
+        return Imprint(
+            shop_name=self.shop_name,
+            company=self.imprint_company.strip(),
+            owner=self.imprint_owner.strip(),
+            street=self.imprint_street.strip(),
+            postal_code=self.imprint_postal_code.strip(),
+            city=self.imprint_city.strip(),
+            country=self.imprint_country.strip(),
+            phone=self.imprint_phone.strip(),
+            email=self.imprint_email.strip(),
+            vat_id=self.imprint_vat_id,
+        )

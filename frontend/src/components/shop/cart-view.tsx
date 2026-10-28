@@ -14,6 +14,7 @@ import type { CartLineOut, CartOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import { availabilityNote, cartLeadTime, leadTimeText } from "@/lib/sales/availability";
+import { shippingGroups } from "@/lib/sales/countries";
 import { useCart, useCartChange } from "@/lib/sales/cart";
 import { cn } from "@/lib/utils";
 
@@ -173,8 +174,23 @@ export function DeliveryNote({ cart, className }: { cart: CartOut; className?: s
   );
 }
 
-function CartSummary({ cart }: { cart: CartOut }) {
+/** "In die übrigen EU-Länder: 16,90 €." – the terms of the countries not chosen, grouped. */
+function otherTerms(cart: CartOut): string {
   const other = cart.countries.filter((country) => country.code !== cart.shipping_country.code);
+  return shippingGroups(other)
+    .map((group) => {
+      const first = group[0];
+      if (first === undefined) {
+        return "";
+      }
+      const where = group.length === 1 ? `Nach ${first.name}` : "In die übrigen EU-Länder";
+      const free = first.free_from_cents === null ? "" : `, ab ${formatPrice(first.free_from_cents)} kostenlos`;
+      return `${where}: ${formatPrice(first.rate_cents)}${free}.`;
+    })
+    .join(" ");
+}
+
+function CartSummary({ cart }: { cart: CartOut }) {
   return (
     <aside aria-label="Summe" className="rounded-lg bg-surface p-6 sm:p-8 lg:sticky lg:top-8">
       <h2 className="text-heading">Übersicht</h2>
@@ -194,19 +210,12 @@ function CartSummary({ cart }: { cart: CartOut }) {
           Zur Kasse
         </Button>
       )}
-      {other.length > 0 ? (
-        <p className="mt-4 text-hint text-ink-tertiary">
-          {other
-            .map(
-              (country) =>
-                `Nach ${country.name}: ${formatPrice(country.rate_cents)}, ab ${formatPrice(country.free_from_cents)} kostenlos.`,
-            )
-            .join(" ")}{" "}
-          <Link href="/versand" className="underline underline-offset-4 hover:text-ink">
-            Versand und Lieferung
-          </Link>
-        </p>
-      ) : null}
+      <p className="mt-4 text-hint text-ink-tertiary">
+        {otherTerms(cart)}{" "}
+        <Link href="/versand" className="underline underline-offset-4 hover:text-ink">
+          Versand und Lieferung
+        </Link>
+      </p>
     </aside>
   );
 }

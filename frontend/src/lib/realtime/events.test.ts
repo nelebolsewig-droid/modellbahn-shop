@@ -81,7 +81,16 @@ describe("parseFeedEntry", () => {
       "sales.order.shipped",
       "sales.order.cancelled",
       "inventory.allocation.backordered",
+      "site.fair.announced",
     ]);
+  });
+
+  it("names an announced fair", () => {
+    const parsed = parseFeedEntry(
+      message({ type: "site.fair.announced", data: { fair_id: "f1", name: "Kleinserienmesse Dresden" } }),
+    );
+    expect(parsed?.label).toBe("Messe angekündigt");
+    expect(parsed?.subject).toBe("Kleinserienmesse Dresden");
   });
 
   it("names an order by number and total, never by customer", () => {

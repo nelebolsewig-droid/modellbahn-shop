@@ -5,9 +5,11 @@ from typing import Final
 from zoneinfo import ZoneInfo
 
 from modellbahn.modules.sales.domain.model import CancelReason, Order
+from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.mail import MailAction, MailContent, MailRow
 
 ORDER_STATUS_PATH: Final = "/bestellung"
+FAIRS_PATH: Final = "/termine"
 SHOP_TIME_ZONE: Final = ZoneInfo("Europe/Berlin")
 
 
@@ -44,7 +46,21 @@ def _greeting(order: Order) -> str:
     return f"Hallo {order.shipping_address.recipient},"
 
 
-def received_mail(order: Order, *, base_url: str, shop_name: str) -> MailContent:
+def fair_hint(fair: NextFair | None, *, base_url: str) -> tuple[str, ...]:
+    """Where to meet the workshop next, as a closing line; nothing when no fair is planned."""
+    if fair is None:
+        return ()
+    place = f"{fair.venue}, {fair.city}" if fair.venue else fair.city
+    booth = f", {fair.booth}" if fair.booth else ""
+    return (
+        f"Lust, unsere Modelle in die Hand zu nehmen? Als Nächstes stellen wir auf der Messe "
+        f"„{fair.name}“ aus: {fair.when}, {place}{booth}. Alle Termine: {base_url}{FAIRS_PATH}",
+    )
+
+
+def received_mail(
+    order: Order, *, base_url: str, shop_name: str, next_fair: NextFair | None = None
+) -> MailContent:
     """The confirmation of receipt (§ 312i BGB), with the way to pay."""
     due = order.payment_due_at
     deadline = (
@@ -70,6 +86,7 @@ def received_mail(order: Order, *, base_url: str, shop_name: str) -> MailContent
         closing=(
             "Hast du schon bezahlt, während diese E-Mail unterwegs war? Dann ist alles gut: "
             "Die Bestätigung der Zahlung kommt in einer eigenen E-Mail.",
+            *fair_hint(next_fair, base_url=base_url),
         ),
     )
 
@@ -93,7 +110,7 @@ def confirmation_mail(order: Order, *, base_url: str, shop_name: str) -> MailCon
     )
 
 
-def shipped_mail(order: Order, *, base_url: str) -> MailContent:
+def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = None) -> MailContent:
     parcel = "Dein Paket ist unterwegs."
     if order.tracking_number:
         carrier = f" bei {order.carrier}" if order.carrier else ""
@@ -105,7 +122,7 @@ def shipped_mail(order: Order, *, base_url: str) -> MailContent:
         greeting=_greeting(order),
         paragraphs=(f"wir haben deine Bestellung {order.number} heute verschickt. {parcel}",),
         action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
-        closing=("Viel Freude beim Bauen!",),
+        closing=("Viel Freude beim Bauen!", *fair_hint(next_fair, base_url=base_url)),
     )
 
 

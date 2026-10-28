@@ -31,6 +31,10 @@ from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
+from modellbahn.modules.site.application.handlers import SiteHandlers
+from modellbahn.modules.site.application.subscriptions import SubscriptionService
+from modellbahn.modules.site.infrastructure.mapping import start_mappers as start_site_mappers
+from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -46,6 +50,7 @@ _logger = structlog.get_logger("modellbahn.worker")
 STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
 OVERDUE_ORDER_SWEEP_INTERVAL: Final = timedelta(minutes=15)
 EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
+PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 FORWARDED_EVENT_MODULES: Final = (catalog_events,)
 
 
@@ -62,6 +67,7 @@ async def run_worker(
     session_factory = create_session_factory(engine)
     start_identity_mappers()
     start_media_mappers()
+    start_site_mappers()
     clock = SystemClock()
     storage = media_storage or S3MediaStorage.from_settings(settings)
     media_uow = partial(SqlMediaUnitOfWork, session_factory)
@@ -75,6 +81,7 @@ async def run_worker(
         clock=clock,
         public_base_url=settings.public_base_url,
         shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
     ).register(handlers)
     SalesHandlers(
         uow_factory=sales_uow,
@@ -82,6 +89,16 @@ async def run_worker(
         clock=clock,
         public_base_url=settings.public_base_url,
         shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
+    ).register(handlers)
+    site_uow = site_uow_factory(session_factory)
+    SiteHandlers(
+        uow_factory=site_uow,
+        mailer=mailer,
+        clock=clock,
+        public_base_url=settings.public_base_url,
+        shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
     ).register(handlers)
     InventoryHandlers(
         allocation=AllocationService(
@@ -112,6 +129,11 @@ async def run_worker(
             name="sales.purge_expired_carts",
             interval=EXPIRED_CART_SWEEP_INTERVAL,
             run=cart_service.purge_expired,
+        ),
+        PeriodicJob(
+            name="site.purge_pending_subscriptions",
+            interval=PENDING_SUBSCRIPTION_SWEEP_INTERVAL,
+            run=SubscriptionService(uow_factory=site_uow, clock=clock).purge_pending,
         ),
     ]
 

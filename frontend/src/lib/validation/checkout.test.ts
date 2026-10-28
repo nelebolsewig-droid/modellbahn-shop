@@ -57,3 +57,23 @@ describe("bookEntrySchema", () => {
     expect(bookEntrySchema.safeParse({ ...entry, label: "Werkstatt" }).data?.is_default).toBe(true);
   });
 });
+
+describe("EU addresses", () => {
+  it("takes a Dutch postal code as people write it and stores it upper case", () => {
+    const schema = checkoutSchema({ email: false, address: true });
+    const result = schema.safeParse({
+      email: "",
+      ...ADDRESS,
+      postal_code: " 1012  ab ",
+      country_code: "NL",
+      save_address: false,
+    });
+    expect(result.success && result.data.postal_code).toBe("1012 AB");
+  });
+
+  it("names an example of the country's postal codes", () => {
+    const schema = checkoutSchema({ email: false, address: true });
+    const result = schema.safeParse({ email: "", ...ADDRESS, postal_code: "1234", country_code: "PL", save_address: false });
+    expect(messages(result).postal_code).toBe("Bitte gib eine Postleitzahl aus Polen ein, z. B. 00-950.");
+  });
+});

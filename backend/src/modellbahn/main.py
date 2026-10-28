@@ -80,6 +80,16 @@ from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
+from modellbahn.modules.site.api import admin as site_admin
+from modellbahn.modules.site.api import store as site_store
+from modellbahn.modules.site.api.deps import FAIR_NEWS_RATE_LIMITER
+from modellbahn.modules.site.api.errors import (
+    install_error_translations as install_site_error_translations,
+)
+from modellbahn.modules.site.application.fairs import FairService
+from modellbahn.modules.site.application.subscriptions import SubscriptionService
+from modellbahn.modules.site.infrastructure.mapping import start_mappers as start_site_mappers
+from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform import http
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
@@ -112,6 +122,10 @@ _TAGS: Final = [
     {"name": "store-sales", "description": "Cart, checkout, order status and payment."},
     {"name": "store-account", "description": "Customer accounts, their orders and addresses."},
     {"name": "store-inventory", "description": "How soon products can be delivered."},
+    {
+        "name": "store-site",
+        "description": "Fairs, their calendar, the fair news by e-mail and the imprint.",
+    },
     {"name": "admin-auth", "description": "Staff login for the admin area."},
     {"name": "admin-catalog", "description": "Products, scales, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
@@ -120,6 +134,7 @@ _TAGS: Final = [
         "name": "admin-inventory",
         "description": "Locations, units, scans, picking and labels of the workshop.",
     },
+    {"name": "admin-site", "description": "Fairs and the fair news."},
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -142,6 +157,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     start_catalog_mappers()
     start_sales_mappers()
     start_inventory_mappers()
+    start_site_mappers()
     clock = SystemClock()
     identity_service = IdentityService(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
@@ -199,6 +215,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clock=clock,
     )
     _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
+    site_uow = site_uow_factory(session_factory)
+    app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
+    app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
+    app.state.imprint = settings.imprint
     app.state.realtime_hub = hub
     _attach_rate_limiters(app, settings)
 
@@ -210,6 +230,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         install_catalog_error_translations,
         install_sales_error_translations,
         install_inventory_error_translations,
+        install_site_error_translations,
     ):
         install_error_translations(app)
 
@@ -227,11 +248,13 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(sales_store.router)
     api.include_router(sales_account.router)
     api.include_router(inventory_store.router)
+    api.include_router(site_store.router)
     api.include_router(identity_admin.router)
     api.include_router(catalog_admin.router)
     api.include_router(media_admin.router)
     api.include_router(sales_admin.router)
     api.include_router(inventory_admin.router)
+    api.include_router(site_admin.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,
@@ -255,6 +278,14 @@ def _attach_rate_limiters(app: FastAPI, settings: Settings) -> None:
         AUTH_RATE_LIMITER,
         RateLimiter(
             limit=settings.auth_rate_limit, window_seconds=settings.auth_rate_window_seconds
+        ),
+    )
+    setattr(
+        app.state,
+        FAIR_NEWS_RATE_LIMITER,
+        RateLimiter(
+            limit=settings.fair_news_rate_limit,
+            window_seconds=settings.fair_news_rate_window_seconds,
         ),
     )
     setattr(

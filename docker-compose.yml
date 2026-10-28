@@ -43,7 +43,19 @@ x-backend-env: &backend-env
   MB_AUTH_RATE_WINDOW_SECONDS:
   MB_CHECKOUT_RATE_LIMIT:
   MB_CHECKOUT_RATE_WINDOW_SECONDS:
+  MB_FAIR_NEWS_RATE_LIMIT:
+  MB_FAIR_NEWS_RATE_WINDOW_SECONDS:
   MB_MEDIA_PUBLIC_BASE_URL:
+  # The imprint and the footer of every e-mail; production refuses to start without it.
+  MB_IMPRINT_COMPANY:
+  MB_IMPRINT_OWNER:
+  MB_IMPRINT_STREET:
+  MB_IMPRINT_POSTAL_CODE:
+  MB_IMPRINT_CITY:
+  MB_IMPRINT_COUNTRY:
+  MB_IMPRINT_PHONE:
+  MB_IMPRINT_EMAIL:
+  MB_IMPRINT_VAT_ID:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.
