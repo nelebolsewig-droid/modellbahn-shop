@@ -15,7 +15,9 @@ Lagerplätze, jedes Stück mit eigenem Etikett, ein Scanner fürs Handy, Kommiss
 und Lieferbarkeit im Shop (ADR 0011). Der Katalog ist nach **Maßstab** geordnet, darunter
 nach Kategorie (ADR 0010). Dazu kam das Modul *Auftritt*: Messetermine mit Kalender und
 Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder
-(ADR 0012). Die Fertigung folgt mit Schritt 6.
+(ADR 0012). Seit ADR 0013 gibt es jedes Modell als **Bausatz** oder **Fertigmodell** in
+Farben, eine **Schnellerfassung** fürs Handy und einen Startbestand zum Einspielen. Die
+Fertigung folgt mit Schritt 6.
 
 Was sich vorführen lässt:
 
@@ -25,19 +27,26 @@ Was sich vorführen lässt:
   erscheinen, ohne die Seite neu zu laden. Passwort zurücksetzen, Passwort ändern, Abmelden
   und Konto löschen funktionieren ebenfalls.
 - **Katalog.** Im Stellwerk unter „Katalog“ legt ein Mitarbeiter Kategorien und ein Produkt
-  an, ergänzt Maßstäbe (etwa H0, N oder 1:24) mit Maßen und je Ausführung eine Variante mit Preis;
-  Artikelnummer und interne EAN vergibt das System. Fotos gehen per Ziehen und Ablegen direkt
+  an, ergänzt Maßstäbe (etwa H0, N oder 1:24) mit Maßen und Varianten mit Preis: den
+  Bausatz und das Fertigmodell, dieses auch in mehreren Farben. Artikelnummer und interne
+  EAN vergibt das System. Fotos gehen per Ziehen und Ablegen direkt
   in den Objektspeicher, der Worker rechnet alle Bildstufen, und das Vorschaubild erscheint
   nach wenigen Sekunden ohne Neuladen. Sind die Regeln erfüllt (Kategorie, aktive Variante,
   fertiges Hauptbild), wird das Produkt veröffentlicht.
   Die Maßstäbe selbst pflegt das Stellwerk unter „Maßstäbe“: von Z 1:220 bis G 1:22,5,
   dazu 1:24 und 1:25 für Straßenfahrzeuge ohne Gleis.
+- **Schnellerfassung.** Unter „Erfassen“ steht man mit dem Handy an der Kiste: Foto, Modell
+  suchen oder neu anlegen, Maßstab, Ausführung, Farbe und Preis antippen, Stücke mit
+  Etiketten gleich dazu. Neues bleibt Entwurf; „Fertige veröffentlichen“ in der Produktliste
+  bringt abends alle vollständigen Entwürfe in einem Schritt in den Shop.
+  `make catalog-import` spielt den Startbestand ein: die bekannten Modelle mit Preisen und
+  Entwürfe aus den Lagerfotos.
 - **Shop.** Der Katalog beginnt mit der Frage „Welcher Maßstab?“: Kacheln mit der Zahl der
   Modelle und einem Maßband, das einen Meter Vorbild im jeweiligen Maßstab zeigt. Danach
   folgen unter `/katalog/{maßstab}/{kategorie}` nur die Kategorien und Unterkategorien, die
   es in diesem Maßstab gibt (etwa Straßenfahrzeuge → LKW → Feuerwehr), dazu Epoche,
-  Sortierung und Suche. Die Produktseite zeigt Fotobühne, Wahl von Maßstab und Ausführung,
-  Preis und Maße.
+  Sortierung und Suche. Die Produktseite zeigt Fotobühne, Wahl von Maßstab, Ausführung und
+  Farbe (mit Farbtupfern; die Bühne springt auf Fotos der gewählten Farbe), Preis und Maße.
 - **Kaufen.** Der Warenkorb zeigt Preise vom Server und den Versand: 5,90 € nach
   Deutschland, 16,90 € in die übrigen EU-Länder. An der Kasse bestellt man als
   Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Die Zahlung ist bis zur
@@ -158,6 +167,7 @@ bricht `make up` mit einem Hinweis auf die fehlende Variable ab.
 | `make dev-db` | Nur PostgreSQL und Mailpit starten, für die Entwicklung ohne Container |
 | `make migrate` | Migrationen mit dem Backend-Image auf die Datenbank des Stacks anwenden |
 | `make staff EMAIL=… NAME="…" [ROLE=owner\|staff\|packer]` | Mitarbeiterkonto anlegen |
+| `make catalog-import` | Startbestand des Katalogs einspielen (`backend/seed/startbestand.json`); wiederholbar, legt nur Entwürfe an |
 | `make smoke` | End-to-End-Test gegen den laufenden Stack (siehe Schnellstart) |
 | `make test` | Tests von Backend (pytest) und Frontend (Vitest) |
 | `make lint` | Ruff, Formatprüfung, Architekturregeln (import-linter), ESLint |
@@ -363,3 +373,4 @@ secrets:
   - [0010 Katalog nach Maßstab statt nach Spurweite](docs/adr/0010-katalog-nach-massstab.md)
   - [0011 Lager, Barcodes und Lieferbarkeit](docs/adr/0011-lager-barcodes-und-lieferbarkeit.md)
   - [0012 Messen, Messe-Post und Impressum](docs/adr/0012-messen-messe-post-und-impressum.md)
+  - [0013 Bausatz und Fertigmodell, Farben, Schnellerfassung und Startbestand](docs/adr/0013-bausatz-fertigmodell-farben-schnellerfassung.md)
