@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: PageProps<"/katalog/[massstab
   }
   return {
     title: `Modelle in ${scaleLabel(resolved.scale)}`,
-    description: `3D-gedruckte Modelle im Maßstab ${resolved.scale.ratio}: Gebäude, Fahrzeuge und Zubehör.`,
+    description: `Handgefertigte Modelle im Maßstab ${resolved.scale.ratio}: Fahrzeuge für Schiene und Straße.`,
   };
 }
 

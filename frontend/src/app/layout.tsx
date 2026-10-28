@@ -11,7 +11,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: SHOP_NAME, template: `%s · ${SHOP_NAME}` },
-  description: "3D-gedruckte Modellbahn-Artikel aus der eigenen Werkstatt.",
+  description: "Fahrzeugmodelle in Handarbeit und Kleinserie: Lkw, Autokrane und Schienenfahrzeuge für Sammler und Modellbahner.",
   applicationName: SHOP_NAME,
 };
 

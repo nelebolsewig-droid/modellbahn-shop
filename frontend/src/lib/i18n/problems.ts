@@ -37,6 +37,14 @@ export const PROBLEM_MESSAGES: Messages = {
   product_not_deletable:
     "Nur Entwürfe, die nie im Shop waren, lassen sich löschen. Archiviere das Produkt stattdessen.",
   not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
+
+  // Fairs and the fair news
+  fair_not_found: "Diese Messe gibt es nicht (mehr).",
+  fair_not_published: "Erst veröffentlichen, dann ankündigen: Die Mail verlinkt die Terminseite.",
+  fair_past: "Die Messe ist vorbei; ankündigen lässt sich nur, was noch kommt.",
+  fair_already_announced: "Diese Messe wurde schon angekündigt. Jede Messe geht nur einmal hinaus.",
+  fair_news_token_invalid:
+    "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt. Melde dich auf der Terminseite einfach noch einmal an.",
   precondition_failed:
     "Jemand hat das Produkt inzwischen geändert. Lade den aktuellen Stand und übernimm deine Änderung dann erneut.",
   precondition_required: "Die Änderung braucht den gelesenen Stand. Bitte lade die Seite neu.",
@@ -186,7 +194,13 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
     invalid: "Bitte eine Zahl mit höchstens einer Nachkommastelle, z. B. 16,5.",
     out_of_range: "Bitte eine Spurweite über 0 mm.",
   },
-  postal_code: { invalid: "Bitte prüfe die Postleitzahl (Deutschland 5, Österreich 4 Ziffern)." },
+  postal_code: { invalid: "Bitte prüfe die Postleitzahl für das gewählte Land." },
+  ends_on: {
+    before_start: "Der letzte Tag liegt vor dem ersten.",
+    too_long: "Eine Messe dauert hier höchstens 14 Tage.",
+  },
+  website_url: { invalid: "Bitte eine vollständige Adresse mit https://, z. B. https://www.messe.de." },
+  consent: { required: "Bitte setz den Haken, damit wir dir die Messe-Post schicken dürfen." },
   segment: { invalid: "Ein bis acht Großbuchstaben oder Ziffern, z. B. R02 oder B12." },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },

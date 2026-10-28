@@ -28,6 +28,7 @@ const SECTIONS = [
   { href: "/admin/katalog", label: "Katalog", exact: false },
   { href: "/admin/katalog/kategorien", label: "Kategorien", exact: true },
   { href: "/admin/katalog/massstaebe", label: "Maßstäbe", exact: true },
+  { href: "/admin/messen", label: "Messen", exact: true },
 ] as const satisfies readonly { href: Route; label: string; exact: boolean }[];
 
 export type AdminDesk = {
@@ -112,7 +113,7 @@ export function AdminShell({ children }: AdminShellProps) {
                       href={section.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors",
+                        "inline-flex h-9 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
                         active ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
                       )}
                     >

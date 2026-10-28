@@ -32,6 +32,17 @@ export default function PrivacyPage() {
           Du kannst dein Konto jederzeit unter „Mein Konto“ selbst löschen. Wir entfernen dann
           Namen, E-Mail-Adresse und Passwort und beenden alle Sitzungen.
         </li>
+        <li>
+          Für die Messe-Post speichern wir deine E-Mail-Adresse, wann du sie bestellt hast und welchen
+          Einwilligungstext du gesehen hast. Ankündigungen bekommst du erst, wenn du den Link in unserer
+          Bestätigungsmail anklickst (Double-Opt-in); unbestätigte Anmeldungen löschen wir nach sieben
+          Tagen. Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du kannst sie
+          jederzeit mit dem Link in jeder Mail widerrufen – wir löschen deine Adresse dann sofort.
+        </li>
+        <li>
+          Die Links „Route planen“ (OpenStreetMap) und zu den Websites der Messen öffnen diese Seiten erst
+          auf deinen Klick; vorher geht nichts an sie.
+        </li>
       </ul>
     </div>
   );

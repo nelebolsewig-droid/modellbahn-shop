@@ -4,28 +4,37 @@ import { connection } from "next/server";
 
 import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
-import { SignalBoxDrawing } from "@/components/site/signal-box-drawing";
+import { NextFair } from "@/components/site/next-fair";
+import { CraneTruckDrawing } from "@/components/site/crane-truck-drawing";
 import { ProductCard } from "@/components/ui/product-card";
-import type { NavigationOut, StoreProductCardOut, StoreProductPageOut } from "@/lib/api/generated/model";
+import type {
+  FairCalendarOut,
+  FairOut,
+  NavigationOut,
+  StoreProductCardOut,
+  StoreProductPageOut,
+} from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { loadNavigation } from "@/lib/catalog/store-data";
 
-// What the concept plans for the next steps (docs/KONZEPT.md, "Fahrplan"); the
-// start page says honestly that none of it is open yet.
-const COMING = [
+// What sets the workshop apart, from its own website (Über uns, Sonderanfertigung).
+const TRAITS = [
   {
-    title: "Gedruckt, wenn du bestellst",
-    text: "Was nicht am Lager liegt, plant die Werkstatt für den nächsten Druck ein; die Lieferzeit steht vorher fest.",
+    title: "Kleinserie statt Fließband",
+    text: "Jedes Modell entsteht in Handarbeit und limitierter Auflage – mit einem Blick fürs Detail, der bei Massenware verloren geht.",
+    link: null,
   },
   {
-    title: "Bausätze mit Stückliste",
-    text: "Du siehst vorher, welche Teile in der Schachtel liegen und was du selbst ergänzt.",
+    title: "Gefertigt, wenn du bestellst",
+    text: "Manche Modelle bauen wir erst für dich. Ob ein Modell vorrätig ist und wann es ankommt, siehst du vor dem Kauf.",
+    link: null,
   },
   {
-    title: "Verfügbarkeit",
-    text: "Du siehst, ob ein Modell am Lager liegt oder für dich gedruckt wird, und wann es ankommt.",
+    title: "Dein eigenes Modell",
+    text: "Sonderanfertigungen im 3D-Druck und Lasercutting, vom Einzelstück bis zur Kleinserie.",
+    link: { href: "/sonderanfertigung", label: "Mehr zur Sonderanfertigung" },
   },
-] as const;
+] as const satisfies readonly { title: string; text: string; link: { href: Route; label: string } | null }[];
 
 const NEWEST_COUNT = "3";
 
@@ -36,6 +45,16 @@ async function newestProducts(): Promise<StoreProductCardOut[]> {
     return page?.items ?? [];
   } catch {
     return [];
+  }
+}
+
+/** The next fair still to come; null if none is planned or the API is unreachable. */
+async function nextFair(): Promise<FairOut | null> {
+  try {
+    const calendar = await fetchStore<FairCalendarOut>("/fairs");
+    return calendar?.upcoming[0] ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -51,24 +70,26 @@ async function navigationOrNull(): Promise<NavigationOut | null> {
 export default async function HomePage() {
   // Rendered per request, so a newly published model shows up at once.
   await connection();
-  const [newest, navigation] = await Promise.all([newestProducts(), navigationOrNull()]);
+  const [newest, navigation, fair] = await Promise.all([newestProducts(), navigationOrNull(), nextFair()]);
   const scaleNames = new Map((navigation?.scales ?? []).map((scale) => [scale.code, scale.name]));
   return (
     <>
       <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
         <div>
-          <p className="label-caps text-ink-tertiary">Gleis 1 · Im Aufbau</p>
+          <p className="label-caps text-ink-tertiary">Seit 1992 · Handarbeit aus Deutschland</p>
           <h1 className="mt-5 text-title sm:text-display">
-            Hier entsteht ein Shop für 3D-gedruckte Modellbahn-Artikel.
+            Jedes Modell ein Unikat – gefertigt mit Liebe zum Detail.
           </h1>
           <p className="mt-6 max-w-xl text-body-lg text-ink-secondary">
-            Konstruiert, gedruckt und geprüft in unserer eigenen Werkstatt, von Z bis G und für
-            die Straße in 1:24. Bestellen kannst du als Gast oder mit Kundenkonto.
+            Fahrzeugmodelle in Kleinserie für Sammler und Modellbahner: Lkw, Autokrane und
+            Schienenfahrzeuge von N bis Spur 0. Bestellen kannst du als Gast oder mit Kundenkonto.
           </p>
           <HomeActions />
         </div>
-        <SignalBoxDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
+        <CraneTruckDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
       </section>
+
+      {fair ? <NextFair fair={fair} /> : null}
 
       {newest.length > 0 ? (
         <section aria-labelledby="neu" className="border-t border-line">
@@ -115,16 +136,21 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section aria-labelledby="was-hier-entsteht" className="bg-stage">
+      <section aria-labelledby="was-uns-ausmacht" className="bg-stage">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
-          <h2 id="was-hier-entsteht" className="text-heading">
-            Was hier entsteht
+          <h2 id="was-uns-ausmacht" className="text-heading">
+            Was uns ausmacht
           </h2>
           <ul className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-12">
-            {COMING.map((item) => (
+            {TRAITS.map((item) => (
               <li key={item.title} className="border-t border-line-strong pt-6">
                 <h3 className="text-[1.25rem] leading-7 font-normal tracking-[-0.01em]">{item.title}</h3>
                 <p className="mt-3 text-ink-secondary">{item.text}</p>
+                {item.link ? (
+                  <Link href={item.link.href} className="mt-4 inline-block text-small font-medium text-accent hover:underline">
+                    {item.link.label}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>
