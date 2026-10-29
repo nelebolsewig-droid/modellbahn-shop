@@ -60,6 +60,7 @@ ADMIN_AUTH: Final = f"{API}/admin/auth"
 ADMIN_EVENTS: Final = f"{API}/admin/events"
 ADMIN: Final = f"{API}/admin"
 INVENTORY: Final = f"{ADMIN}/inventory"
+MANUFACTURING: Final = f"{ADMIN}/manufacturing"
 SHOP: Final = f"{API}/store"
 
 CLIENT_HEADER: Final = "X-Modellbahn-Client"
@@ -79,6 +80,9 @@ ORDER_PAID: Final = "sales.order.paid"
 STOCK_CHANGED: Final = "inventory.stock.changed"
 BACKORDERED: Final = "inventory.allocation.backordered"
 FAIR_ANNOUNCED: Final = "site.fair.announced"
+PRINT_JOB_FAILED: Final = "manufacturing.print_job.failed"
+# A full resin plate of the smoke part; on resin the plate takes as long as its slowest part.
+SMOKE_PLATE_MINUTES: Final = 120
 SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
@@ -694,6 +698,10 @@ class Demo:
             (
                 "Schnellerfassung: Entwurf in Farbe mit Foto, zweite Farbe, veröffentlichen",
                 self.quick_entry,
+            ),
+            (
+                "Fertigung: Drucker, Teil, Stückliste, Platte bis fertig, Defekt live im Stellwerk",
+                self.manufacturing,
             ),
             (
                 "eBay (Testmarktplatz): verbinden, anbieten, Kauf wird bezahlte Bestellung",
@@ -1813,6 +1821,109 @@ class Demo:
                 )
             time.sleep(0.5)
 
+    def manufacturing(self) -> str | None:
+        """A printer of the hall: a plate from the queue to done, then a defect mid-print."""
+        code = f"S{uuid.uuid4().hex[:6].upper()}"
+        printer = self._staff(
+            "POST",
+            f"{MANUFACTURING}/printers",
+            {"code": code, "name": "Smoke", "technology": "resin"},
+        )
+        expect_status(printer, 201, "Drucker anlegen")
+        printer_id = printer.json()["id"]
+        part = self._staff(
+            "POST",
+            f"{MANUFACTURING}/parts",
+            {
+                "part_number": f"SMOKE-{code}-DACH-H0",
+                "name": "Smoke-Dach",
+                "scale_code": "H0",
+                "technology": "resin",
+                "plate_minutes": SMOKE_PLATE_MINUTES,
+                "parts_per_plate": 4,
+            },
+        )
+        expect_status(part, 201, "Teil anlegen")
+        part_id = part.json()["id"]
+        # The smoke product's H0 scale: two roofs per kit, a quarter plate each.
+        scale_id = self._product["scales"][0]["id"]
+        bom = self._staff(
+            "PUT",
+            f"{MANUFACTURING}/product-scales/{scale_id}/bom",
+            {"lines": [{"part_id": part_id, "quantity": 2}]},
+        )
+        expect_status(bom, 200, "Stückliste")
+        figures = (bom.json()["part_count"], bom.json()["print_minutes"])
+        expect(figures == (2, 60), f"Stückliste: Teile und Druckzeit {figures}")
+
+        def plate(quantity: int) -> dict[str, Any]:
+            planned = self._staff(
+                "POST",
+                f"{MANUFACTURING}/print-jobs",
+                {"printer_id": printer_id, "lines": [{"part_id": part_id, "quantity": quantity}]},
+            )
+            expect_status(planned, 201, "Platte planen")
+            job: dict[str, Any] = planned.json()
+            return job
+
+        first, second = plate(8), plate(4)
+        expect(
+            first["planned_minutes"] == SMOKE_PLATE_MINUTES,
+            f"Geschätzte Druckzeit {first['planned_minutes']}",
+        )
+        jobs = f"{MANUFACTURING}/print-jobs"
+        expect_status(self._staff("POST", f"{jobs}/{first['id']}/start"), 200, "Platte starten")
+        expect_problem(
+            self._staff("POST", f"{jobs}/{second['id']}/start"),
+            409,
+            "printer_busy",
+            "Zweite Platte auf belegtem Drucker",
+        )
+        expect_status(self._staff("POST", f"{jobs}/{first['id']}/take-off"), 200, "Abnehmen")
+        done = self._staff(
+            "POST", f"{jobs}/{first['id']}/complete", {"lines": [{"part_id": part_id, "good": 7}]}
+        )
+        expect_status(done, 200, "Fertig melden")
+        expect(done.json()["lines"][0]["failed"] == 1, "Ausschuss nicht gezählt")
+        expect_status(self._staff("POST", f"{jobs}/{second['id']}/start"), 200, "Zweite Platte")
+        broken = self._staff(
+            "POST",
+            f"{MANUFACTURING}/printers/{printer_id}/status",
+            {"status": "defective", "note": "Folie gerissen"},
+        )
+        expect_status(broken, 200, "Defekt melden")
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == PRINT_JOB_FAILED
+                    and e.json().get("data", {}).get("printer_code") == code
+                ),
+                what=f"{PRINT_JOB_FAILED} für {code}",
+            )
+        hall = self._staff("GET", f"{MANUFACTURING}/hall")
+        expect_status(hall, 200, "Druckerhalle")
+        desk = next(item for item in hall.json()["printers"] if item["code"] == code)
+        expect(
+            (desk["status"], desk["printing"]) == ("defective", None),
+            f"Defekter Drucker in der Halle: {desk['status']}, druckt {desk['printing']}",
+        )
+        expect_status(
+            self._staff(
+                "POST", f"{MANUFACTURING}/printers/{printer_id}/status", {"status": "retired"}
+            ),
+            200,
+            "Ausmustern",
+        )
+        for path in (
+            "/admin/fertigung",
+            "/admin/fertigung/teile",
+            f"/admin/fertigung/drucker/{printer_id}",
+        ):
+            expect_status(self.staff_browser.page(path), 200, f"{path} mit Admin-Sitzung")
+        return (
+            f"{code}: Druck {first['number']} fertig (7 von 8), Druck {second['number']} Fehldruck"
+        )
+
     def _ebay_connect(self) -> None:
         """The owner connects eBay, chooses the shipping policy and maps the category."""
         # Only the owner connects; the test marketplace leads straight to the callback,
@@ -1915,7 +2026,9 @@ class Demo:
         self._ebay_order = order
         found = self.mailpit._get("/api/v1/search", query=f'to:"{EBAY_TEST_BUYER}"')
         expect(not found.get("messages"), "Der Shop hat dem eBay-Käufer geschrieben")
-        return f"{self._ebay_external} → {order['number']} · {price / 100:.2f} € auf eBay".replace(".", ",")
+        return f"{self._ebay_external} → {order['number']} · {price / 100:.2f} € auf eBay".replace(
+            ".", ","
+        )
 
     def ebay_cancel(self) -> str | None:
         if not self._ebay_external:
@@ -2113,7 +2226,10 @@ class Demo:
         for text in ("So entsteht ein Modell", "Stückliste", "Fahrgestellrahmen", "Zerlegt"):
             expect(text in page.text, f"„{text}“ fehlt auf /so-entsteht-ein-modell")
         start = self.visitor.page("/")
-        expect('href="/so-entsteht-ein-modell"' in start.text, "Die Startseite führt nicht zur Zeichnung")
+        expect(
+            'href="/so-entsteht-ein-modell"' in start.text,
+            "Die Startseite führt nicht zur Zeichnung",
+        )
         return "Seite mit Stückliste, von der Startseite verlinkt"
 
     def customer_on_admin(self) -> str | None:

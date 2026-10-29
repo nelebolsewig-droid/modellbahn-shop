@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
 from modellbahn.modules.inventory.infrastructure import tables as inventory_tables
+from modellbahn.modules.manufacturing.infrastructure import tables as manufacturing_tables
 from modellbahn.modules.marketplace.infrastructure import tables as marketplace_tables
 from modellbahn.modules.media.infrastructure import tables as media_tables
 from modellbahn.modules.sales.infrastructure import tables as sales_tables
@@ -30,6 +31,7 @@ SCHEMAS = (
     "inventory",
     "site",
     "marketplace",
+    "manufacturing",
 )
 
 
@@ -98,6 +100,14 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "marketplace.marketplace_orders",
         "marketplace.marketplace_order_lines",
         "marketplace.test_sales",
+        "manufacturing.printers",
+        "manufacturing.printer_status_reports",
+        "manufacturing.materials",
+        "manufacturing.parts",
+        "manufacturing.boms",
+        "manufacturing.bom_lines",
+        "manufacturing.print_jobs",
+        "manufacturing.print_job_lines",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -129,6 +139,7 @@ async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
     assert sales_tables.orders.metadata is metadata
     assert inventory_tables.units.metadata is metadata
     assert marketplace_tables.listings.metadata is metadata
+    assert manufacturing_tables.print_jobs.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 
@@ -176,6 +187,14 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "fk_allocations_order_id_orders",
         "fk_stock_ledger_reverses_id_stock_ledger",
         "ck_stock_ledger_undo_reverses",
+        "uq_product_scales_id_scale_code",
+        "fk_boms_product_scale_id_scale_code_product_scales",
+        "fk_bom_lines_part_id_scale_code_parts",
+        "fk_parts_material_id_technology_materials",
+        "fk_print_jobs_printer_id_technology_printers",
+        "fk_print_job_lines_part_id_technology_parts",
+        "ck_print_job_lines_counts_within_quantity",
+        "ck_print_jobs_started_at",
     } <= names
 
 

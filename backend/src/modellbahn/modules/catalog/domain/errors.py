@@ -72,6 +72,10 @@ class VariantHasUnitsError(CatalogError):
     """The workshop has (or had) units of the variant; it can be deactivated, not removed."""
 
 
+class ProductScaleHasBomError(CatalogError):
+    """Manufacturing keeps a bill of materials for the product in this scale; it goes first."""
+
+
 class ProductNotDeletableError(CatalogError):
     """Only drafts that were never published can be deleted."""
 

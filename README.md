@@ -7,7 +7,7 @@ Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Ca
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
 die tragenden Entscheidungen in [docs/adr/](docs/adr/).
 
-**Stand: Schritt 5 – Lager und Barcodes.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
+**Stand: Schritt 6a – Fertigung.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
 mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit Kundenkonten
 und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln), den Modulen *Katalog* und
 *Medien* aus Schritt 3 und *Verkauf* aus Schritt 4 steht jetzt das Modul *Lager*:
@@ -16,8 +16,10 @@ und Lieferbarkeit im Shop (ADR 0011). Der Katalog ist nach **Maßstab** geordnet
 nach Kategorie (ADR 0010). Dazu kam das Modul *Auftritt*: Messetermine mit Kalender und
 Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder
 (ADR 0012). Seit ADR 0013 gibt es jedes Modell als **Bausatz** oder **Fertigmodell** in
-Farben, eine **Schnellerfassung** fürs Handy und einen Startbestand zum Einspielen. Die
-Fertigung folgt mit Schritt 6.
+Farben, eine **Schnellerfassung** fürs Handy und einen Startbestand zum Einspielen. Mit
+Schritt 6a kam das Modul *Fertigung*: die Drucker der Werkstatt mit ihrem Zustand, Teile,
+Stücklisten und Druckaufträge in einer Druckerhalle, die live mitläuft (ADR 0017).
+Wareneingang und Montage folgen mit Schritt 6b.
 
 Was sich vorführen lässt:
 
@@ -74,6 +76,14 @@ Was sich vorführen lässt:
   Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 1–2 Wochen“
   oder „Derzeit nicht lieferbar“; Warenkorb und Kasse nehmen nicht mehr an, als lieferbar
   ist, und nennen die Lieferzeit vor dem Kauf.
+- **Fertigung.** Unter „Fertigung“ steht die **Druckerhalle**: eine Anzeigetafel (in Betrieb,
+  drucken, warten, Nachbearbeitung, defekt, in Reparatur) und je Drucker eine Karte mit
+  Lampe, laufender Platte und Warteschlange. In der Zeichnung des Druckers wächst das Teil
+  mit dem Fortschritt, auf Resin unter der steigenden Bauplattform. Wer am Drucker steht,
+  meldet ihn defekt (der laufende Druck wird Fehldruck), startet die nächste Platte, nimmt
+  sie ab und meldet die guten Teile; alles erscheint sofort auf jedem Bildschirm. Jeder
+  Drucker hat seinen Verlauf. Unter „Teile & Material“ stehen die Teile mit Druckdaten, und
+  im Produkt-Editor die **Stückliste** je Maßstab mit der Druckzeit je Bausatz.
 - **Messen.** Im Stellwerk unter „Messen“ trägt ein Mitarbeiter Messen mit Tagen, Ort, Stand
   und Öffnungszeiten ein. Der Shop zeigt sie unter `/termine` als Halte auf einem
   Streckenband, die nächste auch auf der Startseite, jede als Kalenderdatei, alle als
@@ -255,6 +265,8 @@ modellbahn-shop/
 │   │       ├── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch, Versandzonen
 │   │       ├── inventory/      Lagerplätze, Einheiten, Journal, Scans, Zuteilung,
 │   │       │                   Etiketten (PDF mit EAN-13 und Code 128), Lieferbarkeit
+│   │       ├── manufacturing/  Drucker mit Zustand und Verlauf, Material, Teile, Stücklisten,
+│   │       │                   Druckaufträge
 │   │       ├── site/           Messen, Kalender (iCalendar), Messe-Post mit Double-Opt-in
 │   │       └── marketplace/    eBay: Verbindung (OAuth), Angebote im Gleichschritt mit
 │   │                           Katalog und Lager, Bestellungen, Testmarktplatz
@@ -403,3 +415,7 @@ secrets:
   - [0011 Lager, Barcodes und Lieferbarkeit](docs/adr/0011-lager-barcodes-und-lieferbarkeit.md)
   - [0012 Messen, Messe-Post und Impressum](docs/adr/0012-messen-messe-post-und-impressum.md)
   - [0013 Bausatz und Fertigmodell, Farben, Schnellerfassung und Startbestand](docs/adr/0013-bausatz-fertigmodell-farben-schnellerfassung.md)
+  - [0014 eBay als zweiter Verkaufsweg](docs/adr/0014-ebay-als-zweiter-verkaufsweg.md)
+  - [0015 Löschmeldungen von eBay (Marketplace Account Deletion)](docs/adr/0015-ebay-loeschmeldungen.md)
+  - [0016 Explosionszeichnung „So entsteht ein Modell“](docs/adr/0016-explosionszeichnung.md)
+  - [0017 Fertigung: Drucker mit Zustand, Teile, Stücklisten, Druckaufträge](docs/adr/0017-fertigung-drucker-teile-stuecklisten.md)

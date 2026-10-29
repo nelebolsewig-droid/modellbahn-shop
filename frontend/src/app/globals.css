@@ -60,6 +60,17 @@
   --animate-stage-in: stage-in 320ms ease-out;
   /* The scanner's viewfinder lights up once per scan and fades. */
   --animate-scan-flash: scan-flash 650ms ease-out forwards;
+  /* The nozzle of a filament printer in the printer hall goes to and fro while it prints. */
+  --animate-nozzle-sweep: nozzle-sweep 2.4s ease-in-out infinite alternate;
+
+  @keyframes nozzle-sweep {
+    from {
+      transform: translateX(-11px);
+    }
+    to {
+      transform: translateX(11px);
+    }
+  }
 
   @keyframes scan-flash {
     from {

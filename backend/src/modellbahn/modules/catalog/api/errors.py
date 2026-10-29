@@ -13,6 +13,7 @@ from modellbahn.modules.catalog.domain.errors import (
     ProductNotDeletableError,
     ProductNotFoundError,
     ProductNotPublishableError,
+    ProductScaleHasBomError,
     ProductScaleNotFoundError,
     PublishBlocker,
     ScaleAlreadyAddedError,
@@ -109,6 +110,10 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     VariantHasUnitsError: lambda _: ConflictError(
         "The workshop has units of this variant; deactivate it instead.",
         code="variant_has_units",
+    ),
+    ProductScaleHasBomError: lambda _: ConflictError(
+        "Manufacturing has a bill of materials for this scale; remove it first.",
+        code="product_scale_has_bom",
     ),
     ProductNotDeletableError: lambda _: ConflictError(
         "Only drafts that were never published can be deleted.", code="product_not_deletable"

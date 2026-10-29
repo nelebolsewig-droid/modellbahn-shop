@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assetIdOf,
+  isManufacturingEvent,
   mergeFeed,
   orderEventOf,
   parseFeedEntry,
@@ -81,8 +82,38 @@ describe("parseFeedEntry", () => {
       "sales.order.shipped",
       "sales.order.cancelled",
       "inventory.allocation.backordered",
+      "manufacturing.printer.status_changed",
+      "manufacturing.print_job.completed",
+      "manufacturing.print_job.failed",
       "site.fair.announced",
     ]);
+  });
+
+  it("names a printer by its code and new state, a plate by its number and printer", () => {
+    const report = parseFeedEntry(
+      message({
+        type: "manufacturing.printer.status_changed",
+        data: { printer_id: "p1", code: "D03", status: "defective", previous_status: "in_service" },
+      }),
+    );
+    expect(report?.label).toBe("Druckerzustand gemeldet");
+    expect(report?.subject).toBe("D03 · defekt");
+    const done = parseFeedEntry(
+      message({
+        type: "manufacturing.print_job.completed",
+        data: { job_id: "j1", number: 17, printer_id: "p1", printer_code: "D03", status: "done", good_parts: 11 },
+      }),
+    );
+    expect(done?.label).toBe("Druck fertig");
+    expect(done?.subject).toBe("Druck 17 · D03");
+  });
+
+  it("tells manufacturing events apart", () => {
+    expect(isManufacturingEvent(message({ type: "manufacturing.print_job.changed", data: { job_id: "j1" } }))).toBe(
+      true,
+    );
+    expect(isManufacturingEvent(message())).toBe(false);
+    expect(isManufacturingEvent("{")).toBe(false);
   });
 
   it("names an announced fair", () => {

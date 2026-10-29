@@ -830,6 +830,144 @@
         "title": "Blocker",
         "type": "string"
       },
+      "BomIn": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "description": "All parts in their order; empty removes it.",
+            "items": {
+              "$ref": "#/components/schemas/BomLineIn"
+            },
+            "maxItems": 200,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "BomIn",
+        "type": "object"
+      },
+      "BomLineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id"
+        ],
+        "title": "BomLineIn",
+        "type": "object"
+      },
+      "BomLineOut": {
+        "properties": {
+          "active": {
+            "description": "False once the part is archived.",
+            "title": "Active",
+            "type": "boolean"
+          },
+          "part": {
+            "$ref": "#/components/schemas/PartRefOut"
+          },
+          "parts_per_plate": {
+            "title": "Parts Per Plate",
+            "type": "integer"
+          },
+          "plate_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plate Minutes"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          }
+        },
+        "required": [
+          "part",
+          "technology",
+          "quantity",
+          "plate_minutes",
+          "parts_per_plate",
+          "active"
+        ],
+        "title": "BomLineOut",
+        "type": "object"
+      },
+      "BomOut": {
+        "description": "A product in one scale with the parts it is made of; no lines while it has none.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BomLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "part_count": {
+            "description": "Parts of one kit, all lines added up.",
+            "title": "Part Count",
+            "type": "integer"
+          },
+          "print_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Printing time of one kit, each part's share of a full plate; null while a part has no plate time.",
+            "title": "Print Minutes"
+          },
+          "product_scale": {
+            "$ref": "#/components/schemas/ProductScaleRefOut"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "product_scale",
+          "lines",
+          "part_count",
+          "print_minutes",
+          "updated_at"
+        ],
+        "title": "BomOut",
+        "type": "object"
+      },
       "CancelIn": {
         "additionalProperties": false,
         "properties": {
@@ -2310,6 +2448,102 @@
         "title": "GalleryItemOut",
         "type": "object"
       },
+      "GoodPartsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "good": {
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Good",
+            "type": "integer"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "good"
+        ],
+        "title": "GoodPartsIn",
+        "type": "object"
+      },
+      "HallCountsOut": {
+        "properties": {
+          "defective": {
+            "title": "Defective",
+            "type": "integer"
+          },
+          "in_repair": {
+            "title": "In Repair",
+            "type": "integer"
+          },
+          "in_service": {
+            "title": "In Service",
+            "type": "integer"
+          },
+          "post_processing": {
+            "title": "Post Processing",
+            "type": "integer"
+          },
+          "printing": {
+            "title": "Printing",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "in_service",
+          "defective",
+          "in_repair",
+          "retired",
+          "printing",
+          "queued",
+          "post_processing"
+        ],
+        "title": "HallCountsOut",
+        "type": "object"
+      },
+      "HallOut": {
+        "description": "The printer hall: every printer with its plate and queue, and the plates after it.",
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/HallCountsOut"
+          },
+          "post_processing": {
+            "description": "Off the printer, being washed, cured or cleaned; the oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Post Processing",
+            "type": "array"
+          },
+          "printers": {
+            "description": "By code.",
+            "items": {
+              "$ref": "#/components/schemas/PrinterDeskOut"
+            },
+            "title": "Printers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "printers",
+          "post_processing",
+          "counts"
+        ],
+        "title": "HallOut",
+        "type": "object"
+      },
       "HealthOut": {
         "description": "Answer of the health probes.",
         "properties": {
@@ -3535,6 +3769,143 @@
         "title": "MarketplaceOrderStatus",
         "type": "string"
       },
+      "MaterialCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "examples": [
+              "PLA grau"
+            ],
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology",
+            "description": "Fixed once the material exists."
+          }
+        },
+        "required": [
+          "name",
+          "technology"
+        ],
+        "title": "MaterialCreateIn",
+        "type": "object"
+      },
+      "MaterialIn": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MaterialIn",
+        "type": "object"
+      },
+      "MaterialListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "MaterialListOut",
+        "type": "object"
+      },
+      "MaterialOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "PLA grau"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "part_count": {
+            "description": "Parts made of it.",
+            "title": "Part Count",
+            "type": "integer"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "technology",
+          "notes",
+          "active",
+          "part_count"
+        ],
+        "title": "MaterialOut",
+        "type": "object"
+      },
+      "MaterialRefOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "PLA grau"
+            ],
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MaterialRefOut",
+        "type": "object"
+      },
       "MediaRole": {
         "description": "What a gallery image shows.",
         "enum": [
@@ -4036,6 +4407,615 @@
         "title": "OrderSummaryOut",
         "type": "object"
       },
+      "PartCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "layer_height_um": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 10.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layer Height Um"
+          },
+          "material_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Id"
+          },
+          "material_per_part": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Per Part"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Part Number",
+            "type": "string"
+          },
+          "parts_per_plate": {
+            "default": 1,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Parts Per Plate",
+            "type": "integer"
+          },
+          "plate_minutes": {
+            "anyOf": [
+              {
+                "examples": [
+                  190
+                ],
+                "maximum": 10080.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plate Minutes"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "maxLength": 4,
+            "minLength": 1,
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          }
+        },
+        "required": [
+          "part_number",
+          "name",
+          "scale_code",
+          "technology"
+        ],
+        "title": "PartCreateIn",
+        "type": "object"
+      },
+      "PartIn": {
+        "additionalProperties": false,
+        "description": "Everything about a part but its scale and technology; editing sends all of it again.",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "layer_height_um": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 10.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layer Height Um"
+          },
+          "material_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Id"
+          },
+          "material_per_part": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Per Part"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Part Number",
+            "type": "string"
+          },
+          "parts_per_plate": {
+            "default": 1,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Parts Per Plate",
+            "type": "integer"
+          },
+          "plate_minutes": {
+            "anyOf": [
+              {
+                "examples": [
+                  190
+                ],
+                "maximum": 10080.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plate Minutes"
+          }
+        },
+        "required": [
+          "part_number",
+          "name"
+        ],
+        "title": "PartIn",
+        "type": "object"
+      },
+      "PartListOut": {
+        "properties": {
+          "items": {
+            "description": "By scale and part number, at most 500.",
+            "items": {
+              "$ref": "#/components/schemas/PartOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PartListOut",
+        "type": "object"
+      },
+      "PartOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "bom_count": {
+            "description": "Kits whose bill of materials names it.",
+            "title": "Bom Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_count": {
+            "description": "Plates it was or is on.",
+            "title": "Job Count",
+            "type": "integer"
+          },
+          "layer_height_um": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              50
+            ],
+            "title": "Layer Height Um"
+          },
+          "material": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "material_per_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Grams of filament or millilitres of resin, supports included.",
+            "title": "Material Per Part"
+          },
+          "minutes_per_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A full plate's time shared by its parts (one decimal).",
+            "title": "Minutes Per Part"
+          },
+          "name": {
+            "examples": [
+              "Dach Stellwerk Altenau"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "title": "Part Number",
+            "type": "string"
+          },
+          "parts_per_plate": {
+            "title": "Parts Per Plate",
+            "type": "integer"
+          },
+          "plate_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A full plate of this part.",
+            "title": "Plate Minutes"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "scale_name": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Name",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "part_number",
+          "name",
+          "scale_code",
+          "scale_name",
+          "technology",
+          "material",
+          "layer_height_um",
+          "plate_minutes",
+          "parts_per_plate",
+          "minutes_per_part",
+          "material_per_part",
+          "notes",
+          "active",
+          "bom_count",
+          "job_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PartOut",
+        "type": "object"
+      },
+      "PartRecordOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "bom_count": {
+            "description": "Kits whose bill of materials names it.",
+            "title": "Bom Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_count": {
+            "description": "Plates it was or is on.",
+            "title": "Job Count",
+            "type": "integer"
+          },
+          "jobs": {
+            "description": "Its latest plates, the newest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "layer_height_um": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              50
+            ],
+            "title": "Layer Height Um"
+          },
+          "material": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "material_per_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Grams of filament or millilitres of resin, supports included.",
+            "title": "Material Per Part"
+          },
+          "minutes_per_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A full plate's time shared by its parts (one decimal).",
+            "title": "Minutes Per Part"
+          },
+          "name": {
+            "examples": [
+              "Dach Stellwerk Altenau"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "title": "Part Number",
+            "type": "string"
+          },
+          "parts_per_plate": {
+            "title": "Parts Per Plate",
+            "type": "integer"
+          },
+          "plate_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A full plate of this part.",
+            "title": "Plate Minutes"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "scale_name": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Name",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "uses": {
+            "description": "The kits that need it, by product.",
+            "items": {
+              "$ref": "#/components/schemas/PartUseOut"
+            },
+            "title": "Uses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "part_number",
+          "name",
+          "scale_code",
+          "scale_name",
+          "technology",
+          "material",
+          "layer_height_um",
+          "plate_minutes",
+          "parts_per_plate",
+          "minutes_per_part",
+          "material_per_part",
+          "notes",
+          "active",
+          "bom_count",
+          "job_count",
+          "created_at",
+          "updated_at",
+          "uses",
+          "jobs"
+        ],
+        "title": "PartRecordOut",
+        "type": "object"
+      },
+      "PartRefOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Dach Stellwerk Altenau"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "title": "Part Number",
+            "type": "string"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "part_number",
+          "name",
+          "scale_code"
+        ],
+        "title": "PartRefOut",
+        "type": "object"
+      },
+      "PartUseOut": {
+        "properties": {
+          "product_scale": {
+            "$ref": "#/components/schemas/ProductScaleRefOut"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_scale",
+          "quantity"
+        ],
+        "title": "PartUseOut",
+        "type": "object"
+      },
       "PasswordChangeIn": {
         "additionalProperties": false,
         "properties": {
@@ -4354,6 +5334,994 @@
           "name"
         ],
         "title": "PolicyOptionOut",
+        "type": "object"
+      },
+      "PrintJobCompleteIn": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "description": "Good parts per part; parts not named all came out well.",
+            "items": {
+              "$ref": "#/components/schemas/GoodPartsIn"
+            },
+            "maxItems": 50,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "title": "PrintJobCompleteIn",
+        "type": "object"
+      },
+      "PrintJobCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PrintJobLineIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "planned_minutes": {
+            "anyOf": [
+              {
+                "examples": [
+                  190
+                ],
+                "maximum": 10080.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the slicer; empty: estimated from the parts.",
+            "title": "Planned Minutes"
+          },
+          "printer_id": {
+            "format": "uuid",
+            "title": "Printer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "printer_id",
+          "lines"
+        ],
+        "title": "PrintJobCreateIn",
+        "type": "object"
+      },
+      "PrintJobFailIn": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "default": "",
+            "examples": [
+              "Haftung"
+            ],
+            "maxLength": 200,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "PrintJobFailIn",
+        "type": "object"
+      },
+      "PrintJobLineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id"
+        ],
+        "title": "PrintJobLineIn",
+        "type": "object"
+      },
+      "PrintJobLineOut": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "good": {
+            "description": "Came out well (once the job is done).",
+            "title": "Good",
+            "type": "integer"
+          },
+          "part": {
+            "$ref": "#/components/schemas/PartRefOut"
+          },
+          "quantity": {
+            "description": "Planned on the plate.",
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "quantity",
+          "good",
+          "failed"
+        ],
+        "title": "PrintJobLineOut",
+        "type": "object"
+      },
+      "PrintJobListOut": {
+        "properties": {
+          "items": {
+            "description": "The newest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PrintJobListOut",
+        "type": "object"
+      },
+      "PrintJobOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expected_end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When printing should be over (set once it started).",
+            "title": "Expected End At"
+          },
+          "failure_reason": {
+            "title": "Failure Reason",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PrintJobLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "number": {
+            "description": "Shown as „Druck 17“.",
+            "examples": [
+              17
+            ],
+            "title": "Number",
+            "type": "integer"
+          },
+          "part_count": {
+            "title": "Part Count",
+            "type": "integer"
+          },
+          "planned_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How long it prints: from the slicer, or estimated from the parts.",
+            "title": "Planned Minutes"
+          },
+          "printed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it came off the printer.",
+            "title": "Printed At"
+          },
+          "printer": {
+            "$ref": "#/components/schemas/PrinterRefOut"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrintJobStatus"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "printer",
+          "technology",
+          "status",
+          "planned_minutes",
+          "expected_end_at",
+          "note",
+          "failure_reason",
+          "part_count",
+          "created_at",
+          "started_at",
+          "printed_at",
+          "finished_at",
+          "lines"
+        ],
+        "title": "PrintJobOut",
+        "type": "object"
+      },
+      "PrintJobPlanIn": {
+        "additionalProperties": false,
+        "description": "A waiting job: another printer of its technology, its duration, its note.",
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "planned_minutes": {
+            "anyOf": [
+              {
+                "examples": [
+                  190
+                ],
+                "maximum": 10080.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Minutes"
+          },
+          "printer_id": {
+            "format": "uuid",
+            "title": "Printer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "printer_id"
+        ],
+        "title": "PrintJobPlanIn",
+        "type": "object"
+      },
+      "PrintJobStatus": {
+        "enum": [
+          "queued",
+          "printing",
+          "post_processing",
+          "done",
+          "failed",
+          "cancelled"
+        ],
+        "title": "PrintJobStatus",
+        "type": "string"
+      },
+      "PrinterCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "build_x_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build X Mm"
+          },
+          "build_y_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Y Mm"
+          },
+          "build_z_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Z Mm"
+          },
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "model": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "examples": [
+              "Saturn links"
+            ],
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology",
+            "description": "Fixed once the printer exists."
+          }
+        },
+        "required": [
+          "code",
+          "technology"
+        ],
+        "title": "PrinterCreateIn",
+        "type": "object"
+      },
+      "PrinterDeskOut": {
+        "properties": {
+          "build_x_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              218
+            ],
+            "title": "Build X Mm"
+          },
+          "build_y_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              123
+            ],
+            "title": "Build Y Mm"
+          },
+          "build_z_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              220
+            ],
+            "title": "Build Z Mm"
+          },
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "examples": [
+              "Elegoo Saturn 4 Ultra"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Saturn links"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "printing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrintJobOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plate on the printer right now."
+          },
+          "queue": {
+            "description": "Waiting for the printer, the oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Queue",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrinterStatus"
+          },
+          "status_changed_at": {
+            "description": "Since when it is in this state.",
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "status_note": {
+            "description": "Why it is in this state.",
+            "examples": [
+              "Düse verstopft, Ersatz bestellt"
+            ],
+            "title": "Status Note",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "model",
+          "technology",
+          "build_x_mm",
+          "build_y_mm",
+          "build_z_mm",
+          "notes",
+          "status",
+          "status_note",
+          "status_changed_at",
+          "created_at",
+          "updated_at",
+          "printing",
+          "queue"
+        ],
+        "title": "PrinterDeskOut",
+        "type": "object"
+      },
+      "PrinterIn": {
+        "additionalProperties": false,
+        "description": "Everything about a printer but its technology; editing sends all of it again.",
+        "properties": {
+          "build_x_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build X Mm"
+          },
+          "build_y_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Y Mm"
+          },
+          "build_z_mm": {
+            "anyOf": [
+              {
+                "maximum": 2000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Z Mm"
+          },
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "model": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "examples": [
+              "Saturn links"
+            ],
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "PrinterIn",
+        "type": "object"
+      },
+      "PrinterOut": {
+        "properties": {
+          "build_x_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              218
+            ],
+            "title": "Build X Mm"
+          },
+          "build_y_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              123
+            ],
+            "title": "Build Y Mm"
+          },
+          "build_z_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              220
+            ],
+            "title": "Build Z Mm"
+          },
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "examples": [
+              "Elegoo Saturn 4 Ultra"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Saturn links"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrinterStatus"
+          },
+          "status_changed_at": {
+            "description": "Since when it is in this state.",
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "status_note": {
+            "description": "Why it is in this state.",
+            "examples": [
+              "Düse verstopft, Ersatz bestellt"
+            ],
+            "title": "Status Note",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "model",
+          "technology",
+          "build_x_mm",
+          "build_y_mm",
+          "build_z_mm",
+          "notes",
+          "status",
+          "status_note",
+          "status_changed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PrinterOut",
+        "type": "object"
+      },
+      "PrinterRecordOut": {
+        "properties": {
+          "build_x_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              218
+            ],
+            "title": "Build X Mm"
+          },
+          "build_y_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              123
+            ],
+            "title": "Build Y Mm"
+          },
+          "build_z_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              220
+            ],
+            "title": "Build Z Mm"
+          },
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "history": {
+            "description": "Status reports, the newest first.",
+            "items": {
+              "$ref": "#/components/schemas/StatusReportOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "jobs": {
+            "description": "Its latest plates, the newest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "model": {
+            "examples": [
+              "Elegoo Saturn 4 Ultra"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Saturn links"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "printing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrintJobOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plate on the printer right now."
+          },
+          "queue": {
+            "description": "Waiting for the printer, the oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/PrintJobOut"
+            },
+            "title": "Queue",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrinterStatus"
+          },
+          "status_changed_at": {
+            "description": "Since when it is in this state.",
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "status_note": {
+            "description": "Why it is in this state.",
+            "examples": [
+              "Düse verstopft, Ersatz bestellt"
+            ],
+            "title": "Status Note",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "model",
+          "technology",
+          "build_x_mm",
+          "build_y_mm",
+          "build_z_mm",
+          "notes",
+          "status",
+          "status_note",
+          "status_changed_at",
+          "created_at",
+          "updated_at",
+          "printing",
+          "queue",
+          "history",
+          "jobs"
+        ],
+        "title": "PrinterRecordOut",
+        "type": "object"
+      },
+      "PrinterRefOut": {
+        "properties": {
+          "code": {
+            "examples": [
+              "D03"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Saturn links"
+            ],
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "PrinterRefOut",
+        "type": "object"
+      },
+      "PrinterStatus": {
+        "enum": [
+          "in_service",
+          "defective",
+          "in_repair",
+          "retired"
+        ],
+        "title": "PrinterStatus",
+        "type": "string"
+      },
+      "PrinterStatusIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "description": "Why; the same status with a new note records the note.",
+            "examples": [
+              "Düse verstopft"
+            ],
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrinterStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PrinterStatusIn",
         "type": "object"
       },
       "Problem": {
@@ -4968,6 +6936,49 @@
           "variants"
         ],
         "title": "ProductScaleOut",
+        "type": "object"
+      },
+      "ProductScaleRefOut": {
+        "properties": {
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "examples": [
+              "Stellwerk Altenau"
+            ],
+            "title": "Product Name",
+            "type": "string"
+          },
+          "product_number": {
+            "title": "Product Number",
+            "type": "integer"
+          },
+          "product_scale_id": {
+            "format": "uuid",
+            "title": "Product Scale Id",
+            "type": "string"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "scale_name": {
+            "title": "Scale Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_scale_id",
+          "product_id",
+          "product_number",
+          "product_name",
+          "scale_code",
+          "scale_name"
+        ],
+        "title": "ProductScaleRefOut",
         "type": "object"
       },
       "ProductStatus": {
@@ -6229,6 +8240,60 @@
         "title": "StaffRole",
         "type": "string"
       },
+      "StatusReportOut": {
+        "properties": {
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrinterStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for the printer's first entry."
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who reported it, if known.",
+            "title": "Staff Name"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/PrinterStatus"
+          }
+        },
+        "required": [
+          "id",
+          "from_status",
+          "to_status",
+          "note",
+          "staff_name",
+          "occurred_at"
+        ],
+        "title": "StatusReportOut",
+        "type": "object"
+      },
       "StockLineOut": {
         "properties": {
           "allocated": {
@@ -6713,6 +8778,14 @@
         ],
         "title": "SubscriptionIn",
         "type": "object"
+      },
+      "Technology": {
+        "enum": [
+          "fdm",
+          "resin"
+        ],
+        "title": "Technology",
+        "type": "string"
       },
       "TestAccountClosedOut": {
         "properties": {
@@ -10464,6 +12537,2601 @@
         ]
       }
     },
+    "/api/v1/admin/manufacturing/hall": {
+      "get": {
+        "operationId": "getPrinterHall",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HallOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Every printer with its state, its plate and its queue",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/materials": {
+      "get": {
+        "operationId": "listMaterials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Every material, by technology and name",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "post": {
+        "operationId": "createMaterial",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Add a material",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/materials/{material_id}": {
+      "delete": {
+        "operationId": "deleteMaterial",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "material_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Material Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `material_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `material_in_use`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Remove a material no part is made of",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "put": {
+        "operationId": "updateMaterial",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "material_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Material Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `material_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Rename, describe or archive a material",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/parts": {
+      "get": {
+        "operationId": "listParts",
+        "parameters": [
+          {
+            "description": "Only this scale.",
+            "in": "query",
+            "name": "scale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 4,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this scale.",
+              "title": "Scale"
+            }
+          },
+          {
+            "description": "Only this technology.",
+            "in": "query",
+            "name": "technology",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Technology"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this technology.",
+              "title": "Technology"
+            }
+          },
+          {
+            "description": "Part number or name contains this.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 60,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Part number or name contains this.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Archived parts too.",
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Archived parts too.",
+              "title": "Archived",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Parts by scale and part number",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "post": {
+        "operationId": "createPart",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Add a part for one scale and technology",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/parts/{part_id}": {
+      "delete": {
+        "operationId": "deletePart",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Part Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `part_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `part_in_use`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Remove a part no kit needs and no plate carried",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "get": {
+        "operationId": "getPart",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Part Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartRecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `part_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A part with the kits that need it and its latest plates",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "put": {
+        "operationId": "updatePart",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Part Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `part_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Change a part (all of its details but scale and technology)",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs": {
+      "get": {
+        "operationId": "listPrintJobs",
+        "parameters": [
+          {
+            "description": "Only these states (repeatable).",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/PrintJobStatus"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these states (repeatable).",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Only on this printer.",
+            "in": "query",
+            "name": "printer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only on this printer.",
+              "title": "Printer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Print jobs, the newest first",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "post": {
+        "operationId": "createPrintJob",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintJobCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `printer_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `printer_retired`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Queue a plate on a printer",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}": {
+      "get": {
+        "operationId": "getPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A print job with its plate",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "put": {
+        "operationId": "planPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintJobPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`, `printer_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`, `printer_retired`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Move a waiting job to another printer, or change its duration and note",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "cancelPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A waiting job is not printed after all",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}/complete": {
+      "post": {
+        "operationId": "completePrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintJobCompleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Done: the good parts of each line, the rest failed",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}/fail": {
+      "post": {
+        "operationId": "failPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintJobFailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The whole plate is lost",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}/start": {
+      "post": {
+        "operationId": "startPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`, `printer_busy`, `printer_not_in_service`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The plate goes onto its printer (in service and free)",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/print-jobs/{job_id}/take-off": {
+      "post": {
+        "operationId": "takeOffPrintJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `print_job_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_print_job_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Printing is over: the parts go into post-processing, the printer is free",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/printers": {
+      "post": {
+        "operationId": "createPrinter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Add a printer (in service)",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/printers/{printer_id}": {
+      "delete": {
+        "operationId": "deletePrinter",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "printer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Printer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `printer_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `printer_in_use`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Remove a printer that never had a print job",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "get": {
+        "operationId": "getPrinter",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "printer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Printer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterRecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `printer_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A printer with its status reports and its latest plates",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "put": {
+        "operationId": "updatePrinter",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "printer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Printer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `printer_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Change a printer (all of its details but its technology)",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/printers/{printer_id}/status": {
+      "post": {
+        "operationId": "reportPrinterStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "printer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Printer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterStatusIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `printer_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `printer_busy`, `printer_has_queue`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Report the printer's state; a defect fails the plate printing on it",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/product-scales/{product_scale_id}/bom": {
+      "get": {
+        "operationId": "getBillOfMaterials",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_scale_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Scale Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BomOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `product_scale_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The parts a product in one scale is made of",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      },
+      "put": {
+        "operationId": "replaceBillOfMaterials",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_scale_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Scale Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BomIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BomOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `product_scale_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Set the parts of a product in one scale; no lines removes them",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
     "/api/v1/admin/marketplace/ebay": {
       "get": {
         "operationId": "getEbayStatus",
@@ -13126,7 +17794,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `variant_has_units`."
+            "description": "Conflict. Problem codes: `product_scale_has_bom`, `variant_has_units`."
           },
           "412": {
             "content": {
@@ -13763,7 +18431,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `product_not_deletable`, `variant_has_units`."
+            "description": "Conflict. Problem codes: `product_not_deletable`, `product_scale_has_bom`, `variant_has_units`."
           },
           "412": {
             "content": {
@@ -18103,6 +22771,10 @@
     {
       "description": "Fairs and the fair news.",
       "name": "admin-site"
+    },
+    {
+      "description": "Printers and their state, parts, bills of materials, print jobs.",
+      "name": "admin-manufacturing"
     },
     {
       "description": "eBay: the connection, offers kept in step with the shop, its orders.",

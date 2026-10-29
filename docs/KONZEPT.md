@@ -1,8 +1,9 @@
 # Modellbahn-Shop · Architekturkonzept
 
 > **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritte 2 bis 5 umgesetzt, dazu Messen,
-> Messe-Post und Impressum (ADR 0012); der Shop läuft als **adp-Modelle** · als Nächstes
-> Schritt 6 (Fertigung)
+> Messe-Post und Impressum (ADR 0012); der Shop läuft als **adp-Modelle** · Schritt 6a
+> (Fertigung: Drucker, Teile, Stücklisten, Druckaufträge, ADR 0017) umgesetzt · als Nächstes
+> Schritt 6b (Wareneingang und Montage)
 > **Umfang:** Domänenmodell (DDD), Systemarchitektur, Tech-Stack, Datenmodell (ERD),
 > Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Gestaltung, Fahrplan
 > **Geprüft:** Das Datenmodell wurde gegen PostgreSQL 17 geprüft
@@ -128,8 +129,9 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 | Aggregat | Invarianten, die das Aggregat selbst schützt |
 | --- | --- |
 | **Product** | Jede Kombination Maßstab × Ausführung × Farbe höchstens einmal; ein Bausatz hat keine Farbe; ein Fertigmodell hat je Maßstab eine Farbe ohne Namen oder nur benannte Farben; neue Varianten nur in angebotenen Ausführungen. Aktiv nur mit mindestens einer aktiven Variante und einem Bild. Preise ≥ 0, Streichpreis > Preis. |
-| **BillOfMaterials** | Nur Teile desselben Maßstabs. Mengen > 0. Ändert sich die Stückliste, entsteht eine neue Fassung; bestehende Einheiten behalten ihre. |
-| **PrintJob** | Zustandsfolge `queued → printing → post_processing → done` (oder `failed`, `cancelled`). Gute + fehlerhafte Teile ≤ geplante. Pro Drucker läuft höchstens ein Druck. |
+| **BillOfMaterials** | Nur Teile desselben Maßstabs. Mengen > 0. Ohne Fassungen: Was in ein Stück einging, hält die Montage im Journal fest (ADR 0017). |
+| **Printer** | Zustand in Betrieb, defekt, in Reparatur oder ausgemustert, jede Meldung im Verlauf. Ein Defekt mitten im Druck macht ihn zum Fehldruck; Reparatur und Ausmustern warten, bis nichts druckt. |
+| **PrintJob** | Zustandsfolge `queued → printing → post_processing → done` (oder `failed`, `cancelled`). Gute + fehlerhafte Teile ≤ geplante. Pro Drucker läuft höchstens ein Druck, nur auf einem Drucker in Betrieb. |
 | **Location** | Baum ohne Zyklen. Nur Boxen und Fächer nehmen Ware auf. Der Code ist eindeutig und unveränderlich, denn er klebt als Etikett am Regal. |
 | **PartStock** | Menge je Teil und Platz nie negativ. Änderungen nur zusammen mit einer Journalbuchung. |
 | **Unit** | Lebenslauf `labeled → in_stock → allocated → picked → shipped`, dazu `returned`, `scrapped`. Im Lager nur mit Platz; zugeteilt nur mit Bestellposition. |
@@ -156,7 +158,9 @@ Ereignis verloren“.
 | `inventory.allocation.backordered` | Lager | Planung: Rückstand einplanen |
 | `inventory.stock.changed` | Lager | Planung, Dashboard per SSE |
 | `inventory.stock.below_reorder_point` | Lager | Planung: außerplanmäßig neu rechnen |
-| `manufacturing.print_job.completed` | Fertigung | Lager: Teile im Wareneingang buchen |
+| `manufacturing.printer.status_changed` | Fertigung | Druckerhalle und Startseite des Stellwerks per SSE |
+| `manufacturing.print_job.changed`, `.failed` | Fertigung | Druckerhalle per SSE |
+| `manufacturing.print_job.completed` | Fertigung | Lager: Teile im Wareneingang buchen (ab Schritt 6b); Druckerhalle per SSE |
 | `planning.proposal.accepted` | Planung | Fertigung: Druckauftrag anlegen |
 | `ai.copy.drafted` | KI-Inhalte | Admin-Oberfläche per SSE |
 | `site.subscription.requested` | Auftritt | Worker: Mail mit Bestätigungslink |
@@ -1347,12 +1351,14 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET · DELETE | `/media/{id}` | Zustand, Stufen, Metadaten; löschen, solange keine Galerie es nutzt |
 | | POST | `/media/{id}/reprocess` | Verarbeitung erneut anstoßen (`202`) |
 | | GET | `/media/{id}/download` | Kurzzeit-URL für Original oder STL (ab Schritt 6) |
-| Fertigung | GET · POST · PATCH | `/parts` … | Teile mit Druckdaten |
-| | PUT | `/product-scales/{id}/bom` | Stückliste ersetzen |
-| | GET · POST · PATCH | `/printers` … | Drucker |
-| | GET · POST | `/print-jobs` | Druckaufträge |
-| | POST | `/print-jobs/{id}/start` · `/complete` · `/cancel` | Zustandswechsel; `complete` meldet gute und fehlerhafte Teile |
-| | GET · POST · PATCH | `/materials` … | Material und Bestand |
+| Fertigung | GET | `/manufacturing/hall` | Druckerhalle: jeder Drucker mit Zustand, Platte und Warteschlange (ADR 0017) |
+| | GET · POST · PUT · DELETE | `/manufacturing/printers` … | Drucker; entfernen nur ohne Druckaufträge |
+| | POST | `/manufacturing/printers/{id}/status` | Zustand melden; ein Defekt macht den laufenden Druck zum Fehldruck |
+| | GET · POST · PUT · DELETE | `/manufacturing/parts` … | Teile mit Druckdaten |
+| | GET · PUT | `/manufacturing/product-scales/{id}/bom` | Stückliste lesen, ersetzen; ohne Zeilen entfällt sie |
+| | GET · POST · PUT | `/manufacturing/print-jobs` … | Druckaufträge; PUT verschiebt einen wartenden |
+| | POST | `/manufacturing/print-jobs/{id}/start` · `/take-off` · `/complete` · `/fail` · `/cancel` | Zustandswechsel; `complete` meldet die guten Teile je Teil |
+| | GET · POST · PUT · DELETE | `/manufacturing/materials` … | Material (Bestand folgt) |
 | Lager | GET · POST | `/locations` | Lagerbaum |
 | | GET | `/locations/{code}` | Inhalt eines Platzes |
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
@@ -1515,6 +1521,7 @@ Schatten nur für Dialoge und Popover.
 | `TextField` | Formulareingabe | Fehler in `danger`, Text nennt die Lösung |
 | `ProductCard` | Modell im Katalog, ganze Karte ein Link | kein Knopf auf der Karte |
 | `EventFeed` | Live-Ereignisse im Stellwerk | neues Ereignis auf `accent-subtle` |
+| `PrinterCard` | ein Drucker der Druckerhalle wie ein Typenschild: Code vom Etikett, Lampe, Zeichnung, Platte, Warteschlange (ADR 0017) | Lampe blau beim Drucken, rot defekt, gelb in Reparatur; im Druck wächst das Teil in der Zeichnung |
 
 Optionsgruppen sind Radiogruppen (Radix Radio Group): Pfeiltasten wechseln, Tab verlässt die
 Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
@@ -1551,7 +1558,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016).
+**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016). Mit Schritt 6a kennt das Stellwerk die Drucker der Werkstatt mit ihrem Zustand, Teile, Stücklisten und Druckaufträge, in einer Druckerhalle, die live mitläuft (ADR 0017); Wareneingang und Montage folgen mit 6b.
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1560,7 +1567,8 @@ das man anfassen kann.
 | 3 | **Katalog + Medien** inklusive Pipeline; die Katalog-Bausteine des Designsystems (§11.3) | Produkt mit Maßstäben und Varianten anlegen, Fotos hochladen, Thumbnails erscheinen live in der Produktbühne; veröffentlichte Produkte stehen im Shop-Katalog und auf ihrer Produktseite |
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken (A4 und Brother QL), mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen, Lieferbarkeit im Shop, Artikelliste für die Kasse |
-| 6 | **Fertigung** | Teile, Stücklisten, Drucker, Druckaufträge, Wareneingang, Montage zu Einheiten |
+| 6a | **Fertigung** | Drucker mit Zustand und Verlauf, Material, Teile, Stücklisten, Druckaufträge in der Druckerhalle, live (ADR 0017) |
+| 6b | **Wareneingang und Montage** | Teilebestand in Boxen, fertige Platten buchen gute Teile ein, Teile-Etiketten, Montage zu Einheiten nach Stückliste |
 | 7 | **KI-Produkttexte** | Text aus Fakten erzeugen, vergleichen, feldweise übernehmen |
 | 8 | **Planung + Dashboard** | Prognose, Druckwarteschlange mit Begründung, Auslastung, Annahme erzeugt Druckauftrag |
 

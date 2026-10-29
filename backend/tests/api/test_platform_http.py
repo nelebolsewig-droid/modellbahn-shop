@@ -290,6 +290,80 @@ EXPECTED_OPERATIONS = {
         "closeEbayTestBuyerAccount",
         "admin-marketplace",
     ),
+    ("GET", "/api/v1/admin/manufacturing/hall"): ("getPrinterHall", "admin-manufacturing"),
+    ("GET", "/api/v1/admin/manufacturing/printers/{printer_id}"): (
+        "getPrinter",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/printers"): ("createPrinter", "admin-manufacturing"),
+    ("PUT", "/api/v1/admin/manufacturing/printers/{printer_id}"): (
+        "updatePrinter",
+        "admin-manufacturing",
+    ),
+    ("DELETE", "/api/v1/admin/manufacturing/printers/{printer_id}"): (
+        "deletePrinter",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/printers/{printer_id}/status"): (
+        "reportPrinterStatus",
+        "admin-manufacturing",
+    ),
+    ("GET", "/api/v1/admin/manufacturing/materials"): ("listMaterials", "admin-manufacturing"),
+    ("POST", "/api/v1/admin/manufacturing/materials"): ("createMaterial", "admin-manufacturing"),
+    ("PUT", "/api/v1/admin/manufacturing/materials/{material_id}"): (
+        "updateMaterial",
+        "admin-manufacturing",
+    ),
+    ("DELETE", "/api/v1/admin/manufacturing/materials/{material_id}"): (
+        "deleteMaterial",
+        "admin-manufacturing",
+    ),
+    ("GET", "/api/v1/admin/manufacturing/parts"): ("listParts", "admin-manufacturing"),
+    ("GET", "/api/v1/admin/manufacturing/parts/{part_id}"): ("getPart", "admin-manufacturing"),
+    ("POST", "/api/v1/admin/manufacturing/parts"): ("createPart", "admin-manufacturing"),
+    ("PUT", "/api/v1/admin/manufacturing/parts/{part_id}"): ("updatePart", "admin-manufacturing"),
+    ("DELETE", "/api/v1/admin/manufacturing/parts/{part_id}"): (
+        "deletePart",
+        "admin-manufacturing",
+    ),
+    ("GET", "/api/v1/admin/manufacturing/product-scales/{product_scale_id}/bom"): (
+        "getBillOfMaterials",
+        "admin-manufacturing",
+    ),
+    ("PUT", "/api/v1/admin/manufacturing/product-scales/{product_scale_id}/bom"): (
+        "replaceBillOfMaterials",
+        "admin-manufacturing",
+    ),
+    ("GET", "/api/v1/admin/manufacturing/print-jobs"): ("listPrintJobs", "admin-manufacturing"),
+    ("GET", "/api/v1/admin/manufacturing/print-jobs/{job_id}"): (
+        "getPrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs"): ("createPrintJob", "admin-manufacturing"),
+    ("PUT", "/api/v1/admin/manufacturing/print-jobs/{job_id}"): (
+        "planPrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs/{job_id}/start"): (
+        "startPrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs/{job_id}/take-off"): (
+        "takeOffPrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs/{job_id}/complete"): (
+        "completePrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs/{job_id}/fail"): (
+        "failPrintJob",
+        "admin-manufacturing",
+    ),
+    ("POST", "/api/v1/admin/manufacturing/print-jobs/{job_id}/cancel"): (
+        "cancelPrintJob",
+        "admin-manufacturing",
+    ),
     ("GET", "/healthz"): ("getHealth", "system"),
     ("GET", "/readyz"): ("getReadiness", "system"),
 }

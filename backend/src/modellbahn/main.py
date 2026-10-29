@@ -57,6 +57,26 @@ from modellbahn.modules.inventory.infrastructure.mapping import (
     start_mappers as start_inventory_mappers,
 )
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.manufacturing.api import admin as manufacturing_admin
+from modellbahn.modules.manufacturing.api.errors import (
+    install_error_translations as install_manufacturing_error_translations,
+)
+from modellbahn.modules.manufacturing.application.jobs import PrintJobService
+from modellbahn.modules.manufacturing.application.parts import (
+    BomService,
+    MaterialService,
+    PartService,
+)
+from modellbahn.modules.manufacturing.application.ports import (
+    UnitOfWorkFactory as ManufacturingUnitOfWorkFactory,
+)
+from modellbahn.modules.manufacturing.application.printers import PrinterService
+from modellbahn.modules.manufacturing.infrastructure.mapping import (
+    start_mappers as start_manufacturing_mappers,
+)
+from modellbahn.modules.manufacturing.infrastructure.repositories import (
+    manufacturing_uow_factory,
+)
 from modellbahn.modules.marketplace.api import admin as marketplace_admin
 from modellbahn.modules.marketplace.api import webhooks as marketplace_webhooks
 from modellbahn.modules.marketplace.api.deps import ACCOUNT_DELETIONS_STATE, MARKETPLACE_STATE
@@ -146,6 +166,10 @@ _TAGS: Final = [
     },
     {"name": "admin-site", "description": "Fairs and the fair news."},
     {
+        "name": "admin-manufacturing",
+        "description": "Printers and their state, parts, bills of materials, print jobs.",
+    },
+    {
         "name": "admin-marketplace",
         "description": "eBay: the connection, offers kept in step with the shop, its orders.",
     },
@@ -166,12 +190,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     engine = create_engine(settings.database_url)
     session_factory = create_session_factory(engine)
-    start_identity_mappers()
-    start_media_mappers()
-    start_catalog_mappers()
-    start_sales_mappers()
-    start_inventory_mappers()
-    start_site_mappers()
+    _start_mappers()
     clock = SystemClock()
     identity_service = IdentityService(
         uow_factory=partial(SqlIdentityUnitOfWork, session_factory),
@@ -232,6 +251,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clock=clock,
     )
     _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
+    _attach_manufacturing_services(
+        app, uow_factory=manufacturing_uow_factory(session_factory), clock=clock
+    )
     site_uow = site_uow_factory(session_factory)
     app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
     app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
@@ -255,6 +277,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         install_inventory_error_translations,
         install_site_error_translations,
         install_marketplace_error_translations,
+        install_manufacturing_error_translations,
     ):
         install_error_translations(app)
 
@@ -262,6 +285,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(http.router)
     app.include_router(api)
     return app
+
+
+def _start_mappers() -> None:
+    """Map every module's domain classes onto its tables (each module once)."""
+    start_identity_mappers()
+    start_media_mappers()
+    start_catalog_mappers()
+    start_sales_mappers()
+    start_inventory_mappers()
+    start_site_mappers()
+    start_manufacturing_mappers()
 
 
 def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
@@ -278,6 +312,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(media_admin.router)
     api.include_router(sales_admin.router)
     api.include_router(inventory_admin.router)
+    api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
     api.include_router(marketplace_admin.router)
     api.include_router(marketplace_webhooks.router)
@@ -354,6 +389,16 @@ def _attach_inventory_services(
         uow_factory=uow_factory, renderer=ReportLabLabelRenderer()
     )
     app.state.availability_service = AvailabilityService(uow_factory=uow_factory)
+
+
+def _attach_manufacturing_services(
+    app: FastAPI, *, uow_factory: ManufacturingUnitOfWorkFactory, clock: SystemClock
+) -> None:
+    app.state.printer_service = PrinterService(uow_factory=uow_factory, clock=clock)
+    app.state.material_service = MaterialService(uow_factory=uow_factory, clock=clock)
+    app.state.part_service = PartService(uow_factory=uow_factory, clock=clock)
+    app.state.bom_service = BomService(uow_factory=uow_factory, clock=clock)
+    app.state.print_job_service = PrintJobService(uow_factory=uow_factory, clock=clock)
 
 
 app = create_app()

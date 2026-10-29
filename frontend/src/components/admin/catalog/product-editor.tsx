@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
+import { ProductBomPanel } from "@/components/admin/manufacturing/bom-panel";
 import { ProductEbayPanel } from "@/components/admin/marketplace/product-ebay-panel";
 import { Panel } from "@/components/admin/panel";
 import { Alert } from "@/components/ui/alert";
@@ -86,6 +87,7 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
         <div className="space-y-6">
           <ProductGallery product={data} references={references.data} />
           <ProductScales product={data} references={references.data} />
+          <ProductBomPanel product={data} />
           <ProductDetailsForm product={data} categories={categories.data} epochs={references.data.epochs} />
         </div>
         <div className="space-y-6">

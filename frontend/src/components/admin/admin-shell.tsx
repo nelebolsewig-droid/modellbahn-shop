@@ -24,6 +24,7 @@ const SECTIONS = [
   { href: "/admin", label: "Übersicht", exact: true },
   { href: "/admin/bestellungen", label: "Bestellungen", exact: false },
   { href: "/admin/lager", label: "Lager", exact: false },
+  { href: "/admin/fertigung", label: "Fertigung", exact: false },
   { href: "/admin/scanner", label: "Scanner", exact: true },
   { href: "/admin/erfassen", label: "Erfassen", exact: true },
   { href: "/admin/katalog", label: "Katalog", exact: false },
