@@ -30,7 +30,7 @@ export const PROBLEM_MESSAGES: Messages = {
   slug_taken: "Diese Adresse ist schon vergeben. Bitte wähle eine andere.",
   slug_locked: "Die Adresse eines veröffentlichten Produkts bleibt fest, weil Links darauf zeigen.",
   scale_exists: "Das Produkt gibt es schon in diesem Maßstab.",
-  variant_exists: "Diese Ausführung gibt es in dem Maßstab schon.",
+  variant_exists: "Diese Ausführung gibt es in dem Maßstab schon, in dieser Farbe.",
   scale_not_found: "Diesen Maßstab gibt es nicht mehr.",
   scale_in_use: "Der Maßstab wird noch verwendet: Produkte gibt es in ihm, oder Fotos sind ihm zugeordnet.",
   invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
@@ -152,6 +152,8 @@ export const FIELD_MESSAGES: Messages = {
   not_shipped: "Dorthin liefern wir leider nicht.",
   invalid_parent: "Diese Art von Lagerplatz gehört nicht an diese Stelle.",
   holds_no_goods: "In diesen Lagerplatz kommt keine Ware: nur Fächer, Boxen und Ablagen nehmen Ware auf.",
+  not_colored: "Ein Bausatz kommt ohne Farbe. Farben gibt es nur beim Fertigmodell.",
+  not_offered: "Diese Ausführung bieten wir nicht mehr an.",
 };
 
 const PASSWORD_MESSAGES: Messages = {
@@ -202,6 +204,11 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
   website_url: { invalid: "Bitte eine vollständige Adresse mit https://, z. B. https://www.messe.de." },
   consent: { required: "Bitte setz den Haken, damit wir dir die Messe-Post schicken dürfen." },
   segment: { invalid: "Ein bis acht Großbuchstaben oder Ziffern, z. B. R02 oder B12." },
+  color: {
+    too_long: "Die Farbe darf höchstens 40 Zeichen lang sein.",
+    required: "Bitte gib eine Farbe an: Das Fertigmodell gibt es hier schon in Farben.",
+    unnamed_sibling: "Gib zuerst der Variante ohne Farbe ihre Farbe; dann kann eine weitere dazukommen.",
+  },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },

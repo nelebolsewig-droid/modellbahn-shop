@@ -11,6 +11,18 @@ from typing import Annotated, NoReturn
 import typer
 from pydantic import EmailStr, TypeAdapter, ValidationError
 
+from modellbahn.modules.catalog.api.seed_file import SeedFile
+from modellbahn.modules.catalog.application.importing import (
+    CatalogSeed,
+    ImportReport,
+    SeedError,
+    import_catalog,
+)
+from modellbahn.modules.catalog.application.services import CatalogService
+from modellbahn.modules.catalog.infrastructure.mapping import (
+    start_mappers as start_catalog_mappers,
+)
+from modellbahn.modules.catalog.infrastructure.repositories import catalog_uow_factory
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.identity.domain.errors import (
     AccountAlreadyExistsError,
@@ -32,6 +44,9 @@ from modellbahn.modules.media.infrastructure.garage import (
     GarageAdminError,
     StorageLayout,
     init_storage,
+)
+from modellbahn.modules.media.infrastructure.mapping import (
+    start_mappers as start_media_mappers,
 )
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
@@ -142,6 +157,54 @@ def init_storage_command(
     typer.echo(
         "Objektspeicher ist eingerichtet." if changes else "Objektspeicher war schon eingerichtet."
     )
+
+
+@app.command("import-catalog")
+def import_catalog_command(
+    path: Annotated[Path, typer.Argument(help="JSON-Datei, z. B. seed/startbestand.json.")],
+) -> None:
+    """Startbestand des Katalogs einspielen: Kategorien und Produkte als Entwürfe.
+
+    Wiederholbar: Was es schon gibt (gleicher Name, gleiche Adresse), bleibt unberührt.
+    """
+    try:
+        seed = SeedFile.read(path).to_seed()
+    except FileNotFoundError:
+        _fail(f"Datei nicht gefunden: {path}")
+    except ValidationError as exc:
+        _fail(f"Die Datei passt nicht zum Format:\n{exc}")
+    try:
+        report = asyncio.run(_import_catalog(Settings(), seed))
+    except SeedError as exc:
+        _fail(f"Nichts eingespielt. {exc}")
+    for path_name in report.categories:
+        typer.echo(f"Kategorie angelegt: {path_name}")
+    for name in report.products:
+        typer.echo(f"Entwurf angelegt:   {name}")
+    for name in report.skipped:
+        typer.echo(f"Schon vorhanden:    {name}")
+    for name, note in report.notes:
+        typer.echo(f"Hinweis zu {name}: {note}")
+    typer.echo(
+        f"{len(report.products)} Produkte und {len(report.categories)} Kategorien angelegt, "
+        f"{len(report.skipped)} übersprungen. Alle neuen Produkte sind Entwürfe."
+    )
+
+
+async def _import_catalog(settings: Settings, seed: CatalogSeed) -> ImportReport:
+    engine = create_engine(settings.database_url)
+    start_media_mappers()
+    start_catalog_mappers()
+    service = CatalogService(
+        uow_factory=catalog_uow_factory(
+            create_session_factory(engine), public_base_url=settings.media_public_base_url
+        ),
+        clock=SystemClock(),
+    )
+    try:
+        return await import_catalog(service, seed)
+    finally:
+        await engine.dispose()
 
 
 @app.command("export-openapi")

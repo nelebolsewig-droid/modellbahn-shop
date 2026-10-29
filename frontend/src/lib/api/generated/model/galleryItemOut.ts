@@ -17,6 +17,7 @@ import type { MediaRole } from './mediaRole';
 export interface GalleryItemOut {
   alt_text: string;
   asset_id: string;
+  color: string | null;
   finish_code: string | null;
   image: AdminImageOut | null;
   position: number;

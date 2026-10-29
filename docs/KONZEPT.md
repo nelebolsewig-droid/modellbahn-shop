@@ -99,8 +99,10 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 | Produkt | `Product` | Ein Modell als Idee, z. B. „Stellwerk Altenau“ |
 | Maßstab | `Scale` | Die erste Ordnung des Shops: H0 (1:87, Gleis 16,5 mm), N (1:160, 9 mm), G (1:22,5, 45 mm), 1:24 für Straßenfahrzeuge (ohne Gleis); im Stellwerk pflegbar (ADR 0010) |
 | Produkt in einem Maßstab | `ProductScale` | Das Modell in einem Maßstab, mit eigenen Maßen und eigener Stückliste |
-| Ausführung | `Finish` | Unbemalt, grundiert, fertig bemalt |
-| Variante | `Variant` | Was im Warenkorb liegt: Produkt × Maßstab × Ausführung, mit SKU, EAN und Preis |
+| Ausführung | `Finish` | Bausatz (unlackiert, Buchstabe B) oder Fertigmodell (lackiert, F); grundiert wird nicht mehr angeboten (ADR 0013) |
+| Farbe | `Variant.color` | Die Lackfarbe eines Fertigmodells, z. B. „Gelb“ oder „Rot-Weiß“; leer beim Bausatz und beim einfarbigen Modell |
+| Variante | `Variant` | Was im Warenkorb liegt: Produkt × Maßstab × Ausführung × Farbe, mit SKU, EAN und Preis |
+| Schnellerfassung | `quick_entry` | Ein Modell aus der Kiste in einem Zug erfassen: Foto, Produkt, Variante, Preis, Stücke (ADR 0013) |
 | Epoche | `Epoch` | Zeitabschnitt der Eisenbahngeschichte, I bis VI |
 | Teil | `Part` | Ein druckbares Einzelteil, z. B. „Dach Stellwerk Altenau H0“ |
 | Stückliste | `BillOfMaterials` | Welche Teile in welcher Menge einen Bausatz bilden |
@@ -123,7 +125,7 @@ und gilt für Gespräche, Tickets, Oberfläche und Code gleichermaßen.
 
 | Aggregat | Invarianten, die das Aggregat selbst schützt |
 | --- | --- |
-| **Product** | Jede Kombination Maßstab × Ausführung höchstens einmal. Aktiv nur mit mindestens einer aktiven Variante und einem Bild. Preise ≥ 0, Streichpreis > Preis. |
+| **Product** | Jede Kombination Maßstab × Ausführung × Farbe höchstens einmal; ein Bausatz hat keine Farbe; ein Fertigmodell hat je Maßstab eine Farbe ohne Namen oder nur benannte Farben; neue Varianten nur in angebotenen Ausführungen. Aktiv nur mit mindestens einer aktiven Variante und einem Bild. Preise ≥ 0, Streichpreis > Preis. |
 | **BillOfMaterials** | Nur Teile desselben Maßstabs. Mengen > 0. Ändert sich die Stückliste, entsteht eine neue Fassung; bestehende Einheiten behalten ihre. |
 | **PrintJob** | Zustandsfolge `queued → printing → post_processing → done` (oder `failed`, `cancelled`). Gute + fehlerhafte Teile ≤ geplante. Pro Drucker läuft höchstens ein Druck. |
 | **Location** | Baum ohne Zyklen. Nur Boxen und Fächer nehmen Ware auf. Der Code ist eindeutig und unveränderlich, denn er klebt als Etikett am Regal. |
@@ -428,7 +430,8 @@ erDiagram
     VARIANT {
         uuid id PK
         uuid product_scale_id FK
-        text finish_code FK "unbemalt, grundiert, bemalt"
+        text finish_code FK "Bausatz, Fertigmodell"
+        text color "leer beim Bausatz, UK mit Maßstab und Ausführung"
         text sku UK
         text gtin UK "EAN-13"
         int price_cents
@@ -470,9 +473,9 @@ erDiagram
 
 **So hängt ein Bausatz zusammen:** Das *Produkt* „Stellwerk Altenau“ gibt es *im
 Maßstab* H0 und N. „Stellwerk Altenau H0“ hat eine *Stückliste*: 1 × Gebäudekörper,
-1 × Dach, 2 × Schornstein, 1 × Fensterset. Verkauft wird es als drei *Varianten*,
-unbemalt, grundiert und fertig bemalt. Alle drei teilen sich die Stückliste, denn
-bemalt wird nach dem Druck.
+1 × Dach, 2 × Schornstein, 1 × Fensterset. Verkauft wird es als *Varianten*: als
+Bausatz und als Fertigmodell, das es in mehreren Farben geben kann. Alle teilen sich
+die Stückliste, denn lackiert wird nach dem Druck.
 
 Die Stückliste trägt den Maßstab ein zweites Mal, und zwei zusammengesetzte
 Fremdschlüssel prüfen sie gegen das Produkt *und* gegen das Teil. Ein N-Dach kann
@@ -542,6 +545,7 @@ erDiagram
         text role "gallery, detail, scale_comparison"
         text scale_code FK "optional"
         text finish_code FK "optional"
+        text color "optional"
         text alt_text
     }
     PART_MODEL_FILE {
@@ -566,7 +570,7 @@ Foto nicht als Druckdatei. Beides ist getestet.
 | Frage | Antwort im Modell |
 | --- | --- |
 | Welches ist das Hauptbild? | Das mit `position = 0`. Kein zweites Feld, das widersprechen könnte. |
-| Zeigt das Foto die bemalte Ausführung? | `finish_code` und `scale_code` an der Galerieverknüpfung. Die Galerie wechselt mit der Auswahl im Shop. |
+| Zeigt das Foto das Fertigmodell, und in welcher Farbe? | `finish_code`, `scale_code` und `color` an der Galerieverknüpfung. Die Galerie wechselt mit der Auswahl im Shop. |
 | Wie wird umsortiert? | Die Eindeutigkeit der Position wird erst am Transaktionsende geprüft; Tauschen geht in einem Schritt. |
 | Wurde dasselbe Foto zweimal hochgeladen? | Eindeutig je `(kind, sha256)`; der Browser rechnet den Hash schon vor dem Upload. |
 | Woher kommt das Vorschaubild einer STL? | Der Worker rendert es als eigenes Bild-Asset, `model_details.preview_asset_id` verweist darauf. |
@@ -1291,8 +1295,10 @@ keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 | | POST | `/products/{id}/publish` · `/archive` | veröffentlichen (prüft die Regeln), archivieren |
 | | POST | `/products/{id}/scales` | Maßstab mit Maßen hinzufügen |
 | | PATCH · DELETE | `/product-scales/{id}` | Maße und Gewicht ändern, Maßstab entfernen |
-| | POST | `/product-scales/{id}/variants` | Variante (Ausführung) hinzufügen; SKU und interne EAN vergibt das System |
-| | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Rückstand erlaubt, aktiv |
+| | POST | `/product-scales/{id}/variants` | Variante (Ausführung, beim Fertigmodell mit Farbe) hinzufügen; SKU und interne EAN vergibt das System |
+| | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Farbe, Rückstand erlaubt, aktiv |
+| | POST | `/catalog/quick-entries` | Schnellerfassung: Produkt, Maßstab, Variante, Preis und Foto in einem Schritt (ADR 0013) |
+| | POST | `/catalog/publish-ready` | alle Entwürfe veröffentlichen, denen nichts mehr fehlt |
 | | POST | `/products/{id}/media` | hochgeladenes Bild anhängen, auch während der Verarbeitung; ohne `If-Match`, damit parallele Uploads sich nicht blockieren |
 | | PUT | `/products/{id}/media` | Galerie: Reihenfolge, Rollen, Zuordnung, Alt-Texte in einem Schritt (`If-Match`) |
 | | GET | `/products/{id}/copy-revisions` | Textfassungen (ab Schritt 7) |
@@ -1359,7 +1365,7 @@ Content-Type: application/json
 
 {
   "outcome": "applied",
-  "resolved": { "type": "unit", "code": "7KQ2X9F4MZ", "variant": "Stellwerk Altenau · H0 · unbemalt" },
+  "resolved": { "type": "unit", "code": "7KQ2X9F4MZ", "variant": "Stellwerk Altenau · H0 · Bausatz" },
   "effect": { "unit_status": { "from": "allocated", "to": "picked" } },
   "order_progress": { "picked": 2, "total": 3 },
   "next_expected": { "type": "unit", "sku": "SIG-FORM-H0-P", "location": "R01-F02" }
@@ -1401,8 +1407,8 @@ Kurzfassung.
    das Modell füllt etwa drei Viertel der Fläche, damit die Details des Drucks wirken.
 3. **Zeichnungen wie Architekturpläne.** Technische Ansichten in feinen 1-px-Linien in
    Preußischblau oder Anthrazit auf hellem Raster, mit Maßlinien und Schriftfeld.
-4. **Bedienelemente minimal.** Maßstab und Ausführung („unbemalt · grundiert · bemalt“) als
-   Pills oder Kacheln mit hauchdünner, hellgrauer Kontur. Aktiv: Mattschwarz oder dezentes
+4. **Bedienelemente minimal.** Maßstab und Ausführung („Bausatz · Fertigmodell“) als
+   Pills oder Kacheln mit hauchdünner, hellgrauer Kontur; Farben als Pill mit Farbtupfer. Aktiv: Mattschwarz oder dezentes
    Preußischblau.
 5. **Große, dünne, serifenlose Schrift.** Eine Familie (Geist). Kennzeilen wie
    „H0 · 1:87 · Resin“ in 22 px, Gewicht 300, mit tabellarischen Ziffern.
@@ -1505,7 +1511,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012).
+**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1534,10 +1540,13 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
 | 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
 | 8 | Etiketten und Kasse (26.10.2026) | A4-Bögen 70 × 37 mm und Brother QL 62 mm. **Strichcodes statt QR**, weil die Kasse (SumUp) nur Strichcodes liest: EAN-13 je Variante, Code 128 je Stück und Platz. Der Shop liefert die Artikelliste als CSV für die Kasse (ADR 0011) |
-| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe 4 bis 6 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
+| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe zunächst 4 bis 6 Wochen, seit Entscheidung 15 1 bis 2 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
 | 10 | Name und Impressum (28.10.2026) | Der Shop heißt **adp-Modelle**, konfigurierbar über `MB_SMTP_FROM` und `NEXT_PUBLIC_SHOP_NAME`. Die Anbieterangaben stehen in `MB_IMPRINT_*`, nie im Code (ADR 0012) |
 | 11 | Wohin wird geliefert? (28.10.2026) | Nach Deutschland für 5,90 € und in alle übrigen EU-Länder für 16,90 €; versandkostenfrei nie (ADR 0012) |
 | 12 | Messen (28.10.2026) | Termine im Shop und als Kalender, Messe-Post mit Double-Opt-in, Hinweis auf die nächste Messe in Bestell- und Versandmails (ADR 0012) |
+| 13 | Ausführungen (28.10.2026) | **Bausatz** und **Fertigmodell**; grundiert entfällt. Farben gibt es nur beim Fertigmodell, als eigene Varianten (ADR 0013) |
+| 14 | Katalog befüllen (28.10.2026) | Schnellerfassung fürs Handy; die bekannten Modelle mit Preisen als Startbestand, dazu Entwürfe aus den Lagerfotos ohne Preis (ADR 0013) |
+| 15 | Lieferzeit auf Bestellung (28.10.2026) | Ohne Angabe **1 bis 2 Wochen** statt 4 bis 6: Die Werkstatt hat 12 Drucker, defekte werden repariert. Je Variante bleibt die Lieferzeit einstellbar. Die Drucker mit ihrem Zustand (in Betrieb, defekt, in Reparatur) gehören in Schritt 6 (ADR 0013) |
 
 Noch offen:
 

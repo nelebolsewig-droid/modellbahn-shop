@@ -5,7 +5,7 @@ import type { GalleryItemOut } from "@/lib/api/generated/model";
 import { mergeDraft } from "./product-gallery";
 
 function item(id: string): GalleryItemOut {
-  return { asset_id: id, position: 0, role: "gallery", alt_text: "", scale_code: null, finish_code: null, image: null };
+  return { asset_id: id, position: 0, role: "gallery", alt_text: "", scale_code: null, finish_code: null, color: null, image: null };
 }
 
 describe("mergeDraft", () => {

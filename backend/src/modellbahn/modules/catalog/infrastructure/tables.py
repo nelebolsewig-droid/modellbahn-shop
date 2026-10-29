@@ -65,6 +65,10 @@ finishes = Table(
     Column("name", Text, nullable=False),
     Column("sku_letter", CHAR(1), nullable=False, unique=True),
     Column("position", SmallInteger, nullable=False),
+    # A finished model comes in colours, a kit does not.
+    Column("colored", Boolean, nullable=False, server_default=text("false")),
+    # Primed is no longer offered (ADR 0013); its old variants stay for stock and orders.
+    Column("offered", Boolean, nullable=False, server_default=text("true")),
     CheckConstraint("sku_letter ~ '^[A-Z]$'", name="sku_letter_format"),
     schema=SCHEMA,
 )
@@ -176,6 +180,8 @@ variants = Table(
         nullable=False,
     ),
     Column("finish_code", Text, ForeignKey(finishes.c.code, ondelete="RESTRICT"), nullable=False),
+    # Empty for a kit and for a finished model in one colour only.
+    Column("color", Text, nullable=False, server_default=text("''")),
     Column("sku", Text, nullable=False, unique=True),
     Column("gtin", CHAR(13), nullable=False, unique=True),
     Column("price_cents", Integer, nullable=False),
@@ -186,8 +192,10 @@ variants = Table(
     Column("active", Boolean, nullable=False, server_default=text("true")),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
-    # Each scale is sold at most once in each finish.
-    UniqueConstraint("product_scale_id", "finish_code"),
+    # Each scale is sold at most once in each finish and colour.
+    UniqueConstraint("product_scale_id", "finish_code", "color"),
+    CheckConstraint("char_length(color) <= 40", name="color_length"),
+    CheckConstraint("finish_code <> 'unpainted' OR color = ''", name="kit_without_color"),
     CheckConstraint("price_cents >= 0", name="price_non_negative"),
     CheckConstraint(
         "compare_at_price_cents IS NULL OR compare_at_price_cents > price_cents",
@@ -223,6 +231,8 @@ product_media = Table(
     Column("alt_text", Text, nullable=False, server_default=text("''")),
     Column("scale_code", Text, ForeignKey(scales.c.code, ondelete="RESTRICT")),
     Column("finish_code", Text, ForeignKey(finishes.c.code, ondelete="RESTRICT")),
+    # The colour the photo shows, so the shop can switch the gallery with the choice.
+    Column("color", Text),
     PrimaryKeyConstraint("product_id", "asset_id"),
     # Checked at commit, so reordering the gallery is a single step.
     UniqueConstraint("product_id", "position", deferrable=True, initially="DEFERRED"),
@@ -230,6 +240,7 @@ product_media = Table(
     CheckConstraint("position >= 0", name="position_non_negative"),
     CheckConstraint("role IN ('gallery', 'detail', 'scale_comparison')", name="role"),
     CheckConstraint("char_length(alt_text) <= 250", name="alt_text_length"),
+    CheckConstraint("color IS NULL OR char_length(color) BETWEEN 1 AND 40", name="color_length"),
     # Into another module: an image in a gallery cannot be deleted.
     ForeignKeyConstraint(["asset_id", "asset_kind"], list(IMAGE_REFERENCE), ondelete="RESTRICT"),
     Index("product_media_asset_idx", "asset_id"),

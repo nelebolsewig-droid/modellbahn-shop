@@ -18,6 +18,8 @@
 export interface VariantPatchIn {
   active?: boolean | null;
   allow_backorder?: boolean | null;
+  /** Empty removes the colour. */
+  color?: string | null;
   compare_at_price_cents?: number | null;
   lead_time_max_weeks?: number | null;
   lead_time_min_weeks?: number | null;

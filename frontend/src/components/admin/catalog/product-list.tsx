@@ -16,12 +16,13 @@ import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { createProduct, listProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { createProduct, listProducts, publishReadyProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import type {
   ProductListItemOut,
   ProductOut,
   ProductPageOut,
   ProductStatus,
+  PublishedOut,
 } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { formatPrice, formatProductNumber } from "@/lib/catalog/format";
@@ -143,7 +144,10 @@ export function ProductList() {
           ) : null}
         </div>
       </Panel>
-      <NewProductForm />
+      <div className="space-y-6">
+        <NewProductForm />
+        <DraftsPanel />
+      </div>
     </div>
   );
 }
@@ -230,6 +234,68 @@ function NewProductForm() {
           Entwurf anlegen
         </SubmitButton>
       </form>
+    </Panel>
+  );
+}
+
+/** The end of a day at the crates: every draft that lacks nothing goes into the shop at once. */
+function DraftsPanel() {
+  const queryClient = useQueryClient();
+  const publish = useMutation<PublishedOut, ApiProblem>({
+    mutationFn: () => publishReadyProducts(),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
+    },
+  });
+  const published = publish.data?.published ?? [];
+
+  return (
+    <Panel title="Entwürfe" code="KAT 03">
+      <p className="text-small text-ink-secondary">
+        Modelle aus der Kiste erfasst? Entwürfe mit Kategorie, aktiver Variante und fertigem Hauptbild gehen hier in einem
+        Schritt in den Shop; die anderen bleiben, bis sie vollständig sind.
+      </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link href="/admin/erfassen">Schnellerfassung</Link>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={publish.isPending}
+          aria-busy={publish.isPending || undefined}
+          onClick={() => {
+            if (window.confirm("Alle fertigen Entwürfe jetzt im Shop zeigen?")) {
+              publish.mutate();
+            }
+          }}
+        >
+          {publish.isPending ? "Veröffentlicht …" : "Fertige veröffentlichen"}
+        </Button>
+      </div>
+      <div role="status" className="mt-4 text-small empty:hidden">
+        {publish.isError ? <p className="text-danger">{errorMessage(publish.error)}</p> : null}
+        {publish.isSuccess ? (
+          published.length === 0 ? (
+            <p className="text-ink-secondary">Kein Entwurf ist schon fertig. Im Editor steht, was jeweils fehlt.</p>
+          ) : (
+            <>
+              <p className="font-medium text-success">
+                {published.length === 1 ? "1 Produkt ist jetzt im Shop:" : `${published.length} Produkte sind jetzt im Shop:`}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {published.map((item) => (
+                  <li key={item.id}>
+                    <Link href={`/admin/katalog/${item.id}` as Route} className="text-accent hover:underline">
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
+        ) : null}
+      </div>
     </Panel>
   );
 }

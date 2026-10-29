@@ -49,11 +49,13 @@ class SaleVariant:
     scale_name: str
     finish_code: str
     finish_name: str
+    color: str
+    """Empty for a kit and for a finished model in one colour only."""
     sku: str
     price_cents: int
     compare_at_price_cents: int | None
     image_asset_id: UUID | None
-    """The gallery image that fits scale and finish best (an untagged one, else the main image)."""
+    """The gallery image that fits scale, finish and colour best (else an untagged one)."""
     purchasable: bool
     """In the shop and active: only such variants go into a cart and into an order."""
     allow_backorder: bool
@@ -62,9 +64,15 @@ class SaleVariant:
     """How many weeks making it takes (from, to); set for every variant made to order."""
 
     @property
+    def variant_name(self) -> str:
+        """``H0 · Fertigmodell, Gelb``: the variant without the product's name."""
+        finish = f"{self.finish_name}, {self.color}" if self.color else self.finish_name
+        return f"{self.scale_name} · {finish}"
+
+    @property
     def title(self) -> str:
-        """``Stellwerk Altenau · H0 · bemalt``, as an order line freezes it."""
-        return f"{self.product_name} · {self.scale_name} · {self.finish_name}"
+        """``IFA ADK 70 Autokran · H0 · Fertigmodell, Gelb``, as an order line freezes it."""
+        return f"{self.product_name} · {self.variant_name}"
 
 
 async def load_sale_variants(
@@ -107,6 +115,7 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
                 variants.c.lead_time_min_weeks,
                 variants.c.lead_time_max_weeks,
                 variants.c.finish_code,
+                variants.c.color,
                 finishes.c.name.label("finish_name"),
                 product_scales.c.scale_code,
                 scales.c.name.label("scale_name"),
@@ -120,12 +129,12 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             .join(scales, scales.c.code == product_scales.c.scale_code)
             .join(products, products.c.id == product_scales.c.product_id)
             .where(condition)
-            .order_by(scales.c.ratio_denominator.desc(), finishes.c.position)
+            .order_by(scales.c.ratio_denominator.desc(), finishes.c.position, variants.c.color)
         )
     ).all()
     if not rows:
         return []
-    galleries: defaultdict[UUID, list[tuple[int, UUID, str | None, str | None]]] = defaultdict(list)
+    galleries: defaultdict[UUID, list[_Photo]] = defaultdict(list)
     media_rows = await uow.session.execute(
         select(
             product_media.c.product_id,
@@ -133,11 +142,12 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             product_media.c.asset_id,
             product_media.c.scale_code,
             product_media.c.finish_code,
+            product_media.c.color,
         ).where(product_media.c.product_id.in_({row.product_id for row in rows}))
     )
     for media in media_rows:
         galleries[media.product_id].append(
-            (media.position, media.asset_id, media.scale_code, media.finish_code)
+            _Photo(media.position, media.asset_id, media.scale_code, media.finish_code, media.color)
         )
     return [
         SaleVariant(
@@ -150,10 +160,13 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             scale_name=row.scale_name,
             finish_code=row.finish_code,
             finish_name=row.finish_name,
+            color=row.color,
             sku=row.sku,
             price_cents=row.price_cents,
             compare_at_price_cents=row.compare_at_price_cents,
-            image_asset_id=_best_image(galleries[row.product_id], row.scale_code, row.finish_code),
+            image_asset_id=_best_image(
+                galleries[row.product_id], row.scale_code, row.finish_code, row.color
+            ),
             purchasable=row.active and row.status == ProductStatus.ACTIVE,
             allow_backorder=row.allow_backorder,
             lead_time_weeks=(
@@ -166,18 +179,38 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
     ]
 
 
+@dataclass(frozen=True, slots=True)
+class _Photo:
+    position: int
+    asset_id: UUID
+    scale_code: str | None
+    finish_code: str | None
+    color: str | None
+
+
 def _best_image(
-    gallery: list[tuple[int, UUID, str | None, str | None]], scale_code: str, finish_code: str
+    gallery: list[_Photo], scale_code: str, finish_code: str, color: str
 ) -> UUID | None:
-    # Same order as the product page's stage: a photo of the chosen scale and finish
-    # first, then untagged ones, then photos of other variants; ties by position.
+    # Same order as the product page's stage: a photo of the chosen scale, finish and
+    # colour first, then untagged ones, then photos of other variants; ties by position.
     def score(tag: str | None, chosen: str) -> int:
-        return 0 if tag == chosen else 1 if tag is None else 2
+        return (
+            0
+            if tag is not None and tag.casefold() == chosen.casefold()
+            else 1
+            if tag is None
+            else 2
+        )
 
     if not gallery:
         return None
     best = min(
         gallery,
-        key=lambda entry: (score(entry[2], scale_code) + score(entry[3], finish_code), entry[0]),
+        key=lambda photo: (
+            score(photo.scale_code, scale_code)
+            + score(photo.finish_code, finish_code)
+            + score(photo.color, color or ""),
+            photo.position,
+        ),
     )
-    return best[1]
+    return best.asset_id

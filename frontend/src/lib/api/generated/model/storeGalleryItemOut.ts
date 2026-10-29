@@ -16,6 +16,7 @@ import type { MediaRole } from './mediaRole';
 
 export interface StoreGalleryItemOut {
   alt_text: string;
+  color: string | null;
   finish_code: string | null;
   image: ImageOut;
   role: MediaRole;

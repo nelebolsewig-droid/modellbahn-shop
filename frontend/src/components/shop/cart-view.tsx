@@ -6,12 +6,13 @@ import Link from "next/link";
 import { FreeShippingMeter, OrderTotals } from "@/components/shop/order-totals";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ColorDot } from "@/components/ui/color-dot";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CartLineOut, CartOut } from "@/lib/api/generated/model";
-import { formatPrice } from "@/lib/catalog/format";
+import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import { availabilityNote, cartLeadTime, leadTimeText } from "@/lib/sales/availability";
 import { shippingGroups } from "@/lib/sales/countries";
@@ -85,6 +86,7 @@ function CartLine({
   onQuantity: (quantity: number) => void;
 }) {
   const productHref = `/produkte/${line.product_slug}` as Route;
+  const variantLabel = finishLabel(line.finish_name, line.color);
   // Still for sale, just not that many: the customer can bring the quantity down.
   const short = !line.available && line.free_units > 0;
   return (
@@ -103,8 +105,11 @@ function CartLine({
             {line.product_name}
           </Link>
         </h3>
-        <p className="mt-1 text-small text-ink-secondary">
-          {line.scale_name} · {line.finish_name}
+        <p className="mt-1 flex items-center gap-2 text-small text-ink-secondary">
+          {line.color !== "" ? <ColorDot color={line.color} size="sm" /> : null}
+          <span>
+            {line.scale_name} · {variantLabel}
+          </span>
         </p>
         <p className="mt-1 font-mono text-hint text-ink-tertiary">{line.sku}</p>
         {line.available ? (
@@ -121,7 +126,7 @@ function CartLine({
             <QuantityStepper
               value={line.quantity}
               onChange={onQuantity}
-              label={`Menge ${line.product_name}, ${line.scale_name}, ${line.finish_name}`}
+              label={`Menge ${line.product_name}, ${line.scale_name}, ${variantLabel}`}
               disabled={busy}
             />
           ) : null}
@@ -131,7 +136,7 @@ function CartLine({
             size="sm"
             disabled={busy}
             onClick={() => onQuantity(0)}
-            aria-label={`${line.product_name}, ${line.scale_name}, ${line.finish_name} entfernen`}
+            aria-label={`${line.product_name}, ${line.scale_name}, ${variantLabel} entfernen`}
           >
             Entfernen
           </Button>

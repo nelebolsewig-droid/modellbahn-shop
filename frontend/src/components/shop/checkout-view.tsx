@@ -27,7 +27,7 @@ import {
 } from "@/lib/api/generated/store-account/store-account";
 import { placeOrder } from "@/lib/api/generated/store-sales/store-sales";
 import { isApiProblem } from "@/lib/api/problem";
-import { formatPrice } from "@/lib/catalog/format";
+import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { applyProblemToForm, FORM_ERROR_KEY } from "@/lib/forms/apply-problem";
 import { errorMessage } from "@/lib/i18n/problems";
 import { CUSTOMER_AREA, loginPath } from "@/lib/navigation";
@@ -240,7 +240,7 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
               <span className="min-w-0 text-small">
                 <span className="block truncate font-medium">{line.product_name}</span>
                 <span className="block text-ink-tertiary">
-                  {line.quantity} × {line.scale_name} · {line.finish_name}
+                  {line.quantity} × {line.scale_name} · {finishLabel(line.finish_name, line.color)}
                 </span>
               </span>
               <span className="text-small tabular-nums">{formatPrice(line.line_total_cents)}</span>

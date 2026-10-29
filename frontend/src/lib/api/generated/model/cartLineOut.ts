@@ -19,6 +19,8 @@ export interface CartLineOut {
   availability: Availability;
   /** False if the variant is no longer for sale, or not deliverable in this quantity (not enough in stock and not made to order). */
   available: boolean;
+  /** Empty for a kit or a finished model in one colour. */
+  color: string;
   compare_at_price_cents: number | null;
   finish_code: string;
   finish_name: string;

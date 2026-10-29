@@ -48,6 +48,16 @@ export const euroPrice = z.string().transform((value, context) => {
   return cents;
 });
 
+/** A paint as the shop shows it, like the backend: one line, first letter capital. */
+export const colorName = z.string().transform((value, context) => {
+  const tidy = value.trim().replace(/\s+/g, " ");
+  if (Array.from(tidy).length > 40) {
+    context.addIssue({ code: "custom", message: "Die Farbe darf höchstens 40 Zeichen lang sein." });
+    return z.NEVER;
+  }
+  return tidy.charAt(0).toLocaleUpperCase("de-DE") + tidy.slice(1);
+});
+
 /** An optional price: empty means "none". */
 export const optionalEuroPrice = z.string().transform((value, context) => {
   if (value.trim() === "") {
@@ -138,7 +148,7 @@ export type ScaleValues = z.input<typeof scaleSchema>;
 
 /** Made to order: delivered within 1 to 52 weeks (catalog: domain/model.py, check_lead_time). */
 export const LEAD_TIME_MAX_WEEKS = 52;
-export const DEFAULT_LEAD_TIME = [4, 6] as const;
+export const DEFAULT_LEAD_TIME = [1, 2] as const;
 
 const weeks = (message: string) =>
   z

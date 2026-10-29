@@ -10,7 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.ports import ProductOrder
-from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.catalog.application.services import (
+    CatalogService,
+    ProductDetails,
+    QuickEntry,
+)
 from modellbahn.modules.catalog.domain.errors import (
     CategoryCycleError,
     CategoryNotFoundError,
@@ -126,7 +130,7 @@ class TestProducts:
         details = await with_variant(catalog, await draft(catalog))
         product = details.product
         (variant,) = product.variants
-        assert variant.sku == f"MB-{product.number:06d}-H0-B"
+        assert variant.sku == f"MB-{product.number:06d}-H0-F"
         assert variant.gtin.startswith("20")
         assert int(variant.gtin[-1]) == ean13_check_digit(variant.gtin[:12])
         scale = product.scales[0]
@@ -145,7 +149,7 @@ class TestProducts:
         other = await catalog.add_variant(
             scale.id, expected_version=None, finish_code="unpainted", price_cents=2990
         )
-        assert {v.sku[-1] for v in other.product.variants} == {"B", "U"}
+        assert {v.sku[-1] for v in other.product.variants} == {"B", "F"}
         assert len({v.gtin for v in other.product.variants}) == 2
 
     async def test_every_change_raises_the_version(self, catalog: CatalogService) -> None:
@@ -421,7 +425,10 @@ class TestShop:
             lamps.product.id, expected_version=None, scale_code="N", dimensions=Dimensions()
         )
         await catalog.add_variant(
-            lamps.product.scales[0].id, expected_version=None, finish_code="primed", price_cents=990
+            lamps.product.scales[0].id,
+            expected_version=None,
+            finish_code="painted",
+            price_cents=990,
         )
         await catalog.publish(lamps.product.id, expected_version=None)
 
@@ -589,3 +596,130 @@ class TestShop:
             "124",
             "G",
         }
+
+
+class TestQuickEntry:
+    async def test_one_model_off_the_shelf_in_one_step(
+        self,
+        catalog: CatalogService,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        cranes = await catalog.create_category(name="Kranfahrzeuge")
+        yellow_photo = await ready_image(
+            media, media_storage, deliver, photo(400, 300, colour=_colour())
+        )
+        first = await catalog.quick_entry(
+            product_id=None,
+            name="IFA ADK 70 Autokran",
+            category_id=cranes.id,
+            scale_code="H0",
+            finish_code="painted",
+            color="gelb",
+            price_cents=8000,
+            asset_id=yellow_photo.id,
+        )
+        product = first.details.product
+        assert (first.new_product, first.new_variant) == (True, True)
+        assert (product.status, product.primary_category_id) == (ProductStatus.DRAFT, cranes.id)
+        assert (first.variant.color, first.variant.sku[-2:]) == ("Gelb", "-F")
+        (image,) = product.gallery
+        assert (image.scale_code, image.finish_code, image.color) == ("H0", "painted", "Gelb")
+
+        # The next box on the shelf: the same model in blue, then the kit.
+        blue = await catalog.quick_entry(
+            product_id=product.id,
+            name=None,
+            category_id=None,
+            scale_code="H0",
+            finish_code="painted",
+            color="Blau",
+            price_cents=8000,
+        )
+        assert (blue.new_product, blue.new_variant, blue.variant.sku[-3:]) == (False, True, "-F2")
+        kit = await catalog.quick_entry(
+            product_id=product.id,
+            name=None,
+            category_id=None,
+            scale_code="H0",
+            finish_code="unpainted",
+            color="",
+            price_cents=4500,
+        )
+        # Once more in yellow at a new price: no new variant, the price follows.
+        again = await catalog.quick_entry(
+            product_id=product.id,
+            name=None,
+            category_id=None,
+            scale_code="H0",
+            finish_code="painted",
+            color="GELB",
+            price_cents=8500,
+        )
+        assert (again.new_variant, again.variant.id) == (False, first.variant.id)
+        assert again.variant.price_cents == 8500
+        assert [v.finish_code for v in kit.details.product.variants].count("painted") == 2
+
+        published = await catalog.publish_ready()
+        assert [p.name for p in published] == ["IFA ADK 70 Autokran"]
+        unready = await catalog.quick_entry(
+            product_id=None,
+            name="KrAZ-250K",
+            category_id=None,
+            scale_code="H0",
+            finish_code="painted",
+            color="",
+            price_cents=8000,
+        )
+        assert unready.details.blockers  # no category, no photo: it stays a draft
+        assert await catalog.publish_ready() == []
+
+    async def test_names_the_colour_of_the_one_finished_model_without_one(
+        self, catalog: CatalogService
+    ) -> None:
+        async def enter(product_id: UUID | None, color: str) -> QuickEntry:
+            return await catalog.quick_entry(
+                product_id=product_id,
+                name="IFA ADK 80 Autokran" if product_id is None else None,
+                category_id=None,
+                scale_code="H0",
+                finish_code="painted",
+                color=color,
+                price_cents=8000,
+            )
+
+        # The start inventory knows the crane, but not its colour.
+        plain = await enter(None, "")
+        product_id = plain.details.product.id
+        yellow = await enter(product_id, "gelb")
+        assert (yellow.new_variant, yellow.variant.id) == (False, plain.variant.id)
+        assert (yellow.variant.color, yellow.variant.sku[-2:]) == ("Gelb", "-F")
+        # Now it has a named colour: the next one is a variant of its own.
+        blue = await enter(product_id, "Blau")
+        assert (blue.new_variant, blue.variant.sku[-3:]) == (True, "-F2")
+        with pytest.raises(InvalidFieldError) as refused:
+            await enter(product_id, "")
+        assert (refused.value.field, refused.value.code) == ("color", "required")
+
+    async def test_a_new_product_needs_a_name(self, catalog: CatalogService) -> None:
+        with pytest.raises(InvalidFieldError):
+            await catalog.quick_entry(
+                product_id=None,
+                name=" ",
+                category_id=None,
+                scale_code="H0",
+                finish_code="painted",
+                color="",
+                price_cents=8000,
+            )
+        with pytest.raises(ProductNotFoundError):
+            await catalog.quick_entry(
+                product_id=uuid4(),
+                name=None,
+                category_id=None,
+                scale_code="H0",
+                finish_code="painted",
+                color="",
+                price_cents=8000,
+            )

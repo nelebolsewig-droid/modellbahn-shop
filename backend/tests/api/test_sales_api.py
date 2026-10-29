@@ -142,7 +142,7 @@ class TestCart:
         assert (line["title"] if "title" in line else line["product_name"]) == "Stellwerk Altenau"
         assert (line["scale_code"], line["finish_name"], line["line_total_cents"]) == (
             "H0",
-            "bemalt",
+            "Fertigmodell",
             9980,
         )
         assert line["image"]["renditions"]

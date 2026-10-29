@@ -1,5 +1,6 @@
 """The catalogue model without a database: texts, numbers, the product's rules."""
 
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -8,6 +9,7 @@ import pytest
 
 from modellbahn.modules.catalog.application.cursors import decode_cursor, encode_cursor
 from modellbahn.modules.catalog.application.ports import ProductCursor
+from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.catalog.domain.errors import (
     InvalidFieldError,
     InvalidProductStateError,
@@ -41,8 +43,9 @@ from tests.support import NOW
 
 H0 = Scale(code="H0", name="H0", ratio_denominator=Decimal(87), track_gauge_mm=Decimal("16.5"))
 N = Scale(code="N", name="N", ratio_denominator=Decimal(160), track_gauge_mm=Decimal("9.0"))
-UNPAINTED = Finish(code="unpainted", name="unbemalt", sku_letter="U", position=1)
-PAINTED = Finish(code="painted", name="bemalt", sku_letter="B", position=3)
+UNPAINTED = Finish(code="unpainted", name="Bausatz", sku_letter="B", position=1)
+PAINTED = Finish(code="painted", name="Fertigmodell", sku_letter="F", position=2, colored=True)
+PRIMED = Finish(code="primed", name="grundiert", sku_letter="G", position=3, offered=False)
 
 
 def product(number: int = 42) -> Product:
@@ -117,7 +120,8 @@ class TestNumbers:
             internal_gtin(10**10)
 
     def test_sku(self) -> None:
-        assert variant_sku(42, "h0", PAINTED) == "MB-000042-H0-B"
+        assert variant_sku(42, "h0", PAINTED) == "MB-000042-H0-F"
+        assert variant_sku(42, "h0", PAINTED, 3) == "MB-000042-H0-F3"
 
     def test_prices(self) -> None:
         check_price(0, None)
@@ -159,7 +163,7 @@ class TestGaugesAndVariants:
         variant = item.add_variant(
             scale.id, VariantDraft(finish=UNPAINTED, price_cents=2990), gtin="2x", now=NOW
         )
-        assert variant.sku == "MB-000042-H0-U"
+        assert variant.sku == "MB-000042-H0-B"
         with pytest.raises(VariantAlreadyExistsError):
             item.add_variant(
                 scale.id, VariantDraft(finish=UNPAINTED, price_cents=1), gtin="2y", now=NOW
@@ -168,6 +172,66 @@ class TestGaugesAndVariants:
             scale.id, VariantDraft(finish=PAINTED, price_cents=5990), gtin="2z", now=NOW
         )
         assert [v.finish_code for v in item.variants] == ["unpainted", "painted"]
+
+    def test_a_finished_model_comes_in_colours_a_kit_does_not(self) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+
+        def add(finish: Finish, color: str, gtin: str) -> Variant:
+            draft = VariantDraft(finish=finish, price_cents=8000, color=color)
+            return item.add_variant(scale.id, draft, gtin=gtin, now=NOW)
+
+        yellow = add(PAINTED, " gelb ", "2a")
+        assert (yellow.color, yellow.sku) == ("Gelb", "MB-000042-H0-F")
+        blue = add(PAINTED, "Hellblau", "2b")
+        assert blue.sku == "MB-000042-H0-F2"
+        with pytest.raises(VariantAlreadyExistsError):
+            add(PAINTED, "HELLBLAU", "2c")  # the same colour, whatever the case
+        with pytest.raises(InvalidFieldError) as kit:
+            add(UNPAINTED, "Rot", "2d")
+        assert (kit.value.field, kit.value.code) == ("color", "not_colored")
+        assert add(UNPAINTED, "", "2e").sku == "MB-000042-H0-B"
+
+        with pytest.raises(VariantAlreadyExistsError):
+            item.change_variant(blue.id, color="gelb", colored=True, now=NOW)
+        item.change_variant(blue.id, color="Lichtblau", colored=True, now=NOW)
+        assert (blue.color, blue.sku) == ("Lichtblau", "MB-000042-H0-F2")  # the SKU stays
+        # A further colour after a gap takes the first free number.
+        item.remove_variant(yellow.id, NOW)
+        assert add(PAINTED, "Grün", "2f").sku == "MB-000042-H0-F"
+
+    def test_one_colour_left_unnamed_or_only_named_colours(self) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+
+        def add(color: str, gtin: str) -> Variant:
+            draft = VariantDraft(finish=PAINTED, price_cents=8000, color=color)
+            return item.add_variant(scale.id, draft, gtin=gtin, now=NOW)
+
+        plain = add("", "2a")
+        # Next to the unnamed one, a second colour could not be chosen in the shop.
+        with pytest.raises(InvalidFieldError) as unnamed:
+            add("Blau", "2b")
+        assert (unnamed.value.field, unnamed.value.code) == ("color", "unnamed_sibling")
+        item.change_variant(plain.id, color="Gelb", colored=True, now=NOW)
+        add("Blau", "2b")
+        with pytest.raises(InvalidFieldError) as required:
+            add("", "2c")
+        assert (required.value.field, required.value.code) == ("color", "required")
+        with pytest.raises(InvalidFieldError):
+            item.change_variant(plain.id, color="", colored=True, now=NOW)
+        # The kit stays on its own: one per scale, without colour.
+        kit = VariantDraft(finish=UNPAINTED, price_cents=2990)
+        item.add_variant(scale.id, kit, gtin="2d", now=NOW)
+
+    def test_primed_takes_no_new_variants(self) -> None:
+        item = product()
+        scale = item.add_scale(H0, Dimensions(), NOW)
+        with pytest.raises(InvalidFieldError) as refused:
+            item.add_variant(
+                scale.id, VariantDraft(finish=PRIMED, price_cents=1990), gtin="2x", now=NOW
+            )
+        assert refused.value.code == "not_offered"
 
     def test_change_variant_checks_the_resulting_prices(self) -> None:
         item = product()
@@ -192,14 +256,14 @@ class TestGaugesAndVariants:
             scale.id, VariantDraft(finish=PAINTED, price_cents=4990), gtin="2x", now=NOW
         )
         assert weeks(stocked) is None
-        # Switched to made to order without a lead time: the default of 4 to 6 weeks.
+        # Switched to made to order without a lead time: the default of 1 to 2 weeks.
         item.change_variant(stocked.id, allow_backorder=True, now=NOW)
-        assert weeks(stocked) == (4, 6)
+        assert weeks(stocked) == (1, 2)
         item.change_variant(stocked.id, lead_time_weeks=(8, 12), now=NOW)
         assert (stocked.lead_time_min_weeks, stocked.lead_time_max_weeks) == (8, 12)
         # Clearing it while made to order brings the default back.
         item.change_variant(stocked.id, lead_time_weeks=None, now=NOW)
-        assert weeks(stocked) == (4, 6)
+        assert weeks(stocked) == (1, 2)
         item.change_variant(stocked.id, allow_backorder=False, lead_time_weeks=None, now=NOW)
         assert weeks(stocked) is None
         made = item.add_variant(
@@ -371,3 +435,28 @@ def test_the_contract_hands_out_the_domain_events() -> None:
 
     assert events.ProductPublished is ProductPublished
     assert events.ProductArchived is ProductArchived
+
+
+def test_an_order_line_names_the_colour() -> None:
+    sale = SaleVariant(
+        variant_id=uuid4(),
+        gtin="2000000000428",
+        product_id=uuid4(),
+        product_slug="ifa-adk-70-autokran",
+        product_name="IFA ADK 70 Autokran",
+        scale_code="H0",
+        scale_name="H0",
+        finish_code="painted",
+        finish_name="Fertigmodell",
+        color="Gelb",
+        sku="MB-000042-H0-F",
+        price_cents=8000,
+        compare_at_price_cents=None,
+        image_asset_id=None,
+        purchasable=True,
+        allow_backorder=False,
+        lead_time_weeks=None,
+    )
+    assert sale.title == "IFA ADK 70 Autokran · H0 · Fertigmodell, Gelb"
+    kit = replace(sale, finish_code="unpainted", finish_name="Bausatz", color="")
+    assert kit.variant_name == "H0 · Bausatz"

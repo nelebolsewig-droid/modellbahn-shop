@@ -83,6 +83,7 @@ SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
 PAINTED_CENTS: Final = 7990
+QUICK_ENTRY_CENTS: Final = 4200
 SHIPPING_DE_CENTS: Final = 590
 SHIPPING_EU_CENTS: Final = 1690
 EU_MEMBER_STATES: Final = 27
@@ -675,6 +676,10 @@ class Demo:
             ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
             ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
             ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
+            (
+                "Schnellerfassung: Entwurf in Farbe mit Foto, zweite Farbe, veröffentlichen",
+                self.quick_entry,
+            ),
             ("Messe anlegen: unter /termine und als Kalenderdatei (.ics)", self.fair),
             (
                 "Messe-Post: Anmeldung, Link aus Mailpit, Bestätigung (Double-Opt-in)",
@@ -1007,26 +1012,42 @@ class Demo:
         )
         expect_status(scale, 201, "Maßstab H0")
         scale_id = scale.json()["scales"][0]["id"]
-        # Unpainted ones come from the shelf, painted ones are made to order.
-        for finish, price, made_to_order in (
-            ("unpainted", UNPAINTED_CENTS, False),
-            ("painted", PAINTED_CENTS, True),
+        variants = f"{ADMIN}/product-scales/{scale_id}/variants"
+        # Kits come from the shelf, finished models (in a colour) are made to order.
+        for finish, color, price, made_to_order in (
+            ("unpainted", "", UNPAINTED_CENTS, False),
+            ("painted", "gelb", PAINTED_CENTS, True),
         ):
             variant = self._staff(
                 "POST",
-                f"{ADMIN}/product-scales/{scale_id}/variants",
-                {"finish_code": finish, "price_cents": price, "allow_backorder": made_to_order},
+                variants,
+                {
+                    "finish_code": finish,
+                    "color": color,
+                    "price_cents": price,
+                    "allow_backorder": made_to_order,
+                },
             )
             expect_status(variant, 201, f"Variante {finish}")
         product = self._remember(variant)
         skus = [v["sku"] for v in product["scales"][0]["variants"]]
         prefix = f"MB-{product['number']:06d}-H0-"
-        expect(sorted(skus) == [prefix + "B", prefix + "U"], f"SKUs {skus}")
+        expect(sorted(skus) == [prefix + "B", prefix + "F"], f"SKUs {skus}")
+        expect(self._variant("painted")["color"] == "Gelb", "Farbe nicht vereinheitlicht")
+        # The kit has no colour, and primed is no longer offered.
+        for body, wanted in (
+            ({"finish_code": "unpainted", "color": "Rot"}, ("color", "not_colored")),
+            ({"finish_code": "primed"}, ("finish_code", "not_offered")),
+        ):
+            refused = self._staff("POST", variants, {**body, "price_cents": 100})
+            expect_problem(refused, 422, "validation_failed", f"Variante {body}")
+            errors = [(e["field"], e["code"]) for e in refused.json()["errors"]]
+            expect(errors == [wanted], f"Fehler zu {body}: {errors}")
         gtins = [v["gtin"] for v in product["scales"][0]["variants"]]
         expect(all(g.startswith("2") and ean13_valid(g) for g in gtins), f"EANs {gtins}")
         painted = self._variant("painted")
         lead_time = (painted["lead_time_min_weeks"], painted["lead_time_max_weeks"])
-        expect(lead_time == (4, 6), f"Lieferzeit auf Bestellung: {lead_time}")
+        expect(lead_time == (1, 2), f"Lieferzeit auf Bestellung: {lead_time}")
         return ", ".join(skus)
 
     def unsigned_upload(self) -> str | None:
@@ -1364,11 +1385,16 @@ class Demo:
         painted = by_variant[self._variant("painted")["id"]]
         expect(
             (unpainted["availability"], unpainted["free_units"]) == ("in_stock", UNITS_LABELLED),
-            f"Unbemalt: {unpainted}",
+            f"Bausatz: {unpainted}",
         )
         expect(
-            (painted["availability"], painted["lead_time_min_weeks"]) == ("made_to_order", 4),
-            f"Bemalt: {painted}",
+            (
+                painted["availability"],
+                painted["lead_time_min_weeks"],
+                painted["lead_time_max_weeks"],
+            )
+            == ("made_to_order", 1, 2),
+            f"Fertigmodell: {painted}",
         )
         articles = self.staff_browser._send(
             "GET", f"{ADMIN}/catalog/articles.csv", accept="text/csv", cookies=None
@@ -1377,8 +1403,8 @@ class Demo:
         expect(articles.content_type == "text/csv", f"Artikelliste: {articles.content_type}")
         text = articles.text
         expect(self._variant("unpainted")["gtin"] in text, "Artikelliste ohne die EAN")
-        expect("auf Bestellung (4-6 Wochen)" in text, "Artikelliste ohne Lieferzeit")
-        return "unbemalt sofort (2), bemalt auf Bestellung in 4 bis 6 Wochen"
+        expect("auf Bestellung (1-2 Wochen)" in text, "Artikelliste ohne Lieferzeit")
+        return "Bausatz sofort (2), Fertigmodell in Gelb auf Bestellung in 1 bis 2 Wochen"
 
     def cart(self) -> str | None:
         empty = self.guest_browser.api("GET", f"{SHOP}/cart")
@@ -1688,6 +1714,60 @@ class Demo:
         gone = self.visitor.api("GET", f"{SHOP}/products/{self._product['slug']}")
         expect_problem(gone, 404, "product_not_found", "Archiviertes Produkt im Shop")
         return None
+
+    def quick_entry(self) -> str | None:
+        """The phone at the crates: a new model in red with the photo, then the same in blue."""
+        path = f"{ADMIN}/catalog/quick-entries"
+        name = f"{self._product_name} Kipper"
+        first = self._staff(
+            "POST",
+            path,
+            {
+                "name": name,
+                "category_id": self._category_id(),
+                "scale_code": "H0",
+                "finish_code": "painted",
+                "color": "rot",
+                "price_cents": QUICK_ENTRY_CENTS,
+                "asset_id": self._asset["id"],
+            },
+        )
+        expect_status(first, 200, "Schnellerfassung")
+        entry = first.json()
+        product = entry["product"]
+        expect((entry["new_product"], entry["new_variant"]) == (True, True), f"Erfasst: {entry}")
+        expect(product["status"] == "draft", f"Neues Produkt ist {product['status']}")
+        red = entry["variant"]
+        expect((red["color"], red["sku"][-5:]) == ("Rot", "-H0-F"), f"Variante {red}")
+        tags = [(m["scale_code"], m["finish_code"], m["color"]) for m in product["media"]]
+        expect(tags == [("H0", "painted", "Rot")], f"Foto markiert mit {tags}")
+
+        second = self._staff(
+            "POST",
+            path,
+            {
+                "product_id": product["id"],
+                "scale_code": "H0",
+                "finish_code": "painted",
+                "color": "Blau",
+                "price_cents": QUICK_ENTRY_CENTS,
+            },
+        )
+        expect_status(second, 200, "Schnellerfassung, zweite Farbe")
+        blue = second.json()["variant"]
+        expect(blue["sku"].endswith("-H0-F2"), f"Zweite Farbe {blue['sku']}")
+
+        published = self._staff("POST", f"{ADMIN}/catalog/publish-ready")
+        expect_status(published, 200, "Fertige Entwürfe veröffentlichen")
+        ids = [p["id"] for p in published.json()["published"]]
+        expect(product["id"] in ids, f"Erfasstes Modell nicht veröffentlicht: {ids}")
+        shown = self.visitor.api("GET", f"{SHOP}/products/{product['slug']}")
+        expect_status(shown, 200, "Erfasstes Modell im Shop")
+        colors = [v["color"] for v in shown.json()["scales"][0]["variants"]]
+        expect(colors == ["Blau", "Rot"], f"Farben im Shop: {colors}")
+        archived = self._staff("POST", f"{ADMIN}/products/{product['id']}/archive")
+        expect_status(archived, 200, "Erfasstes Modell archivieren")
+        return f"{red['sku']} (Rot), {blue['sku']} (Blau) · {len(ids)} veröffentlicht"
 
     # Fairs, fair news and imprint ------------------------------------------------------
 

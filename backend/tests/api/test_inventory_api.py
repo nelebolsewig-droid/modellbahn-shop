@@ -339,7 +339,7 @@ class TestShop:
         lines = {row[2]: row for row in rows[1:]}
         skus = {v.finish_code: v.sku for s in product.product.scales for v in s.variants}
         painted_line = lines[skus["painted"]]
-        assert painted_line[1] == "H0 · bemalt"
+        assert painted_line[1] == "H0 · Fertigmodell"
         assert painted_line[3].startswith("20")
         assert (painted_line[4], painted_line[5], painted_line[7], painted_line[8]) == (
             "49,90",
@@ -347,4 +347,4 @@ class TestShop:
             "vorrätig",
             "ja",
         )
-        assert lines[skus["unpainted"]][7] == "auf Bestellung (4-6 Wochen)"
+        assert lines[skus["unpainted"]][7] == "auf Bestellung (1-2 Wochen)"

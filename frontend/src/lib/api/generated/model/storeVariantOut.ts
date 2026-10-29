@@ -13,6 +13,7 @@
  */
 
 export interface StoreVariantOut {
+  color: string;
   compare_at_price_cents: number | null;
   finish_code: string;
   id: string;

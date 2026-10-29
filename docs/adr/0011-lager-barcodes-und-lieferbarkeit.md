@@ -95,7 +95,7 @@ ohne Blick ins Lager.
 - **Jede Variante ist „vorrätig“ oder „auf Bestellung“** (`allow_backorder`, im Stellwerk
   „Auf Bestellung“).
   - Eine Variante auf Bestellung hat eine Lieferzeit von–bis in Wochen, 1 bis 52.
-  - Ohne Angabe gilt 4 bis 6 Wochen.
+  - Ohne Angabe gilt 4 bis 6 Wochen. (Seit ADR 0013: 1 bis 2 Wochen.)
 - **Die Regel**, gleich im Lager (`availability()`) und im Frontend:
   - Liegen genug freie Stücke im Lager: **sofort lieferbar**.
   - Sonst bei einer Variante auf Bestellung: **wird gefertigt**, mit Lieferzeit.

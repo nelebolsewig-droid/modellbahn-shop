@@ -16,6 +16,11 @@ export interface VariantCreateIn {
   active?: boolean;
   /** Made to order. */
   allow_backorder?: boolean;
+  /**
+     * Only for a finished model; empty for a kit.
+     * @maxLength 40
+     */
+  color?: string;
   compare_at_price_cents?: number | null;
   finish_code: string;
   /** Defaults to the minimum. */

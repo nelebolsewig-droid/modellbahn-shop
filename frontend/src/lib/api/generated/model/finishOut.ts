@@ -14,6 +14,10 @@
 
 export interface FinishOut {
   code: string;
+  /** Variants of this finish come in colours (a kit does not). */
+  colored: boolean;
   name: string;
+  /** False: no new variants; old ones stay (primed). */
+  offered: boolean;
   sku_letter: string;
 }

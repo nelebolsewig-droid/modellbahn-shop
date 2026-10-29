@@ -13,10 +13,11 @@ export function productQueryKey(productId: string) {
   return ["admin", "product", productId] as const;
 }
 
-export function useProduct(productId: string) {
+export function useProduct(productId: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery<ProductOut, ApiProblem>({
     queryKey: productQueryKey(productId),
     queryFn: ({ signal }) => getProduct(productId, { signal }),
+    enabled,
   });
 }
 

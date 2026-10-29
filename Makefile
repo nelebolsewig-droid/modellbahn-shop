@@ -25,7 +25,7 @@ SERVICE ?=
 # make staff EMAIL=... NAME="..." [ROLE=owner|staff|packer]
 ROLE ?= owner
 
-.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff smoke check \
+.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff catalog-import smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -70,6 +70,9 @@ staff: .env ## Mitarbeiterkonto anlegen: make staff EMAIL=... NAME="..." [ROLE=o
 	$(if $(and $(EMAIL),$(NAME)),,$(error Aufruf: make staff EMAIL=chef@example.de NAME="Vorname Nachname" [ROLE=owner|staff|packer]))
 	$(COMPOSE) run --rm api python -m modellbahn.cli create-staff \
 		--email "$$STAFF_EMAIL" --name "$$STAFF_NAME" --role "$$STAFF_ROLE"
+
+catalog-import: .env ## Startbestand des Katalogs einspielen (wiederholbar, legt nur Entwürfe an)
+	$(COMPOSE) run --rm api python -m modellbahn.cli import-catalog seed/startbestand.json
 
 # Drives the demo through Caddy (scripts/smoke_e2e.py). Each run creates a throwaway staff
 # account with a random password, and HTTPS is verified against Caddy's internal root CA.

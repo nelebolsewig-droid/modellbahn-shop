@@ -7,6 +7,7 @@ import { useProduct, useReferences } from "@/components/admin/catalog/use-produc
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Button } from "@/components/ui/button";
+import { ColorDot } from "@/components/ui/color-dot";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,8 @@ import {
   labelUnits,
   useListLocations,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
-import type { UnitOut } from "@/lib/api/generated/model";
-import { formatPrice } from "@/lib/catalog/format";
+import type { UnitOut, VariantOut } from "@/lib/api/generated/model";
+import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { formatUnitCode } from "@/lib/inventory/codes";
 import { errorMessage } from "@/lib/i18n/problems";
@@ -223,7 +224,8 @@ function ProductVariants({
 }) {
   const product = useProduct(productId);
   const references = useReferences();
-  const finishName = (code: string) => references.data?.finishes.find((finish) => finish.code === code)?.name ?? code;
+  const variantName = (variant: VariantOut) =>
+    finishLabel(references.data?.finishes.find((f) => f.code === variant.finish_code)?.name ?? variant.finish_code, variant.color);
 
   if (product.isPending) {
     return <p className="text-small text-ink-secondary">Die Ausführungen werden geladen …</p>;
@@ -245,7 +247,7 @@ function ProductVariants({
       {variants.length === 0 ? <p className="px-4 py-3 text-small text-ink-secondary">Noch keine Ausführung angelegt.</p> : null}
       <ul className="divide-y divide-line">
         {variants.map(({ scale, variant }) => {
-          const title = `${product.data.name} · ${scale} · ${finishName(variant.finish_code)}`;
+          const title = `${product.data.name} · ${scale} · ${variantName(variant)}`;
           return (
             <li key={variant.id}>
               <button
@@ -258,7 +260,10 @@ function ProductVariants({
               >
                 <span className="font-mono text-small font-medium">{scale}</span>
                 <span className="min-w-0">
-                  <span className="block truncate text-small">{finishName(variant.finish_code)}</span>
+                  <span className="flex items-center gap-2 text-small">
+                    {variant.color !== "" ? <ColorDot color={variant.color} size="sm" /> : null}
+                    <span className="truncate">{variantName(variant)}</span>
+                  </span>
                   <span className="block font-mono text-hint text-ink-tertiary">
                     {variant.sku}
                     {variant.allow_backorder ? " · auf Bestellung" : ""}

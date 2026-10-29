@@ -23,6 +23,7 @@ from modellbahn.modules.catalog.domain.errors import PublishBlocker
 from modellbahn.modules.catalog.domain.model import (
     ALT_TEXT_MAX_LENGTH,
     CATEGORY_NAME_MAX_LENGTH,
+    COLOR_MAX_LENGTH,
     DESCRIPTION_MAX_LENGTH,
     LEAD_TIME_MAX_WEEKS,
     PRICE_MAX_CENTS,
@@ -49,6 +50,7 @@ Slug = Annotated[
     str, Field(min_length=1, max_length=SLUG_MAX_LENGTH, examples=["stellwerk-altenau"])
 ]
 Price = Annotated[int, Field(ge=0, le=PRICE_MAX_CENTS, examples=[4990])]
+Color = Annotated[str, Field(max_length=COLOR_MAX_LENGTH, examples=["Hellblau"])]
 Millimetres = Annotated[float, Field(gt=0, le=10_000, examples=[112.5])]
 Grams = Annotated[int, Field(gt=0, le=WEIGHT_MAX_G)]
 
@@ -122,12 +124,20 @@ def exact_decimal(value: float) -> Decimal:
 
 class FinishOut(BaseModel):
     code: str = Field(examples=["painted"])
-    name: str = Field(examples=["bemalt"])
-    sku_letter: str = Field(examples=["B"])
+    name: str = Field(examples=["Fertigmodell"])
+    sku_letter: str = Field(examples=["F"])
+    colored: bool = Field(description="Variants of this finish come in colours (a kit does not).")
+    offered: bool = Field(description="False: no new variants; old ones stay (primed).")
 
     @classmethod
     def from_finish(cls, finish: Finish) -> Self:
-        return cls(code=finish.code, name=finish.name, sku_letter=finish.sku_letter)
+        return cls(
+            code=finish.code,
+            name=finish.name,
+            sku_letter=finish.sku_letter,
+            colored=finish.colored,
+            offered=finish.offered,
+        )
 
 
 class EpochOut(BaseModel):
@@ -267,7 +277,8 @@ def _rendition(rendition: object) -> ImageRenditionOut:
 class VariantOut(BaseModel):
     id: UUID
     finish_code: str
-    sku: str = Field(examples=["MB-000042-H0-B"])
+    color: str = Field(description="Empty for a kit or a finished model in one colour.")
+    sku: str = Field(examples=["MB-000042-H0-F"])
     gtin: str = Field(examples=["2000000000428"])
     price_cents: int
     compare_at_price_cents: int | None
@@ -284,6 +295,7 @@ class VariantOut(BaseModel):
         return cls(
             id=variant.id,
             finish_code=variant.finish_code,
+            color=variant.color,
             sku=variant.sku,
             gtin=variant.gtin,
             price_cents=variant.price_cents,
@@ -324,6 +336,7 @@ class GalleryItemOut(BaseModel):
     alt_text: str
     scale_code: str | None
     finish_code: str | None
+    color: str | None
     # Null only if the media module no longer knows the asset.
     image: AdminImageOut | None
 
@@ -379,6 +392,7 @@ class ProductOut(BaseModel):
                     alt_text=entry.alt_text,
                     scale_code=entry.scale_code,
                     finish_code=entry.finish_code,
+                    color=entry.color,
                     image=None
                     if entry.asset_id not in details.images
                     else AdminImageOut.from_view(details.images[entry.asset_id]),
@@ -446,6 +460,31 @@ class ProductCreateIn(_Request):
     slug: Slug | None = None
 
 
+class QuickEntryIn(_Request):
+    """One model off the shelf: an existing product (a draft, say) or a new one by name."""
+
+    product_id: UUID | None = Field(default=None, description="Left out: a new product.")
+    name: Annotated[str, Field(min_length=1, max_length=PRODUCT_NAME_MAX_LENGTH)] | None = None
+    category_id: UUID | None = Field(
+        default=None, description="For a new product, or one that has no category yet."
+    )
+    scale_code: str = Field(examples=["H0"])
+    finish_code: str = Field(examples=["painted"])
+    color: Color = ""
+    price_cents: Price = Field(description="Also the new price of a variant that exists.")
+    allow_backorder: bool = False
+    asset_id: UUID | None = Field(
+        default=None, description="An uploaded photo: joins the gallery, tagged with the variant."
+    )
+
+
+class QuickEntryOut(BaseModel):
+    product: ProductOut
+    variant: VariantOut
+    new_product: bool
+    new_variant: bool
+
+
 class ProductPatchIn(_Request):
     """Only the fields sent are changed; ``primary_category_id: null`` removes the category."""
 
@@ -484,6 +523,7 @@ LeadTimeWeeks = Annotated[int, Field(ge=1, le=LEAD_TIME_MAX_WEEKS, examples=[4])
 
 class VariantCreateIn(_Request):
     finish_code: str = Field(examples=["painted"])
+    color: Color = Field(default="", description="Only for a finished model; empty for a kit.")
     price_cents: Price
     # A former price, shown struck through; must be above the price.
     compare_at_price_cents: Price | None = None
@@ -509,6 +549,7 @@ class VariantPatchIn(_Request):
     lead_time_min_weeks: LeadTimeWeeks | None = None
     lead_time_max_weeks: LeadTimeWeeks | None = None
     active: bool | None = None
+    color: Color | None = Field(default=None, description="Empty removes the colour.")
 
     def lead_time_weeks(self) -> tuple[int, int] | None:
         return _lead_time(self.lead_time_min_weeks, self.lead_time_max_weeks)
@@ -531,6 +572,7 @@ class GalleryEntryIn(_Request):
     alt_text: Annotated[str, Field(max_length=ALT_TEXT_MAX_LENGTH)] = ""
     scale_code: str | None = None
     finish_code: str | None = None
+    color: Color | None = None
 
     def to_entry(self) -> GalleryEntry:
         return GalleryEntry(
@@ -539,6 +581,7 @@ class GalleryEntryIn(_Request):
             alt_text=self.alt_text,
             scale_code=self.scale_code,
             finish_code=self.finish_code,
+            color=self.color,
         )
 
 
@@ -592,7 +635,7 @@ class NavigationOut(BaseModel):
                 )
                 for scale in references.scales
             ],
-            finishes=[FinishOut.from_finish(f) for f in references.finishes],
+            finishes=[FinishOut.from_finish(f) for f in references.finishes if f.offered],
             epochs=[EpochOut.from_epoch(e) for e in references.epochs],
         )
 
@@ -635,6 +678,7 @@ class StoreProductPageOut(BaseModel):
 class StoreVariantOut(BaseModel):
     id: UUID
     finish_code: str
+    color: str
     sku: str
     price_cents: int
     compare_at_price_cents: int | None
@@ -658,6 +702,7 @@ class StoreGalleryItemOut(BaseModel):
     role: MediaRole
     scale_code: str | None
     finish_code: str | None
+    color: str | None
 
 
 class CategoryRefOut(BaseModel):
@@ -694,7 +739,7 @@ class StoreProductOut(BaseModel):
             if not on_sale:
                 continue
             finish_order = {f.code: f.position for f in references.finishes}
-            on_sale.sort(key=lambda v: finish_order.get(v.finish_code, 0))
+            on_sale.sort(key=lambda v: (finish_order.get(v.finish_code, 0), v.color.casefold()))
             scales.append(
                 StoreScaleOut(
                     code=scale.code,
@@ -709,6 +754,7 @@ class StoreProductOut(BaseModel):
                         StoreVariantOut(
                             id=v.id,
                             finish_code=v.finish_code,
+                            color=v.color,
                             sku=v.sku,
                             price_cents=v.price_cents,
                             compare_at_price_cents=v.compare_at_price_cents,
@@ -729,6 +775,7 @@ class StoreProductOut(BaseModel):
                         role=entry.role,
                         scale_code=entry.scale_code,
                         finish_code=entry.finish_code,
+                        color=entry.color,
                     )
                 )
         epochs = [e for e in references.epochs if e.code in product.epoch_codes]
@@ -742,7 +789,19 @@ class StoreProductOut(BaseModel):
             category_path=[CategoryRefOut(slug=c.slug, name=c.name) for c in found.category_path],
             epochs=[EpochOut.from_epoch(e) for e in epochs],
             scales=scales,
-            finishes=[FinishOut.from_finish(f) for f in references.finishes],
+            finishes=[FinishOut.from_finish(f) for f in references.finishes if f.offered],
             gallery=gallery,
             published_at=product.published_at,
         )
+
+
+class PublishedProductOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+
+
+class PublishedOut(BaseModel):
+    """The drafts that went into the shop; the others still lack something."""
+
+    published: list[PublishedProductOut]

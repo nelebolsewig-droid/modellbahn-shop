@@ -804,6 +804,11 @@
             "title": "Available",
             "type": "boolean"
           },
+          "color": {
+            "description": "Empty for a kit or a finished model in one colour.",
+            "title": "Color",
+            "type": "string"
+          },
           "compare_at_price_cents": {
             "anyOf": [
               {
@@ -919,6 +924,7 @@
           "scale_name",
           "finish_code",
           "finish_name",
+          "color",
           "sku",
           "quantity",
           "unit_price_cents",
@@ -1770,16 +1776,26 @@
             "title": "Code",
             "type": "string"
           },
+          "colored": {
+            "description": "Variants of this finish come in colours (a kit does not).",
+            "title": "Colored",
+            "type": "boolean"
+          },
           "name": {
             "examples": [
-              "bemalt"
+              "Fertigmodell"
             ],
             "title": "Name",
             "type": "string"
           },
+          "offered": {
+            "description": "False: no new variants; old ones stay (primed).",
+            "title": "Offered",
+            "type": "boolean"
+          },
           "sku_letter": {
             "examples": [
-              "B"
+              "F"
             ],
             "title": "Sku Letter",
             "type": "string"
@@ -1788,7 +1804,9 @@
         "required": [
           "code",
           "name",
-          "sku_letter"
+          "sku_letter",
+          "colored",
+          "offered"
         ],
         "title": "FinishOut",
         "type": "object"
@@ -1827,6 +1845,21 @@
             "format": "uuid",
             "title": "Asset Id",
             "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "examples": [
+                  "Hellblau"
+                ],
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
           },
           "finish_code": {
             "anyOf": [
@@ -1891,6 +1924,17 @@
             "title": "Asset Id",
             "type": "string"
           },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
           "finish_code": {
             "anyOf": [
               {
@@ -1938,6 +1982,7 @@
           "alt_text",
           "scale_code",
           "finish_code",
+          "color",
           "image"
         ],
         "title": "GalleryItemOut",
@@ -4133,6 +4178,176 @@
         "title": "PublishBlocker",
         "type": "string"
       },
+      "PublishedOut": {
+        "description": "The drafts that went into the shop; the others still lack something.",
+        "properties": {
+          "published": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedProductOut"
+            },
+            "title": "Published",
+            "type": "array"
+          }
+        },
+        "required": [
+          "published"
+        ],
+        "title": "PublishedOut",
+        "type": "object"
+      },
+      "PublishedProductOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "PublishedProductOut",
+        "type": "object"
+      },
+      "QuickEntryIn": {
+        "additionalProperties": false,
+        "description": "One model off the shelf: an existing product (a draft, say) or a new one by name.",
+        "properties": {
+          "allow_backorder": {
+            "default": false,
+            "title": "Allow Backorder",
+            "type": "boolean"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An uploaded photo: joins the gallery, tagged with the variant.",
+            "title": "Asset Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a new product, or one that has no category yet.",
+            "title": "Category Id"
+          },
+          "color": {
+            "default": "",
+            "examples": [
+              "Hellblau"
+            ],
+            "maxLength": 40,
+            "title": "Color",
+            "type": "string"
+          },
+          "finish_code": {
+            "examples": [
+              "painted"
+            ],
+            "title": "Finish Code",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "price_cents": {
+            "description": "Also the new price of a variant that exists.",
+            "examples": [
+              4990
+            ],
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Left out: a new product.",
+            "title": "Product Id"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scale_code",
+          "finish_code",
+          "price_cents"
+        ],
+        "title": "QuickEntryIn",
+        "type": "object"
+      },
+      "QuickEntryOut": {
+        "properties": {
+          "new_product": {
+            "title": "New Product",
+            "type": "boolean"
+          },
+          "new_variant": {
+            "title": "New Variant",
+            "type": "boolean"
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductOut"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/VariantOut"
+          }
+        },
+        "required": [
+          "product",
+          "variant",
+          "new_product",
+          "new_variant"
+        ],
+        "title": "QuickEntryOut",
+        "type": "object"
+      },
       "RealtimeEventData": {
         "description": "The JSON in the ``data:`` field of every SSE message.",
         "properties": {
@@ -5199,6 +5414,17 @@
             "title": "Alt Text",
             "type": "string"
           },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
           "finish_code": {
             "anyOf": [
               {
@@ -5233,7 +5459,8 @@
           "alt_text",
           "role",
           "scale_code",
-          "finish_code"
+          "finish_code",
+          "color"
         ],
         "title": "StoreGalleryItemOut",
         "type": "object"
@@ -5510,6 +5737,10 @@
       },
       "StoreVariantOut": {
         "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
           "compare_at_price_cents": {
             "anyOf": [
               {
@@ -5542,6 +5773,7 @@
         "required": [
           "id",
           "finish_code",
+          "color",
           "sku",
           "price_cents",
           "compare_at_price_cents"
@@ -6147,6 +6379,16 @@
             "title": "Allow Backorder",
             "type": "boolean"
           },
+          "color": {
+            "default": "",
+            "description": "Only for a finished model; empty for a kit.",
+            "examples": [
+              "Hellblau"
+            ],
+            "maxLength": 40,
+            "title": "Color",
+            "type": "string"
+          },
           "compare_at_price_cents": {
             "anyOf": [
               {
@@ -6232,6 +6474,11 @@
             "title": "Allow Backorder",
             "type": "boolean"
           },
+          "color": {
+            "description": "Empty for a kit or a finished model in one colour.",
+            "title": "Color",
+            "type": "string"
+          },
           "compare_at_price_cents": {
             "anyOf": [
               {
@@ -6287,7 +6534,7 @@
           },
           "sku": {
             "examples": [
-              "MB-000042-H0-B"
+              "MB-000042-H0-F"
             ],
             "title": "Sku",
             "type": "string"
@@ -6296,6 +6543,7 @@
         "required": [
           "id",
           "finish_code",
+          "color",
           "sku",
           "gtin",
           "price_cents",
@@ -6333,6 +6581,22 @@
               }
             ],
             "title": "Allow Backorder"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "examples": [
+                  "Hellblau"
+                ],
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Empty removes the colour.",
+            "title": "Color"
           },
           "compare_at_price_cents": {
             "anyOf": [
@@ -6810,6 +7074,190 @@
           }
         ],
         "summary": "Every variant with EAN, article number and price, as CSV for the till",
+        "tags": [
+          "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/publish-ready": {
+      "post": {
+        "description": "Drafts that still lack a category, an active variant or a ready photo stay drafts.",
+        "operationId": "publishReadyProducts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Put every draft into the shop that meets the rules",
+        "tags": [
+          "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/quick-entries": {
+      "post": {
+        "description": "Made for the phone, shelf by shelf: what is missing is created, what exists is reused.\n\nThe product keeps its state: a new one is a draft, until it is published (on its\nown or with ``publish-ready``). The pieces themselves are registered by the\ninventory (``POST /admin/inventory/units``) with the variant returned here.",
+        "operationId": "createQuickEntry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickEntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickEntryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `product_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `slug_taken`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Record one model: product, scale, variant in finish and colour, price and photo",
         "tags": [
           "admin-catalog"
         ]
@@ -12260,6 +12708,16 @@
             },
             "description": "Not Found. Problem codes: `variant_not_found`."
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `variant_exists`."
+          },
           "412": {
             "content": {
               "application/problem+json": {
@@ -12306,7 +12764,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Change price, former price, made to order with lead time, or availability",
+        "summary": "Change price, former price, made to order with lead time, colour or availability",
         "tags": [
           "admin-catalog"
         ]
