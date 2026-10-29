@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { Panel } from "@/components/admin/panel";
+import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,7 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nummer oder E-Mail …"
+                placeholder="Nummer, E-Mail oder eBay-Nr. …"
               />
             )}
           </FormField>
@@ -180,7 +181,9 @@ function OrderRow({ order, fresh }: { order: OrderSummaryOut; fresh: boolean }) 
         <span className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:row-start-auto">
           <span className="flex items-center gap-2">
             <span className="truncate font-medium">{order.recipient}</span>
-            {order.guest ? (
+            {order.channel === "ebay" ? (
+              <ChannelBadge />
+            ) : order.guest ? (
               <span className="shrink-0 rounded-full border border-line px-2 text-hint text-ink-tertiary">Gast</span>
             ) : null}
           </span>

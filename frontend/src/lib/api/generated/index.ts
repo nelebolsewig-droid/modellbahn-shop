@@ -1,6 +1,7 @@
 export * from './admin-auth/admin-auth';
 export * from './admin-catalog/admin-catalog';
 export * from './admin-inventory/admin-inventory';
+export * from './admin-marketplace/admin-marketplace';
 export * from './admin-media/admin-media';
 export * from './admin-sales/admin-sales';
 export * from './admin-site/admin-site';

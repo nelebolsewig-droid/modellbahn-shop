@@ -71,6 +71,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Unterstützend | Medien | Fotos und 3D-Dateien mit eigener Verarbeitungsstrecke. |
 | Unterstützend | KI-Inhalte | Verkaufstexte und Alt-Texte aus Produktfakten. |
 | Unterstützend | Auftritt | Messetermine, Messe-Post und Impressum: wie der Shop nach außen auftritt, ohne schwierige Fachlogik (ADR 0012). |
+| Unterstützend | Marktplatz | eBay als zweiter Verkaufsweg: Angebote, Bestand und Bestellungen im Gleichschritt mit dem Shop (ADR 0014). |
 | Generisch | Identität | Konten für Mitarbeiter und Kunden, Sitzungen, Rollen. Bewährte Verfahren, sorgfältig umgesetzt. |
 | Generisch | Zahlung | Angebunden über eine Schutzschicht, zunächst als Mock. |
 
@@ -87,6 +88,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Planung | `planning` | Prognose und Druckwarteschlange | **ForecastRun**, **PrintProposal** |
 | KI-Inhalte | `ai` | Textentwürfe, Protokoll jedes Modellaufrufs | **AiRun** |
 | Auftritt | `site` | Messen und ihre einmalige Ankündigung, Messe-Post mit Double-Opt-in, Impressum aus der Konfiguration (ADR 0012) | **Fair**, **Subscription**, Mailing |
+| Marktplatz | `marketplace` | Das eBay-Konto des Shops, seine Angebote je Produkt und Maßstab, die Bestellungen von dort, der Testmarktplatz (ADR 0014) | **EbayAccount**, **Listing** (mit ListingItem), **MarketplaceOrder** |
 | Plattform | `platform` | Outbox, Idempotenz (kein Fachmodul) | – |
 
 ### 2.3 Ubiquitäre Sprache
@@ -174,11 +176,13 @@ flowchart TB
         SAL["Verkauf<br/>Warenkorb · Bestellung"]
         MED["Medien<br/>Assets · Pipeline"]
         AIC["KI-Inhalte<br/>Texte · Alt-Texte"]
+        MKT["Marktplatz<br/>eBay · Angebote · Bestellungen"]
     end
     subgraph GEN["Generisch"]
         IDN["Identität<br/>Konten · Rollen"]
         PAYX["Zahlung<br/>extern"]
         LLM["Claude API<br/>extern"]
+        EBX["eBay<br/>extern"]
     end
 
     SAL -- "order.paid" --> INV
@@ -194,6 +198,11 @@ flowchart TB
     MED -- "OHS: Assets" --> MFG
     SAL -- "ACL" --> PAYX
     AIC -- "ACL: LlmPort" --> LLM
+    CAT -- "product.*" --> MKT
+    INV -- "stock.changed" --> MKT
+    MKT -- "marketplace.order.received" --> SAL
+    SAL -- "order.shipped" --> MKT
+    MKT -- "ACL: EbayGateway" --> EBX
 ```
 
 | Beziehung | Muster | Begründung |
@@ -204,6 +213,9 @@ flowchart TB
 | Medien → Katalog, Fertigung | Open Host Service | Medien kennt weder Produkte noch Teile, nur Assets. |
 | Verkauf → Zahlungsanbieter | Anti-Corruption Layer | Das Modell des Anbieters dringt nicht ins eigene ein; der Mock ist ein gleichwertiger Adapter. |
 | KI-Inhalte → Claude API | Anti-Corruption Layer (`LlmPort`) | Modell und Anbieter sind austauschbar, Kosten werden zentral erfasst. |
+| Katalog, Lager → Marktplatz | Published Language, asynchron | Der Marktplatz folgt dem Shop: Jede Änderung macht Angebote fällig, der Worker gleicht ab. Auf eBay wird nichts von Hand bearbeitet. |
+| Marktplatz ↔ Verkauf | Customer/Supplier, asynchron | Eine bezahlte eBay-Bestellung wird eine Shop-Bestellung (Kanal `ebay`); ihr Versand geht als Sendungsnummer zurück. |
+| Marktplatz → eBay | Anti-Corruption Layer (`EbayGateway`) | eBays Inventory Items, Offers und Fulfillments bleiben im Adapter; der Testmarktplatz ist ein gleichwertiger Adapter. |
 
 ---
 
@@ -1262,6 +1274,23 @@ keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 | POST | `/admin/fairs/{id}/announcement` | einmal ankündigen, `202` mit Zahl der Empfänger |
 | GET | `/admin/fair-news` | Zahl der bestätigten und wartenden Anmeldungen |
 
+**Marktplatz** · `/api/v1/admin/marketplace/ebay` (ADR 0014)
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| GET | (der Pfad selbst) | Betriebsart, Verbindung, was Angeboten noch fehlt, Einstellungen |
+| POST | `/connect` · `/disconnect` | Adresse von eBays Zustimmungsseite; trennen beendet alle Angebote (Inhaber) |
+| GET | `/callback` | Rücksprung von eBay, geschützt durch den `state`, leitet ins Stellwerk weiter |
+| PUT | `/settings` · `/categories` | Grundsätze, Aufschlag, Stückzahl auf Bestellung; eBay-Kategorie je Shop-Kategorie (Inhaber) |
+| GET | `/policies` | Grundsätze des eBay-Kontos zur Auswahl |
+| POST | `/location` | Versandort aus dem Impressum noch einmal anlegen |
+| GET | `/listings` · `/products/{id}/listings` | Angebote, zuletzt geändert zuerst; die eines Produkts |
+| PUT | `/products/{id}/listings/{scale}` | anbieten oder herunternehmen (`wanted`) |
+| POST | `/listings/{id}/sync` | sofort abgleichen statt beim nächsten Lauf |
+| GET · POST | `/orders` · `/orders/fetch` | Bestellungen von eBay; sofort abholen |
+| POST | `/orders/{id}/report-shipment` | Versand erneut an eBay melden |
+| POST | `/test-sales` · `/test-sales/{nr}/cancel` | Testmarktplatz: als Käufer kaufen und stornieren |
+
 **Kundenkonto** · `/api/v1/store/account`
 
 | Methode | Pfad | Zweck |
@@ -1511,7 +1540,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 28.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013).
+**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1547,6 +1576,8 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 13 | Ausführungen (28.10.2026) | **Bausatz** und **Fertigmodell**; grundiert entfällt. Farben gibt es nur beim Fertigmodell, als eigene Varianten (ADR 0013) |
 | 14 | Katalog befüllen (28.10.2026) | Schnellerfassung fürs Handy; die bekannten Modelle mit Preisen als Startbestand, dazu Entwürfe aus den Lagerfotos ohne Preis (ADR 0013) |
 | 15 | Lieferzeit auf Bestellung (28.10.2026) | Ohne Angabe **1 bis 2 Wochen** statt 4 bis 6: Die Werkstatt hat 12 Drucker, defekte werden repariert. Je Variante bleibt die Lieferzeit einstellbar. Die Drucker mit ihrem Zustand (in Betrieb, defekt, in Reparatur) gehören in Schritt 6 (ADR 0013) |
+| 16 | eBay statt Kleinanzeigen (28.10.2026) | eBay wird zweiter Verkaufsweg, geführt vom Shop: Angebote je Produkt und Maßstab, gemeinsamer Bestand, Bestellungen im selben Lager- und Versandablauf. Aufschlag einstellbar, zum Start 0 %; EAN „Nicht zutreffend“; Modelle auf Bestellung auch auf eBay (ADR 0014) |
+| 17 | Bestehende eBay-Angebote (29.10.2026) | Johanns laufende Angebote werden übernommen: Fotos, Titel und Preise als Katalog-Entwürfe; geht das Angebot des Shops online, endet das alte (ADR 0014, folgt als eigener Schritt) |
 
 Noch offen:
 

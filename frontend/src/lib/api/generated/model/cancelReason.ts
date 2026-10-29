@@ -18,4 +18,5 @@ export type CancelReason = typeof CancelReason[keyof typeof CancelReason];
 export const CancelReason = {
   payment_timeout: 'payment_timeout',
   by_shop: 'by_shop',
+  by_marketplace: 'by_marketplace',
 } as const;

@@ -30,6 +30,7 @@ const SECTIONS = [
   { href: "/admin/katalog/kategorien", label: "Kategorien", exact: true },
   { href: "/admin/katalog/massstaebe", label: "Maßstäbe", exact: true },
   { href: "/admin/messen", label: "Messen", exact: true },
+  { href: "/admin/ebay", label: "eBay", exact: true },
 ] as const satisfies readonly { href: Route; label: string; exact: boolean }[];
 
 export type AdminDesk = {

@@ -84,6 +84,11 @@ SMOKE_CATEGORY: Final = "smoke-test"
 UNPAINTED_CENTS: Final = 3490
 PAINTED_CENTS: Final = 7990
 QUICK_ENTRY_CENTS: Final = 4200
+EBAY: Final = f"{ADMIN}/marketplace/ebay"
+EBAY_CATEGORY: Final = "180250"
+EBAY_MARKUP_PERCENT: Final = 10
+# The buyer of the built-in test marketplace (MB_EBAY_MODE=test).
+EBAY_TEST_BUYER: Final = "testkauf@example.com"
 SHIPPING_DE_CENTS: Final = 590
 SHIPPING_EU_CENTS: Final = 1690
 EU_MEMBER_STATES: Final = 27
@@ -583,6 +588,8 @@ class Settings:
     mailpit_url: str
     staff_email: str
     staff_password: str
+    owner_email: str
+    owner_password: str
     ca_file: str | None
 
 
@@ -594,9 +601,13 @@ class Demo:
         self.base_url = settings.base_url
         self.staff_email = settings.staff_email
         self.staff_password = settings.staff_password
+        self.owner_email = settings.owner_email
+        self.owner_password = settings.owner_password
         self.visitor = Browser(settings.base_url, opener)
         self.customer_browser = Browser(settings.base_url, opener)
         self.staff_browser = Browser(settings.base_url, opener)
+        # Connects eBay: only the owner may.
+        self.owner_browser = Browser(settings.base_url, opener)
         self.mailpit = Mailpit(settings.mailpit_url, opener)
         tag = _unique("smoke")
         self.customer = Customer(email=f"{tag}@example.com", display_name=f"Smoke {tag[-10:]}")
@@ -625,6 +636,9 @@ class Demo:
         self._units: list[str] = []
         self._fair: dict[str, Any] = {}
         self._leave_token = ""
+        self._ebay_external = ""
+        self._ebay_product: dict[str, Any] = {}
+        self._ebay_order: dict[str, Any] = {}
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -679,6 +693,14 @@ class Demo:
             (
                 "Schnellerfassung: Entwurf in Farbe mit Foto, zweite Farbe, veröffentlichen",
                 self.quick_entry,
+            ),
+            (
+                "eBay (Testmarktplatz): verbinden, anbieten, Kauf wird bezahlte Bestellung",
+                self.ebay_sale,
+            ),
+            (
+                "eBay: Storno nur über eBay, Shop folgt; Trennen beendet die Angebote",
+                self.ebay_cancel,
             ),
             ("Messe anlegen: unter /termine und als Kalenderdatei (.ics)", self.fair),
             (
@@ -1769,6 +1791,154 @@ class Demo:
         expect_status(archived, 200, "Erfasstes Modell archivieren")
         return f"{red['sku']} (Rot), {blue['sku']} (Blau) · {len(ids)} veröffentlicht"
 
+    # eBay on the built-in test marketplace ---------------------------------------------
+
+    def _until[T](self, what: str, probe: Callable[[], T | None]) -> T:
+        """Ask ``probe`` until it answers (the worker is at work in the meantime)."""
+        deadline = time.monotonic() + MAIL_TIMEOUT
+        while True:
+            found = probe()
+            if found is not None:
+                return found
+            if time.monotonic() > deadline:
+                raise SmokeCheckError(
+                    f"{what}: nach {MAIL_TIMEOUT:.0f} s nicht da. "
+                    "Läuft der Worker? make logs SERVICE=worker"
+                )
+            time.sleep(0.5)
+
+    def _ebay_connect(self) -> None:
+        """The owner connects eBay, chooses the shipping policy and maps the category."""
+        # Only the owner connects; the test marketplace leads straight to the callback,
+        # which needs no cookie (the Stellwerk's is SameSite=Strict).
+        refused = self._staff("POST", f"{EBAY}/connect")
+        expect_problem(refused, 403, "insufficient_role", "Mitarbeiter verbindet eBay")
+        login = self.owner_browser.api(
+            "POST",
+            f"{ADMIN_AUTH}/session",
+            {"email": self.owner_email, "password": self.owner_password},
+        )
+        expect_status(login, 200, "Anmeldung des Inhabers")
+        connect = self.owner_browser.api("POST", f"{EBAY}/connect")
+        expect_status(connect, 200, "eBay verbinden")
+        callback = urllib.parse.urlsplit(connect.json()["authorize_url"])
+        handoff = self.visitor.page(f"{callback.path}?{callback.query}")
+        expect_status(handoff, 200, "Rücksprung von eBay")
+        expect("eBay ist verbunden" in handoff.text, "Rücksprung ohne Erfolg")
+        expect("ebay=verbunden" in handoff.text, "Rücksprung führt nicht ins Stellwerk")
+        replayed = self.visitor.page(f"{callback.path}?{callback.query}")
+        expect("abgelaufen oder unbekannt" in replayed.text, "Rücksprung zweimal verwendbar")
+
+        settings = self.owner_browser.api(
+            "PUT",
+            f"{EBAY}/settings",
+            {"fulfillment_policy_id": "test-ship-dhl", "price_markup_percent": EBAY_MARKUP_PERCENT},
+        )
+        expect_status(settings, 200, "eBay-Einstellungen")
+        expect(settings.json()["blockers"] == [], f"Fahrstraße nicht frei: {settings.json()}")
+        mapped = self.owner_browser.api(
+            "PUT",
+            f"{EBAY}/categories",
+            {"items": [{"category_id": self._category_id(), "ebay_category_id": EBAY_CATEGORY}]},
+        )
+        expect_status(mapped, 200, "eBay-Kategorie zuordnen")
+
+    def ebay_sale(self) -> str | None:
+        status = self._staff("GET", EBAY)
+        expect_status(status, 200, "eBay-Status")
+        mode = status.json()["mode"]
+        if mode != "test":
+            self._ebay_external = ""
+            return f"übersprungen (MB_EBAY_MODE={mode})"
+
+        self._ebay_connect()
+
+        # A model in green, offered on eBay and synced at once.
+        entry = self._staff(
+            "POST",
+            f"{ADMIN}/catalog/quick-entries",
+            {
+                "name": f"{self._product_name} Sattelzug",
+                "category_id": self._category_id(),
+                "scale_code": "H0",
+                "finish_code": "painted",
+                "color": "Grün",
+                "price_cents": QUICK_ENTRY_CENTS,
+                "asset_id": self._asset["id"],
+                # Made to order: eBay may sell it without stock (three at once).
+                "allow_backorder": True,
+            },
+        )
+        expect_status(entry, 200, "Modell für eBay erfassen")
+        product = entry.json()["product"]
+        self._ebay_product = product
+        published = self._staff("POST", f"{ADMIN}/products/{product['id']}/publish")
+        expect_status(published, 200, "Modell für eBay veröffentlichen")
+        wanted = self._staff(
+            "PUT", f"{EBAY}/products/{product['id']}/listings/H0", {"wanted": True}
+        )
+        expect_status(wanted, 200, "Auf eBay anbieten")
+        synced = self._staff("POST", f"{EBAY}/listings/{wanted.json()['id']}/sync")
+        expect_status(synced, 200, "Angebot abgleichen")
+        listing = synced.json()
+        expect(listing["status"] == "active", f"Angebot nicht online: {listing}")
+        (item,) = listing["items"]
+        price = (QUICK_ENTRY_CENTS * (100 + EBAY_MARKUP_PERCENT) + 50) // 100
+        expect(
+            item["price_cents"] == price, f"Preis auf eBay {item['price_cents']}, erwartet {price}"
+        )
+
+        # A buyer buys; the worker turns the sale into a paid order of the shop.
+        sale = self._staff("POST", f"{EBAY}/test-sales", {"sku": item["sku"], "quantity": 1})
+        expect_status(sale, 201, "Testkauf")
+        self._ebay_external = sale.json()["external_id"]
+
+        def imported() -> dict[str, Any] | None:
+            query = urllib.parse.urlencode({"q": self._ebay_external})
+            found = self._staff("GET", f"{ADMIN}/orders?{query}").json()["items"]
+            mine = [o for o in found if o["channel"] == "ebay" and o["status"] == "paid"]
+            return mine[0] if mine else None
+
+        summary = self._until("Bezahlte eBay-Bestellung", imported)
+        order = self._staff("GET", f"{ADMIN}/orders/{summary['id']}").json()
+        expect(order["external_ref"] == self._ebay_external, f"eBay-Nummer {order['external_ref']}")
+        expect(
+            order["totals"]["total_cents"] == price + SHIPPING_DE_CENTS,
+            f"Summe {order['totals']['total_cents']}",
+        )
+        self._ebay_order = order
+        found = self.mailpit._get("/api/v1/search", query=f'to:"{EBAY_TEST_BUYER}"')
+        expect(not found.get("messages"), "Der Shop hat dem eBay-Käufer geschrieben")
+        return f"{self._ebay_external} → {order['number']} · {price / 100:.2f} € auf eBay".replace(".", ",")
+
+    def ebay_cancel(self) -> str | None:
+        if not self._ebay_external:
+            return "übersprungen"
+        order_id = self._ebay_order["id"]
+        refused = self._staff("POST", f"{ADMIN}/orders/{order_id}/cancel", {"note": ""})
+        expect_problem(refused, 409, "marketplace_order", "Storno einer eBay-Bestellung im Shop")
+        cancelled = self._staff("POST", f"{EBAY}/test-sales/{self._ebay_external}/cancel")
+        expect_status(cancelled, 204, "Storno durch den Käufer")
+
+        def followed() -> dict[str, Any] | None:
+            order: dict[str, Any] = self._staff("GET", f"{ADMIN}/orders/{order_id}").json()
+            return order if order["status"] == "cancelled" else None
+
+        order = self._until("Storno im Shop", followed)
+        expect(order["cancel_reason"] == "by_marketplace", f"Grund {order['cancel_reason']}")
+
+        disconnected = self.owner_browser.api("POST", f"{EBAY}/disconnect")
+        expect_status(disconnected, 200, "eBay trennen")
+        listings = self._staff(
+            "GET", f"{EBAY}/products/{self._ebay_product['id']}/listings"
+        ).json()["items"]
+        expect(
+            [entry["status"] for entry in listings] == ["ended"], f"Nach dem Trennen: {listings}"
+        )
+        archived = self._staff("POST", f"{ADMIN}/products/{self._ebay_product['id']}/archive")
+        expect_status(archived, 200, "eBay-Modell archivieren")
+        return f"{order['number']} storniert (by_marketplace), Angebot beendet"
+
     # Fairs, fair news and imprint ------------------------------------------------------
 
     def fair(self) -> str | None:
@@ -1984,13 +2154,20 @@ def parse_settings(argv: list[str]) -> Settings:
         parser.error("--mailpit-url muss mit http:// oder https:// beginnen")
     staff_email = os.environ.get("SMOKE_STAFF_EMAIL", "")
     staff_password = os.environ.get("SMOKE_STAFF_PASSWORD", "")
-    if not staff_email or not staff_password:
-        parser.error("SMOKE_STAFF_EMAIL und SMOKE_STAFF_PASSWORD müssen gesetzt sein (make smoke)")
+    owner_email = os.environ.get("SMOKE_OWNER_EMAIL", "")
+    owner_password = os.environ.get("SMOKE_OWNER_PASSWORD", "")
+    if not (staff_email and staff_password and owner_email and owner_password):
+        parser.error(
+            "SMOKE_STAFF_EMAIL, SMOKE_STAFF_PASSWORD, SMOKE_OWNER_EMAIL und "
+            "SMOKE_OWNER_PASSWORD müssen gesetzt sein (make smoke)"
+        )
     return Settings(
         base_url=args.base_url.rstrip("/"),
         mailpit_url=args.mailpit_url.rstrip("/"),
         staff_email=staff_email,
         staff_password=staff_password,
+        owner_email=owner_email,
+        owner_password=owner_password,
         ca_file=args.ca_file,
     )
 

@@ -103,8 +103,13 @@ class SqlOrderRepository:
             statement = statement.where(orders.c.status.in_(sorted(query.statuses)))
         if query.text:
             pattern = _like(query.text)
+            # Also eBay's order number, which a buyer quotes.
             statement = statement.where(
-                or_(orders.c.number.ilike(pattern), orders.c.email.ilike(pattern))
+                or_(
+                    orders.c.number.ilike(pattern),
+                    orders.c.email.ilike(pattern),
+                    orders.c.external_ref.ilike(pattern),
+                )
             )
         if query.after is not None:
             statement = statement.where(

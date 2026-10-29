@@ -32,7 +32,11 @@ async def list_orders(
     service: OrderServiceDep,
     status_filter: Annotated[list[OrderStatus] | None, Query(alias="status")] = None,
     q: Annotated[
-        str | None, Query(max_length=200, description="Part of the order number or e-mail.")
+        str | None,
+        Query(
+            max_length=200,
+            description="Part of the order number, the e-mail or eBay's order number.",
+        ),
     ] = None,
     cursor: Annotated[str | None, Query(max_length=500)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,

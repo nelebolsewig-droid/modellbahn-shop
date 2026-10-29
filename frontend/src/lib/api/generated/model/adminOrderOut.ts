@@ -16,18 +16,22 @@ import type { CancelReason } from './cancelReason';
 import type { OrderLineOut } from './orderLineOut';
 import type { OrderStatus } from './orderStatus';
 import type { PaymentOut } from './paymentOut';
+import type { SalesChannel } from './salesChannel';
 import type { TotalsOut } from './totalsOut';
 
 /**
- * An order in the admin area: also who ordered and the cancellation note.
+ * An order in the admin area: also who ordered, where, and the cancellation note.
  */
 export interface AdminOrderOut {
   cancel_note: string;
   cancel_reason: CancelReason | null;
   cancelled_at: string | null;
   carrier: string;
+  channel: SalesChannel;
   customer_account_id: string | null;
   email: string;
+  /** The marketplace's order number, e.g. eBay's 12-34567-89012. */
+  external_ref: string | null;
   id: string;
   lines: OrderLineOut[];
   number: string;

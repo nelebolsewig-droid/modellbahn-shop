@@ -159,7 +159,8 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
         </p>
         <DimensionsForm product={product} productScale={productScale} />
         {variants.length > 0 ? (
-          <div className="overflow-x-auto">
+          // relative: the visually hidden headers (position: absolute) stay in the scroll box.
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[46rem] text-small">
               <caption className="sr-only">Varianten in {scale.name}</caption>
               <thead>
