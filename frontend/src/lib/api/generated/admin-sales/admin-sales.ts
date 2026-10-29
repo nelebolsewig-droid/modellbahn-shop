@@ -287,6 +287,7 @@ export const getCancelOrderUrl = (orderId: string,) => {
 }
 
 /**
+ * An order from eBay is cancelled on eBay; the shop follows by itself.
  * @summary Cancel an order that has not been shipped; a payment is refunded
  */
 export const cancelOrder = async (orderId: string,

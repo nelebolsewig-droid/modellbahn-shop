@@ -386,7 +386,7 @@
         "type": "object"
       },
       "AdminOrderOut": {
-        "description": "An order in the admin area: also who ordered and the cancellation note.",
+        "description": "An order in the admin area: also who ordered, where, and the cancellation note.",
         "properties": {
           "cancel_note": {
             "title": "Cancel Note",
@@ -418,6 +418,9 @@
             "title": "Carrier",
             "type": "string"
           },
+          "channel": {
+            "$ref": "#/components/schemas/SalesChannel"
+          },
           "customer_account_id": {
             "anyOf": [
               {
@@ -433,6 +436,21 @@
           "email": {
             "title": "Email",
             "type": "string"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The marketplace's order number, e.g. eBay's 12-34567-89012.",
+            "examples": [
+              "12-34567-89012"
+            ],
+            "title": "External Ref"
           },
           "id": {
             "format": "uuid",
@@ -539,7 +557,9 @@
           "payment_due_at",
           "id",
           "customer_account_id",
-          "cancel_note"
+          "cancel_note",
+          "channel",
+          "external_ref"
         ],
         "title": "AdminOrderOut",
         "type": "object"
@@ -755,6 +775,18 @@
         "title": "AvailabilityOut",
         "type": "object"
       },
+      "Blocker": {
+        "description": "What keeps offers from going up on eBay.",
+        "enum": [
+          "not_connected",
+          "no_fulfillment_policy",
+          "no_payment_policy",
+          "no_return_policy",
+          "no_location"
+        ],
+        "title": "Blocker",
+        "type": "string"
+      },
       "CancelIn": {
         "additionalProperties": false,
         "properties": {
@@ -771,7 +803,8 @@
       "CancelReason": {
         "enum": [
           "payment_timeout",
-          "by_shop"
+          "by_shop",
+          "by_marketplace"
         ],
         "title": "CancelReason",
         "type": "string"
@@ -1041,6 +1074,96 @@
         "title": "CategoryCreateIn",
         "type": "object"
       },
+      "CategoryMappingIn": {
+        "additionalProperties": false,
+        "properties": {
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "ebay_category_id": {
+            "examples": [
+              "180250"
+            ],
+            "maxLength": 10,
+            "title": "Ebay Category Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "ebay_category_id"
+        ],
+        "title": "CategoryMappingIn",
+        "type": "object"
+      },
+      "CategoryMappingListIn": {
+        "additionalProperties": false,
+        "description": "The whole mapping; categories left out (or empty) have none.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryMappingIn"
+            },
+            "maxItems": 500,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CategoryMappingListIn",
+        "type": "object"
+      },
+      "CategoryMappingListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryMappingOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CategoryMappingListOut",
+        "type": "object"
+      },
+      "CategoryMappingOut": {
+        "properties": {
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "ebay_category_id": {
+            "description": "Empty: none chosen.",
+            "examples": [
+              "180250"
+            ],
+            "title": "Ebay Category Id",
+            "type": "string"
+          },
+          "path": {
+            "examples": [
+              "Straßenfahrzeuge / LKW"
+            ],
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "path",
+          "ebay_category_id"
+        ],
+        "title": "CategoryMappingOut",
+        "type": "object"
+      },
       "CategoryOut": {
         "properties": {
           "id": {
@@ -1228,6 +1351,29 @@
           "variant"
         ],
         "title": "CodeKind",
+        "type": "string"
+      },
+      "ConnectOut": {
+        "properties": {
+          "authorize_url": {
+            "description": "eBay's consent page; open it in the same tab.",
+            "title": "Authorize Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorize_url"
+        ],
+        "title": "ConnectOut",
+        "type": "object"
+      },
+      "ConnectionStatus": {
+        "enum": [
+          "disconnected",
+          "connected",
+          "expired"
+        ],
+        "title": "ConnectionStatus",
         "type": "string"
       },
       "CustomerAddressIn": {
@@ -1473,6 +1619,125 @@
           "display_name"
         ],
         "title": "DisplayNameIn",
+        "type": "object"
+      },
+      "EbayMode": {
+        "enum": [
+          "off",
+          "test",
+          "sandbox",
+          "production"
+        ],
+        "title": "EbayMode",
+        "type": "string"
+      },
+      "EbayStatusOut": {
+        "description": "The connection to eBay and how the shop sells there.",
+        "properties": {
+          "blockers": {
+            "description": "What keeps offers from going up.",
+            "items": {
+              "$ref": "#/components/schemas/Blocker"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "connected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connected At"
+          },
+          "consent_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Until when eBay's consent holds; connect again before.",
+            "title": "Consent Expires At"
+          },
+          "fulfillment_policy_id": {
+            "title": "Fulfillment Policy Id",
+            "type": "string"
+          },
+          "location_ready": {
+            "title": "Location Ready",
+            "type": "boolean"
+          },
+          "made_to_order_quantity": {
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Made To Order Quantity",
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/EbayMode",
+            "description": "off: no eBay; test: the built-in test marketplace; sandbox or production."
+          },
+          "orders_checked_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orders Checked Until"
+          },
+          "payment_policy_id": {
+            "title": "Payment Policy Id",
+            "type": "string"
+          },
+          "price_markup_percent": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Price Markup Percent",
+            "type": "integer"
+          },
+          "return_policy_id": {
+            "title": "Return Policy Id",
+            "type": "string"
+          },
+          "seller_name": {
+            "examples": [
+              "adp-modelle"
+            ],
+            "title": "Seller Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectionStatus"
+          }
+        },
+        "required": [
+          "mode",
+          "status",
+          "seller_name",
+          "connected_at",
+          "consent_expires_at",
+          "blockers",
+          "fulfillment_policy_id",
+          "payment_policy_id",
+          "return_policy_id",
+          "location_ready",
+          "price_markup_percent",
+          "made_to_order_quantity",
+          "orders_checked_until"
+        ],
+        "title": "EbayStatusOut",
         "type": "object"
       },
       "EmailIn": {
@@ -1765,6 +2030,20 @@
           "when"
         ],
         "title": "FairOut",
+        "type": "object"
+      },
+      "FetchOut": {
+        "properties": {
+          "received": {
+            "description": "New orders taken over.",
+            "title": "Received",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "received"
+        ],
+        "title": "FetchOut",
         "type": "object"
       },
       "FinishOut": {
@@ -2419,6 +2698,239 @@
         "title": "LineImageRenditionOut",
         "type": "object"
       },
+      "ListingItemOut": {
+        "properties": {
+          "price_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "quantity": {
+            "description": "What eBay may sell at once, as last told.",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity",
+          "price_cents"
+        ],
+        "title": "ListingItemOut",
+        "type": "object"
+      },
+      "ListingListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListingOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ListingListOut",
+        "type": "object"
+      },
+      "ListingOut": {
+        "description": "A product in one scale as an offer on eBay.",
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "title": "Error Message",
+            "type": "string"
+          },
+          "external_id": {
+            "description": "eBay's listing number, once it went up.",
+            "title": "External Id",
+            "type": "string"
+          },
+          "group_key": {
+            "examples": [
+              "MB-000042-H0"
+            ],
+            "title": "Group Key",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListingItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "needs_sync": {
+            "title": "Needs Sync",
+            "type": "boolean"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListingProductOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ListingStatus"
+          },
+          "synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Synced At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The listing on eBay (none on the test marketplace).",
+            "title": "Url"
+          },
+          "wanted": {
+            "description": "The shop wants it on eBay.",
+            "title": "Wanted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "scale_code",
+          "group_key",
+          "wanted",
+          "status",
+          "external_id",
+          "url",
+          "needs_sync",
+          "error_code",
+          "error_message",
+          "synced_at",
+          "updated_at",
+          "items"
+        ],
+        "title": "ListingOut",
+        "type": "object"
+      },
+      "ListingPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListingOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListingPageOut",
+        "type": "object"
+      },
+      "ListingProductOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "number",
+          "slug",
+          "name"
+        ],
+        "title": "ListingProductOut",
+        "type": "object"
+      },
+      "ListingStatus": {
+        "enum": [
+          "pending",
+          "active",
+          "failed",
+          "ended"
+        ],
+        "title": "ListingStatus",
+        "type": "string"
+      },
       "LocatedUnitOut": {
         "properties": {
           "code": {
@@ -2778,6 +3290,193 @@
         ],
         "title": "LoginIn",
         "type": "object"
+      },
+      "MarketplaceOrderLineOut": {
+        "properties": {
+          "known": {
+            "description": "The article is one of the shop's variants.",
+            "title": "Known",
+            "type": "boolean"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_price_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Unit Price Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sku",
+          "title",
+          "quantity",
+          "unit_price_cents",
+          "known"
+        ],
+        "title": "MarketplaceOrderLineOut",
+        "type": "object"
+      },
+      "MarketplaceOrderListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MarketplaceOrderOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "MarketplaceOrderListOut",
+        "type": "object"
+      },
+      "MarketplaceOrderOut": {
+        "description": "An order as eBay reported it, with the shop's order it became.",
+        "properties": {
+          "buyer_name": {
+            "title": "Buyer Name",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country_code": {
+            "title": "Country Code",
+            "type": "string"
+          },
+          "external_id": {
+            "examples": [
+              "12-34567-89012"
+            ],
+            "title": "External Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/MarketplaceOrderLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The shop's order, once the sales took it.",
+            "title": "Order Number"
+          },
+          "paid_at": {
+            "format": "date-time",
+            "title": "Paid At",
+            "type": "string"
+          },
+          "problem": {
+            "description": "Why it was rejected, or why reporting the shipment failed.",
+            "title": "Problem",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "shipped_reported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipped Reported At"
+          },
+          "shipping_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Shipping Cents",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MarketplaceOrderStatus"
+          },
+          "total_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Total Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "external_id",
+          "order_id",
+          "order_number",
+          "status",
+          "buyer_name",
+          "recipient",
+          "city",
+          "country_code",
+          "shipping_cents",
+          "total_cents",
+          "paid_at",
+          "received_at",
+          "shipped_reported_at",
+          "problem",
+          "lines"
+        ],
+        "title": "MarketplaceOrderOut",
+        "type": "object"
+      },
+      "MarketplaceOrderStatus": {
+        "enum": [
+          "received",
+          "rejected",
+          "shipped",
+          "cancelled"
+        ],
+        "title": "MarketplaceOrderStatus",
+        "type": "string"
       },
       "MediaRole": {
         "description": "What a gallery image shows.",
@@ -3218,6 +3917,10 @@
       "OrderSummaryOut": {
         "description": "An order in a list.",
         "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/SalesChannel",
+            "description": "Where it was ordered: the shop or eBay."
+          },
           "first_line_title": {
             "title": "First Line Title",
             "type": "string"
@@ -3265,6 +3968,7 @@
           "id",
           "number",
           "status",
+          "channel",
           "placed_at",
           "item_count",
           "total_cents",
@@ -3543,6 +4247,57 @@
         ],
         "title": "PieceState",
         "type": "string"
+      },
+      "PoliciesOut": {
+        "description": "The business policies of the eBay account, to choose from.",
+        "properties": {
+          "fulfillment": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyOptionOut"
+            },
+            "title": "Fulfillment",
+            "type": "array"
+          },
+          "payment": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyOptionOut"
+            },
+            "title": "Payment",
+            "type": "array"
+          },
+          "returns": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyOptionOut"
+            },
+            "title": "Returns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fulfillment",
+          "payment",
+          "returns"
+        ],
+        "title": "PoliciesOut",
+        "type": "object"
+      },
+      "PolicyOptionOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PolicyOptionOut",
+        "type": "object"
       },
       "Problem": {
         "description": "OpenAPI schema of an RFC 9457 problem response.",
@@ -4519,6 +5274,15 @@
         "title": "RequestAcceptedOut",
         "type": "object"
       },
+      "SalesChannel": {
+        "description": "Where an order came from. A marketplace order arrives paid; its buyer hears from there.",
+        "enum": [
+          "shop",
+          "ebay"
+        ],
+        "title": "SalesChannel",
+        "type": "string"
+      },
       "ScaleCreateIn": {
         "additionalProperties": false,
         "properties": {
@@ -5226,6 +5990,77 @@
         "title": "ScrapIn",
         "type": "object"
       },
+      "SettingsIn": {
+        "additionalProperties": false,
+        "description": "What changes; a missing field keeps its value, an empty policy id clears it.",
+        "properties": {
+          "fulfillment_policy_id": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fulfillment Policy Id"
+          },
+          "made_to_order_quantity": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many pieces of a model made to order eBay may sell at once.",
+            "title": "Made To Order Quantity"
+          },
+          "payment_policy_id": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Policy Id"
+          },
+          "price_markup_percent": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Markup Percent"
+          },
+          "return_policy_id": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Policy Id"
+          }
+        },
+        "title": "SettingsIn",
+        "type": "object"
+      },
       "ShipIn": {
         "additionalProperties": false,
         "properties": {
@@ -5820,6 +6655,48 @@
           "consent"
         ],
         "title": "SubscriptionIn",
+        "type": "object"
+      },
+      "TestSaleIn": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "examples": [
+              "MB-000042-H0-F"
+            ],
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ],
+        "title": "TestSaleIn",
+        "type": "object"
+      },
+      "TestSaleOut": {
+        "properties": {
+          "external_id": {
+            "examples": [
+              "T7-04213-88351"
+            ],
+            "title": "External Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "external_id"
+        ],
+        "title": "TestSaleOut",
         "type": "object"
       },
       "TokenIn": {
@@ -6716,6 +7593,21 @@
           "allow_backorder"
         ],
         "title": "VariantRefOut",
+        "type": "object"
+      },
+      "WantIn": {
+        "additionalProperties": false,
+        "properties": {
+          "wanted": {
+            "description": "True: offer it on eBay; false: take it down.",
+            "title": "Wanted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "wanted"
+        ],
+        "title": "WantIn",
         "type": "object"
       }
     },
@@ -9500,6 +10392,1500 @@
         ]
       }
     },
+    "/api/v1/admin/marketplace/ebay": {
+      "get": {
+        "operationId": "getEbayStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbayStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The eBay connection and its settings",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/categories": {
+      "get": {
+        "operationId": "listEbayCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryMappingListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The shop's categories with their eBay category",
+        "tags": [
+          "admin-marketplace"
+        ]
+      },
+      "put": {
+        "operationId": "setEbayCategories",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryMappingListIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryMappingListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Replace the eBay categories of the shop's categories",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/connect": {
+      "post": {
+        "operationId": "connectEbay",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Start connecting: the address of eBay's consent page",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/disconnect": {
+      "post": {
+        "operationId": "disconnectEbay",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbayStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Take every offer off eBay and forget the connection",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/listings": {
+      "get": {
+        "operationId": "listEbayListings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Offers on eBay, the last changed first",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/listings/{listing_id}/sync": {
+      "post": {
+        "operationId": "syncEbayListing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "listing_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Listing Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `listing_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_not_ready`, `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Bring the listing on eBay up to date now",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/location": {
+      "post": {
+        "operationId": "createEbayLocation",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbayStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Create the shop's location on eBay again (from the imprint's address)",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/orders": {
+      "get": {
+        "operationId": "listEbayOrders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceOrderListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The latest orders from eBay",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/orders/fetch": {
+      "post": {
+        "operationId": "fetchEbayOrders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FetchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Ask eBay for new orders now",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/orders/{marketplace_order_id}/report-shipment": {
+      "post": {
+        "operationId": "reportEbayShipment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "marketplace_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Marketplace Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `marketplace_order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Tell eBay again how the order was shipped",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/policies": {
+      "get": {
+        "operationId": "listEbayPolicies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliciesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The business policies of the eBay account",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/products/{product_id}/listings": {
+      "get": {
+        "operationId": "listProductEbayListings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The product's offers on eBay, one per scale",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/products/{product_id}/listings/{scale_code}": {
+      "put": {
+        "description": "The worker brings it up (or down) within a minute; or sync it right away.",
+        "operationId": "setProductEbayListing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scale_code",
+            "required": true,
+            "schema": {
+              "maxLength": 8,
+              "title": "Scale Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WantIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `listing_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Offer the product in the scale on eBay, or take it down",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/settings": {
+      "put": {
+        "operationId": "changeEbaySettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EbayStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Change policies, markup and the made-to-order quantity",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/test-sales": {
+      "post": {
+        "operationId": "createEbayTestSale",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestSaleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSaleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `listing_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`, `test_mode_only`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Buy on the built-in test marketplace, as an eBay buyer would",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/test-sales/{external_id}/cancel": {
+      "post": {
+        "operationId": "cancelEbayTestSale",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "external_id",
+            "required": true,
+            "schema": {
+              "title": "External Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `marketplace_order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_off`, `test_mode_only`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Cancel a test sale, as the buyer would on eBay",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
     "/api/v1/admin/media/uploads": {
       "post": {
         "description": "PUT the file to ``upload.url`` within 15 minutes, then call ``complete``.\n\nA file whose SHA-256 is already stored returns that asset and ``upload: null``.",
@@ -10017,7 +12403,7 @@
             }
           },
           {
-            "description": "Part of the order number or e-mail.",
+            "description": "Part of the order number, the e-mail or eBay's order number.",
             "in": "query",
             "name": "q",
             "required": false,
@@ -10031,7 +12417,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Part of the order number or e-mail.",
+              "description": "Part of the order number, the e-mail or eBay's order number.",
               "title": "Q"
             }
           },
@@ -10218,6 +12604,7 @@
     },
     "/api/v1/admin/orders/{order_id}/cancel": {
       "post": {
+        "description": "An order from eBay is cancelled on eBay; the shop follows by itself.",
         "operationId": "cancelOrder",
         "parameters": [
           {
@@ -10290,7 +12677,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `invalid_order_state`."
+            "description": "Conflict. Problem codes: `invalid_order_state`, `marketplace_order`."
           },
           "415": {
             "content": {
@@ -15512,6 +17899,10 @@
     {
       "description": "Fairs and the fair news.",
       "name": "admin-site"
+    },
+    {
+      "description": "eBay: the connection, offers kept in step with the shop, its orders.",
+      "name": "admin-marketplace"
     },
     {
       "description": "Live events for the admin area (SSE).",

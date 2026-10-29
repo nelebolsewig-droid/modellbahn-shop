@@ -80,6 +80,15 @@ Was sich vorführen lässt:
   Kalender-Abo. Besucher bestellen die **Messe-Post** und bestätigen sie per Link aus der
   E-Mail (Double-Opt-in). „Ankündigen“ schickt eine Messe einmal an alle Bestätigten, jede
   Mail mit Abmeldelink. Bestell- und Versandmails nennen die nächste Messe.
+- **eBay.** Unter „eBay“ verbindet der Inhaber das eBay-Konto des Shops und wählt Versand,
+  Zahlung und Rücknahme; eine „Fahrstraße“ aus fünf Signalen zeigt, wann Angebote online
+  gehen dürfen. Jede Shop-Kategorie bekommt die Nummer einer eBay-Kategorie, der Aufschlag
+  für eBays Gebühren ist einstellbar. Im Produkt-Editor schaltet „Auf eBay anbieten“ je
+  Maßstab; Texte, Fotos, Preise und Stückzahlen folgen dem Shop von selbst, jede Minute.
+  Bestellungen von eBay kommen bezahlt herein, laufen durch Lager und Versand wie
+  Shop-Bestellungen und melden die Sendungsnummer an eBay zurück. `MB_EBAY_MODE=test` (in
+  `.env.example`) schaltet den eingebauten **Testmarktplatz** ein: verbinden, anbieten und
+  als Käufer kaufen, ganz ohne eBay-Schlüssel (ADR 0014).
 - **Impressum und Werkstatt.** `/impressum` kommt aus `MB_IMPRINT_*`, dieselben Angaben
   schließen jede E-Mail. Dazu die Seiten „Über uns“ und „Sonderanfertigung“ (3D-Druck und
   Lasercutting).
@@ -242,7 +251,9 @@ modellbahn-shop/
 │   │       ├── sales/          Warenkorb, Bestellungen, Zahlung, Adressbuch, Versandzonen
 │   │       ├── inventory/      Lagerplätze, Einheiten, Journal, Scans, Zuteilung,
 │   │       │                   Etiketten (PDF mit EAN-13 und Code 128), Lieferbarkeit
-│   │       └── site/           Messen, Kalender (iCalendar), Messe-Post mit Double-Opt-in
+│   │       ├── site/           Messen, Kalender (iCalendar), Messe-Post mit Double-Opt-in
+│   │       └── marketplace/    eBay: Verbindung (OAuth), Angebote im Gleichschritt mit
+│   │                           Katalog und Lager, Bestellungen, Testmarktplatz
 │   └── tests/
 └── frontend/                   Next.js 16, React 19, TypeScript, Tailwind CSS
     ├── Dockerfile
@@ -330,6 +341,13 @@ Entwicklungsschlüssel). Echte Anbieterangaben gehören nur in `.env`; `.env.exa
 Platzhalter. Der Shopname kommt aus dem Absender `MB_SMTP_FROM` (E-Mails) und
 `NEXT_PUBLIC_SHOP_NAME` (Oberfläche). Der Produktionsbetrieb (Sicherungen von Datenbank und
 Objektspeicher, HSTS, ohne Mailpit) und ein echter Zahlungsanbieter fehlen noch.
+
+Für den echten eBay-Verkauf braucht es ein Entwicklerkonto auf developer.ebay.com: die
+Schlüssel der Anwendung (`MB_EBAY_CLIENT_ID`, `MB_EBAY_CLIENT_SECRET`) und einen RuName
+(`MB_EBAY_RU_NAME`), dessen „Auth accepted URL“ auf
+`https://<domain>/api/v1/admin/marketplace/ebay/callback` zeigt. Dazu `MB_EBAY_MODE=sandbox`
+zum Ausprobieren oder `production` und einen eigenen `MB_EBAY_TOKEN_KEY`. In Produktion
+verweigert das Backend den Testmarktplatz und die Sandbox.
 
 ### Hinter einem TLS-Proxy
 

@@ -57,6 +57,12 @@ from modellbahn.modules.inventory.infrastructure.mapping import (
     start_mappers as start_inventory_mappers,
 )
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.marketplace.api import admin as marketplace_admin
+from modellbahn.modules.marketplace.api.deps import MARKETPLACE_STATE
+from modellbahn.modules.marketplace.api.errors import (
+    install_error_translations as install_marketplace_error_translations,
+)
+from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
 from modellbahn.modules.media.api import admin as media_admin
 from modellbahn.modules.media.api.errors import (
     install_error_translations as install_media_error_translations,
@@ -135,6 +141,10 @@ _TAGS: Final = [
         "description": "Locations, units, scans, picking and labels of the workshop.",
     },
     {"name": "admin-site", "description": "Fairs and the fair news."},
+    {
+        "name": "admin-marketplace",
+        "description": "eBay: the connection, offers kept in step with the shop, its orders.",
+    },
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -170,6 +180,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clock=clock,
     )
     hub = RealtimeHub(asyncpg_dsn(settings.database_url))
+    marketplace = build_marketplace(settings, session_factory, clock)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -181,6 +192,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 yield
         finally:
             await hub.stop()
+            if marketplace is not None:
+                await marketplace.aclose()
             await engine.dispose()
 
     # The interactive documentation is a development aid; production does not expose it.
@@ -219,6 +232,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
     app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
     app.state.imprint = settings.imprint
+    setattr(app.state, MARKETPLACE_STATE, marketplace)
     app.state.realtime_hub = hub
     _attach_rate_limiters(app, settings)
 
@@ -231,6 +245,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         install_sales_error_translations,
         install_inventory_error_translations,
         install_site_error_translations,
+        install_marketplace_error_translations,
     ):
         install_error_translations(app)
 
@@ -255,6 +270,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(sales_admin.router)
     api.include_router(inventory_admin.router)
     api.include_router(site_admin.router)
+    api.include_router(marketplace_admin.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,

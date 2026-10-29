@@ -55,6 +55,8 @@ function adminOrder(overrides: Partial<AdminOrderOut> = {}): AdminOrderOut {
     id: "o1",
     customer_account_id: null,
     cancel_note: "",
+    channel: "shop",
+    external_ref: null,
     ...overrides,
   };
 }

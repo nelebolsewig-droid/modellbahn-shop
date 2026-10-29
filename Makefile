@@ -87,6 +87,10 @@ smoke: .env ## End-to-End-Test gegen den laufenden Stack (vorher: make up)
 	export SMOKE_STAFF_PASSWORD="$$($(PYTHON) -c 'import secrets; print(secrets.token_urlsafe(24))')"; \
 	printf '%s\n' "$$SMOKE_STAFF_PASSWORD" | $(COMPOSE) exec -T api python -m modellbahn.cli \
 		create-staff --email "$$SMOKE_STAFF_EMAIL" --name "Smoke-Test" --role staff --password-stdin; \
+	export SMOKE_OWNER_EMAIL="smoke-owner-$$(date +%s)-$$RANDOM@example.com"; \
+	export SMOKE_OWNER_PASSWORD="$$($(PYTHON) -c 'import secrets; print(secrets.token_urlsafe(24))')"; \
+	printf '%s\n' "$$SMOKE_OWNER_PASSWORD" | $(COMPOSE) exec -T api python -m modellbahn.cli \
+		create-staff --email "$$SMOKE_OWNER_EMAIL" --name "Smoke-Inhaber" --role owner --password-stdin; \
 	$(PYTHON) scripts/smoke_e2e.py --ca-file "$$workdir/caddy-root.crt"
 
 # --- Code quality -----------------------------------------------------------------------

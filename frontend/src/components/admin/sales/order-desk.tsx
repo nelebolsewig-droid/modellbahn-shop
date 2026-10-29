@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
+import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { OrderLines, OrderTimeline } from "@/components/shop/order-parts";
@@ -117,7 +118,10 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
     queryClient.setQueryData(getGetOrderQueryKey(orderId), updated);
     void queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
   };
-  const cancellable = MAY_CANCEL.has(staffRole) && (data.status === "pending_payment" || data.status === "paid");
+  const fromEbay = data.channel === "ebay";
+  // An order from eBay is cancelled on eBay (which refunds the buyer); the shop follows.
+  const cancellable =
+    !fromEbay && MAY_CANCEL.has(staffRole) && (data.status === "pending_payment" || data.status === "paid");
 
   return (
     <>
@@ -129,11 +133,16 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
           <p className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="label-caps text-ink-tertiary">Bestellung</span>
             <StatusBadge tone={ORDER_STATUS_TONES[data.status]}>{ORDER_STATUS_LABELS[data.status]}</StatusBadge>
+            {fromEbay ? <ChannelBadge /> : null}
           </p>
           <h1 className="mt-3 font-mono text-heading sm:text-title">{data.number}</h1>
           <p className="mt-2 text-small text-ink-secondary">
             Eingegangen am {formatLongDate(new Date(data.placed_at))}, {formatClock(new Date(data.placed_at))} Uhr ·{" "}
-            {data.customer_account_id ? "Kundenkonto" : "Gastbestellung"}
+            {fromEbay
+              ? `über eBay, Bestellnummer ${data.external_ref ?? ""}`
+              : data.customer_account_id
+                ? "Kundenkonto"
+                : "Gastbestellung"}
           </p>
         </div>
         <ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />
@@ -177,7 +186,9 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
               <div>
                 <dt className="label-caps text-ink-tertiary">Bestellt</dt>
                 <dd className="mt-1">
-                  {data.customer_account_id
+                  {fromEbay
+                    ? "auf eBay; Nachrichten an den Käufer laufen über eBay"
+                    : data.customer_account_id
                     ? "mit Kundenkonto"
                     : "als Gast; bestätigt ein Konto diese Adresse, wandert die Bestellung dorthin"}
                 </dd>
@@ -187,6 +198,13 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
           {cancellable ? (
             <Panel title="Stornieren" code="VK 15">
               <CancelOrder order={data} onCancelled={store} />
+            </Panel>
+          ) : fromEbay && data.status === "paid" ? (
+            <Panel title="Stornieren" code="VK 15">
+              <p className="text-small text-ink-secondary">
+                Bestellungen von eBay storniert der Käufer oder du auf eBay; eBay erstattet den Betrag. Der Shop
+                übernimmt die Stornierung beim nächsten Abgleich, die Ware geht zurück ins Lager.
+              </p>
             </Panel>
           ) : null}
         </div>

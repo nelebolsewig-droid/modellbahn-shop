@@ -15,6 +15,7 @@ from modellbahn.modules.sales.domain.errors import (
     InsufficientStockError,
     InvalidFieldError,
     InvalidOrderStateError,
+    MarketplaceOrderError,
     OrderNotFoundError,
     OrderNotPayableError,
     OrderNotPickedError,
@@ -95,6 +96,9 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     ),
     AddressBookFullError: lambda _: ConflictError(
         "The address book is full; remove an address first.", code="address_book_full"
+    ),
+    MarketplaceOrderError: lambda _: ConflictError(
+        "The order came from a marketplace; cancel it there.", code="marketplace_order"
     ),
 }
 

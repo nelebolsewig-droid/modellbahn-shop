@@ -32,7 +32,11 @@ async def list_orders(
     service: OrderServiceDep,
     status_filter: Annotated[list[OrderStatus] | None, Query(alias="status")] = None,
     q: Annotated[
-        str | None, Query(max_length=200, description="Part of the order number or e-mail.")
+        str | None,
+        Query(
+            max_length=200,
+            description="Part of the order number, the e-mail or eBay's order number.",
+        ),
     ] = None,
     cursor: Annotated[str | None, Query(max_length=500)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -77,8 +81,14 @@ async def ship_order(
     "/{order_id}/cancel",
     operation_id="cancelOrder",
     summary="Cancel an order that has not been shipped; a payment is refunded",
+    description="An order from eBay is cancelled on eBay; the shop follows by itself.",
     responses=problems(
-        {**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT, 503: ["payment_unavailable"]}
+        {
+            **STAFF_ACCESS,
+            **ORDER_NOT_FOUND,
+            409: ["invalid_order_state", "marketplace_order"],
+            503: ["payment_unavailable"],
+        }
     ),
 )
 async def cancel_order(

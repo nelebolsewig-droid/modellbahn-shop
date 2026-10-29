@@ -23,6 +23,7 @@ export const ORDER_STATUS_TONES = {
 export const CANCEL_REASON_LABELS = {
   payment_timeout: "Die Zahlung ist nicht innerhalb von 24 Stunden eingegangen.",
   by_shop: "Wir haben die Bestellung storniert.",
+  by_marketplace: "Die Bestellung wurde auf eBay storniert; eBay erstattet den Betrag.",
 } as const satisfies Record<CancelReason, string>;
 
 export const PAYMENT_STATUS_LABELS = {

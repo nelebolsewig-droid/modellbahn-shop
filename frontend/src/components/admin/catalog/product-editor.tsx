@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
+import { ProductEbayPanel } from "@/components/admin/marketplace/product-ebay-panel";
 import { Panel } from "@/components/admin/panel";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -81,13 +82,16 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
   return (
     <div className="space-y-6">
       <EditorHeader product={data} stream={<ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />} />
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
           <ProductGallery product={data} references={references.data} />
           <ProductScales product={data} references={references.data} />
           <ProductDetailsForm product={data} categories={categories.data} epochs={references.data.epochs} />
         </div>
-        <PublishPanel product={data} />
+        <div className="space-y-6">
+          <PublishPanel product={data} />
+          <ProductEbayPanel product={data} />
+        </div>
       </div>
     </div>
   );

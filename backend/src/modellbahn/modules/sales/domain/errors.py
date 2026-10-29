@@ -87,6 +87,10 @@ class InvalidOrderStateError(SalesError):
     """The order's state does not allow this (e.g. shipping an unpaid order)."""
 
 
+class MarketplaceOrderError(SalesError):
+    """A marketplace order is cancelled where it was bought; the shop follows."""
+
+
 class PaymentUnavailableError(SalesError):
     """The payment provider could not be reached or failed; nothing was charged."""
 

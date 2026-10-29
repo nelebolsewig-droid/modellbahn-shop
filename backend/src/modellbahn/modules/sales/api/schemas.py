@@ -28,6 +28,7 @@ from modellbahn.modules.sales.domain.model import (
     Payment,
     PaymentStatus,
     PostalAddress,
+    SalesChannel,
     ShippingZone,
 )
 
@@ -358,6 +359,7 @@ class OrderSummaryOut(BaseModel):
     id: UUID
     number: str
     status: OrderStatus
+    channel: SalesChannel = Field(description="Where it was ordered: the shop or eBay.")
     placed_at: datetime
     item_count: int
     total_cents: Cents
@@ -371,6 +373,7 @@ class OrderSummaryOut(BaseModel):
             id=order.id,
             number=order.number,
             status=order.status,
+            channel=order.channel,
             placed_at=order.placed_at,
             item_count=order.item_count,
             total_cents=order.total_cents,
@@ -393,11 +396,16 @@ class OrderPageOut(BaseModel):
 
 
 class AdminOrderOut(OrderOut):
-    """An order in the admin area: also who ordered and the cancellation note."""
+    """An order in the admin area: also who ordered, where, and the cancellation note."""
 
     id: UUID
     customer_account_id: UUID | None
     cancel_note: str
+    channel: SalesChannel
+    external_ref: str | None = Field(
+        description="The marketplace's order number, e.g. eBay's 12-34567-89012.",
+        examples=["12-34567-89012"],
+    )
 
     @classmethod
     def from_details(cls, details: OrderDetails) -> Self:
@@ -408,6 +416,8 @@ class AdminOrderOut(OrderOut):
             id=order.id,
             customer_account_id=order.customer_account_id,
             cancel_note=order.cancel_note,
+            channel=order.channel,
+            external_ref=order.external_ref,
         )
 
 

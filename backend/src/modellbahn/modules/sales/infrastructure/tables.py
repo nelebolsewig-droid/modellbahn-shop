@@ -30,7 +30,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import CITEXT, ExcludeConstraint
 
 from modellbahn.modules.identity.contracts.accounts import CUSTOMER_KIND, CUSTOMER_REFERENCE
-from modellbahn.modules.sales.domain.model import CancelReason, OrderStatus, PaymentStatus
+from modellbahn.modules.sales.domain.model import (
+    CancelReason,
+    OrderStatus,
+    PaymentStatus,
+    SalesChannel,
+)
 from modellbahn.platform.db import StrEnumType, metadata
 
 SCHEMA = "sales"
@@ -94,7 +99,12 @@ orders = Table(
     Column("cancel_note", Text, nullable=False, server_default=text("''")),
     Column("carrier", Text, nullable=False, server_default=text("''")),
     Column("tracking_number", Text, nullable=False, server_default=text("''")),
+    # Where the order came from; a marketplace order carries the marketplace's number.
+    Column("channel", StrEnumType(SalesChannel), nullable=False, server_default=text("'shop'")),
+    Column("external_ref", Text),
     CheckConstraint("status IN ('pending_payment', 'paid', 'shipped', 'cancelled')", name="status"),
+    CheckConstraint("channel IN ('shop', 'ebay')", name="channel"),
+    CheckConstraint("(channel = 'shop') = (external_ref IS NULL)", name="external_ref"),
     CheckConstraint("number ~ '^MB-[0-9]{4}-[0-9]{5,}$'", name="number_format"),
     CheckConstraint(f"customer_kind = '{CUSTOMER_KIND}'", name="customer_kind"),
     CheckConstraint("ship_country ~ '^[A-Z]{2}$'", name="ship_country_format"),
@@ -115,7 +125,8 @@ orders = Table(
         name="cancelled_at",
     ),
     CheckConstraint(
-        "cancel_reason IS NULL OR cancel_reason IN ('payment_timeout', 'by_shop')",
+        "cancel_reason IS NULL OR "
+        "cancel_reason IN ('payment_timeout', 'by_shop', 'by_marketplace')",
         name="cancel_reason",
     ),
     ForeignKeyConstraint(
@@ -130,6 +141,14 @@ orders = Table(
     # Adoption looks up guest orders by address.
     Index("orders_guest_email_idx", "email", postgresql_where=text("customer_account_id IS NULL")),
     Index("orders_placed_idx", "placed_at", "id"),
+    # One order per marketplace sale.
+    Index(
+        "orders_external_ref_idx",
+        "channel",
+        "external_ref",
+        unique=True,
+        postgresql_where=text("external_ref IS NOT NULL"),
+    ),
     # The periodic job looks for orders whose payment is overdue.
     Index("orders_pending_idx", "placed_at", postgresql_where=text("status = 'pending_payment'")),
     schema=SCHEMA,

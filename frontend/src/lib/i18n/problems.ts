@@ -77,6 +77,20 @@ export const PROBLEM_MESSAGES: Messages = {
     "So viele haben wir gerade nicht vorrätig. Bitte verringere die Menge oder sieh später noch einmal nach.",
   order_not_picked:
     "Die Bestellung ist noch nicht vollständig kommissioniert. Scanne zuerst alle Stücke.",
+  marketplace_order:
+    "Diese Bestellung kam über eBay. Storniere sie auf eBay; der Shop übernimmt die Stornierung dann selbst.",
+
+  // eBay
+  ebay_off: "eBay ist auf diesem Server ausgeschaltet.",
+  ebay_not_connected: "Der Shop ist nicht mit eBay verbunden. Verbinde ihn auf der eBay-Seite.",
+  ebay_not_ready:
+    "Für Angebote fehlt noch etwas: Prüfe auf der eBay-Seite Versand, Zahlung, Rücknahme und Versandort.",
+  ebay_state_invalid: "Der Rücksprung von eBay war abgelaufen. Bitte verbinde dich erneut.",
+  ebay_unavailable: "eBay ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.",
+  ebay_rejected: "eBay hat die Anfrage abgelehnt.",
+  listing_not_found: "Dieses Angebot (oder das Produkt in diesem Maßstab) gibt es nicht.",
+  marketplace_order_not_found: "Diese eBay-Bestellung gibt es nicht.",
+  test_mode_only: "Das geht nur auf dem Testmarktplatz.",
 
   // Inventory
   location_not_found: "Diesen Lagerplatz gibt es nicht.",

@@ -38,6 +38,9 @@ from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
+from modellbahn.modules.marketplace.application.marketplace import Marketplace
+from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.media.application.services import (
@@ -52,6 +55,7 @@ from modellbahn.modules.sales.application.common import (
     UnitOfWorkFactory as SalesUnitOfWorkFactory,
 )
 from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
@@ -61,7 +65,7 @@ from modellbahn.modules.site.application.ports import UnitOfWorkFactory as SiteU
 from modellbahn.modules.site.application.subscriptions import SubscriptionService
 from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform.clock import FixedClock
-from modellbahn.platform.config import Environment, Settings
+from modellbahn.platform.config import Environment, MarketplaceMode, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
 from modellbahn.platform.events import event_registry
 from modellbahn.platform.mail import InMemoryMailer
@@ -159,6 +163,13 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
+    "marketplace.test_sales",
+    "marketplace.marketplace_order_lines",
+    "marketplace.marketplace_orders",
+    "marketplace.listing_items",
+    "marketplace.listings",
+    "marketplace.category_map",
+    "marketplace.ebay_account",
     "site.mailings",
     "site.subscriptions",
     "site.fairs",
@@ -405,6 +416,18 @@ def site_handlers(
     )
 
 
+@pytest.fixture
+def marketplace(
+    settings: Settings, session_factory: async_sessionmaker[AsyncSession], clock: FixedClock
+) -> Marketplace:
+    """The marketplace on the built-in test marketplace (no eBay, no keys)."""
+    built = build_marketplace(
+        settings.model_copy(update={"ebay_mode": MarketplaceMode.TEST}), session_factory, clock
+    )
+    assert built is not None
+    return built
+
+
 type Deliver = Callable[[], Awaitable[int]]
 
 
@@ -417,6 +440,9 @@ def deliver(
     sales_handlers: SalesHandlers,
     site_handlers: SiteHandlers,
     allocation: AllocationService,
+    sales_uow: SalesUnitOfWorkFactory,
+    marketplace: Marketplace,
+    clock: FixedClock,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
@@ -425,6 +451,10 @@ def deliver(
     sales_handlers.register(handlers)
     site_handlers.register(handlers)
     InventoryHandlers(allocation=allocation).register(handlers)
+    MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)
+    MarketplaceHandlers(
+        uow_factory=marketplace.uow_factory, orders=marketplace.orders, clock=clock
+    ).register(handlers)
     dispatcher = OutboxDispatcher(
         engine=engine,
         listen_dsn=asyncpg_dsn(settings.database_url),

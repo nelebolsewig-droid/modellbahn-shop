@@ -20,8 +20,10 @@ __all__ = [
     "OrderLineSummary",
     "OrderStatus",
     "OrderSummary",
+    "Shipment",
     "load_order_numbers",
     "load_order_summary",
+    "load_shipment",
 ]
 
 ORDER_REFERENCE: Final = "sales.orders.id"
@@ -110,3 +112,28 @@ async def load_order_numbers(uow: UnitOfWork, order_ids: Collection[UUID]) -> di
         select(orders.c.id, orders.c.number).where(orders.c.id.in_(ids))
     )
     return {row.id: row.number for row in rows}
+
+
+@dataclass(frozen=True, slots=True)
+class Shipment:
+    """How a shipped order left the workshop, for a marketplace to tell its buyer."""
+
+    carrier: str
+    tracking_number: str
+    shipped_at: datetime
+
+
+async def load_shipment(uow: UnitOfWork, order_id: UUID) -> Shipment | None:
+    """Carrier and tracking number of the order, once it is shipped (else None)."""
+    row = (
+        await uow.session.execute(
+            select(orders.c.carrier, orders.c.tracking_number, orders.c.shipped_at).where(
+                orders.c.id == order_id, orders.c.status == OrderStatus.SHIPPED
+            )
+        )
+    ).one_or_none()
+    if row is None or row.shipped_at is None:
+        return None
+    return Shipment(
+        carrier=row.carrier, tracking_number=row.tracking_number, shipped_at=row.shipped_at
+    )

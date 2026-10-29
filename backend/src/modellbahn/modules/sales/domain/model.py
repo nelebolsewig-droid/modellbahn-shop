@@ -10,13 +10,14 @@ Plain dataclasses without any framework, mapped imperatively by the infrastructu
 Every method that depends on time takes ``now``.
 """
 
+import hashlib
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Final
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from modellbahn.modules.sales.domain.errors import (
     AddressBookFullError,
@@ -44,6 +45,7 @@ EMAIL_MAX_LENGTH: Final = 254
 CANCEL_NOTE_MAX_LENGTH: Final = 300
 TRACKING_NUMBER_MAX_LENGTH: Final = 40
 CARRIER_MAX_LENGTH: Final = 40
+EXTERNAL_REF_MAX_LENGTH: Final = 60
 _EMAIL: Final = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -343,6 +345,15 @@ class OrderStatus(StrEnum):
 class CancelReason(StrEnum):
     PAYMENT_TIMEOUT = "payment_timeout"
     BY_SHOP = "by_shop"
+    BY_MARKETPLACE = "by_marketplace"
+    """The buyer or the marketplace cancelled; the marketplace refunds the payment."""
+
+
+class SalesChannel(StrEnum):
+    """Where an order came from. A marketplace order arrives paid; its buyer hears from there."""
+
+    SHOP = "shop"
+    EBAY = "ebay"
 
 
 class PaymentStatus(StrEnum):
@@ -450,6 +461,9 @@ class Order:
     cancel_note: str = ""
     carrier: str = ""
     tracking_number: str = ""
+    channel: SalesChannel = SalesChannel.SHOP
+    external_ref: str | None = None
+    """The marketplace's order number (empty for the shop's own orders)."""
     lines: list[OrderLine] = field(default_factory=list)
     payments: list[Payment] = field(default_factory=list)
 
@@ -511,6 +525,103 @@ class Order:
         return order, OrderPlaced(
             aggregate_id=order.id, occurred_at=now, number=number, total_cents=order.total_cents
         )
+
+    @classmethod
+    def import_paid(
+        cls,
+        *,
+        order_id: UUID,
+        number: str,
+        public_token: str,
+        channel: SalesChannel,
+        external_ref: str,
+        items: Sequence[PricedItem],
+        email: str,
+        address: PostalAddress,
+        shipping_cents: int,
+        paid_at: datetime,
+        now: datetime,
+    ) -> tuple["Order", list[DomainEvent]]:
+        """An order a marketplace took and was paid for: it is binding as it arrives.
+
+        Prices and shipping are the marketplace's; the shop's zones and rates do not apply.
+        The order id is chosen by the marketplace module, which keeps its own record of the
+        sale; ``external_ref`` makes importing the same sale twice impossible.
+        """
+        if channel is SalesChannel.SHOP:
+            msg = "the shop's own orders are placed at checkout"
+            raise ValueError(msg)
+        if not items:
+            msg = "an order needs at least one line"
+            raise ValueError(msg)
+        if shipping_cents < 0:
+            raise InvalidFieldError("shipping_cents", "out_of_range", "must not be negative")
+        lines = [
+            OrderLine(
+                id=new_id(),
+                order_id=order_id,
+                position=position,
+                variant_id=item.variant_id,
+                product_slug=item.product_slug,
+                sku=item.sku,
+                title=item.title,
+                scale_code=item.scale_code,
+                finish_code=item.finish_code,
+                unit_price_cents=item.unit_price_cents,
+                quantity=item.quantity,
+                line_total_cents=item.unit_price_cents * item.quantity,
+                image_asset_id=item.image_asset_id,
+            )
+            for position, item in enumerate(items)
+        ]
+        subtotal = sum(line.line_total_cents for line in lines)
+        total = subtotal + shipping_cents
+        # The checkout key and fingerprint stand for the sale itself: one order per sale.
+        sale = f"{channel.value}:{external_ref}"
+        order = cls(
+            id=order_id,
+            number=number,
+            public_token=public_token,
+            status=OrderStatus.PAID,
+            customer_account_id=None,
+            email=normalize_email(email),
+            shipping_address=address,
+            subtotal_cents=subtotal,
+            shipping_cents=shipping_cents,
+            total_cents=total,
+            tax_cents=included_vat(total),
+            checkout_key=uuid5(NAMESPACE_URL, f"modellbahn:{sale}"),
+            checkout_fingerprint=hashlib.sha256(sale.encode()).hexdigest(),
+            placed_at=paid_at,
+            updated_at=now,
+            paid_at=paid_at,
+            channel=channel,
+            external_ref=_text(external_ref, "external_ref", EXTERNAL_REF_MAX_LENGTH),
+            lines=lines,
+        )
+        order.payments.append(
+            Payment(
+                id=new_id(),
+                order_id=order.id,
+                provider=channel.value,
+                provider_ref=order.external_ref or "",
+                status=PaymentStatus.CAPTURED,
+                amount_cents=total,
+                idempotency_key=uuid5(NAMESPACE_URL, f"modellbahn:payment:{sale}"),
+                request_fingerprint=order.checkout_fingerprint,
+                failure_code=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        return order, [
+            OrderPlaced(aggregate_id=order.id, occurred_at=now, number=number, total_cents=total),
+            OrderPaid(aggregate_id=order.id, occurred_at=now, number=number, total_cents=total),
+        ]
+
+    @property
+    def from_marketplace(self) -> bool:
+        return self.channel is not SalesChannel.SHOP
 
     @property
     def is_guest_order(self) -> bool:

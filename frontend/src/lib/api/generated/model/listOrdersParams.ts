@@ -16,7 +16,7 @@ import type { OrderStatus } from './orderStatus';
 export type ListOrdersParams = {
 status?: OrderStatus[] | null;
 /**
- * Part of the order number or e-mail.
+ * Part of the order number, the e-mail or eBay's order number.
  */
 q?: string | null;
 cursor?: string | null;

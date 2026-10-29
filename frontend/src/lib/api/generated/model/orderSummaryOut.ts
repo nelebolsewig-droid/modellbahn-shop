@@ -12,11 +12,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OrderStatus } from './orderStatus';
+import type { SalesChannel } from './salesChannel';
 
 /**
  * An order in a list.
  */
 export interface OrderSummaryOut {
+  /** Where it was ordered: the shop or eBay. */
+  channel: SalesChannel;
   first_line_title: string;
   /** Placed without an account (and not adopted yet). */
   guest: boolean;

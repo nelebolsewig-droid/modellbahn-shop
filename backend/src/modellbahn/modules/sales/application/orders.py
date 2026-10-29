@@ -17,7 +17,11 @@ from modellbahn.modules.sales.application.ports import (
     PaymentGateway,
     SalesUnitOfWork,
 )
-from modellbahn.modules.sales.domain.errors import OrderNotFoundError, OrderNotPickedError
+from modellbahn.modules.sales.domain.errors import (
+    MarketplaceOrderError,
+    OrderNotFoundError,
+    OrderNotPickedError,
+)
 from modellbahn.modules.sales.domain.model import (
     PAYMENT_TIMEOUT,
     CancelReason,
@@ -102,9 +106,15 @@ class OrderService:
             return await order_details(uow, order)
 
     async def cancel(self, order_id: UUID, *, note: str) -> OrderDetails:
-        """Cancel an order that has not been shipped; a payment that came in is refunded."""
+        """Cancel an order that has not been shipped; a payment that came in is refunded.
+
+        A marketplace order is cancelled on the marketplace, which refunds the buyer; the
+        shop follows when it reads the cancellation from there.
+        """
         async with self._uow() as uow:
             order = await self._locked(uow, order_id)
+            if order.from_marketplace:
+                raise MarketplaceOrderError
             await self._cancel(uow, order, CancelReason.BY_SHOP, note)
             await uow.commit()
             return await order_details(uow, order)
@@ -132,7 +142,7 @@ class OrderService:
         self, uow: SalesUnitOfWork, order: Order, reason: CancelReason, note: str
     ) -> None:
         payment = order.captured_payment
-        if payment is not None and order.status is OrderStatus.PAID:
+        if payment is not None and order.status is OrderStatus.PAID and not order.from_marketplace:
             # Refund first: if the provider fails, the order stays as it is.
             await self._gateway.refund(
                 provider_ref=payment.provider_ref, amount_cents=payment.amount_cents

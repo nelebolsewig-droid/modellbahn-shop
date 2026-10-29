@@ -56,6 +56,12 @@ x-backend-env: &backend-env
   MB_IMPRINT_PHONE:
   MB_IMPRINT_EMAIL:
   MB_IMPRINT_VAT_ID:
+  # eBay: off, test (built-in test marketplace), sandbox or production; see .env.example.
+  MB_EBAY_MODE:
+  MB_EBAY_CLIENT_ID:
+  MB_EBAY_CLIENT_SECRET:
+  MB_EBAY_RU_NAME:
+  MB_EBAY_TOKEN_KEY:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

@@ -1,7 +1,8 @@
 # HTTPS entry point of the Modellbahn-Shop: /api and the health endpoints go to FastAPI,
 # everything else to Next.js. SITE_ADDRESS and CADDY_TLS come from .env.
 
-# Verification and password-reset links carry their one-time token in the query string.
+# Verification and password-reset links carry their one-time token in the query string, and
+# eBay's return from its consent page an authorization code with the state of the request.
 # Both the access log and Caddy's own error log record request URIs, so both get this filter.
 (redact_tokens) {
 	format filter {
@@ -9,6 +10,8 @@
 		fields {
 			request>uri query {
 				replace token REDACTED
+				replace code REDACTED
+				replace state REDACTED
 			}
 			request>headers>Referer delete
 		}
