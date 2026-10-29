@@ -17,8 +17,8 @@ Am 28.10.2026 entschieden:
 - **Modelle auf Bestellung** gehen auch auf eBay. Mit der Lieferzeit von 1 bis 2 Wochen
   (Entscheidung 15) passt das zu eBays Bearbeitungszeit von höchstens 10 Werktagen.
 
-Am 29.10.2026 kam dazu: Auf Johanns eBay-Konto liegen schon **Angebote mit Fotos** seiner
-Modelle. Sie sollen **übernommen** werden: Fotos, Titel und Preise kommen als Entwürfe in
+Am 29.10.2026 kam dazu: Auf dem eBay-Konto des Inhabers liegen schon **Angebote mit Fotos**
+seiner Modelle. Sie sollen **übernommen** werden: Fotos, Titel und Preise kommen als Entwürfe in
 den Katalog, und sobald das Angebot des Shops online geht, **endet das alte** (keine
 Doppelangebote). Diese Bestandsübernahme folgt als eigener Schritt; dieses ADR legt die
 Anbindung fest, auf der sie aufbaut.
@@ -172,6 +172,6 @@ Für Produktion gilt:
   - welche Fehlercodes `withdraw` für schon beendete Angebote liefert;
   - ob das Konto für Business Policies freigeschaltet ist.
 - **Bestandsübernahme als nächster Schritt:**
-  - Johanns laufende Angebote lesen (Trading API `GetMyeBaySelling` und `GetItem`).
+  - Die laufenden Angebote des Inhabers lesen (Trading API `GetMyeBaySelling` und `GetItem`).
   - Daraus Katalog-Entwürfe mit Fotos machen.
   - Das alte Angebot beenden, sobald das neue online ist.

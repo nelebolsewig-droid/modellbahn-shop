@@ -1577,7 +1577,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 14 | Katalog befüllen (28.10.2026) | Schnellerfassung fürs Handy; die bekannten Modelle mit Preisen als Startbestand, dazu Entwürfe aus den Lagerfotos ohne Preis (ADR 0013) |
 | 15 | Lieferzeit auf Bestellung (28.10.2026) | Ohne Angabe **1 bis 2 Wochen** statt 4 bis 6: Die Werkstatt hat 12 Drucker, defekte werden repariert. Je Variante bleibt die Lieferzeit einstellbar. Die Drucker mit ihrem Zustand (in Betrieb, defekt, in Reparatur) gehören in Schritt 6 (ADR 0013) |
 | 16 | eBay statt Kleinanzeigen (28.10.2026) | eBay wird zweiter Verkaufsweg, geführt vom Shop: Angebote je Produkt und Maßstab, gemeinsamer Bestand, Bestellungen im selben Lager- und Versandablauf. Aufschlag einstellbar, zum Start 0 %; EAN „Nicht zutreffend“; Modelle auf Bestellung auch auf eBay (ADR 0014) |
-| 17 | Bestehende eBay-Angebote (29.10.2026) | Johanns laufende Angebote werden übernommen: Fotos, Titel und Preise als Katalog-Entwürfe; geht das Angebot des Shops online, endet das alte (ADR 0014, folgt als eigener Schritt) |
+| 17 | Bestehende eBay-Angebote (29.10.2026) | Die laufenden Angebote des Inhabers werden übernommen: Fotos, Titel und Preise als Katalog-Entwürfe; geht das Angebot des Shops online, endet das alte (ADR 0014, folgt als eigener Schritt) |
 
 Noch offen:
 
