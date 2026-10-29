@@ -715,6 +715,7 @@ class Demo:
             ("Ankündigung einmal an alle Bestätigten, Ereignis im Stellwerk", self.announce),
             ("Abmelden per Link aus der Ankündigung, Messe löschen", self.fair_news_leave),
             ("Impressum aus der Konfiguration, Versand in alle EU-Länder", self.imprint),
+            ("So entsteht ein Modell: Explosionszeichnung mit Stückliste", self.making_of),
             ("Kunden-Sitzung wird im Admin-Bereich abgelehnt (401)", self.customer_on_admin),
             ("Admin-Sitzung wird im Shop abgelehnt (401)", self.staff_on_store),
             ("Ohne X-Modellbahn-Client: 403 problem+json", self.csrf),
@@ -2105,6 +2106,15 @@ class Demo:
             "Versandkostenfrei sollte es nirgends geben",
         )
         return f"{imprint['company']}, {imprint['city']} · {len(countries)} Lieferländer"
+
+    def making_of(self) -> str | None:
+        page = self.visitor.page("/so-entsteht-ein-modell")
+        expect_status(page, 200, "GET /so-entsteht-ein-modell")
+        for text in ("So entsteht ein Modell", "Stückliste", "Fahrgestellrahmen", "Zerlegt"):
+            expect(text in page.text, f"„{text}“ fehlt auf /so-entsteht-ein-modell")
+        start = self.visitor.page("/")
+        expect('href="/so-entsteht-ein-modell"' in start.text, "Die Startseite führt nicht zur Zeichnung")
+        return "Seite mit Stückliste, von der Startseite verlinkt"
 
     def customer_on_admin(self) -> str | None:
         session = self.customer_browser.cookies[CUSTOMER_COOKIE]

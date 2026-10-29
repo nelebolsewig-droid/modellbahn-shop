@@ -7,6 +7,7 @@ import { HomeActions } from "@/components/site/home-actions";
 import { NextFair } from "@/components/site/next-fair";
 import { CraneTruckDrawing } from "@/components/site/crane-truck-drawing";
 import { ProductCard } from "@/components/ui/product-card";
+import { MakingOfTeaser } from "@/components/workshop/making-of-teaser";
 import type {
   FairCalendarOut,
   FairOut,
@@ -135,6 +136,8 @@ export default async function HomePage() {
           </div>
         </section>
       ) : null}
+
+      <MakingOfTeaser />
 
       <section aria-labelledby="was-uns-ausmacht" className="bg-stage">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">

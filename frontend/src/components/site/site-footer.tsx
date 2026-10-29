@@ -6,6 +6,7 @@ import { SHOP_NAME } from "@/lib/config";
 const WORKSHOP = [
   { href: "/termine", label: "Termine" },
   { href: "/ueber-uns", label: "Über uns" },
+  { href: "/so-entsteht-ein-modell", label: "So entsteht ein Modell" },
   { href: "/sonderanfertigung", label: "Sonderanfertigung" },
 ] as const satisfies readonly { href: Route; label: string }[];
 

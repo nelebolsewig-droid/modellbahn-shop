@@ -92,6 +92,10 @@ Was sich vorführen lässt:
 - **Impressum und Werkstatt.** `/impressum` kommt aus `MB_IMPRINT_*`, dieselben Angaben
   schließen jede E-Mail. Dazu die Seiten „Über uns“ und „Sonderanfertigung“ (3D-Druck und
   Lasercutting).
+- **So entsteht ein Modell.** `/so-entsteht-ein-modell` zerlegt ein Fahrzeug als
+  Explosionszeichnung in 3D: Beim Scrollen fährt es auseinander und wieder zusammen, mit
+  Positionsnummern, Stückliste und Druckzeiten. three.js lädt erst auf dieser Seite. Bis die
+  Werkstatt ein eigenes Modell liefert, steht ein gekennzeichneter Platzhalter da (ADR 0016).
 
 ## Voraussetzungen
 

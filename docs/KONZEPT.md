@@ -1509,6 +1509,7 @@ Schatten nur für Dialoge und Popover.
 | `ScaleRule` | Maßband: ein Meter Vorbild im Maßstab, alle Bänder einer Reihe im selben Millimetermaß | Tusche-Striche, Ende in Preußischblau |
 | `ProductStage` | rahmenlose Fotobühne, 4:5, 1:1, 16:10 | Bildwechsel 320 ms |
 | `BlueprintDrawing` | technische Ansicht mit Maßen und Schriftfeld | Linien zoomunabhängig 1 px |
+| `ExplosionView` | Explosionszeichnung in 3D mit Stückliste: das Modell fährt beim Scrollen auseinander und zusammen (ADR 0016) | Teil, Nummer und Zeile leuchten gemeinsam; bei reduzierter Bewegung still, zerlegt |
 | `SpecLine` | Kennzeile, groß und klein | |
 | `StatusBadge` | Am Lager · Wird für dich gedruckt · nicht lieferbar | Punkt plus Wort |
 | `TextField` | Formulareingabe | Fehler in `danger`, Text nennt die Lösung |
@@ -1550,7 +1551,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015).
+**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
