@@ -18,6 +18,8 @@ import type { MarketplaceOrderStatus } from './marketplaceOrderStatus';
  * An order as eBay reported it, with the shop's order it became.
  */
 export interface MarketplaceOrderOut {
+  /** When the buyer closed their eBay account and their data here went. */
+  buyer_erased_at: string | null;
   buyer_name: string;
   city: string;
   country_code: string;

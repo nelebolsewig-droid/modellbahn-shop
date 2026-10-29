@@ -27,6 +27,10 @@ _DEVELOPMENT_S3_SECRET_ACCESS_KEY = (
 # Encrypts eBay's tokens in development; production needs its own key.
 _DEVELOPMENT_EBAY_TOKEN_KEY = "ZqRBv3tHXq7d1MZFtLyLPIyxnzo-iEThHRxOPHsD_QY="  # noqa: S105
 _FERNET_KEY_BYTES = 32
+# eBay's rule for the verification token of the account deletion endpoint.
+_VERIFICATION_TOKEN = re.compile(r"^[A-Za-z0-9_-]{32,80}$")
+# The verification token of .env.example; production needs its own.
+_DEVELOPMENT_EBAY_VERIFICATION_TOKEN = "stellwerk-dev-pruefung-0123456789abcdef"  # noqa: S105
 
 
 class Environment(StrEnum):
@@ -129,6 +133,9 @@ class Settings(BaseSettings):
     # e.g. from `python -c "import secrets, base64; print(base64.urlsafe_b64encode(
     # secrets.token_bytes(32)).decode())"`.
     ebay_token_key: SecretStr = SecretStr(_DEVELOPMENT_EBAY_TOKEN_KEY)
+    # Answers eBay's check of the account deletion endpoint (ADR 0015): the token entered
+    # with the endpoint in the developer account, 32 to 80 letters, digits, "_" or "-".
+    ebay_verification_token: SecretStr = SecretStr("")
 
     @field_validator("database_url")
     @classmethod
@@ -184,6 +191,15 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("ebay_verification_token")
+    @classmethod
+    def _check_verification_token(cls, value: SecretStr) -> SecretStr:
+        token = value.get_secret_value()
+        if token and not _VERIFICATION_TOKEN.fullmatch(token):
+            msg = "must be 32 to 80 characters: letters, digits, '_' or '-'"
+            raise ValueError(msg)
+        return value
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _upper_case_log_level(cls, value: object) -> object:
@@ -193,12 +209,19 @@ class Settings(BaseSettings):
     def _require_ebay_keys(self) -> Self:
         if self.ebay_mode not in {MarketplaceMode.SANDBOX, MarketplaceMode.PRODUCTION}:
             return self
+        verification_token = self.ebay_verification_token.get_secret_value()
         missing = [
             name
             for name, value in (
                 ("MB_EBAY_CLIENT_ID", self.ebay_client_id),
                 ("MB_EBAY_CLIENT_SECRET", self.ebay_client_secret.get_secret_value()),
                 ("MB_EBAY_RU_NAME", self.ebay_ru_name),
+                # eBay enables production keys only with the account deletion endpoint.
+                *(
+                    [("MB_EBAY_VERIFICATION_TOKEN", verification_token)]
+                    if self.ebay_mode is MarketplaceMode.PRODUCTION
+                    else []
+                ),
             )
             if not value.strip()
         ]
@@ -229,6 +252,9 @@ class Settings(BaseSettings):
             and self.ebay_token_key.get_secret_value() == _DEVELOPMENT_EBAY_TOKEN_KEY
         ):
             msg = "the development MB_EBAY_TOKEN_KEY is not allowed in production"
+            raise ValueError(msg)
+        if self.ebay_verification_token.get_secret_value() == _DEVELOPMENT_EBAY_VERIFICATION_TOKEN:
+            msg = "the development MB_EBAY_VERIFICATION_TOKEN is not allowed in production"
             raise ValueError(msg)
         return self
 

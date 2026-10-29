@@ -51,6 +51,7 @@ import {
 } from "@/lib/marketplace/labels";
 import { cn } from "@/lib/utils";
 
+import { AccountDeletionPanel } from "./account-deletion-panel";
 import {
   useEbayCategories,
   useEbayListings,
@@ -115,6 +116,8 @@ export function EbayDesk({ outcome }: { outcome: string | null }) {
           {account.mode === "test" ? <CategoriesPanel /> : null}
         </>
       )}
+      {/* eBay checks this endpoint before it enables the production keys: also while off. */}
+      <AccountDeletionPanel />
     </div>
   );
 }
@@ -764,9 +767,15 @@ function OrderRow({ order, testMarket }: { order: MarketplaceOrderOut; testMarke
               {order.order_number}
             </Link>
           ) : null}
-          <span className="text-ink-secondary">
-            {order.recipient}, {order.city}
-          </span>
+          {order.buyer_erased_at ? (
+            <span className="text-ink-tertiary italic">
+              Käuferdaten gelöscht am {formatLongDate(new Date(order.buyer_erased_at))}
+            </span>
+          ) : (
+            <span className="text-ink-secondary">
+              {order.recipient}, {order.city}
+            </span>
+          )}
         </p>
         <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
           <StatusBadge tone={ORDER_STATUS_TONES[order.status]}>{ORDER_STATUS_LABELS[order.status]}</StatusBadge>

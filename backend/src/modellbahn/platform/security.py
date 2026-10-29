@@ -16,6 +16,8 @@ from modellbahn.platform.errors import ForbiddenError, UnsupportedMediaTypeError
 CSRF_HEADER: Final = "X-Modellbahn-Client"
 CSRF_HEADER_VALUE: Final = "web"
 UNSAFE_METHODS: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+WEBHOOK_PATH_PREFIX: Final = "/api/v1/webhooks/"
+"""Calls from other services (eBay): signed by the sender, never using a session."""
 TOKEN_BYTES: Final = 32
 
 
@@ -92,6 +94,9 @@ async def csrf_guard(request: Request) -> None:
     ``text/plain`` and form bodies are what cross-site forms can send.
     """
     if request.method not in UNSAFE_METHODS or not request.url.path.startswith("/api/"):
+        return
+    # A forged request needs the victim's cookie to do harm; webhooks read no session.
+    if request.url.path.startswith(WEBHOOK_PATH_PREFIX):
         return
     if request.headers.get(CSRF_HEADER) != CSRF_HEADER_VALUE:
         raise ForbiddenError(

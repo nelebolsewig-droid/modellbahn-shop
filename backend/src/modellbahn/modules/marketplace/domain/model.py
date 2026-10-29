@@ -473,6 +473,8 @@ class MarketplaceOrder:
     received_at: datetime
     updated_at: datetime
     shipped_reported_at: datetime | None = None
+    buyer_erased_at: datetime | None = None
+    """When the buyer's personal data went because they closed their eBay account."""
     lines: list[MarketplaceOrderLine] = field(default_factory=list)
 
     @classmethod
@@ -575,3 +577,22 @@ class MarketplaceOrder:
     def shipment_failed(self, message: str, now: datetime) -> None:
         self.problem = _text(message, ERROR_MESSAGE_MAX_LENGTH)
         self.updated_at = now
+
+    def erase_buyer(self, now: datetime) -> bool:
+        """The buyer closed their eBay account: forget who they are and where they live.
+
+        This is eBay's order as it came in; it served to take the order over. The sales
+        order keeps what the retention periods require, as for a deleted customer
+        account. False if the buyer was erased before.
+        """
+        if self.buyer_erased_at is not None:
+            return False
+        self.buyer_name = ""
+        self.email = ""
+        self.recipient = ""
+        self.street = ""
+        self.postal_code = ""
+        self.city = ""
+        self.buyer_erased_at = now
+        self.updated_at = now
+        return True

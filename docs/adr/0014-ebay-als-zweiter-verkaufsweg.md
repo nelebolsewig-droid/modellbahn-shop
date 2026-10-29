@@ -171,6 +171,8 @@ Für Produktion gilt:
     JPEG-Größe für eBay);
   - welche Fehlercodes `withdraw` für schon beendete Angebote liefert;
   - ob das Konto für Business Policies freigeschaltet ist.
+- **Löschmeldungen:** eBay gibt die Produktions-Schlüssel nur frei, wenn der Shop eBays
+  Meldungen über geschlossene Konten empfängt und die Käuferdaten löscht (ADR 0015).
 - **Bestandsübernahme als nächster Schritt:**
   - Die laufenden Angebote des Inhabers lesen (Trading API `GetMyeBaySelling` und `GetItem`).
   - Daraus Katalog-Entwürfe mit Fotos machen.

@@ -12,10 +12,14 @@ from modellbahn.modules.marketplace.application.ports import (
 from modellbahn.modules.marketplace.domain.errors import (
     AccountNotReadyError,
     ConnectionStateInvalidError,
+    DeletionEndpointNotReadyError,
+    DeletionsUnverifiableError,
     InvalidFieldError,
     ListingNotFoundError,
     MarketplaceOrderNotFoundError,
     NotConnectedError,
+    NotificationInvalidError,
+    NotificationSignatureError,
     TestModeOnlyError,
 )
 from modellbahn.platform.errors import (
@@ -24,6 +28,7 @@ from modellbahn.platform.errors import (
     ConflictError,
     FieldError,
     NotFoundError,
+    PreconditionFailedError,
     ServiceUnavailableError,
     ValidationFailedError,
     add_error_translation,
@@ -60,6 +65,20 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     ),
     TestModeOnlyError: lambda _: ConflictError(
         "Only the built-in test marketplace takes test sales.", code="test_mode_only"
+    ),
+    DeletionEndpointNotReadyError: lambda _: NotFoundError(
+        "The account deletion endpoint needs MB_EBAY_VERIFICATION_TOKEN.",
+        code="deletion_endpoint_not_ready",
+    ),
+    NotificationInvalidError: lambda _: BadRequestError(
+        "The body is not a notification from eBay.", code="notification_invalid"
+    ),
+    NotificationSignatureError: lambda _: PreconditionFailedError(
+        "The notification does not carry eBay's valid signature.", code="signature_invalid"
+    ),
+    DeletionsUnverifiableError: lambda _: ServiceUnavailableError(
+        "eBay is off, so the notification cannot be checked, but orders hold buyer data.",
+        code="ebay_off_with_buyer_data",
     ),
     MarketplaceUnavailableError: lambda _: ServiceUnavailableError(
         "eBay cannot be reached right now; please try again shortly.", code="ebay_unavailable"

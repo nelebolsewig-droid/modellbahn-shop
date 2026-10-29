@@ -89,6 +89,7 @@ EBAY_CATEGORY: Final = "180250"
 EBAY_MARKUP_PERCENT: Final = 10
 # The buyer of the built-in test marketplace (MB_EBAY_MODE=test).
 EBAY_TEST_BUYER: Final = "testkauf@example.com"
+EBAY_ACCOUNT_DELETION: Final = "/api/v1/webhooks/ebay/account-deletion"
 SHIPPING_DE_CENTS: Final = 590
 SHIPPING_EU_CENTS: Final = 1690
 EU_MEMBER_STATES: Final = 27
@@ -701,6 +702,10 @@ class Demo:
             (
                 "eBay: Storno nur über eBay, Shop folgt; Trennen beendet die Angebote",
                 self.ebay_cancel,
+            ),
+            (
+                "eBay-Löschmeldung: Adresse geprüft, Fälschung abgewiesen, Käuferdaten weg",
+                self.ebay_account_deletion,
             ),
             ("Messe anlegen: unter /termine und als Kalenderdatei (.ics)", self.fair),
             (
@@ -1938,6 +1943,52 @@ class Demo:
         archived = self._staff("POST", f"{ADMIN}/products/{self._ebay_product['id']}/archive")
         expect_status(archived, 200, "eBay-Modell archivieren")
         return f"{order['number']} storniert (by_marketplace), Angebot beendet"
+
+    def ebay_account_deletion(self) -> str | None:
+        if not self._ebay_external:
+            return "übersprungen"
+        setup = self._staff("GET", f"{EBAY}/account-deletion")
+        expect_status(setup, 200, "Einrichtung der Löschmeldungen")
+        path = urllib.parse.urlsplit(setup.json()["endpoint"]).path
+        expect(path == EBAY_ACCOUNT_DELETION, f"Adresse fürs Entwicklerkonto: {path}")
+
+        # eBay's check of the address and its notifications arrive through Caddy, without
+        # a session and without the CSRF header; eBay's signature is the proof.
+        checked = "ohne Prüftoken"
+        if setup.json()["token_set"]:
+            check = self.visitor.api("GET", f"{path}?challenge_code=smoke-{secrets.token_hex(4)}")
+            expect_status(check, 200, "eBays Prüfung der Adresse")
+            answer = check.json().get("challengeResponse", "")
+            expect(re.fullmatch(r"[0-9a-f]{64}", answer) is not None, f"Antwort {answer!r}")
+            checked = "Prüfung beantwortet"
+        notification = {
+            "metadata": {"topic": "MARKETPLACE_ACCOUNT_DELETION", "schemaVersion": "1.0"},
+            "notification": {
+                "notificationId": f"smoke-{secrets.token_hex(8)}",
+                "data": {"username": "erika_testkauf", "userId": "smoke", "eiasToken": ""},
+            },
+        }
+        forged = self.visitor.api(
+            "POST",
+            path,
+            notification,
+            client_header=False,
+            headers={"X-EBAY-SIGNATURE": "eyJhbGciOiJlY2RzYSJ9"},
+        )
+        expect_problem(forged, 412, "signature_invalid", "Gefälschte Löschmeldung")
+
+        closed = self._staff("POST", f"{EBAY}/test-buyer/close-account")
+        expect_status(closed, 200, "Testkäufer schließt sein eBay-Konto")
+        erased = closed.json()["erased_orders"]
+        expect(erased >= 1, f"Keine Bestellung gelöscht: {closed.json()}")
+        orders = self._staff("GET", f"{EBAY}/orders").json()["items"]
+        (mine,) = [entry for entry in orders if entry["external_id"] == self._ebay_external]
+        expect(mine["buyer_erased_at"] is not None, f"Käuferdaten noch da: {mine}")
+        expect(mine["buyer_name"] == mine["recipient"] == "", f"Käuferdaten noch da: {mine}")
+        # The shop's order is the record the retention periods require.
+        order = self._staff("GET", f"{ADMIN}/orders/{self._ebay_order['id']}").json()
+        expect(order["shipping_address"]["recipient"] != "", "Shop-Bestellung ohne Anschrift")
+        return f"{checked}, Fälschung 412, Käuferdaten aus {erased} eBay-Bestellung(en) gelöscht"
 
     # Fairs, fair news and imprint ------------------------------------------------------
 

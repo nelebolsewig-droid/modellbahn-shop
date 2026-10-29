@@ -58,11 +58,15 @@ from modellbahn.modules.inventory.infrastructure.mapping import (
 )
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.marketplace.api import admin as marketplace_admin
-from modellbahn.modules.marketplace.api.deps import MARKETPLACE_STATE
+from modellbahn.modules.marketplace.api import webhooks as marketplace_webhooks
+from modellbahn.modules.marketplace.api.deps import ACCOUNT_DELETIONS_STATE, MARKETPLACE_STATE
 from modellbahn.modules.marketplace.api.errors import (
     install_error_translations as install_marketplace_error_translations,
 )
-from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
+from modellbahn.modules.marketplace.infrastructure.setup import (
+    build_account_deletions,
+    build_marketplace,
+)
 from modellbahn.modules.media.api import admin as media_admin
 from modellbahn.modules.media.api.errors import (
     install_error_translations as install_media_error_translations,
@@ -233,6 +237,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
     app.state.imprint = settings.imprint
     setattr(app.state, MARKETPLACE_STATE, marketplace)
+    setattr(
+        app.state,
+        ACCOUNT_DELETIONS_STATE,
+        build_account_deletions(settings, session_factory, marketplace, clock),
+    )
     app.state.realtime_hub = hub
     _attach_rate_limiters(app, settings)
 
@@ -271,6 +280,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(inventory_admin.router)
     api.include_router(site_admin.router)
     api.include_router(marketplace_admin.router)
+    api.include_router(marketplace_webhooks.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,

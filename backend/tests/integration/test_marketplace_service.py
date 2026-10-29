@@ -5,10 +5,13 @@ offer goes up, a buyer buys, the sale becomes a paid shop order, the workshop pi
 ships it, and the tracking number goes back.
 """
 
+import json
 from urllib.parse import parse_qs, urlsplit
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
+from pydantic import SecretStr
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.identity.application.services import IdentityService
@@ -17,24 +20,44 @@ from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.marketplace.application.connection import SettingsChange
+from modellbahn.modules.marketplace.application.deletions import (
+    ACCOUNT_DELETION_TOPIC,
+    AccountDeletionService,
+    DeletionOutcome,
+    DeletionReceipt,
+)
 from modellbahn.modules.marketplace.application.marketplace import Marketplace
 from modellbahn.modules.marketplace.domain.errors import (
     AccountNotReadyError,
     ConnectionStateInvalidError,
+    DeletionsUnverifiableError,
     ListingNotFoundError,
+    NotificationInvalidError,
+    NotificationSignatureError,
 )
 from modellbahn.modules.marketplace.domain.model import (
+    EBAY,
     Blocker,
     ConnectionStatus,
     Listing,
     ListingStatus,
+    MarketplaceOrder,
     MarketplaceOrderStatus,
+    ReceivedLine,
 )
-from modellbahn.modules.marketplace.infrastructure.builtin import CONSENT_CODE, SELLER_NAME
+from modellbahn.modules.marketplace.infrastructure.builtin import (
+    CONSENT_CODE,
+    SELLER_NAME,
+    TEST_BUYER_NAME,
+    sign_test_notification,
+)
+from modellbahn.modules.marketplace.infrastructure.setup import build_account_deletions
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.domain.errors import MarketplaceOrderError
 from modellbahn.modules.sales.domain.model import CancelReason, OrderStatus, SalesChannel
+from modellbahn.platform.clock import FixedClock
+from modellbahn.platform.config import Settings
 from modellbahn.platform.mail import InMemoryMailer
 from tests.conftest import Deliver
 from tests.inventory_support import pick_everything, staff_member, stock_up
@@ -392,3 +415,162 @@ class TestOrders:
         await connect(marketplace)
         with pytest.raises(ListingNotFoundError):
             await marketplace.orders.sell_test(sku="MB-999999-H0-F", quantity=1)
+
+
+@pytest.fixture
+def deletions(
+    settings: Settings,
+    session_factory: async_sessionmaker[AsyncSession],
+    marketplace: Marketplace,
+    clock: FixedClock,
+) -> AccountDeletionService:
+    """eBay's notifications of closed accounts, signed on the test marketplace."""
+    return build_account_deletions(
+        settings.model_copy(update={"ebay_verification_token": SecretStr("t" * 32)}),
+        session_factory,
+        marketplace,
+        clock,
+    )
+
+
+async def received(marketplace: Marketplace, buyer_name: str, clock: FixedClock) -> None:
+    """An order of this buyer as eBay reported it (kept back, so no sales order follows)."""
+    order, _ = MarketplaceOrder.receive(
+        channel=EBAY,
+        external_id=f"12-{uuid4().int % 10**5:05d}-{uuid4().int % 10**5:05d}",
+        buyer_name=buyer_name,
+        email=f"{buyer_name}@members.ebay.de",
+        recipient="Erika Mustermann",
+        street="Heidestraße 17",
+        postal_code="51147",
+        city="Köln",
+        country_code="DE",
+        shipping_cents=590,
+        paid_at=clock.now(),
+        lines=[
+            ReceivedLine(
+                line_ref="1", sku="X", variant_id=None, title="?", quantity=1, unit_price_cents=100
+            )
+        ],
+        problem="",
+        now=clock.now(),
+    )
+    async with marketplace.uow_factory() as uow:
+        uow.orders.add(order)
+        await uow.commit()
+
+
+def notification(username: str, topic: str = ACCOUNT_DELETION_TOPIC) -> bytes:
+    return json.dumps(
+        {
+            "metadata": {"topic": topic, "schemaVersion": "1.0", "deprecated": False},
+            "notification": {
+                "notificationId": str(uuid4()),
+                "eventDate": "2026-10-29T12:00:00.000Z",
+                "publishDate": "2026-10-29T12:00:00.100Z",
+                "publishAttemptCount": 1,
+                "data": {"username": username, "userId": "a1B2c3D4e5F", "eiasToken": ""},
+            },
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+class TestAccountDeletion:
+    async def test_a_closed_account_takes_the_buyers_data_with_it(
+        self, marketplace: Marketplace, deletions: AccountDeletionService, clock: FixedClock
+    ) -> None:
+        await received(marketplace, TEST_BUYER_NAME, clock)
+        # eBay's user names do not depend on case.
+        await received(marketplace, TEST_BUYER_NAME.upper(), clock)
+        await received(marketplace, "max_sammler", clock)
+
+        receipt = await deletions.close_test_account()
+
+        assert receipt == DeletionReceipt(DeletionOutcome.ERASED, erased_orders=2)
+        orders = [view.order for view in await marketplace.orders.recent()]
+        erased = [order for order in orders if order.buyer_erased_at is not None]
+        assert len(erased) == 2
+        for order in erased:
+            assert (order.buyer_name, order.email, order.recipient) == ("", "", "")
+            assert (order.street, order.postal_code, order.city) == ("", "", "")
+            # What the order was stays: the shop's books need it.
+            assert order.total_cents == 690
+        (kept,) = [order for order in orders if order.buyer_erased_at is None]
+        assert kept.buyer_name == "max_sammler"
+        assert kept.recipient == "Erika Mustermann"
+
+    async def test_a_second_notification_finds_nothing_left(
+        self, marketplace: Marketplace, deletions: AccountDeletionService, clock: FixedClock
+    ) -> None:
+        await received(marketplace, TEST_BUYER_NAME, clock)
+        await deletions.close_test_account()
+
+        assert (await deletions.close_test_account()).outcome is DeletionOutcome.UNKNOWN_BUYER
+
+    async def test_a_stranger_is_acknowledged_without_a_trace(
+        self, deletions: AccountDeletionService
+    ) -> None:
+        body = notification("fremder_nutzer")
+
+        receipt = await deletions.receive(body, sign_test_notification(body))
+
+        assert receipt.outcome is DeletionOutcome.UNKNOWN_BUYER
+
+    async def test_without_ebays_signature_nothing_is_deleted(
+        self, marketplace: Marketplace, deletions: AccountDeletionService, clock: FixedClock
+    ) -> None:
+        await received(marketplace, TEST_BUYER_NAME, clock)
+        body = notification(TEST_BUYER_NAME)
+
+        with pytest.raises(NotificationSignatureError):
+            await deletions.receive(body, "")
+        with pytest.raises(NotificationSignatureError):
+            await deletions.receive(body, sign_test_notification(notification("jemand")))
+
+        (view,) = await marketplace.orders.recent()
+        assert view.order.buyer_erased_at is None
+
+    async def test_other_topics_are_acknowledged(self, deletions: AccountDeletionService) -> None:
+        body = notification("x", topic="PRIORITY_LISTING_REVISION")
+
+        receipt = await deletions.receive(body, sign_test_notification(body))
+
+        assert receipt.outcome is DeletionOutcome.OTHER_TOPIC
+
+    @pytest.mark.parametrize(
+        "body",
+        [b"kein json", b"[]", b'{"metadata":{}}', notification("")],
+    )
+    async def test_a_body_that_is_no_notification(
+        self, deletions: AccountDeletionService, body: bytes
+    ) -> None:
+        with pytest.raises(NotificationInvalidError):
+            await deletions.receive(body, sign_test_notification(body))
+
+
+class TestAccountDeletionWhileOff:
+    @pytest.fixture
+    def deletions(
+        self,
+        settings: Settings,
+        session_factory: async_sessionmaker[AsyncSession],
+        clock: FixedClock,
+    ) -> AccountDeletionService:
+        return build_account_deletions(settings, session_factory, None, clock)
+
+    async def test_with_nothing_held_ebay_hears_all_is_done(
+        self, deletions: AccountDeletionService
+    ) -> None:
+        receipt = await deletions.receive(notification("irgendwer"), "")
+
+        assert receipt.outcome is DeletionOutcome.NOTHING_HELD
+        assert not deletions.checks_signatures
+
+    async def test_with_buyer_data_held_ebay_tries_again(
+        self, deletions: AccountDeletionService, marketplace: Marketplace, clock: FixedClock
+    ) -> None:
+        await received(marketplace, "max_sammler", clock)
+
+        with pytest.raises(DeletionsUnverifiableError):
+            await deletions.receive(notification("max_sammler"), "")

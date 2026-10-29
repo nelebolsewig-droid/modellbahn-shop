@@ -4,14 +4,22 @@ Connecting skips eBay's consent page and lands on the callback at once. Listings
 with made-up numbers, and orders are the sales recorded in ``marketplace.test_sales``
 (the Stellwerk sells there as a buyer on eBay would). Nothing leaves the server, so the
 whole chain from offer to shipment runs in development, in the smoke test and in CI.
+
+Notifications of closed accounts are signed with a test key derived from a fixed seed,
+so the same signature check as with eBay runs, and tests can sign their own.
 """
 
+import base64
 import hashlib
+import json
 from datetime import datetime, timedelta
+from functools import cache
 from typing import Final
 from urllib.parse import urlencode
 
 import structlog
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -23,6 +31,7 @@ from modellbahn.modules.marketplace.application.ports import (
     ListingDraft,
     LocationAddress,
     MarketplaceRejectedError,
+    NotificationKey,
     Policies,
     PolicyOption,
     PublishedListing,
@@ -36,6 +45,13 @@ _logger = structlog.get_logger(__name__)
 
 CONSENT_CODE: Final = "test-consent"
 SELLER_NAME: Final = "adp-modelle-test"
+TEST_BUYER_NAME: Final = "erika_testkauf"
+"""The buyer of every test sale."""
+TEST_NOTIFICATION_KEY_ID: Final = "test-marketplace-1"
+# The test marketplace signs its notifications with a key anyone can derive from this
+# seed, so tests can sign too. Test mode never runs in production (Settings refuse it).
+_TEST_SIGNING_SEED: Final = b"modellbahn-shop: notifications of the test marketplace"
+_P256_ORDER: Final = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 _ACCESS_LIFETIME: Final = timedelta(hours=2)
 _REFRESH_LIFETIME: Final = timedelta(days=548)
 
@@ -43,6 +59,35 @@ _REFRESH_LIFETIME: Final = timedelta(days=548)
 def _digits(text: str, count: int) -> str:
     number = int.from_bytes(hashlib.sha256(text.encode()).digest()[:8])
     return f"{number % 10**count:0{count}d}"
+
+
+@cache
+def _test_signing_key() -> ec.EllipticCurvePrivateKey:
+    secret = int.from_bytes(hashlib.sha256(_TEST_SIGNING_SEED).digest()) % (_P256_ORDER - 1)
+    return ec.derive_private_key(secret + 1, ec.SECP256R1())
+
+
+def sign_test_notification(body: bytes) -> str:
+    """The ``X-EBAY-SIGNATURE`` header eBay would send with this body, from the test key."""
+    signature = _test_signing_key().sign(body, ec.ECDSA(hashes.SHA1()))  # noqa: S303 - eBay's digest
+    header = {
+        "alg": "ecdsa",
+        "kid": TEST_NOTIFICATION_KEY_ID,
+        "signature": base64.b64encode(signature).decode(),
+        "digest": "SHA1",
+    }
+    return base64.b64encode(json.dumps(header).encode()).decode()
+
+
+def public_test_key() -> NotificationKey:
+    """The test key's public half, on one line as eBay's Notification API hands keys out."""
+    der = (
+        _test_signing_key()
+        .public_key()
+        .public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    )
+    pem = f"-----BEGIN PUBLIC KEY-----{base64.b64encode(der).decode()}-----END PUBLIC KEY-----"
+    return NotificationKey(pem=pem, algorithm="ECDSA", digest="SHA1")
 
 
 class BuiltInEbayGateway:
@@ -132,7 +177,7 @@ class BuiltInEbayGateway:
             ExternalOrder(
                 external_id=sale.external_id,
                 # The test buyer, at a made-up address the shop ships to.
-                buyer_name="erika_testkauf",
+                buyer_name=TEST_BUYER_NAME,
                 email="testkauf@example.com",
                 recipient="Erika Mustermann",
                 street="Teststraße 1",
@@ -155,6 +200,11 @@ class BuiltInEbayGateway:
             )
             for sale in sales
         ]
+
+    async def notification_key(self, key_id: str) -> NotificationKey:
+        if key_id != TEST_NOTIFICATION_KEY_ID:
+            raise MarketplaceRejectedError("unknown_key", "the test marketplace has one key")
+        return public_test_key()
 
     async def aclose(self) -> None:
         return None

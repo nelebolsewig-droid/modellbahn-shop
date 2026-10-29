@@ -174,6 +174,17 @@ class ShipmentReport:
     shipped_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class NotificationKey:
+    """eBay's public key for the signatures of its notifications (Notification API)."""
+
+    pem: str
+    """As eBay hands it out: ``-----BEGIN PUBLIC KEY-----…-----END PUBLIC KEY-----``,
+    often on one line."""
+    algorithm: str
+    digest: str
+
+
 class EbayGateway(Protocol):
     """eBay's Sell APIs (Inventory, Fulfillment, Account) and OAuth, or the test marketplace.
 
@@ -218,6 +229,13 @@ class EbayGateway(Protocol):
 
     async def report_shipment(self, access_token: str, report: ShipmentReport) -> None: ...
 
+    async def notification_key(self, key_id: str) -> NotificationKey:
+        """The public key a notification's signature names; the app's own token, no seller's.
+
+        :class:`MarketplaceRejectedError` if eBay knows no such key.
+        """
+        ...
+
     async def aclose(self) -> None:
         """Release the connections (at shutdown)."""
         ...
@@ -229,6 +247,17 @@ class TokenCipher(Protocol):
     def encrypt(self, plain: str) -> str: ...
 
     def decrypt(self, sealed: str) -> str: ...
+
+
+class NotificationSignatures(Protocol):
+    """Whether eBay signed a notification (its ``X-EBAY-SIGNATURE`` header)."""
+
+    async def verify(self, body: bytes, signature: str) -> bool:
+        """True only if eBay signed this body.
+
+        :class:`MarketplaceUnavailableError` if eBay's key cannot be fetched right now.
+        """
+        ...
 
 
 class TestMarketplace(Protocol):
@@ -359,6 +388,14 @@ class MarketplaceOrderRepository(Protocol):
     ) -> MarketplaceOrder | None: ...
 
     async def recent(self, limit: int) -> list[MarketplaceOrder]: ...
+
+    async def of_buyer(self, channel: str, buyer_name: str) -> list[MarketplaceOrder]:
+        """The orders of a buyer not yet erased, by user name (ignoring case); locked."""
+        ...
+
+    async def hold_buyer_data(self, channel: str) -> bool:
+        """Whether any order still holds a buyer's personal data."""
+        ...
 
     def add(self, order: MarketplaceOrder) -> None: ...
 
