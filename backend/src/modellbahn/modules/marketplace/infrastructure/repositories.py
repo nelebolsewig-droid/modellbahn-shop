@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import partial
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, delete, exists, insert, select, tuple_, update
+from sqlalchemy import ColumnElement, Select, delete, exists, func, insert, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.catalog.contracts.listings import (
@@ -243,6 +243,28 @@ class SqlMarketplaceOrderRepository:
             .limit(limit)
         )
         return list((await self._session.execute(statement)).scalars())
+
+    async def of_buyer(self, channel: str, buyer_name: str) -> list[MarketplaceOrder]:
+        statement = (
+            select(MarketplaceOrder)
+            .where(
+                marketplace_orders.c.channel == channel,
+                func.lower(marketplace_orders.c.buyer_name) == func.lower(buyer_name),
+                marketplace_orders.c.buyer_erased_at.is_(None),
+            )
+            .order_by(marketplace_orders.c.received_at, marketplace_orders.c.id)
+            .with_for_update()
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def hold_buyer_data(self, channel: str) -> bool:
+        statement = select(
+            exists().where(
+                marketplace_orders.c.channel == channel,
+                marketplace_orders.c.buyer_erased_at.is_(None),
+            )
+        )
+        return bool(await self._session.scalar(statement))
 
     def add(self, order: MarketplaceOrder) -> None:
         self._session.add(order)

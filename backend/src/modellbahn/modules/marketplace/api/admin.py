@@ -9,6 +9,7 @@ from fastapi import APIRouter, Path, Query, status
 from fastapi.responses import HTMLResponse
 
 from modellbahn.modules.marketplace.api.deps import (
+    AccountDeletionsDep,
     EbayOwner,
     ListingEditor,
     MarketplaceDep,
@@ -16,6 +17,7 @@ from modellbahn.modules.marketplace.api.deps import (
 )
 from modellbahn.modules.marketplace.api.errors import EBAY_OFF, EBAY_UNAVAILABLE, STAFF_ACCESS
 from modellbahn.modules.marketplace.api.schemas import (
+    AccountDeletionSetupOut,
     CategoryMappingListIn,
     CategoryMappingListOut,
     CategoryMappingOut,
@@ -29,6 +31,7 @@ from modellbahn.modules.marketplace.api.schemas import (
     MarketplaceOrderOut,
     PoliciesOut,
     SettingsIn,
+    TestAccountClosedOut,
     TestSaleIn,
     TestSaleOut,
     WantIn,
@@ -316,6 +319,36 @@ async def create_test_sale(
 )
 async def cancel_test_sale(external_id: str, _: ListingEditor, marketplace: MarketplaceDep) -> None:
     await marketplace.orders.cancel_test(external_id)
+
+
+@router.get(
+    "/account-deletion",
+    operation_id="getEbayAccountDeletionSetup",
+    summary="What eBay's developer account needs for notifications of closed accounts",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def get_account_deletion_setup(
+    _: ListingEditor, deletions: AccountDeletionsDep
+) -> AccountDeletionSetupOut:
+    return AccountDeletionSetupOut(
+        endpoint=deletions.endpoint,
+        token_set=deletions.ready,
+        checks_signatures=deletions.checks_signatures,
+        test_buyer_name=deletions.test_buyer_name,
+    )
+
+
+@router.post(
+    "/test-buyer/close-account",
+    operation_id="closeEbayTestBuyerAccount",
+    summary="The test buyer closes their eBay account; eBay's notification follows",
+    responses=problems({**STAFF_ACCESS, 409: ["test_mode_only"]}, validated=False),
+)
+async def close_test_buyer_account(
+    _: ListingEditor, deletions: AccountDeletionsDep
+) -> TestAccountClosedOut:
+    receipt = await deletions.close_test_account()
+    return TestAccountClosedOut(erased_orders=receipt.erased_orders)
 
 
 def _handoff(outcome: str, message: str) -> HTMLResponse:

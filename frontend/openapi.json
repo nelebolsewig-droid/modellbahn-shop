@@ -17,6 +17,49 @@
         "title": "AccountDeletionIn",
         "type": "object"
       },
+      "AccountDeletionSetupOut": {
+        "description": "What eBay's developer account needs for its notifications of closed accounts.",
+        "properties": {
+          "checks_signatures": {
+            "description": "Whether notifications are checked against eBay's signature (not while off).",
+            "title": "Checks Signatures",
+            "type": "boolean"
+          },
+          "endpoint": {
+            "description": "The address to enter in eBay's developer account, exactly as written.",
+            "examples": [
+              "https://adp-modelle.de/api/v1/webhooks/ebay/account-deletion"
+            ],
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "test_buyer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On the test marketplace: the buyer who can close their account here.",
+            "title": "Test Buyer Name"
+          },
+          "token_set": {
+            "description": "Whether MB_EBAY_VERIFICATION_TOKEN is set, so eBay's check gets its answer.",
+            "title": "Token Set",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "endpoint",
+          "token_set",
+          "checks_signatures",
+          "test_buyer_name"
+        ],
+        "title": "AccountDeletionSetupOut",
+        "type": "object"
+      },
       "AccountOut": {
         "description": "A customer's own account.",
         "properties": {
@@ -3348,6 +3391,19 @@
       "MarketplaceOrderOut": {
         "description": "An order as eBay reported it, with the shop's order it became.",
         "properties": {
+          "buyer_erased_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the buyer closed their eBay account and their data here went.",
+            "title": "Buyer Erased At"
+          },
           "buyer_name": {
             "title": "Buyer Name",
             "type": "string"
@@ -3462,6 +3518,7 @@
           "paid_at",
           "received_at",
           "shipped_reported_at",
+          "buyer_erased_at",
           "problem",
           "lines"
         ],
@@ -6655,6 +6712,21 @@
           "consent"
         ],
         "title": "SubscriptionIn",
+        "type": "object"
+      },
+      "TestAccountClosedOut": {
+        "properties": {
+          "erased_orders": {
+            "description": "Orders of the test buyer that lost their data.",
+            "minimum": 0.0,
+            "title": "Erased Orders",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "erased_orders"
+        ],
+        "title": "TestAccountClosedOut",
         "type": "object"
       },
       "TestSaleIn": {
@@ -10448,6 +10520,62 @@
         ]
       }
     },
+    "/api/v1/admin/marketplace/ebay/account-deletion": {
+      "get": {
+        "operationId": "getEbayAccountDeletionSetup",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionSetupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What eBay's developer account needs for notifications of closed accounts",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
     "/api/v1/admin/marketplace/ebay/categories": {
       "get": {
         "operationId": "listEbayCategories",
@@ -11675,6 +11803,82 @@
           }
         ],
         "summary": "Change policies, markup and the made-to-order quantity",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/test-buyer/close-account": {
+      "post": {
+        "operationId": "closeEbayTestBuyerAccount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestAccountClosedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `test_mode_only`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The test buyer closes their eBay account; eBay's notification follows",
         "tags": [
           "admin-marketplace"
         ]

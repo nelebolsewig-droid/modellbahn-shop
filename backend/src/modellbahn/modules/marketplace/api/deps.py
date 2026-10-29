@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from modellbahn.modules.identity.contracts.auth import StaffMember, StaffRole, require_staff
+from modellbahn.modules.marketplace.application.deletions import AccountDeletionService
 from modellbahn.modules.marketplace.application.marketplace import Marketplace
 from modellbahn.platform.errors import ConflictError
 
@@ -25,8 +26,18 @@ def get_marketplace(
     return marketplace
 
 
+ACCOUNT_DELETIONS_STATE = "account_deletions"
+"""Name on ``app.state`` of the :class:`AccountDeletionService` (there in every mode)."""
+
+
+def get_account_deletions(request: Request) -> AccountDeletionService:
+    deletions: AccountDeletionService = getattr(request.app.state, ACCOUNT_DELETIONS_STATE)
+    return deletions
+
+
 OptionalMarketplaceDep = Annotated[Marketplace | None, Depends(get_optional_marketplace)]
 MarketplaceDep = Annotated[Marketplace, Depends(get_marketplace)]
+AccountDeletionsDep = Annotated[AccountDeletionService, Depends(get_account_deletions)]
 
 # The connection opens the shop's seller account: only the owner connects and configures it.
 EbayOwner = Annotated[StaffMember, Depends(require_staff(StaffRole.OWNER))]

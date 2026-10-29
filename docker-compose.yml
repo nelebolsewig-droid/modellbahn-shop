@@ -62,6 +62,7 @@ x-backend-env: &backend-env
   MB_EBAY_CLIENT_SECRET:
   MB_EBAY_RU_NAME:
   MB_EBAY_TOKEN_KEY:
+  MB_EBAY_VERIFICATION_TOKEN:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

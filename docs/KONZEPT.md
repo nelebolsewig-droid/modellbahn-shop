@@ -1290,6 +1290,16 @@ keine Route prüfen muss, wem ein Warenkorb gehört (ADR 0009).
 | GET · POST | `/orders` · `/orders/fetch` | Bestellungen von eBay; sofort abholen |
 | POST | `/orders/{id}/report-shipment` | Versand erneut an eBay melden |
 | POST | `/test-sales` · `/test-sales/{nr}/cancel` | Testmarktplatz: als Käufer kaufen und stornieren |
+| GET | `/account-deletion` | Adresse und Prüftoken für eBays Löschmeldungen, fürs Entwicklerkonto (ADR 0015) |
+| POST | `/test-buyer/close-account` | Testmarktplatz: Der Testkäufer schließt sein eBay-Konto |
+
+**Webhooks** · `/api/v1/webhooks` (ADR 0015): Aufrufe anderer Dienste, ohne Sitzung und
+ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| GET | `/ebay/account-deletion?challenge_code=…` | eBays Prüfung der Adresse: SHA-256 aus Code, Prüftoken und Adresse |
+| POST | `/ebay/account-deletion` | Löschmeldung, geprüft gegen eBays Signatur; löscht die Käuferdaten der eBay-Bestellungen dieses Käufers, `204` |
 
 **Kundenkonto** · `/api/v1/store/account`
 
@@ -1540,7 +1550,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014).
+**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |

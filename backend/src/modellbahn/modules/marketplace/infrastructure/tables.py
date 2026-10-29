@@ -142,6 +142,7 @@ marketplace_orders = Table(
     Column("received_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("shipped_reported_at", DateTime(timezone=True)),
+    Column("buyer_erased_at", DateTime(timezone=True)),
     UniqueConstraint("channel", "external_id"),
     CheckConstraint("channel = 'ebay'", name="channel"),
     CheckConstraint("status IN ('received', 'rejected', 'shipped', 'cancelled')", name="status"),
@@ -151,6 +152,13 @@ marketplace_orders = Table(
         "(status = 'shipped') = (shipped_reported_at IS NOT NULL)", name="shipped_reported"
     ),
     Index("marketplace_orders_received_idx", "received_at", "id"),
+    # eBay's notifications of closed accounts name the buyer; most name no buyer of ours.
+    Index(
+        "marketplace_orders_buyer_idx",
+        "channel",
+        text("lower(buyer_name)"),
+        postgresql_where=text("buyer_erased_at IS NULL"),
+    ),
     schema=SCHEMA,
 )
 

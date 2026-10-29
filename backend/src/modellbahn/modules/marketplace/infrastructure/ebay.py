@@ -40,6 +40,7 @@ from modellbahn.modules.marketplace.application.ports import (
     LocationAddress,
     MarketplaceRejectedError,
     MarketplaceUnavailableError,
+    NotificationKey,
     OfferDraft,
     Policies,
     PolicyOption,
@@ -51,6 +52,8 @@ from modellbahn.modules.marketplace.domain.model import EBAY_MARKETPLACE
 
 _logger = structlog.get_logger(__name__)
 
+# The app's own scope: the Notification API's public keys need no seller's consent.
+APPLICATION_SCOPE: Final = "https://api.ebay.com/oauth/api_scope"
 SCOPES: Final = (
     "https://api.ebay.com/oauth/api_scope/sell.inventory",
     "https://api.ebay.com/oauth/api_scope/sell.account",
@@ -61,6 +64,8 @@ CURRENCY: Final = "EUR"
 LANGUAGE: Final = "de-DE"
 _PAGE_SIZE: Final = 50
 _TIMEOUT: Final = httpx.Timeout(20.0, connect=10.0)
+# The application token is renewed this long before it runs out.
+_APPLICATION_TOKEN_MARGIN: Final = timedelta(minutes=5)
 # eBay's carrier codes for the names the workshop types when shipping.
 _CARRIERS: Final = {
     "DHL": "DHL",
@@ -143,6 +148,7 @@ class HttpEbayGateway:
         self._client_secret = client_secret
         self._ru_name = ru_name
         self._client = client or httpx.AsyncClient(timeout=_TIMEOUT)
+        self._application_token: tuple[str, datetime] | None = None
 
     @property
     def mode(self) -> GatewayMode:
@@ -464,6 +470,42 @@ class HttpEbayGateway:
         )
 
     # --- Transport --------------------------------------------------------------------
+
+    # --- Notifications ----------------------------------------------------------------
+
+    async def notification_key(self, key_id: str) -> NotificationKey:
+        url = f"{self._hosts.api}/commerce/notification/v1/public_key/{quote(key_id, safe='')}"
+        try:
+            body = await self._call("GET", url, await self._app_token(), missing_ok=True)
+        except AccessTokenRejectedError:
+            self._application_token = None
+            raise
+        if not body.get("key"):
+            raise MarketplaceRejectedError("unknown_key", "eBay knows no such public key")
+        return NotificationKey(
+            pem=str(body["key"]),
+            algorithm=str(body.get("algorithm", "")),
+            digest=str(body.get("digest", "")),
+        )
+
+    async def _app_token(self) -> str:
+        """The app's own access token (client credentials), kept until shortly before expiry."""
+        now = datetime.now(UTC)
+        if self._application_token is not None:
+            token, expires_at = self._application_token
+            if now < expires_at - _APPLICATION_TOKEN_MARGIN:
+                return token
+        try:
+            body = await self._token(
+                {"grant_type": "client_credentials", "scope": APPLICATION_SCOPE}
+            )
+        except MarketplaceRejectedError as exc:
+            # The keys are wrong or not enabled: a setup problem, so eBay should try again.
+            _logger.error("marketplace.ebay.application_token_refused", code=exc.code)
+            raise MarketplaceUnavailableError("eBay refused the application token") from exc
+        token = str(body["access_token"])
+        self._application_token = (token, now + timedelta(seconds=int(body["expires_in"])))
+        return token
 
     @property
     def _inventory(self) -> str:

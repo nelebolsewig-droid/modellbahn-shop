@@ -13,6 +13,7 @@
  */
 
 export * from './accountDeletionIn';
+export * from './accountDeletionSetupOut';
 export * from './accountOut';
 export * from './addressIn';
 export * from './addressOut';
@@ -178,6 +179,7 @@ export * from './storeScaleOut';
 export * from './storeVariantOut';
 export * from './subscriptionCountsOut';
 export * from './subscriptionIn';
+export * from './testAccountClosedOut';
 export * from './testSaleIn';
 export * from './testSaleOut';
 export * from './tokenIn';

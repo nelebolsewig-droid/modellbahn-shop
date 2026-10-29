@@ -31,6 +31,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountDeletionSetupOut,
   CategoryMappingListIn,
   CategoryMappingListOut,
   ConnectOut,
@@ -45,6 +46,7 @@ import type {
   PoliciesOut,
   Problem,
   SettingsIn,
+  TestAccountClosedOut,
   TestSaleIn,
   TestSaleOut,
   ValidationProblem,
@@ -163,6 +165,106 @@ export function useGetEbayStatus<TData = Awaited<ReturnType<typeof getEbayStatus
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetEbayStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetEbayAccountDeletionSetupUrl = () => {
+
+
+
+
+  return `/api/v1/admin/marketplace/ebay/account-deletion`
+}
+
+/**
+ * @summary What eBay's developer account needs for notifications of closed accounts
+ */
+export const getEbayAccountDeletionSetup = async ( options?: Parameters<typeof apiFetch>[1]): Promise<AccountDeletionSetupOut> => {
+
+  return apiFetch<AccountDeletionSetupOut>(getGetEbayAccountDeletionSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEbayAccountDeletionSetupQueryKey = () => {
+    return [
+    `/api/v1/admin/marketplace/ebay/account-deletion`
+    ] as const;
+    }
+
+
+export const getGetEbayAccountDeletionSetupQueryOptions = <TData = Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEbayAccountDeletionSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>> = ({ signal }) => getEbayAccountDeletionSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEbayAccountDeletionSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>>
+export type GetEbayAccountDeletionSetupQueryError = ErrorType<Problem>
+
+
+export function useGetEbayAccountDeletionSetup<TData = Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>,
+          TError,
+          Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEbayAccountDeletionSetup<TData = Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>,
+          TError,
+          Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEbayAccountDeletionSetup<TData = Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What eBay's developer account needs for notifications of closed accounts
+ */
+
+export function useGetEbayAccountDeletionSetup<TData = Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEbayAccountDeletionSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEbayAccountDeletionSetupQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1383,6 +1485,79 @@ export const useChangeEbaySettings = <TError = ErrorType<Problem | ValidationPro
         TContext
       > => {
       return useMutation(getChangeEbaySettingsMutationOptions(options), queryClient);
+    }
+    export const getCloseEbayTestBuyerAccountUrl = () => {
+
+
+
+
+  return `/api/v1/admin/marketplace/ebay/test-buyer/close-account`
+}
+
+/**
+ * @summary The test buyer closes their eBay account; eBay's notification follows
+ */
+export const closeEbayTestBuyerAccount = async ( options?: Parameters<typeof apiFetch>[1]): Promise<TestAccountClosedOut> => {
+
+  return apiFetch<TestAccountClosedOut>(getCloseEbayTestBuyerAccountUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCloseEbayTestBuyerAccountMutationKey = () => ['closeEbayTestBuyerAccount'] as const;
+
+export const getCloseEbayTestBuyerAccountMutationOptions = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>, TError,void, TContext> => {
+
+const mutationKey = getCloseEbayTestBuyerAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>, void> = () => {
+
+
+          return  closeEbayTestBuyerAccount(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseEbayTestBuyerAccountMutationResult = NonNullable<Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>>
+
+    export type CloseEbayTestBuyerAccountMutationError = ErrorType<Problem>
+
+
+    /**
+ * @summary The test buyer closes their eBay account; eBay's notification follows
+ */
+export const useCloseEbayTestBuyerAccount = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof closeEbayTestBuyerAccount>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCloseEbayTestBuyerAccountMutationOptions(options), queryClient);
     }
     export const getCreateEbayTestSaleUrl = () => {
 

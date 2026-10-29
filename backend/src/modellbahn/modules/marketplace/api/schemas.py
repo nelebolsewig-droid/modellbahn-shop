@@ -300,6 +300,9 @@ class MarketplaceOrderOut(BaseModel):
     paid_at: datetime
     received_at: datetime
     shipped_reported_at: datetime | None
+    buyer_erased_at: datetime | None = Field(
+        description="When the buyer closed their eBay account and their data here went."
+    )
     problem: str = Field(description="Why it was rejected, or why reporting the shipment failed.")
     lines: list[MarketplaceOrderLineOut]
 
@@ -321,6 +324,7 @@ class MarketplaceOrderOut(BaseModel):
             paid_at=order.paid_at,
             received_at=order.received_at,
             shipped_reported_at=order.shipped_reported_at,
+            buyer_erased_at=order.buyer_erased_at,
             problem=order.problem,
             lines=[
                 MarketplaceOrderLineOut(
@@ -350,3 +354,25 @@ class TestSaleIn(_Request):
 
 class TestSaleOut(BaseModel):
     external_id: str = Field(examples=["T7-04213-88351"])
+
+
+class AccountDeletionSetupOut(BaseModel):
+    """What eBay's developer account needs for its notifications of closed accounts."""
+
+    endpoint: str = Field(
+        description="The address to enter in eBay's developer account, exactly as written.",
+        examples=["https://adp-modelle.de/api/v1/webhooks/ebay/account-deletion"],
+    )
+    token_set: bool = Field(
+        description="Whether MB_EBAY_VERIFICATION_TOKEN is set, so eBay's check gets its answer."
+    )
+    checks_signatures: bool = Field(
+        description="Whether notifications are checked against eBay's signature (not while off)."
+    )
+    test_buyer_name: str | None = Field(
+        description="On the test marketplace: the buyer who can close their account here."
+    )
+
+
+class TestAccountClosedOut(BaseModel):
+    erased_orders: int = Field(ge=0, description="Orders of the test buyer that lost their data.")

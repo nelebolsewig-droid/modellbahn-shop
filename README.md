@@ -349,6 +349,13 @@ Schlüssel der Anwendung (`MB_EBAY_CLIENT_ID`, `MB_EBAY_CLIENT_SECRET`) und eine
 zum Ausprobieren oder `production` und einen eigenen `MB_EBAY_TOKEN_KEY`. In Produktion
 verweigert das Backend den Testmarktplatz und die Sandbox.
 
+eBay gibt die Produktions-Schlüssel erst frei, wenn der Shop **Löschmeldungen** empfängt
+(ADR 0015). Dafür ein eigenes `MB_EBAY_VERIFICATION_TOKEN` setzen (32 bis 80 Zeichen, etwa
+`python3 -c "import secrets; print(secrets.token_urlsafe(48))"`). Im Entwicklerkonto unter
+„Alerts & Notifications“ dann dasselbe Token und die Adresse eintragen, die das Stellwerk
+unter „eBay“ anzeigt: `https://<domain>/api/v1/webhooks/ebay/account-deletion`. Das geht
+schon mit `MB_EBAY_MODE=off`, also bevor die Produktions-Schlüssel gelten.
+
 ### Hinter einem TLS-Proxy
 
 Prüft ein Firmen-Proxy TLS mit einer eigenen Zertifizierungsstelle, scheitern `pip`, `uv` und

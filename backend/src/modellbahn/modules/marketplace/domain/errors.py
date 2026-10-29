@@ -41,3 +41,19 @@ class MarketplaceOrderNotFoundError(MarketplaceError):
 
 class TestModeOnlyError(MarketplaceError):
     """Only the built-in test marketplace takes test sales."""
+
+
+class DeletionEndpointNotReadyError(MarketplaceError):
+    """No verification token is set, so eBay's check of the endpoint cannot be answered."""
+
+
+class NotificationInvalidError(MarketplaceError):
+    """The body is not a notification as eBay sends them."""
+
+
+class NotificationSignatureError(MarketplaceError):
+    """The notification does not carry eBay's valid signature."""
+
+
+class DeletionsUnverifiableError(MarketplaceError):
+    """eBay is off, so no signature can be checked, yet orders still hold buyer data."""

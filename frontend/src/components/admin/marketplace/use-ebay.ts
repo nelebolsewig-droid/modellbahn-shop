@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  getEbayAccountDeletionSetup,
   getEbayStatus,
   listEbayCategories,
   listEbayListings,
@@ -11,6 +12,7 @@ import {
   listProductEbayListings,
 } from "@/lib/api/generated/admin-marketplace/admin-marketplace";
 import type {
+  AccountDeletionSetupOut,
   CategoryMappingOut,
   EbayStatusOut,
   ListingOut,
@@ -26,6 +28,7 @@ const POLICIES_KEY = [...EBAY_KEY, "policies"] as const;
 const CATEGORIES_KEY = [...EBAY_KEY, "categories"] as const;
 const LISTINGS_KEY = [...EBAY_KEY, "listings"] as const;
 const ORDERS_KEY = [...EBAY_KEY, "orders"] as const;
+const ACCOUNT_DELETION_KEY = [...EBAY_KEY, "account-deletion"] as const;
 
 export function productListingsKey(productId: string) {
   return [...EBAY_KEY, "product", productId] as const;
@@ -38,6 +41,15 @@ export function useEbayStatus() {
   return useQuery<EbayStatusOut, ApiProblem>({
     queryKey: STATUS_KEY,
     queryFn: ({ signal }) => getEbayStatus({ signal }),
+  });
+}
+
+/** What eBay's developer account needs for its notifications of closed accounts. */
+export function useAccountDeletionSetup() {
+  return useQuery<AccountDeletionSetupOut, ApiProblem>({
+    queryKey: ACCOUNT_DELETION_KEY,
+    queryFn: ({ signal }) => getEbayAccountDeletionSetup({ signal }),
+    staleTime: 5 * 60_000,
   });
 }
 

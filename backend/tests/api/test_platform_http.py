@@ -282,6 +282,14 @@ EXPECTED_OPERATIONS = {
         "cancelEbayTestSale",
         "admin-marketplace",
     ),
+    ("GET", "/api/v1/admin/marketplace/ebay/account-deletion"): (
+        "getEbayAccountDeletionSetup",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/test-buyer/close-account"): (
+        "closeEbayTestBuyerAccount",
+        "admin-marketplace",
+    ),
     ("GET", "/healthz"): ("getHealth", "system"),
     ("GET", "/readyz"): ("getReadiness", "system"),
 }
