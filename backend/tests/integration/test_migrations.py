@@ -14,13 +14,23 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
 from modellbahn.modules.inventory.infrastructure import tables as inventory_tables
+from modellbahn.modules.marketplace.infrastructure import tables as marketplace_tables
 from modellbahn.modules.media.infrastructure import tables as media_tables
 from modellbahn.modules.sales.infrastructure import tables as sales_tables
 from modellbahn.platform import outbox
 from modellbahn.platform.db import create_engine, metadata
 from tests.support import create_database, downgrade, drop_database, migrate
 
-SCHEMAS = ("platform", "identity", "media", "catalog", "sales", "inventory", "site")
+SCHEMAS = (
+    "platform",
+    "identity",
+    "media",
+    "catalog",
+    "sales",
+    "inventory",
+    "site",
+    "marketplace",
+)
 
 
 @pytest.fixture
@@ -81,6 +91,13 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "site.fairs",
         "site.subscriptions",
         "site.mailings",
+        "marketplace.ebay_account",
+        "marketplace.category_map",
+        "marketplace.listings",
+        "marketplace.listing_items",
+        "marketplace.marketplace_orders",
+        "marketplace.marketplace_order_lines",
+        "marketplace.test_sales",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -111,6 +128,7 @@ async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
     assert catalog_tables.products.metadata is metadata
     assert sales_tables.orders.metadata is metadata
     assert inventory_tables.units.metadata is metadata
+    assert marketplace_tables.listings.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 

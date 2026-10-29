@@ -3,6 +3,7 @@
 * Identity events: a verified address adopts the guest orders placed with it; a deleted
   account loses its address book (its orders stay for the retention periods).
 * Order events: receipt, payment, dispatch and cancellation e-mails to the ordering address.
+  Orders from a marketplace get none: their buyer hears from the marketplace.
 
 Delivery is at least once. Adopting and removing are idempotent by nature; a notice
 e-mail may in rare cases be sent twice.
@@ -125,10 +126,14 @@ class SalesHandlers:
             return await uow.fairs.next_fair(today)
 
     async def _order(self, event: DomainEvent) -> Order | None:
+        """The order to write to about the event; None if there is nobody to write to."""
         async with self._uow() as uow:
             order = await uow.orders.get(event.aggregate_id)
         if order is None:  # pragma: no cover - orders are never deleted
             _logger.warning("sales.mail.order_missing", event_id=str(event.event_id))
+            return None
+        if order.from_marketplace:
+            return None
         return order
 
     async def _send(self, event: DomainEvent, order: Order, content: MailContent) -> None:

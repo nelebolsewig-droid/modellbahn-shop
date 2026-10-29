@@ -1,5 +1,7 @@
 """Application settings, read from ``MB_*`` environment variables."""
 
+import base64
+import binascii
 import re
 from email.utils import parseaddr
 from enum import StrEnum
@@ -22,6 +24,9 @@ _DEVELOPMENT_S3_ACCESS_KEY_ID = "GKba9ff40c8a82b4ef09ebaf72"
 _DEVELOPMENT_S3_SECRET_ACCESS_KEY = (
     "7f38e28c0803bd1400af0bea7463f260950bc644c40e3bdc2e19579fde50dbbf"  # noqa: S105
 )
+# Encrypts eBay's tokens in development; production needs its own key.
+_DEVELOPMENT_EBAY_TOKEN_KEY = "ZqRBv3tHXq7d1MZFtLyLPIyxnzo-iEThHRxOPHsD_QY="  # noqa: S105
+_FERNET_KEY_BYTES = 32
 
 
 class Environment(StrEnum):
@@ -29,6 +34,16 @@ class Environment(StrEnum):
 
     DEVELOPMENT = "development"
     TEST = "test"
+    PRODUCTION = "production"
+
+
+class MarketplaceMode(StrEnum):
+    """How the shop reaches eBay."""
+
+    OFF = "off"
+    TEST = "test"
+    """The built-in test marketplace: eBay's flow without eBay, nothing leaves the server."""
+    SANDBOX = "sandbox"
     PRODUCTION = "production"
 
 
@@ -104,6 +119,17 @@ class Settings(BaseSettings):
     fair_news_rate_limit: int = Field(default=10, ge=0)
     fair_news_rate_window_seconds: float = Field(default=600.0, gt=0)
 
+    # eBay (ADR 0014). Sandbox and production use the keys of eBay's developer account:
+    # the app's client id and secret, and the RuName that names the shop's callback.
+    ebay_mode: MarketplaceMode = MarketplaceMode.OFF
+    ebay_client_id: str = ""
+    ebay_client_secret: SecretStr = SecretStr("")
+    ebay_ru_name: str = ""
+    # Encrypts eBay's tokens in the database: a Fernet key (32 bytes, URL-safe Base64),
+    # e.g. from `python -c "import secrets, base64; print(base64.urlsafe_b64encode(
+    # secrets.token_bytes(32)).decode())"`.
+    ebay_token_key: SecretStr = SecretStr(_DEVELOPMENT_EBAY_TOKEN_KEY)
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg_driver(cls, value: str) -> str:
@@ -146,10 +172,40 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return cleaned
 
+    @field_validator("ebay_token_key")
+    @classmethod
+    def _check_token_key(cls, value: SecretStr) -> SecretStr:
+        try:
+            key = base64.urlsafe_b64decode(value.get_secret_value().encode())
+        except (binascii.Error, ValueError):
+            key = b""
+        if len(key) != _FERNET_KEY_BYTES:
+            msg = "must be 32 bytes in URL-safe Base64 (a Fernet key)"
+            raise ValueError(msg)
+        return value
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _upper_case_log_level(cls, value: object) -> object:
         return value.upper() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _require_ebay_keys(self) -> Self:
+        if self.ebay_mode not in {MarketplaceMode.SANDBOX, MarketplaceMode.PRODUCTION}:
+            return self
+        missing = [
+            name
+            for name, value in (
+                ("MB_EBAY_CLIENT_ID", self.ebay_client_id),
+                ("MB_EBAY_CLIENT_SECRET", self.ebay_client_secret.get_secret_value()),
+                ("MB_EBAY_RU_NAME", self.ebay_ru_name),
+            )
+            if not value.strip()
+        ]
+        if missing:
+            msg = f"MB_EBAY_MODE={self.ebay_mode} needs {', '.join(missing)}"
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode="after")
     def _refuse_insecure_production(self) -> Self:
@@ -163,6 +219,16 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if not self.imprint.is_complete:
             msg = "the shop needs its imprint in production: set the MB_IMPRINT_* variables"
+            raise ValueError(msg)
+        if self.ebay_mode in {MarketplaceMode.TEST, MarketplaceMode.SANDBOX}:
+            # Test sales would land among the real orders and in the workshop's picking.
+            msg = f"MB_EBAY_MODE={self.ebay_mode} is not allowed in production (off or production)"
+            raise ValueError(msg)
+        if (
+            self.ebay_mode is not MarketplaceMode.OFF
+            and self.ebay_token_key.get_secret_value() == _DEVELOPMENT_EBAY_TOKEN_KEY
+        ):
+            msg = "the development MB_EBAY_TOKEN_KEY is not allowed in production"
             raise ValueError(msg)
         return self
 

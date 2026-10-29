@@ -18,9 +18,16 @@ from modellbahn.modules.identity.contracts.accounts import (
 )
 from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.inventory.contracts.stock import load_free_units, load_pick_progress
+from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_received_order
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.ports import OrderQuery
-from modellbahn.modules.sales.domain.model import Cart, CustomerAddress, Order, OrderStatus
+from modellbahn.modules.sales.domain.model import (
+    Cart,
+    CustomerAddress,
+    Order,
+    OrderStatus,
+    SalesChannel,
+)
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers
 from modellbahn.modules.sales.infrastructure.tables import (
     carts,
@@ -107,9 +114,14 @@ class SqlOrderRepository:
         return list((await self._session.execute(statement.limit(query.limit))).scalars())
 
     async def guest_orders_for(self, email: str) -> list[Order]:
-        # email is citext: the comparison ignores letter case, as addresses do.
+        # email is citext: the comparison ignores letter case, as addresses do. A buyer on
+        # a marketplace is the marketplace's customer, so those orders stay where they are.
         statement = _locked(
-            select(Order).where(orders.c.customer_account_id.is_(None), orders.c.email == email),
+            select(Order).where(
+                orders.c.customer_account_id.is_(None),
+                orders.c.channel == SalesChannel.SHOP,
+                orders.c.email == email,
+            ),
             for_update=True,
         )
         return list((await self._session.execute(statement)).scalars())
@@ -213,6 +225,16 @@ class SqlFairs:
         return await load_next_fair(self._uow, today)
 
 
+class SqlMarketplace:
+    """The marketplace module's order facade, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def received_order(self, marketplace_order_id: UUID) -> ReceivedOrder | None:
+        return await load_received_order(self._uow, marketplace_order_id)
+
+
 class SqlSalesUnitOfWork(UnitOfWork):
     """Unit of work with the sales repositories attached."""
 
@@ -224,6 +246,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     accounts: SqlAccounts
     inventory: SqlInventory
     fairs: SqlFairs
+    marketplace: SqlMarketplace
 
     def __init__(
         self, session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str
@@ -241,6 +264,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.accounts = SqlAccounts(self)
         self.inventory = SqlInventory(self)
         self.fairs = SqlFairs(self)
+        self.marketplace = SqlMarketplace(self)
 
 
 def sales_uow_factory(

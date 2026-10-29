@@ -77,8 +77,14 @@ async def ship_order(
     "/{order_id}/cancel",
     operation_id="cancelOrder",
     summary="Cancel an order that has not been shipped; a payment is refunded",
+    description="An order from eBay is cancelled on eBay; the shop follows by itself.",
     responses=problems(
-        {**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT, 503: ["payment_unavailable"]}
+        {
+            **STAFF_ACCESS,
+            **ORDER_NOT_FOUND,
+            409: ["invalid_order_state", "marketplace_order"],
+            503: ["payment_unavailable"],
+        }
     ),
 )
 async def cancel_order(

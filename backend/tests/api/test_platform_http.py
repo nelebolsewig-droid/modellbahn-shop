@@ -223,6 +223,65 @@ EXPECTED_OPERATIONS = {
     ("DELETE", "/api/v1/admin/fairs/{fair_id}"): ("deleteFair", "admin-site"),
     ("POST", "/api/v1/admin/fairs/{fair_id}/announcement"): ("announceFair", "admin-site"),
     ("GET", "/api/v1/admin/fair-news"): ("getFairNewsCounts", "admin-site"),
+    ("GET", "/api/v1/admin/marketplace/ebay"): ("getEbayStatus", "admin-marketplace"),
+    ("POST", "/api/v1/admin/marketplace/ebay/connect"): ("connectEbay", "admin-marketplace"),
+    ("POST", "/api/v1/admin/marketplace/ebay/disconnect"): (
+        "disconnectEbay",
+        "admin-marketplace",
+    ),
+    ("PUT", "/api/v1/admin/marketplace/ebay/settings"): (
+        "changeEbaySettings",
+        "admin-marketplace",
+    ),
+    ("GET", "/api/v1/admin/marketplace/ebay/policies"): (
+        "listEbayPolicies",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/location"): (
+        "createEbayLocation",
+        "admin-marketplace",
+    ),
+    ("GET", "/api/v1/admin/marketplace/ebay/categories"): (
+        "listEbayCategories",
+        "admin-marketplace",
+    ),
+    ("PUT", "/api/v1/admin/marketplace/ebay/categories"): (
+        "setEbayCategories",
+        "admin-marketplace",
+    ),
+    ("GET", "/api/v1/admin/marketplace/ebay/listings"): (
+        "listEbayListings",
+        "admin-marketplace",
+    ),
+    ("GET", "/api/v1/admin/marketplace/ebay/products/{product_id}/listings"): (
+        "listProductEbayListings",
+        "admin-marketplace",
+    ),
+    ("PUT", "/api/v1/admin/marketplace/ebay/products/{product_id}/listings/{scale_code}"): (
+        "setProductEbayListing",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/listings/{listing_id}/sync"): (
+        "syncEbayListing",
+        "admin-marketplace",
+    ),
+    ("GET", "/api/v1/admin/marketplace/ebay/orders"): ("listEbayOrders", "admin-marketplace"),
+    ("POST", "/api/v1/admin/marketplace/ebay/orders/fetch"): (
+        "fetchEbayOrders",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/orders/{marketplace_order_id}/report-shipment"): (
+        "reportEbayShipment",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/test-sales"): (
+        "createEbayTestSale",
+        "admin-marketplace",
+    ),
+    ("POST", "/api/v1/admin/marketplace/ebay/test-sales/{external_id}/cancel"): (
+        "cancelEbayTestSale",
+        "admin-marketplace",
+    ),
     ("GET", "/healthz"): ("getHealth", "system"),
     ("GET", "/readyz"): ("getReadiness", "system"),
 }

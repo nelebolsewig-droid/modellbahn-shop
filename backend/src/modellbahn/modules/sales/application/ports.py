@@ -12,6 +12,7 @@ from uuid import UUID
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.contracts.availability import PickProgress
+from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder
 from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.sales.domain.model import (
     Cart,
@@ -138,6 +139,12 @@ class Fairs(Protocol):
     async def next_fair(self, today: date) -> NextFair | None: ...
 
 
+class Marketplace(Protocol):
+    """What sales may ask the marketplace module: a sale made there, to take over."""
+
+    async def received_order(self, marketplace_order_id: UUID) -> ReceivedOrder | None: ...
+
+
 class PaymentGateway(Protocol):
     """The payment provider behind an anti-corruption layer (KONZEPT §2.6).
 
@@ -178,6 +185,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def fairs(self) -> Fairs: ...
+
+    @property
+    def marketplace(self) -> Marketplace: ...
 
     async def __aenter__(self) -> Self: ...
 

@@ -19,6 +19,9 @@ from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityU
 from modellbahn.modules.inventory.application.allocation import AllocationService
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
+from modellbahn.modules.marketplace.contracts import events as marketplace_events
+from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.ports import ImageProcessor, MediaStorage
 from modellbahn.modules.media.application.services import MediaService
@@ -28,6 +31,7 @@ from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfW
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
@@ -51,7 +55,10 @@ STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
 OVERDUE_ORDER_SWEEP_INTERVAL: Final = timedelta(minutes=15)
 EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
-FORWARDED_EVENT_MODULES: Final = (catalog_events,)
+EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
+EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
+# The marketplace's events stay readable with MB_EBAY_MODE=off (the setting may change).
+FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events)
 
 
 async def run_worker(
@@ -100,6 +107,12 @@ async def run_worker(
         shop_name=settings.shop_name,
         sender=settings.imprint.mail_footer(),
     ).register(handlers)
+    MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)
+    marketplace = build_marketplace(settings, session_factory, clock)
+    if marketplace is not None:
+        MarketplaceHandlers(
+            uow_factory=marketplace.uow_factory, orders=marketplace.orders, clock=clock
+        ).register(handlers)
     InventoryHandlers(
         allocation=AllocationService(
             uow_factory=inventory_uow_factory(session_factory), clock=clock
@@ -136,6 +149,19 @@ async def run_worker(
             run=SubscriptionService(uow_factory=site_uow, clock=clock).purge_pending,
         ),
     ]
+    if marketplace is not None:
+        jobs += [
+            PeriodicJob(
+                name="marketplace.sync_listings",
+                interval=EBAY_LISTING_SYNC_INTERVAL,
+                run=marketplace.listings.sync_due,
+            ),
+            PeriodicJob(
+                name="marketplace.fetch_orders",
+                interval=EBAY_ORDER_FETCH_INTERVAL,
+                run=marketplace.orders.fetch,
+            ),
+        ]
 
     dispatcher = OutboxDispatcher(
         engine=engine,
@@ -151,6 +177,8 @@ async def run_worker(
             for job in jobs:
                 group.create_task(run_periodically(job, stop))
     finally:
+        if marketplace is not None:
+            await marketplace.aclose()
         await engine.dispose()
 
 
