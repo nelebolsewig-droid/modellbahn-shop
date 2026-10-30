@@ -14,7 +14,9 @@ function answer(scanId: string, change: Partial<ScanOut>): ScanOut {
     unit: null,
     location: null,
     variant: null,
+    part: null,
     effect: null,
+    part_effect: null,
     progress: null,
     next_expected: null,
     undoable: true,
@@ -36,7 +38,7 @@ describe("scan session", () => {
       answer: answer("a", {
         outcome: "selected",
         message: "location_selected",
-        location: { code: "R01-F01", name: "Fach 1", kind: "compartment", holds_goods: true, unit_count: 0 },
+        location: { code: "R01-F01", name: "Fach 1", kind: "compartment", holds_goods: true, unit_count: 0, part_count: 0 },
       }),
     });
     expect([session.locationCode, session.locationName]).toEqual(["R01-F01", "Fach 1"]);

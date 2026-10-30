@@ -442,6 +442,7 @@ def test_an_order_line_names_the_colour() -> None:
         variant_id=uuid4(),
         gtin="2000000000428",
         product_id=uuid4(),
+        product_scale_id=uuid4(),
         product_slug="ifa-adk-70-autokran",
         product_name="IFA ADK 70 Autokran",
         scale_code="H0",

@@ -18,6 +18,7 @@ from modellbahn.modules.identity.infrastructure.mapping import (
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
 from modellbahn.modules.inventory.application.allocation import AllocationService
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
+from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.manufacturing.contracts import events as manufacturing_events
 from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
@@ -114,10 +115,10 @@ async def run_worker(
         MarketplaceHandlers(
             uow_factory=marketplace.uow_factory, orders=marketplace.orders, clock=clock
         ).register(handlers)
+    inventory_uow = inventory_uow_factory(session_factory)
     InventoryHandlers(
-        allocation=AllocationService(
-            uow_factory=inventory_uow_factory(session_factory), clock=clock
-        ),
+        allocation=AllocationService(uow_factory=inventory_uow, clock=clock),
+        parts=PartStoreService(uow_factory=inventory_uow, clock=clock),
     ).register(handlers)
     MediaProcessingHandlers(
         uow_factory=media_uow,

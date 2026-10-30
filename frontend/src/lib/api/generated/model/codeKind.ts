@@ -19,4 +19,5 @@ export const CodeKind = {
   unit: 'unit',
   location: 'location',
   variant: 'variant',
+  part: 'part',
 } as const;

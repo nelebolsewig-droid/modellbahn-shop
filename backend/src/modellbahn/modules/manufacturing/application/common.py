@@ -29,12 +29,15 @@ _UNIQUE_RULES: Final[Mapping[str, Callable[[], ManufacturingError]]] = {
     "print_jobs_one_printing_idx": lambda: PrinterUnavailableError("busy"),
 }
 
-# Rows that refer to what is being removed: its history stays, so it cannot go.
+# Rows that refer to what is being removed: its history stays, so it cannot go. The
+# stock's keys on a part count too (inventory's parts store, by constraint name only).
 _IN_USE: Final[Mapping[str, Callable[[], ManufacturingError]]] = {
     "fk_print_jobs_printer_id_technology_printers": PrinterInUseError,
     "fk_parts_material_id_technology_materials": MaterialInUseError,
     "fk_bom_lines_part_id_scale_code_parts": PartInUseError,
     "fk_print_job_lines_part_id_technology_parts": PartInUseError,
+    "fk_part_stock_part_id_parts": PartInUseError,
+    "fk_part_ledger_part_id_parts": PartInUseError,
 }
 
 

@@ -19,6 +19,11 @@ export interface LabelsIn {
      * @items.maxLength 44
      */
   location_codes?: string[];
+  /**
+     * @maxItems 240
+     * @items.maxLength 40
+     */
+  part_numbers?: string[];
   /** `a4_70x37`: A4 sheet, 3 x 8 labels; `ql_62x29`: Brother QL, 62 mm roll. */
   sheet: LabelSheet;
   /**

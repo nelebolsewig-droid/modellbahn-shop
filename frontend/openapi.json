@@ -689,6 +689,203 @@
         "title": "AnnouncementOut",
         "type": "object"
       },
+      "AssembledPartOut": {
+        "properties": {
+          "location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The box the parts were taken from.",
+            "title": "Location Code"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StockPartOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "quantity",
+          "location_code"
+        ],
+        "title": "AssembledPartOut",
+        "type": "object"
+      },
+      "AssemblyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_code": {
+            "anyOf": [
+              {
+                "maxLength": 44,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Put the new units away here at once; otherwise they wait for a scan.",
+            "title": "Location Code"
+          },
+          "quantity": {
+            "description": "Kits to assemble.",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "quantity"
+        ],
+        "title": "AssemblyIn",
+        "type": "object"
+      },
+      "AssemblyOut": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/AssemblyPlanOut"
+          },
+          "units": {
+            "description": "The new units, ready for their labels.",
+            "items": {
+              "$ref": "#/components/schemas/UnitOut"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "units"
+        ],
+        "title": "AssemblyOut",
+        "type": "object"
+      },
+      "AssemblyPartOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "missing": {
+            "title": "Missing",
+            "type": "integer"
+          },
+          "needed": {
+            "title": "Needed",
+            "type": "integer"
+          },
+          "part": {
+            "$ref": "#/components/schemas/StockPartOut"
+          },
+          "per_kit": {
+            "title": "Per Kit",
+            "type": "integer"
+          },
+          "takes": {
+            "description": "Where to take them, in walking order.",
+            "items": {
+              "$ref": "#/components/schemas/AssemblyTakeOut"
+            },
+            "title": "Takes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part",
+          "per_kit",
+          "needed",
+          "available",
+          "missing",
+          "takes"
+        ],
+        "title": "AssemblyPartOut",
+        "type": "object"
+      },
+      "AssemblyPlanOut": {
+        "properties": {
+          "parts": {
+            "description": "In the order of the bill of materials.",
+            "items": {
+              "$ref": "#/components/schemas/AssemblyPartOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "possible": {
+            "description": "Kits the parts in stock suffice for.",
+            "title": "Possible",
+            "type": "integer"
+          },
+          "quantity": {
+            "description": "Kits to assemble.",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "ready": {
+            "description": "Every part is there for the kits asked for.",
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/VariantRefOut"
+          }
+        },
+        "required": [
+          "variant",
+          "quantity",
+          "parts",
+          "possible",
+          "ready"
+        ],
+        "title": "AssemblyPlanOut",
+        "type": "object"
+      },
+      "AssemblyTakeOut": {
+        "properties": {
+          "location_code": {
+            "title": "Location Code",
+            "type": "string"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location_code",
+          "location_name",
+          "quantity"
+        ],
+        "title": "AssemblyTakeOut",
+        "type": "object"
+      },
       "AssetKind": {
         "enum": [
           "image",
@@ -1529,7 +1726,8 @@
         "enum": [
           "unit",
           "location",
-          "variant"
+          "variant",
+          "part"
         ],
         "title": "CodeKind",
         "type": "string"
@@ -2866,6 +3064,15 @@
             "title": "Location Codes",
             "type": "array"
           },
+          "part_numbers": {
+            "items": {
+              "maxLength": 40,
+              "type": "string"
+            },
+            "maxItems": 240,
+            "title": "Part Numbers",
+            "type": "array"
+          },
           "sheet": {
             "$ref": "#/components/schemas/LabelSheet",
             "description": "`a4_70x37`: A4 sheet, 3 x 8 labels; `ql_62x29`: Brother QL, 62 mm roll."
@@ -3208,6 +3415,42 @@
         "title": "ListingStatus",
         "type": "string"
       },
+      "LocatedPartsOut": {
+        "properties": {
+          "location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Code"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StockPartOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "quantity",
+          "location_code"
+        ],
+        "title": "LocatedPartsOut",
+        "type": "object"
+      },
       "LocatedUnitOut": {
         "properties": {
           "code": {
@@ -3304,6 +3547,14 @@
           "location": {
             "$ref": "#/components/schemas/LocationNodeOut"
           },
+          "parts": {
+            "description": "Printed parts in this location and below it, by part number.",
+            "items": {
+              "$ref": "#/components/schemas/LocatedPartsOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
           "units": {
             "description": "In this location and below it, oldest first.",
             "items": {
@@ -3317,7 +3568,8 @@
           "location",
           "ancestors",
           "children",
-          "units"
+          "units",
+          "parts"
         ],
         "title": "LocationContentsOut",
         "type": "object"
@@ -3419,6 +3671,11 @@
             ],
             "title": "Parent Id"
           },
+          "part_count": {
+            "description": "Printed parts lying in this location itself.",
+            "title": "Part Count",
+            "type": "integer"
+          },
           "path": {
             "examples": [
               "LAGER.R02.F04.B12"
@@ -3447,7 +3704,8 @@
           "holds_goods",
           "depth",
           "unit_count",
-          "total_count"
+          "total_count",
+          "part_count"
         ],
         "title": "LocationNodeOut",
         "type": "object"
@@ -4407,6 +4665,39 @@
         "title": "OrderSummaryOut",
         "type": "object"
       },
+      "PartCountIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_code": {
+            "examples": [
+              "R02-F04-B12"
+            ],
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "What was counted there.",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location_code",
+          "quantity"
+        ],
+        "title": "PartCountIn",
+        "type": "object"
+      },
       "PartCreateIn": {
         "additionalProperties": false,
         "properties": {
@@ -4517,6 +4808,154 @@
           "technology"
         ],
         "title": "PartCreateIn",
+        "type": "object"
+      },
+      "PartDetailsOut": {
+        "properties": {
+          "history": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/PartHistoryEntryOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "receipts": {
+            "description": "Still in receiving, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptOut"
+            },
+            "title": "Receipts",
+            "type": "array"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/PartStockLineOut"
+          }
+        },
+        "required": [
+          "stock",
+          "receipts",
+          "history"
+        ],
+        "title": "PartDetailsOut",
+        "type": "object"
+      },
+      "PartHistoryEntryOut": {
+        "properties": {
+          "from_location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location Code"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "print_job_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Print Job Number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/PartMovementReason"
+          },
+          "reverses_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reverses Id"
+          },
+          "scan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Name"
+          },
+          "to_location_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location Code"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Code"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "quantity",
+          "from_location_code",
+          "to_location_code",
+          "print_job_number",
+          "unit_code",
+          "note",
+          "staff_name",
+          "scan_id",
+          "reverses_id",
+          "occurred_at"
+        ],
+        "title": "PartHistoryEntryOut",
         "type": "object"
       },
       "PartIn": {
@@ -4634,6 +5073,17 @@
         ],
         "title": "PartListOut",
         "type": "object"
+      },
+      "PartMovementReason": {
+        "enum": [
+          "receive",
+          "assemble",
+          "count",
+          "write_off",
+          "undo"
+        ],
+        "title": "PartMovementReason",
+        "type": "string"
       },
       "PartOut": {
         "properties": {
@@ -4787,6 +5237,29 @@
           "updated_at"
         ],
         "title": "PartOut",
+        "type": "object"
+      },
+      "PartPlaceOut": {
+        "properties": {
+          "location_code": {
+            "title": "Location Code",
+            "type": "string"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location_code",
+          "location_name",
+          "quantity"
+        ],
+        "title": "PartPlaceOut",
         "type": "object"
       },
       "PartRecordOut": {
@@ -4997,6 +5470,56 @@
           "scale_code"
         ],
         "title": "PartRefOut",
+        "type": "object"
+      },
+      "PartStockLineOut": {
+        "properties": {
+          "incoming": {
+            "description": "Good parts of finished plates still in receiving.",
+            "title": "Incoming",
+            "type": "integer"
+          },
+          "part": {
+            "$ref": "#/components/schemas/StockPartOut"
+          },
+          "places": {
+            "description": "Where they lie, in walking order.",
+            "items": {
+              "$ref": "#/components/schemas/PartPlaceOut"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "total": {
+            "description": "Parts in boxes and compartments.",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "total",
+          "incoming",
+          "places"
+        ],
+        "title": "PartStockLineOut",
+        "type": "object"
+      },
+      "PartStockOut": {
+        "properties": {
+          "items": {
+            "description": "By part number.",
+            "items": {
+              "$ref": "#/components/schemas/PartStockLineOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PartStockOut",
         "type": "object"
       },
       "PartUseOut": {
@@ -5651,6 +6174,49 @@
           "printer_id"
         ],
         "title": "PrintJobPlanIn",
+        "type": "object"
+      },
+      "PrintJobRefOut": {
+        "properties": {
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "number": {
+            "examples": [
+              17
+            ],
+            "title": "Number",
+            "type": "integer"
+          },
+          "printer_code": {
+            "examples": [
+              "D04"
+            ],
+            "title": "Printer Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "number",
+          "printer_code",
+          "finished_at"
+        ],
+        "title": "PrintJobRefOut",
         "type": "object"
       },
       "PrintJobStatus": {
@@ -7208,6 +7774,87 @@
         "title": "RealtimeEventData",
         "type": "object"
       },
+      "ReceiptOut": {
+        "description": "The good parts of one part from one finished plate, on their way into a box.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "open": {
+            "description": "Still waiting for a box.",
+            "title": "Open",
+            "type": "integer"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StockPartOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "print_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrintJobRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "stored": {
+            "title": "Stored",
+            "type": "integer"
+          },
+          "written_off": {
+            "title": "Written Off",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "part",
+          "print_job",
+          "quantity",
+          "stored",
+          "written_off",
+          "open",
+          "created_at"
+        ],
+        "title": "ReceiptOut",
+        "type": "object"
+      },
+      "ReceivingOut": {
+        "properties": {
+          "items": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ReceivingOut",
+        "type": "object"
+      },
       "ReferencesOut": {
         "description": "Scales, finishes and epochs, each in display order.",
         "properties": {
@@ -7719,6 +8366,10 @@
             "title": "Name",
             "type": "string"
           },
+          "part_count": {
+            "title": "Part Count",
+            "type": "integer"
+          },
           "unit_count": {
             "title": "Unit Count",
             "type": "integer"
@@ -7729,7 +8380,8 @@
           "name",
           "kind",
           "holds_goods",
-          "unit_count"
+          "unit_count",
+          "part_count"
         ],
         "title": "ScanLocationOut",
         "type": "object"
@@ -7793,7 +8445,10 @@
               "not_in_order",
               "unit_not_stored",
               "no_unit_to_store",
-              "variant_not_in_stock"
+              "variant_not_in_stock",
+              "part",
+              "parts_stored",
+              "no_parts_to_store"
             ],
             "title": "Message",
             "type": "string"
@@ -7813,6 +8468,26 @@
           },
           "outcome": {
             "$ref": "#/components/schemas/ScanOutcome"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanPartOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "part_effect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanPartEffectOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "progress": {
             "anyOf": [
@@ -7877,7 +8552,9 @@
           "unit",
           "location",
           "variant",
+          "part",
           "effect",
+          "part_effect",
           "progress",
           "next_expected",
           "undoable",
@@ -7896,6 +8573,107 @@
         ],
         "title": "ScanOutcome",
         "type": "string"
+      },
+      "ScanPartEffectOut": {
+        "properties": {
+          "in_location": {
+            "description": "Parts of it in the location now.",
+            "title": "In Location",
+            "type": "integer"
+          },
+          "print_jobs": {
+            "description": "Numbers of the plates they came off.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Print Jobs",
+            "type": "array"
+          },
+          "quantity": {
+            "description": "Parts put into the location from receiving.",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "to_location": {
+            "title": "To Location",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantity",
+          "to_location",
+          "in_location",
+          "print_jobs"
+        ],
+        "title": "ScanPartEffectOut",
+        "type": "object"
+      },
+      "ScanPartOut": {
+        "properties": {
+          "incoming": {
+            "description": "Still in receiving.",
+            "title": "Incoming",
+            "type": "integer"
+          },
+          "locations": {
+            "description": "The first few, in walking order.",
+            "items": {
+              "$ref": "#/components/schemas/ScanPartPlaceOut"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "part_number": {
+            "title": "Part Number",
+            "type": "string"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id",
+          "part_number",
+          "name",
+          "scale_code",
+          "total",
+          "incoming",
+          "locations"
+        ],
+        "title": "ScanPartOut",
+        "type": "object"
+      },
+      "ScanPartPlaceOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "quantity"
+        ],
+        "title": "ScanPartPlaceOut",
+        "type": "object"
       },
       "ScanProgressOut": {
         "properties": {
@@ -8363,6 +9141,48 @@
           "items"
         ],
         "title": "StockOut",
+        "type": "object"
+      },
+      "StockPartOut": {
+        "description": "A printed part as the manufacturing module names it.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "part_number": {
+            "examples": [
+              "STW-ALT-DACH-H0"
+            ],
+            "title": "Part Number",
+            "type": "string"
+          },
+          "scale_code": {
+            "title": "Scale Code",
+            "type": "string"
+          },
+          "technology": {
+            "$ref": "#/components/schemas/Technology"
+          }
+        },
+        "required": [
+          "part_id",
+          "part_number",
+          "name",
+          "scale_code",
+          "technology",
+          "active"
+        ],
+        "title": "StockPartOut",
         "type": "object"
       },
       "StoreGalleryItemOut": {
@@ -8989,6 +9809,14 @@
             ],
             "title": "Order Number"
           },
+          "parts": {
+            "description": "What the unit was assembled from; empty for a unit labelled by hand.",
+            "items": {
+              "$ref": "#/components/schemas/AssembledPartOut"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
           "scrap_note": {
             "title": "Scrap Note",
             "type": "string"
@@ -9030,7 +9858,8 @@
           "scrap_note",
           "created_at",
           "updated_at",
-          "history"
+          "history",
+          "parts"
         ],
         "title": "UnitDetailsOut",
         "type": "object"
@@ -9753,6 +10582,19 @@
           "wanted"
         ],
         "title": "WantIn",
+        "type": "object"
+      },
+      "WriteOffIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "WriteOffIn",
         "type": "object"
       }
     },
@@ -11244,6 +12086,221 @@
         ]
       }
     },
+    "/api/v1/admin/inventory/assemblies": {
+      "post": {
+        "operationId": "assemble",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssemblyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssemblyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`, `variant_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `no_bill_of_materials`, `parts_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Take the parts out of their boxes and label the new units",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/assembly-plan": {
+      "get": {
+        "operationId": "planAssembly",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quantity",
+            "required": true,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Quantity",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssemblyPlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `variant_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `no_bill_of_materials`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Which parts kits of a variant take, and from which boxes",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
     "/api/v1/admin/inventory/labels": {
       "post": {
         "operationId": "printLabels",
@@ -11972,6 +13029,430 @@
           }
         ],
         "summary": "The order's pieces in walking order, with units and locations",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/parts": {
+      "get": {
+        "operationId": "listPartStock",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartStockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Printed parts in stock and in receiving, by part number",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/parts/{part_number}": {
+      "get": {
+        "operationId": "getPartStock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_number",
+            "required": true,
+            "schema": {
+              "title": "Part Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartDetailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `part_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A part with its boxes, what waits in receiving, and its journal",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/parts/{part_number}/count": {
+      "post": {
+        "operationId": "countParts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_number",
+            "required": true,
+            "schema": {
+              "title": "Part Number",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartDetailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`, `part_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Set a part's quantity in a location to what was counted there",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/receiving": {
+      "get": {
+        "operationId": "listReceiving",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceivingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Good parts of finished plates that wait to be put into a box",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/receiving/{receipt_id}/write-off": {
+      "post": {
+        "operationId": "writeOffReceipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteOffIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `receipt_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_receipt_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The rest of a receipt never reached a shelf: take it out of receiving",
         "tags": [
           "admin-inventory"
         ]

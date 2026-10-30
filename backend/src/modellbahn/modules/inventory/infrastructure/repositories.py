@@ -4,10 +4,12 @@ Repositories only read and stage changes; committing is the unit of work's job.
 """
 
 from collections.abc import Collection
+from datetime import datetime
 from functools import partial
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, Select, cast, exists, func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.catalog.contracts.variants import (
@@ -27,13 +29,28 @@ from modellbahn.modules.inventory.domain.model import (
     Unit,
     UnitStatus,
 )
+from modellbahn.modules.inventory.domain.parts import PartLedgerEntry, PartReceipt, PartStock
 from modellbahn.modules.inventory.infrastructure.mapping import start_mappers
 from modellbahn.modules.inventory.infrastructure.tables import (
     allocations,
     locations,
+    part_ledger,
+    part_receipts,
+    part_stock,
     scans,
     stock_ledger,
     units,
+)
+from modellbahn.modules.manufacturing.contracts.parts import (
+    KitPart,
+    PartInfo,
+    PrintJobInfo,
+    PrintJobYield,
+    load_bill_of_materials,
+    load_part_by_number,
+    load_parts,
+    load_print_job_yield,
+    load_print_jobs,
 )
 from modellbahn.modules.sales.contracts.orders import (
     OrderSummary,
@@ -271,6 +288,140 @@ class SqlLedgerRepository:
         return list((await self._session.execute(statement)).scalars())
 
 
+class SqlPartStockRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def lock(self, part_id: UUID, location_id: UUID, *, now: datetime) -> PartStock:
+        # Two receipts into the same new box: one inserts the row, both then lock it.
+        await self._session.execute(
+            insert(part_stock)
+            .values(part_id=part_id, location_id=location_id, quantity=0, updated_at=now)
+            .on_conflict_do_nothing()
+        )
+        statement = _locked(
+            select(PartStock).where(
+                part_stock.c.part_id == part_id, part_stock.c.location_id == location_id
+            ),
+            for_update=True,
+        )
+        return (await self._session.execute(statement)).scalar_one()
+
+    async def for_parts(
+        self, part_ids: Collection[UUID], *, for_update: bool = False
+    ) -> list[PartStock]:
+        ids = list(set(part_ids))
+        if not ids:
+            return []
+        statement = _locked(
+            select(PartStock)
+            .where(part_stock.c.part_id.in_(ids), part_stock.c.quantity > 0)
+            .order_by(part_stock.c.part_id, part_stock.c.location_id),
+            for_update,
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def in_locations(self, location_ids: Collection[UUID]) -> list[PartStock]:
+        ids = list(set(location_ids))
+        if not ids:
+            return []
+        statement = select(PartStock).where(
+            part_stock.c.location_id.in_(ids), part_stock.c.quantity > 0
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def totals(self) -> dict[UUID, int]:
+        return await self._sums(part_stock.c.part_id)
+
+    async def location_totals(self) -> dict[UUID, int]:
+        return await self._sums(part_stock.c.location_id)
+
+    async def _sums(self, column: ColumnElement[UUID]) -> dict[UUID, int]:
+        statement = (
+            select(column, func.sum(part_stock.c.quantity))
+            .where(part_stock.c.quantity > 0)
+            .group_by(column)
+        )
+        rows = await self._session.execute(statement)
+        return {row[0]: int(row[1]) for row in rows}
+
+
+def _open_receipt() -> ColumnElement[bool]:
+    return part_receipts.c.stored + part_receipts.c.written_off < part_receipts.c.quantity
+
+
+class SqlPartReceiptRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, receipt_id: UUID, *, for_update: bool = False) -> PartReceipt | None:
+        statement = _locked(select(PartReceipt).where(part_receipts.c.id == receipt_id), for_update)
+        return (await self._session.execute(statement)).scalar_one_or_none()
+
+    async def by_ids(self, receipt_ids: Collection[UUID]) -> dict[UUID, PartReceipt]:
+        ids = list(set(receipt_ids))
+        if not ids:
+            return {}
+        rows = await self._session.execute(select(PartReceipt).where(part_receipts.c.id.in_(ids)))
+        return {receipt.id: receipt for receipt in rows.scalars()}
+
+    async def for_job(self, print_job_id: UUID) -> list[PartReceipt]:
+        statement = select(PartReceipt).where(part_receipts.c.print_job_id == print_job_id)
+        return list((await self._session.execute(statement)).scalars())
+
+    async def open(
+        self, part_id: UUID | None = None, *, for_update: bool = False
+    ) -> list[PartReceipt]:
+        statement = select(PartReceipt).where(_open_receipt())
+        if part_id is not None:
+            statement = statement.where(part_receipts.c.part_id == part_id)
+        statement = _locked(
+            statement.order_by(part_receipts.c.created_at, part_receipts.c.id), for_update
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    def add(self, receipt: PartReceipt) -> None:
+        self._session.add(receipt)
+
+
+class SqlPartLedgerRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def add(self, entry: PartLedgerEntry) -> None:
+        self._session.add(entry)
+
+    async def for_scan(self, scan_id: UUID) -> list[PartLedgerEntry]:
+        return await self._where(part_ledger.c.scan_id == scan_id)
+
+    async def for_unit(self, unit_id: UUID) -> list[PartLedgerEntry]:
+        return await self._where(part_ledger.c.unit_id == unit_id)
+
+    async def for_part(self, part_id: UUID, *, limit: int) -> list[PartLedgerEntry]:
+        statement = (
+            select(PartLedgerEntry)
+            .where(part_ledger.c.part_id == part_id)
+            .order_by(part_ledger.c.id.desc())
+            .limit(limit)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def mentions(self, location_id: UUID) -> bool:
+        statement = select(
+            exists().where(
+                or_(
+                    part_ledger.c.from_location_id == location_id,
+                    part_ledger.c.to_location_id == location_id,
+                )
+            )
+        )
+        return bool(await self._session.scalar(statement))
+
+    async def _where(self, condition: ColumnElement[bool]) -> list[PartLedgerEntry]:
+        statement = select(PartLedgerEntry).where(condition).order_by(part_ledger.c.id)
+        return list((await self._session.execute(statement)).scalars())
+
+
 class SqlScanRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -312,6 +463,28 @@ class SqlOrders:
         return await load_order_numbers(self._uow, order_ids)
 
 
+class SqlManufacturing:
+    """The manufacturing module's parts facade, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def parts(self, part_ids: Collection[UUID]) -> dict[UUID, PartInfo]:
+        return await load_parts(self._uow, part_ids)
+
+    async def part_by_number(self, part_number: str) -> PartInfo | None:
+        return await load_part_by_number(self._uow, part_number)
+
+    async def bill_of_materials(self, product_scale_id: UUID) -> list[KitPart]:
+        return await load_bill_of_materials(self._uow, product_scale_id)
+
+    async def print_jobs(self, job_ids: Collection[UUID]) -> dict[UUID, PrintJobInfo]:
+        return await load_print_jobs(self._uow, job_ids)
+
+    async def print_job_yield(self, job_id: UUID) -> PrintJobYield | None:
+        return await load_print_job_yield(self._uow, job_id)
+
+
 class SqlStaff:
     """The identity module's account facade, inside this unit of work's transaction."""
 
@@ -330,7 +503,11 @@ class SqlInventoryUnitOfWork(UnitOfWork):
     allocations: SqlAllocationRepository
     ledger: SqlLedgerRepository
     scans: SqlScanRepository
+    part_stock: SqlPartStockRepository
+    receipts: SqlPartReceiptRepository
+    part_ledger: SqlPartLedgerRepository
     catalog: SqlCatalog
+    manufacturing: SqlManufacturing
     orders: SqlOrders
     staff: SqlStaff
 
@@ -341,7 +518,11 @@ class SqlInventoryUnitOfWork(UnitOfWork):
         self.allocations = SqlAllocationRepository(session)
         self.ledger = SqlLedgerRepository(session)
         self.scans = SqlScanRepository(session)
+        self.part_stock = SqlPartStockRepository(session)
+        self.receipts = SqlPartReceiptRepository(session)
+        self.part_ledger = SqlPartLedgerRepository(session)
         self.catalog = SqlCatalog(self)
+        self.manufacturing = SqlManufacturing(self)
         self.orders = SqlOrders(self)
         self.staff = SqlStaff(self)
 

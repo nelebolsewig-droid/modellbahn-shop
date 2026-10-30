@@ -16,6 +16,7 @@ function node(code: string, path: string, kind: LocationKind): LocationNodeOut {
     holds_goods: kind === "compartment" || kind === "box" || kind === "staging",
     unit_count: 0,
     total_count: 0,
+    part_count: 0,
   };
 }
 

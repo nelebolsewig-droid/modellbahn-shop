@@ -194,6 +194,19 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/admin/inventory/units"): ("labelUnits", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/units/{code}"): ("getUnit", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/{code}/scrap"): ("scrapUnit", "admin-inventory"),
+    ("GET", "/api/v1/admin/inventory/parts"): ("listPartStock", "admin-inventory"),
+    ("GET", "/api/v1/admin/inventory/parts/{part_number}"): ("getPartStock", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/parts/{part_number}/count"): (
+        "countParts",
+        "admin-inventory",
+    ),
+    ("GET", "/api/v1/admin/inventory/receiving"): ("listReceiving", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/receiving/{receipt_id}/write-off"): (
+        "writeOffReceipt",
+        "admin-inventory",
+    ),
+    ("GET", "/api/v1/admin/inventory/assembly-plan"): ("planAssembly", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/assemblies"): ("assemble", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/scans"): ("recordScan", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/scans/{scan_id}/undo"): ("undoScan", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/orders/{order_id}/pick-list"): (

@@ -43,6 +43,9 @@ function job(overrides: Partial<PrintJobOut> = {}): PrintJobOut {
   };
 }
 
+/** Two days and an hour ago, against the real clock the card reads too. */
+const TWO_DAYS_AGO = new Date(Date.now() - 49 * 3_600_000).toISOString();
+
 function desk(overrides: Partial<PrinterDeskOut>): PrinterDeskOut {
   return {
     id: "p1",
@@ -56,7 +59,7 @@ function desk(overrides: Partial<PrinterDeskOut>): PrinterDeskOut {
     notes: "",
     status: "in_service",
     status_note: "",
-    status_changed_at: "2026-10-27T07:00:00Z",
+    status_changed_at: TWO_DAYS_AGO,
     created_at: "2026-10-01T07:00:00Z",
     updated_at: "2026-10-01T07:00:00Z",
     printing: null,

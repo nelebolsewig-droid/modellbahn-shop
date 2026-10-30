@@ -5,6 +5,7 @@ The infrastructure layer implements them; tests may substitute their own.
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from types import TracebackType
 from typing import Protocol, Self
@@ -18,6 +19,13 @@ from modellbahn.modules.inventory.domain.model import (
     Scan,
     Unit,
     UnitStatus,
+)
+from modellbahn.modules.inventory.domain.parts import PartLedgerEntry, PartReceipt, PartStock
+from modellbahn.modules.manufacturing.contracts.parts import (
+    KitPart,
+    PartInfo,
+    PrintJobInfo,
+    PrintJobYield,
 )
 from modellbahn.modules.sales.contracts.orders import OrderSummary
 from modellbahn.platform.events import DomainEvent
@@ -131,6 +139,70 @@ class LedgerRepository(Protocol):
         ...
 
 
+class PartStockRepository(Protocol):
+    async def lock(self, part_id: UUID, location_id: UUID, *, now: datetime) -> PartStock:
+        """The part's stock in the location, locked; created at 0 if there was none."""
+        ...
+
+    async def for_parts(
+        self, part_ids: Collection[UUID], *, for_update: bool = False
+    ) -> list[PartStock]:
+        """The locations holding any of the parts (quantity above 0), by part and location.
+
+        Locked rows are locked in that order, so two assemblies never wait for each other
+        the other way round.
+        """
+        ...
+
+    async def in_locations(self, location_ids: Collection[UUID]) -> list[PartStock]:
+        """What lies in the locations (quantity above 0)."""
+        ...
+
+    async def totals(self) -> dict[UUID, int]:
+        """Parts in stock, per part (only parts with any)."""
+        ...
+
+    async def location_totals(self) -> dict[UUID, int]:
+        """Parts lying in each location (only locations that hold any)."""
+        ...
+
+
+class PartReceiptRepository(Protocol):
+    async def get(self, receipt_id: UUID, *, for_update: bool = False) -> PartReceipt | None: ...
+
+    async def by_ids(self, receipt_ids: Collection[UUID]) -> dict[UUID, PartReceipt]: ...
+
+    async def for_job(self, print_job_id: UUID) -> list[PartReceipt]: ...
+
+    async def open(
+        self, part_id: UUID | None = None, *, for_update: bool = False
+    ) -> list[PartReceipt]:
+        """Receipts with parts still waiting for a box, oldest first; of one part or all."""
+        ...
+
+    def add(self, receipt: PartReceipt) -> None: ...
+
+
+class PartLedgerRepository(Protocol):
+    def add(self, entry: PartLedgerEntry) -> None: ...
+
+    async def for_scan(self, scan_id: UUID) -> list[PartLedgerEntry]:
+        """What a scan booked, in the order it was booked."""
+        ...
+
+    async def for_unit(self, unit_id: UUID) -> list[PartLedgerEntry]:
+        """The parts a unit was assembled from."""
+        ...
+
+    async def for_part(self, part_id: UUID, *, limit: int) -> list[PartLedgerEntry]:
+        """The part's latest movements, newest first."""
+        ...
+
+    async def mentions(self, location_id: UUID) -> bool:
+        """True if any parts went into or out of the location."""
+        ...
+
+
 class ScanRepository(Protocol):
     async def get(self, scan_id: UUID, *, for_update: bool = False) -> Scan | None: ...
 
@@ -153,6 +225,20 @@ class Orders(Protocol):
     async def summary(self, order_id: UUID) -> OrderSummary | None: ...
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]: ...
+
+
+class Manufacturing(Protocol):
+    """What inventory may ask the manufacturing module: parts, kits, finished plates."""
+
+    async def parts(self, part_ids: Collection[UUID]) -> dict[UUID, PartInfo]: ...
+
+    async def part_by_number(self, part_number: str) -> PartInfo | None: ...
+
+    async def bill_of_materials(self, product_scale_id: UUID) -> list[KitPart]: ...
+
+    async def print_jobs(self, job_ids: Collection[UUID]) -> dict[UUID, PrintJobInfo]: ...
+
+    async def print_job_yield(self, job_id: UUID) -> PrintJobYield | None: ...
 
 
 class Staff(Protocol):
@@ -180,7 +266,19 @@ class InventoryUnitOfWork(Protocol):
     def scans(self) -> ScanRepository: ...
 
     @property
+    def part_stock(self) -> PartStockRepository: ...
+
+    @property
+    def receipts(self) -> PartReceiptRepository: ...
+
+    @property
+    def part_ledger(self) -> PartLedgerRepository: ...
+
+    @property
     def catalog(self) -> Catalog: ...
+
+    @property
+    def manufacturing(self) -> Manufacturing: ...
 
     @property
     def orders(self) -> Orders: ...
@@ -219,15 +317,16 @@ class Label:
 
     A unit's label carries the variant's EAN-13, which the till (SumUp) knows the
     article by, and a Code 128 with the unit's own code for the workshop's scanner. A
-    location's label carries only the Code 128 with its code.
+    location's label carries only the Code 128 with its code, and so does a part's label
+    (on the box the parts lie in) with the part number.
     """
 
     caption: str
-    """What the label marks (``Einheit``, ``Lagerplatz``), set small at the top."""
+    """What the label marks (``Einheit``, ``Lagerplatz``, ``Teil``), set small at the top."""
     code_text: str
-    """The code as people read it: ``7KQ2 X9F4 MZ`` or ``R02-F04-B12``."""
+    """The code as people read it: ``7KQ2 X9F4 MZ``, ``R02-F04-B12`` or a part number."""
     code128: str
-    """The data of the Code 128: the unit code or the location code."""
+    """The data of the Code 128: the unit code, the location code or the part number."""
     title: str
     detail: str
     reference: str

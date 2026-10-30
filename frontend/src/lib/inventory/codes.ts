@@ -6,6 +6,8 @@
  *   on the label as Code 128 and in groups of four (7KQ2 X9F4 MZ).
  * - Location: segments joined by hyphens (R02-F04-B12), as Code 128.
  * - Variant: the EAN-13 the till (SumUp) knows the article by.
+ * - Part: the part number (STW-ALT-DACH-H0) on the label of a box of printed parts,
+ *   as Code 128. It looks like a location code too, so it comes after the locations.
  *
  * The scanner uses this to tell at once what was scanned and to refuse garbage without
  * asking the server; the server decides what exists.
@@ -15,10 +17,12 @@ export const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const UNIT_CODE = /^[0-9A-HJKMNP-TV-Z]{10}$/;
 const LOCATION_CODE = /^[A-Z0-9]{1,8}(?:-[A-Z0-9]{1,8}){0,4}$/;
 const EAN13 = /^[0-9]{13}$/;
+const PART_NUMBER = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const PART_NUMBER_MAX_LENGTH = 40;
 const MAX_RAW_LENGTH = 300;
 const READ_AS: Readonly<Record<string, string>> = { O: "0", I: "1", L: "1" };
 
-export type CodeKind = "unit" | "location" | "variant";
+export type CodeKind = "unit" | "location" | "variant" | "part";
 export type Reading = { kind: CodeKind; code: string };
 
 function luhnSum(code: string, startFactor: 1 | 2): number {
@@ -120,6 +124,9 @@ export function interpretations(raw: string): Reading[] {
     } else {
       readings.push(reading);
     }
+  }
+  if (location.length <= PART_NUMBER_MAX_LENGTH && PART_NUMBER.test(location)) {
+    readings.push({ kind: "part", code: location });
   }
   return readings;
 }

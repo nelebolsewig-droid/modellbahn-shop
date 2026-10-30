@@ -14,6 +14,8 @@ from modellbahn.platform.events import DomainEvent, JsonObject, domain_event
 UNIT_AGGREGATE: Final = "inventory.unit"
 LOCATION_AGGREGATE: Final = "inventory.location"
 ALLOCATION_AGGREGATE: Final = "inventory.allocation"
+PART_AGGREGATE: Final = "inventory.part"
+PRINT_JOB_RECEIPT_AGGREGATE: Final = "inventory.print_job_receipt"
 STAFF_AUDIENCE: Final = frozenset({"staff"})
 
 
@@ -82,3 +84,46 @@ class LocationChanged(DomainEvent):
 
     def public_payload(self) -> JsonObject:
         return {"location_id": str(self.aggregate_id), "code": self.code, "change": self.change}
+
+
+@domain_event
+@dataclass(frozen=True, kw_only=True)
+class PartStockChanged(DomainEvent):
+    """Parts went into a location, out of it, or into a unit; the aggregate is the part."""
+
+    event_type: ClassVar[str] = "inventory.part_stock.changed"
+    aggregate_type: ClassVar[str] = PART_AGGREGATE
+    audience: ClassVar[frozenset[str]] = STAFF_AUDIENCE
+
+    part_number: str
+    reason: str
+    quantity: int
+    location_code: str | None
+    previous_location_code: str | None
+
+    def public_payload(self) -> JsonObject:
+        return {
+            "part_id": str(self.aggregate_id),
+            "part_number": self.part_number,
+            "reason": self.reason,
+            "quantity": self.quantity,
+            "location_code": self.location_code,
+            "previous_location_code": self.previous_location_code,
+        }
+
+
+@domain_event
+@dataclass(frozen=True, kw_only=True)
+class PartsArrived(DomainEvent):
+    """The good parts of a finished plate wait in the receiving area; the aggregate is the job."""
+
+    event_type: ClassVar[str] = "inventory.parts.arrived"
+    aggregate_type: ClassVar[str] = PRINT_JOB_RECEIPT_AGGREGATE
+    audience: ClassVar[frozenset[str]] = STAFF_AUDIENCE
+
+    number: int
+    """The print job's number (Druck 17)."""
+    parts: int
+
+    def public_payload(self) -> JsonObject:
+        return {"job_id": str(self.aggregate_id), "number": self.number, "parts": self.parts}

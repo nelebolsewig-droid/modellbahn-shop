@@ -6,7 +6,10 @@ from typing import Any, Final
 from fastapi import FastAPI
 
 from modellbahn.modules.inventory.domain.errors import (
+    BillOfMaterialsMissingError,
+    InsufficientPartsError,
     InvalidFieldError,
+    InvalidReceiptStateError,
     InvalidUnitStateError,
     LocationCodeTakenError,
     LocationInUseError,
@@ -14,7 +17,9 @@ from modellbahn.modules.inventory.domain.errors import (
     LocationNotFoundError,
     OrderNotAllocatableError,
     OrderNotFoundError,
+    PartNotFoundError,
     ProductNotFoundError,
+    ReceiptNotFoundError,
     ScanIdReusedError,
     ScanNotFoundError,
     ScanNotUndoableError,
@@ -73,6 +78,19 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     ScanNotFoundError: lambda _: NotFoundError("The scan does not exist.", code="scan_not_found"),
     ScanNotUndoableError: lambda error: ConflictError(
         f"The scan cannot be undone: {error.reason}.", code=f"scan_{error.reason}"
+    ),
+    PartNotFoundError: lambda _: NotFoundError("The part does not exist.", code="part_not_found"),
+    ReceiptNotFoundError: lambda _: NotFoundError(
+        "The receipt does not exist.", code="receipt_not_found"
+    ),
+    InvalidReceiptStateError: lambda error: ConflictError(
+        f"The receipt does not allow this: {error}.", code="invalid_receipt_state"
+    ),
+    InsufficientPartsError: lambda _: ConflictError(
+        "Not enough parts in stock for this.", code="parts_missing"
+    ),
+    BillOfMaterialsMissingError: lambda _: ConflictError(
+        "The product has no bill of materials in this scale.", code="no_bill_of_materials"
     ),
 }
 

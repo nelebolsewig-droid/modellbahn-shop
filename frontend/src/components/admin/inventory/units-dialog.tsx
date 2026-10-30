@@ -162,7 +162,7 @@ function RecordUnits({
 }
 
 /** Find the product by name or number, then pick scale and finish. */
-function VariantPicker({ onChoose, error }: { onChoose: (variant: ChosenVariant) => void; error?: string }) {
+export function VariantPicker({ onChoose, error }: { onChoose: (variant: ChosenVariant) => void; error?: string }) {
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim());
   const [productId, setProductId] = useState<string | null>(null);

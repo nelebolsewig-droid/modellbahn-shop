@@ -1,11 +1,12 @@
-"""What the inventory use cases share: the unit of work factory and the journal keeper."""
+"""What the inventory use cases share: the unit of work factory and the journal keepers."""
 
 from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID
 
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
-from modellbahn.modules.inventory.domain.events import StockChanged
+from modellbahn.modules.inventory.domain.errors import InvalidFieldError, LocationNotFoundError
+from modellbahn.modules.inventory.domain.events import PartStockChanged, StockChanged
 from modellbahn.modules.inventory.domain.model import (
     Allocation,
     LedgerEntry,
@@ -13,8 +14,23 @@ from modellbahn.modules.inventory.domain.model import (
     Movement,
     Unit,
 )
+from modellbahn.modules.inventory.domain.parts import (
+    PartLedgerEntry,
+    PartMovement,
+    PartMovementReason,
+)
 
 type UnitOfWorkFactory = Callable[[], InventoryUnitOfWork]
+
+
+async def resolve_location(uow: InventoryUnitOfWork, code: str, field: str) -> Location:
+    """The location with ``code`` that can hold goods; ``field`` names the input."""
+    location = await uow.locations.get_by_code(code.strip().upper())
+    if location is None:
+        raise LocationNotFoundError
+    if not location.holds_goods:
+        raise InvalidFieldError(field, "holds_no_goods", f"a {location.kind} holds no goods")
+    return location
 
 
 class Journal:
@@ -101,3 +117,80 @@ class Journal:
             if allocation is not None:
                 self._allocations[allocation_id] = allocation
         return allocation
+
+
+type _Way = tuple[UUID, PartMovementReason, UUID | None, UUID | None]
+
+
+class PartJournal:
+    """Books part movements inside one unit of work; :meth:`announce` tells the screens.
+
+    An assembly takes parts for every kit from every box, so the live events are summed
+    per part, reason and way: one event says "12 Schornsteine out of R02-F04-B12".
+    Entries refer to receipts, units and scans by foreign key; callers flush new rows of
+    those first.
+    """
+
+    def __init__(
+        self,
+        uow: InventoryUnitOfWork,
+        *,
+        staff_id: UUID | None,
+        now: datetime,
+        scan_id: UUID | None = None,
+    ) -> None:
+        self._uow = uow
+        self._staff_id = staff_id
+        self._scan_id = scan_id
+        self._now = now
+        self._ways: dict[_Way, int] = {}
+        self.booked: list[PartLedgerEntry] = []
+
+    def book(
+        self, movement: PartMovement, *, reverses: PartLedgerEntry | None = None
+    ) -> PartLedgerEntry:
+        entry = PartLedgerEntry.book(
+            movement,
+            scan_id=self._scan_id,
+            staff_id=self._staff_id,
+            now=self._now,
+            reverses_id=reverses.id if reverses is not None else None,
+        )
+        self._uow.part_ledger.add(entry)
+        self.booked.append(entry)
+        way = (
+            movement.part_id,
+            movement.reason,
+            movement.from_location_id,
+            movement.to_location_id,
+        )
+        self._ways[way] = self._ways.get(way, 0) + movement.quantity
+        return entry
+
+    async def announce(self) -> None:
+        """Publish what was booked since the last call, one event per part and way."""
+        if not self._ways:
+            return
+        parts = await self._uow.manufacturing.parts({way[0] for way in self._ways})
+        locations = await self._uow.locations.by_ids(
+            {place for way in self._ways for place in way[2:] if place is not None}
+        )
+
+        def code(location_id: UUID | None) -> str | None:
+            location = locations.get(location_id) if location_id is not None else None
+            return location.code if location is not None else None
+
+        for (part_id, reason, source, target), quantity in self._ways.items():
+            part = parts.get(part_id)
+            self._uow.publish(
+                PartStockChanged(
+                    aggregate_id=part_id,
+                    occurred_at=self._now,
+                    part_number=part.part_number if part is not None else "",
+                    reason=reason.value,
+                    quantity=quantity,
+                    location_code=code(target),
+                    previous_location_code=code(source),
+                )
+            )
+        self._ways.clear()

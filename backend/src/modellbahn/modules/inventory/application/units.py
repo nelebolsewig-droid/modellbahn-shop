@@ -5,12 +5,15 @@ from uuid import UUID
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.application.allocation import Allocator
-from modellbahn.modules.inventory.application.common import Journal, UnitOfWorkFactory
+from modellbahn.modules.inventory.application.common import (
+    Journal,
+    UnitOfWorkFactory,
+    resolve_location,
+)
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
 from modellbahn.modules.inventory.domain.codes import new_unit_code, normalize_unit_code
 from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
-    LocationNotFoundError,
     UnitNotFoundError,
     VariantNotFoundError,
 )
@@ -24,6 +27,7 @@ from modellbahn.modules.inventory.domain.model import (
     Unit,
     UnitStatus,
 )
+from modellbahn.modules.manufacturing.contracts.parts import PartInfo
 from modellbahn.platform.clock import Clock
 
 
@@ -48,10 +52,21 @@ class HistoryEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class AssembledPart:
+    """Parts that went into the unit, and the box they came from."""
+
+    part: PartInfo | None
+    quantity: int
+    location: Location | None
+
+
+@dataclass(frozen=True, slots=True)
 class UnitDetails:
     view: UnitView
     history: list[HistoryEntry]
     """Oldest first."""
+    parts: list[AssembledPart]
+    """What the unit was assembled from (empty for a unit labelled by hand)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,32 +131,18 @@ class UnitService:
         async with self._uow() as uow:
             if variant_id not in await uow.catalog.variants([variant_id]):
                 raise VariantNotFoundError
-            location = None
-            if location_code is not None:
-                location = await uow.locations.get_by_code(location_code.strip().upper())
-                if location is None:
-                    raise LocationNotFoundError
-                if not location.holds_goods:
-                    raise InvalidFieldError(
-                        "location_code", "holds_no_goods", f"a {location.kind} holds no goods"
-                    )
+            location = (
+                await resolve_location(uow, location_code, "location_code")
+                if location_code is not None
+                else None
+            )
             now = self._clock.now()
-            created: list[tuple[Unit, Movement]] = []
-            for code in await _fresh_codes(uow, quantity):
-                unit, labelled = Unit.label(variant_id=variant_id, code=code, now=now)
-                uow.units.add(unit)
-                created.append((unit, labelled))
-            await uow.flush()
             journal = Journal(uow, staff_id=staff_id, now=now)
-            allocator = Allocator(uow, journal)
-            for unit, labelled in created:
-                await journal.book(unit, labelled)
-                if location is not None:
-                    journal.know(location)
-                    await journal.book(unit, unit.put_away(location, now))
-                    await allocator.serve_backorder(unit)
+            units = await label_new_units(
+                uow, journal, variant_id=variant_id, quantity=quantity, location=location
+            )
             await uow.commit()
-            return await unit_views(uow, [unit for unit, _ in created])
+            return await unit_views(uow, units)
 
     async def details(self, code: str) -> UnitDetails:
         async with self._uow() as uow:
@@ -164,6 +165,19 @@ class UnitService:
                 {entry.allocation_id for entry in entries if entry.allocation_id is not None}
             )
             numbers = await uow.orders.numbers({a.order_id for a in allocations.values()})
+            taken = await uow.part_ledger.for_unit(unit.id)
+            part_infos = await uow.manufacturing.parts({entry.part_id for entry in taken})
+            locations |= await uow.locations.by_ids(
+                {entry.from_location_id for entry in taken if entry.from_location_id}
+            )
+        parts = [
+            AssembledPart(
+                part=part_infos.get(entry.part_id),
+                quantity=entry.quantity,
+                location=locations.get(entry.from_location_id) if entry.from_location_id else None,
+            )
+            for entry in taken
+        ]
         history = []
         for entry in entries:
             allocation = allocations.get(entry.allocation_id) if entry.allocation_id else None
@@ -180,7 +194,7 @@ class UnitService:
                     order_number=numbers.get(allocation.order_id) if allocation else None,
                 )
             )
-        return UnitDetails(view=view, history=history)
+        return UnitDetails(view=view, history=history, parts=parts)
 
     async def scrap(self, code: str, *, note: str, staff_id: UUID | None) -> UnitView:
         """Take a broken or lost unit out of the stock; an order it was promised to gets another."""
@@ -241,6 +255,36 @@ class UnitService:
         ]
         lines.sort(key=lambda line: (line.variant.title if line.variant else "", line.variant_id))
         return lines
+
+
+async def label_new_units(
+    uow: InventoryUnitOfWork,
+    journal: Journal,
+    *,
+    variant_id: UUID,
+    quantity: int,
+    location: Location | None,
+) -> list[Unit]:
+    """New units of a variant, labelled, and put away into ``location`` if there is one.
+
+    Put away at once, they serve orders waiting for the variant first. The units are
+    flushed, so journal entries of the caller may refer to them.
+    """
+    now = journal.now
+    created: list[tuple[Unit, Movement]] = []
+    for code in await _fresh_codes(uow, quantity):
+        unit, labelled = Unit.label(variant_id=variant_id, code=code, now=now)
+        uow.units.add(unit)
+        created.append((unit, labelled))
+    await uow.flush()
+    allocator = Allocator(uow, journal)
+    for unit, labelled in created:
+        await journal.book(unit, labelled)
+        if location is not None:
+            journal.know(location)
+            await journal.book(unit, unit.put_away(location, now))
+            await allocator.serve_backorder(unit)
+    return [unit for unit, _ in created]
 
 
 async def _fresh_codes(uow: InventoryUnitOfWork, quantity: int) -> list[str]:

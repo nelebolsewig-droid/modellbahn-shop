@@ -21,6 +21,8 @@ export interface LocationNodeOut {
   kind: LocationKind;
   name: string;
   parent_id: string | null;
+  /** Printed parts lying in this location itself. */
+  part_count: number;
   path: string;
   /** Units in this location and everything below it. */
   total_count: number;

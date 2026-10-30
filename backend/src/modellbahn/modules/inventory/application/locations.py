@@ -13,6 +13,8 @@ from modellbahn.modules.inventory.domain.errors import (
 )
 from modellbahn.modules.inventory.domain.events import LocationChanged
 from modellbahn.modules.inventory.domain.model import Location, LocationKind, Unit
+from modellbahn.modules.inventory.domain.parts import PartStock
+from modellbahn.modules.manufacturing.contracts.parts import PartInfo
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.uow import UniqueViolationError
 
@@ -26,6 +28,8 @@ class LocationNode:
     """Units lying in this location itself."""
     total_count: int
     """Units in this location and everything below it."""
+    part_count: int = 0
+    """Printed parts lying in this location itself."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +44,9 @@ class LocationContents:
     """Every location a listed unit lies in."""
     order_numbers: dict[UUID, str]
     """Order numbers of reserved units, by allocation id."""
+    parts: list[PartStock]
+    """Printed parts in the location and below it, by part number."""
+    part_infos: dict[UUID, PartInfo]
 
 
 class LocationService:
@@ -52,7 +59,8 @@ class LocationService:
         async with self._uow() as uow:
             locations = await uow.locations.tree()
             counts = await uow.locations.unit_counts()
-        return _nodes(locations, counts)
+            part_counts = await uow.part_stock.location_totals()
+        return _nodes(locations, counts, part_counts)
 
     async def create(
         self, *, parent_code: str | None, segment: str, kind: LocationKind, name: str
@@ -102,11 +110,15 @@ class LocationService:
             location = await uow.locations.get_by_code(code, for_update=True)
             if location is None:
                 raise LocationNotFoundError
-            if await uow.locations.has_children(location.id) or await uow.units.in_locations(
-                [location.id]
+            if (
+                await uow.locations.has_children(location.id)
+                or await uow.units.in_locations([location.id])
+                or await uow.part_stock.in_locations([location.id])
             ):
                 raise LocationNotEmptyError
-            if await uow.locations.in_journal(location.id):
+            if await uow.locations.in_journal(location.id) or await uow.part_ledger.mentions(
+                location.id
+            ):
                 raise LocationInUseError
             await uow.locations.delete(location)
             uow.publish(
@@ -126,6 +138,7 @@ class LocationService:
                 raise LocationNotFoundError
             subtree = await uow.locations.subtree(location)
             counts = await uow.locations.unit_counts()
+            part_counts = await uow.part_stock.location_totals()
             all_locations = await uow.locations.tree()
             ancestors = [
                 candidate
@@ -138,7 +151,15 @@ class LocationService:
                 [unit.allocation_id for unit in units if unit.allocation_id is not None]
             )
             numbers = await uow.orders.numbers({a.order_id for a in allocations.values()})
-        nodes = _nodes(subtree, counts)
+            parts = await uow.part_stock.in_locations([loc.id for loc in subtree])
+            part_infos = await uow.manufacturing.parts({entry.part_id for entry in parts})
+        nodes = _nodes(subtree, counts, part_counts)
+        parts.sort(
+            key=lambda entry: (
+                part_infos[entry.part_id].part_number if entry.part_id in part_infos else "",
+                entry.location_id,
+            )
+        )
         return LocationContents(
             node=nodes[0],
             ancestors=ancestors,
@@ -151,10 +172,14 @@ class LocationService:
                 for allocation_id, allocation in allocations.items()
                 if allocation.order_id in numbers
             },
+            parts=parts,
+            part_infos=part_infos,
         )
 
 
-def _nodes(locations: list[Location], counts: dict[UUID, int]) -> list[LocationNode]:
+def _nodes(
+    locations: list[Location], counts: dict[UUID, int], part_counts: dict[UUID, int]
+) -> list[LocationNode]:
     """Locations in path order with their own and their subtree's unit counts."""
     totals = {location.id: counts.get(location.id, 0) for location in locations}
     # Deepest first, so every child has added its total before its parent does.
@@ -166,6 +191,7 @@ def _nodes(locations: list[Location], counts: dict[UUID, int]) -> list[LocationN
             location=location,
             unit_count=counts.get(location.id, 0),
             total_count=totals[location.id],
+            part_count=part_counts.get(location.id, 0),
         )
         for location in locations
     ]

@@ -35,6 +35,7 @@ import { scrapSchema } from "@/lib/validation/inventory";
 
 import { MAY_MANAGE_STOCK } from "./inventory-overview";
 import { LabelPrinter } from "./label-printer";
+import { partHref } from "./parts-panels";
 
 /** One piece: what it is, where it lies, and every step it took through the workshop. */
 export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: string; staffRole: StaffRole; onStreamClosed: () => void }) {
@@ -98,6 +99,11 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
           <Panel title="Steckbrief" code="LG 22">
             <Facts unit={data} />
           </Panel>
+          {data.parts.length > 0 ? (
+            <Panel title="Aus diesen Teilen" code="LG 25">
+              <AssembledFrom unit={data} />
+            </Panel>
+          ) : null}
           {!gone ? (
             <Panel title="Etikett" code="LG 23">
               <p className="text-small text-ink-secondary">Abgerissen oder unlesbar? Gleicher Code, neues Etikett.</p>
@@ -112,6 +118,31 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
         </div>
       </div>
     </>
+  );
+}
+
+/** The parts the unit was assembled from, and the boxes they came out of. */
+function AssembledFrom({ unit }: { unit: UnitDetailsOut }) {
+  return (
+    <ul className="divide-y divide-line border-y border-line text-small">
+      {unit.parts.map((entry, index) => (
+        <li key={index} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2 py-2">
+          <span className="text-right tabular-nums">{entry.quantity} ×</span>
+          <span className="min-w-0">
+            {entry.part ? (
+              <Link href={partHref(entry.part.part_number)} className="block truncate hover:underline">
+                {entry.part.name}
+              </Link>
+            ) : (
+              <span className="block">Unbekanntes Teil</span>
+            )}
+            <span className="block truncate font-mono text-hint text-ink-tertiary">
+              {entry.location_code ? `aus ${entry.location_code}` : ""}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

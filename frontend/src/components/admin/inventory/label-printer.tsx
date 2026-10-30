@@ -47,12 +47,14 @@ function fileName(now: Date): string {
 type LabelPrinterProps = {
   unitCodes?: readonly string[];
   locationCodes?: readonly string[];
+  /** Labels for boxes of printed parts. */
+  partNumbers?: readonly string[];
   className?: string;
 };
 
 /** Choose the label stock, where to start on a used sheet, and get the PDF to print. */
-export function LabelPrinter({ unitCodes = [], locationCodes = [], className }: LabelPrinterProps) {
-  const count = unitCodes.length + locationCodes.length;
+export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers = [], className }: LabelPrinterProps) {
+  const count = unitCodes.length + locationCodes.length + partNumbers.length;
   // Rendered only in the browser (behind the staff session check), so storage is there.
   const [sheet, setSheet] = useState<LabelSheet>(rememberedSheet);
   const [skip, setSkip] = useState(0);
@@ -81,6 +83,7 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], className }: 
         skip: sheet === LabelSheet.a4_70x37 ? skip : 0,
         unit_codes: [...unitCodes],
         location_codes: [...locationCodes],
+        part_numbers: [...partNumbers],
       });
       setPdf({ url: URL.createObjectURL(blob), name: fileName(new Date()) });
     } catch (error) {

@@ -44,4 +44,7 @@ export const ScanOutMessage = {
   unit_not_stored: 'unit_not_stored',
   no_unit_to_store: 'no_unit_to_store',
   variant_not_in_stock: 'variant_not_in_stock',
+  part: 'part',
+  parts_stored: 'parts_stored',
+  no_parts_to_store: 'no_parts_to_store',
 } as const;

@@ -44,12 +44,14 @@ from modellbahn.modules.inventory.api.errors import (
     install_error_translations as install_inventory_error_translations,
 )
 from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.assembly import AssemblyService
 from modellbahn.modules.inventory.application.availability import AvailabilityService
 from modellbahn.modules.inventory.application.common import (
     UnitOfWorkFactory as InventoryUnitOfWorkFactory,
 )
 from modellbahn.modules.inventory.application.labels import LabelService
 from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.labels import ReportLabLabelRenderer
@@ -389,6 +391,8 @@ def _attach_inventory_services(
         uow_factory=uow_factory, renderer=ReportLabLabelRenderer()
     )
     app.state.availability_service = AvailabilityService(uow_factory=uow_factory)
+    app.state.part_store_service = PartStoreService(uow_factory=uow_factory, clock=clock)
+    app.state.assembly_service = AssemblyService(uow_factory=uow_factory, clock=clock)
 
 
 def _attach_manufacturing_services(

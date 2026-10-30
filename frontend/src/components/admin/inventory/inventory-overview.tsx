@@ -12,6 +12,8 @@ import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, stockEventOf } from "@/lib/rea
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 
 import { LocationPanel } from "./location-panel";
+import { useInventoryRefresh } from "./part-dialogs";
+import { PartStockPanel, ReceivingPanel } from "./parts-panels";
 import { StockPanel } from "./stock-panel";
 import { UnitsDialog } from "./units-dialog";
 
@@ -22,12 +24,17 @@ export const MAY_MANAGE_STOCK: ReadonlySet<StaffRole> = new Set(["owner", "staff
 export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: StaffRole; onStreamClosed: () => void }) {
   const queryClient = useQueryClient();
   const mayManage = MAY_MANAGE_STOCK.has(staffRole);
+  const refreshParts = useInventoryRefresh();
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
     eventTypes: INVENTORY_EVENT_TYPES,
     onMessage(data) {
       const event = stockEventOf(data);
       if (event === null) {
+        return;
+      }
+      if (event.partNumber !== null || event.type === "inventory.parts.arrived") {
+        refreshParts();
         return;
       }
       void queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
@@ -57,6 +64,11 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
             }
           />
         ) : null}
+        {mayManage ? (
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/admin/lager/montage">Montage</Link>
+          </Button>
+        ) : null}
         <Button asChild size="sm" variant="secondary">
           <Link href="/admin/scanner">Scanner öffnen</Link>
         </Button>
@@ -69,7 +81,11 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <StockPanel />
+        <div className="min-w-0 space-y-6">
+          <StockPanel />
+          <ReceivingPanel mayManage={mayManage} />
+          <PartStockPanel />
+        </div>
         <LocationPanel mayManage={mayManage} />
       </div>
     </>

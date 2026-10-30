@@ -12,6 +12,7 @@ import {
   LOCATION_KIND_LABELS,
   OUTCOME_LABELS,
   OUTCOME_TONES,
+  partCount,
   scanHeadline,
   UNIT_STATUS_LABELS,
 } from "@/lib/inventory/labels";
@@ -165,7 +166,7 @@ function Line({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: string; showLinks: boolean }) {
-  const { unit, location, variant, effect, progress, next_expected: next } = answer;
+  const { unit, location, variant, part, effect, part_effect: partEffect, progress, next_expected: next } = answer;
   const resolved = answer.resolved;
   const code =
     resolved === null ? null : resolved.kind === "unit" ? formatUnitCode(resolved.code) : resolved.code;
@@ -179,6 +180,10 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
             </Link>
           ) : showLinks && resolved?.kind === "location" ? (
             <Link href={`/admin/lager/plaetze/${resolved.code}` as Route} className="hover:underline">
+              {code}
+            </Link>
+          ) : showLinks && resolved?.kind === "part" ? (
+            <Link href={`/admin/lager/teile/${resolved.code}` as Route} className="hover:underline">
               {code}
             </Link>
           ) : (
@@ -215,8 +220,40 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
               {location.name || LOCATION_KIND_LABELS[location.kind]}
               <span className="ml-2 text-hint text-ink-tertiary">{LOCATION_KIND_LABELS[location.kind]}</span>
             </Line>
-            <Line label="Inhalt">{location.unit_count === 1 ? "1 Stück" : `${location.unit_count} Stück`}</Line>
+            <Line label="Inhalt">
+              {location.unit_count === 1 ? "1 Stück" : `${location.unit_count} Stück`}
+              {location.part_count > 0 ? `, ${partCount(location.part_count)}` : ""}
+            </Line>
           </>
+        ) : null}
+        {part ? (
+          <>
+            <Line label="Teil">
+              {part.name}
+              <span className="ml-2 text-hint whitespace-nowrap text-ink-tertiary">{part.scale_code}</span>
+            </Line>
+            <Line label="Bestand">
+              {partCount(part.total)}
+              {part.locations.length > 0 ? (
+                <span className="ml-2 font-mono text-hint text-ink-tertiary">
+                  {part.locations.map((place) => `${place.code} ${place.quantity}`).join(" · ")}
+                </span>
+              ) : null}
+            </Line>
+            {part.incoming > 0 ? <Line label="Wareneingang">{partCount(part.incoming)} warten auf eine Box</Line> : null}
+          </>
+        ) : null}
+        {partEffect && !answer.undone ? (
+          <Line label="Weg">
+            <span className="inline-flex flex-wrap items-center gap-2 font-mono">
+              <span className="text-ink-tertiary">
+                {partEffect.print_jobs.length > 0 ? `Druck ${partEffect.print_jobs.join(", ")}` : "Eingang"}
+              </span>
+              <span aria-label="nach">→</span>
+              <span className="font-medium">{partEffect.to_location}</span>
+              <span className="font-sans text-hint text-ink-tertiary">jetzt {partCount(partEffect.in_location)} hier</span>
+            </span>
+          </Line>
         ) : null}
         {effect && (effect.from_location || effect.to_location) && !answer.undone ? (
           <Line label="Weg">

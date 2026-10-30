@@ -29,12 +29,14 @@ from modellbahn.modules.identity.application.services import IdentityService, Un
 from modellbahn.modules.identity.infrastructure.mapping import start_mappers
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
 from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.assembly import AssemblyService
 from modellbahn.modules.inventory.application.availability import AvailabilityService
 from modellbahn.modules.inventory.application.common import (
     UnitOfWorkFactory as InventoryUnitOfWorkFactory,
 )
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
@@ -176,6 +178,9 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
+    "inventory.part_ledger",
+    "inventory.part_receipts",
+    "inventory.part_stock",
     "manufacturing.print_job_lines",
     "manufacturing.print_jobs",
     "manufacturing.bom_lines",
@@ -409,6 +414,16 @@ def availability(inventory_uow: InventoryUnitOfWorkFactory) -> AvailabilityServi
 
 
 @pytest.fixture
+def part_store(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> PartStoreService:
+    return PartStoreService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def assembly(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> AssemblyService:
+    return AssemblyService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
 def site_uow(session_factory: async_sessionmaker[AsyncSession]) -> SiteUnitOfWorkFactory:
     return site_uow_factory(session_factory)
 
@@ -501,6 +516,7 @@ def deliver(
     sales_handlers: SalesHandlers,
     site_handlers: SiteHandlers,
     allocation: AllocationService,
+    part_store: PartStoreService,
     sales_uow: SalesUnitOfWorkFactory,
     marketplace: Marketplace,
     clock: FixedClock,
@@ -511,7 +527,7 @@ def deliver(
     media_handlers.register(handlers)
     sales_handlers.register(handlers)
     site_handlers.register(handlers)
-    InventoryHandlers(allocation=allocation).register(handlers)
+    InventoryHandlers(allocation=allocation, parts=part_store).register(handlers)
     MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)
     MarketplaceHandlers(
         uow_factory=marketplace.uow_factory, orders=marketplace.orders, clock=clock

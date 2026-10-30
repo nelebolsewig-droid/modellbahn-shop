@@ -48,11 +48,18 @@ export const PROBLEM_MESSAGES: Messages = {
   material_not_found: "Dieses Material gibt es nicht (mehr).",
   material_in_use: "Aus diesem Material sind Teile. Archiviere es stattdessen.",
   part_not_found: "Dieses Teil gibt es nicht (mehr).",
-  part_in_use: "Das Teil steht in einer Stückliste oder wurde schon gedruckt. Archiviere es stattdessen.",
+  part_in_use:
+    "Das Teil steht in einer Stückliste, wurde schon gedruckt oder liegt im Lager. Archiviere es stattdessen.",
   print_job_not_found: "Diesen Druckauftrag gibt es nicht (mehr).",
   invalid_print_job_state: "Das geht im aktuellen Zustand des Druckauftrags nicht mehr. Die Ansicht ist gleich aktuell.",
   product_scale_has_bom:
     "Für diesen Maßstab gibt es eine Stückliste. Leere sie zuerst, dann lässt sich der Maßstab entfernen.",
+
+  // Parts store and assembly
+  receipt_not_found: "Diesen Eingang gibt es nicht (mehr).",
+  invalid_receipt_state: "Von diesem Eingang ist nichts mehr offen. Die Ansicht ist gleich aktuell.",
+  parts_missing: "Es fehlen Teile in den Boxen. Der Plan zeigt gleich, was noch fehlt.",
+  no_bill_of_materials: "Für diesen Artikel gibt es noch keine Stückliste. Lege sie im Produkt an.",
 
   // Fairs and the fair news
   fair_not_found: "Diese Messe gibt es nicht (mehr).",

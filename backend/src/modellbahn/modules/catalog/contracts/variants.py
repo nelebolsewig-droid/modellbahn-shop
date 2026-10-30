@@ -43,6 +43,8 @@ class SaleVariant:
     variant_id: UUID
     gtin: str
     product_id: UUID
+    product_scale_id: UUID
+    """The product in the variant's scale: its bill of materials says what a piece is made of."""
     product_slug: str
     product_name: str
     scale_code: str
@@ -106,6 +108,7 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
         await uow.session.execute(
             select(
                 variants.c.id,
+                variants.c.product_scale_id,
                 variants.c.sku,
                 variants.c.gtin,
                 variants.c.price_cents,
@@ -154,6 +157,7 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             variant_id=row.id,
             gtin=row.gtin,
             product_id=row.product_id,
+            product_scale_id=row.product_scale_id,
             product_slug=row.slug,
             product_name=row.name,
             scale_code=row.scale_code,
