@@ -364,7 +364,7 @@ async def update_product(
             **ACCESS,
             **PRODUCT_NOT_FOUND,
             **VERSIONED,
-            409: ["product_not_deletable", "variant_has_units"],
+            409: ["product_not_deletable", "variant_has_units", "product_scale_has_bom"],
         }
     ),
 )
@@ -484,7 +484,7 @@ async def update_product_scale(
             **ACCESS,
             **_SCALE_NOT_FOUND,
             **VERSIONED,
-            409: ["variant_has_units"],
+            409: ["variant_has_units", "product_scale_has_bom"],
             422: ["not_publishable"],
         }
     ),

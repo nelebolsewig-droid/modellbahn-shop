@@ -160,6 +160,8 @@ product_scales = Table(
     Column("weight_g", Integer),
     # One row per scale and product.
     UniqueConstraint("product_id", "scale_code"),
+    # Target of the bills of materials' key on (id, scale): their parts fit the scale.
+    UniqueConstraint("id", "scale_code"),
     CheckConstraint(
         "(length_mm IS NULL OR length_mm > 0) AND (width_mm IS NULL OR width_mm > 0) "
         "AND (height_mm IS NULL OR height_mm > 0)",

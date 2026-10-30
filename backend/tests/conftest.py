@@ -38,6 +38,19 @@ from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.manufacturing.application.jobs import PrintJobService
+from modellbahn.modules.manufacturing.application.parts import (
+    BomService,
+    MaterialService,
+    PartService,
+)
+from modellbahn.modules.manufacturing.application.ports import (
+    UnitOfWorkFactory as ManufacturingUnitOfWorkFactory,
+)
+from modellbahn.modules.manufacturing.application.printers import PrinterService
+from modellbahn.modules.manufacturing.infrastructure.repositories import (
+    manufacturing_uow_factory,
+)
 from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
 from modellbahn.modules.marketplace.application.marketplace import Marketplace
 from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
@@ -163,6 +176,14 @@ def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 # migration and stay; scales are reset to the migration's set (tests may change them).
 WRITABLE_TABLES = (
     "platform.outbox",
+    "manufacturing.print_job_lines",
+    "manufacturing.print_jobs",
+    "manufacturing.bom_lines",
+    "manufacturing.boms",
+    "manufacturing.parts",
+    "manufacturing.materials",
+    "manufacturing.printer_status_reports",
+    "manufacturing.printers",
     "marketplace.test_sales",
     "marketplace.marketplace_order_lines",
     "marketplace.marketplace_orders",
@@ -414,6 +435,46 @@ def site_handlers(
         shop_name=SHOP_NAME,
         sender=IMPRINT_FOOTER,
     )
+
+
+@pytest.fixture
+def manufacturing_uow(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> ManufacturingUnitOfWorkFactory:
+    return manufacturing_uow_factory(session_factory)
+
+
+@pytest.fixture
+def printer_service(
+    manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock
+) -> PrinterService:
+    return PrinterService(uow_factory=manufacturing_uow, clock=clock)
+
+
+@pytest.fixture
+def material_service(
+    manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock
+) -> MaterialService:
+    return MaterialService(uow_factory=manufacturing_uow, clock=clock)
+
+
+@pytest.fixture
+def part_service(
+    manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock
+) -> PartService:
+    return PartService(uow_factory=manufacturing_uow, clock=clock)
+
+
+@pytest.fixture
+def bom_service(manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock) -> BomService:
+    return BomService(uow_factory=manufacturing_uow, clock=clock)
+
+
+@pytest.fixture
+def print_jobs(
+    manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock
+) -> PrintJobService:
+    return PrintJobService(uow_factory=manufacturing_uow, clock=clock)
 
 
 @pytest.fixture

@@ -25,6 +25,7 @@ from modellbahn.modules.catalog.domain.errors import (
     InvalidFieldError,
     ProductNotFoundError,
     ProductNotPublishableError,
+    ProductScaleHasBomError,
     ProductScaleNotFoundError,
     PublishBlocker,
     ScaleAlreadyAddedError,
@@ -71,6 +72,7 @@ STORE_PAGE_MAX: Final = 48
 _ATTACHABLE: Final = frozenset({AssetStatus.UPLOADED, AssetStatus.READY})
 # Unique constraints that stand for a rule of the model.
 _UNITS_OF_VARIANT: Final = "fk_units_variant_id_variants"
+_BOM_OF_PRODUCT_SCALE: Final = "fk_boms_product_scale_id_scale_code_product_scales"
 _UNIQUE_RULES: Final[dict[str, type[Exception]]] = {
     "uq_products_slug": SlugTakenError,
     "uq_categories_slug": SlugTakenError,
@@ -742,9 +744,12 @@ async def _commit(uow: CatalogUnitOfWork) -> None:
         raise VersionMismatchError from exc
     except ForeignKeyViolationError as exc:
         # The inventory refers to variants it has units of; removing them would lose history.
-        if exc.constraint != _UNITS_OF_VARIANT:
-            raise
-        raise VariantHasUnitsError from exc
+        if exc.constraint == _UNITS_OF_VARIANT:
+            raise VariantHasUnitsError from exc
+        # Manufacturing refers to a product in a scale it has a bill of materials for.
+        if exc.constraint == _BOM_OF_PRODUCT_SCALE:
+            raise ProductScaleHasBomError from exc
+        raise
     except UniqueViolationError as exc:
         rule = _UNIQUE_RULES.get(exc.constraint or "")
         if rule is None:

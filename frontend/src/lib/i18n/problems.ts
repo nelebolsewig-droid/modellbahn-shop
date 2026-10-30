@@ -38,6 +38,22 @@ export const PROBLEM_MESSAGES: Messages = {
     "Nur Entwürfe, die nie im Shop waren, lassen sich löschen. Archiviere das Produkt stattdessen.",
   not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
 
+  // Manufacturing
+  printer_not_found: "Diesen Drucker gibt es nicht (mehr).",
+  printer_in_use: "Der Drucker hat schon gedruckt; er behält seinen Verlauf. Mustere ihn stattdessen aus.",
+  printer_busy: "Auf dem Drucker läuft gerade ein Druck. Nimm ihn zuerst vom Drucker.",
+  printer_not_in_service: "Der Drucker ist nicht in Betrieb. Melde ihn wieder in Betrieb, dann geht es los.",
+  printer_retired: "Der Drucker ist ausgemustert und nimmt keine Drucke mehr an.",
+  printer_has_queue: "Für den Drucker warten noch Drucke. Verschiebe oder streiche sie zuerst.",
+  material_not_found: "Dieses Material gibt es nicht (mehr).",
+  material_in_use: "Aus diesem Material sind Teile. Archiviere es stattdessen.",
+  part_not_found: "Dieses Teil gibt es nicht (mehr).",
+  part_in_use: "Das Teil steht in einer Stückliste oder wurde schon gedruckt. Archiviere es stattdessen.",
+  print_job_not_found: "Diesen Druckauftrag gibt es nicht (mehr).",
+  invalid_print_job_state: "Das geht im aktuellen Zustand des Druckauftrags nicht mehr. Die Ansicht ist gleich aktuell.",
+  product_scale_has_bom:
+    "Für diesen Maßstab gibt es eine Stückliste. Leere sie zuerst, dann lässt sich der Maßstab entfernen.",
+
   // Fairs and the fair news
   fair_not_found: "Diese Messe gibt es nicht (mehr).",
   fair_not_published: "Erst veröffentlichen, dann ankündigen: Die Mail verlinkt die Terminseite.",
@@ -168,6 +184,11 @@ export const FIELD_MESSAGES: Messages = {
   holds_no_goods: "In diesen Lagerplatz kommt keine Ware: nur Fächer, Boxen und Ablagen nehmen Ware auf.",
   not_colored: "Ein Bausatz kommt ohne Farbe. Farben gibt es nur beim Fertigmodell.",
   not_offered: "Diese Ausführung bieten wir nicht mehr an.",
+  wrong_scale: "Das Teil gehört zu einem anderen Maßstab.",
+  wrong_technology: "Das passt nicht zur Drucktechnik (Filament oder Resin).",
+  archived: "Dieses Teil ist archiviert und wird nicht mehr gedruckt.",
+  incomplete: "Bitte alle drei Maße angeben oder keines.",
+  too_many: "Das sind zu viele Einträge.",
 };
 
 const PASSWORD_MESSAGES: Messages = {

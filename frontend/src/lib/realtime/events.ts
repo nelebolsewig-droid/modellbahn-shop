@@ -22,6 +22,9 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
   "inventory.allocation.backordered": "Stück muss gefertigt werden",
+  "manufacturing.printer.status_changed": "Druckerzustand gemeldet",
+  "manufacturing.print_job.completed": "Druck fertig",
+  "manufacturing.print_job.failed": "Fehldruck",
   "site.fair.announced": "Messe angekündigt",
 } as const satisfies Record<string, string>;
 
@@ -45,6 +48,18 @@ export const INVENTORY_EVENT_TYPES = [
   "inventory.stock.changed",
   "inventory.location.changed",
   "inventory.allocation.backordered",
+] as const;
+
+/**
+ * The manufacturing events, for the printer hall. Queuing, starting and taking off a
+ * plate stay out of the feed on the start page; reports, finished and failed plates
+ * show up there.
+ */
+export const MANUFACTURING_EVENT_TYPES = [
+  "manufacturing.printer.status_changed",
+  "manufacturing.print_job.changed",
+  "manufacturing.print_job.completed",
+  "manufacturing.print_job.failed",
 ] as const;
 
 export type StaffEventType = keyof typeof STAFF_EVENT_LABELS;
@@ -71,6 +86,19 @@ const productPayloadSchema = z.object({ product_id: z.string(), name: z.string()
 
 /** Public payload of the fair events. */
 const fairPayloadSchema = z.object({ fair_id: z.string(), name: z.string() });
+
+/** Public payload of a printer's report: its code and its new state. */
+const printerPayloadSchema = z.object({ printer_id: z.string(), code: z.string(), status: z.string() });
+
+/** Public payload of the print job events: the job's number and its printer. */
+const printJobPayloadSchema = z.object({ job_id: z.string(), number: z.number().int(), printer_code: z.string() });
+
+const PRINTER_STATE_NAMES: Readonly<Record<string, string>> = {
+  in_service: "in Betrieb",
+  defective: "defekt",
+  in_repair: "in Reparatur",
+  retired: "ausgemustert",
+};
 
 /** Public payload of the order events: number and total, never the customer's data. */
 const orderPayloadSchema = z.object({
@@ -129,6 +157,8 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
   const product = productPayloadSchema.safeParse(event.data);
   const order = orderPayloadSchema.safeParse(event.data);
   const fair = fairPayloadSchema.safeParse(event.data);
+  const printer = printerPayloadSchema.safeParse(event.data);
+  const printJob = printJobPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
@@ -139,6 +169,10 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
     }),
     ...(product.success && { subject: product.data.name }),
     ...(fair.success && { subject: fair.data.name }),
+    ...(printer.success && {
+      subject: `${printer.data.code} · ${PRINTER_STATE_NAMES[printer.data.status] ?? printer.data.status}`,
+    }),
+    ...(printJob.success && { subject: `Druck ${printJob.data.number} · ${printJob.data.printer_code}` }),
     ...(order.success && {
       subject: `${order.data.number} · ${euro.format(order.data.total_cents / 100)}`,
     }),
@@ -208,4 +242,9 @@ export function mergeFeed(entries: readonly FeedEntry[], entry: FeedEntry, limit
   }
   // Event ids are UUIDv7 and therefore ordered by time.
   return [entry, ...entries].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, limit);
+}
+
+/** That an SSE message is a manufacturing event: the printer hall reloads on any of them. */
+export function isManufacturingEvent(raw: string): boolean {
+  return eventOf(raw, z.record(z.string(), z.unknown()))?.type.startsWith("manufacturing.") ?? false;
 }

@@ -19,6 +19,7 @@ from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityU
 from modellbahn.modules.inventory.application.allocation import AllocationService
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.manufacturing.contracts import events as manufacturing_events
 from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
 from modellbahn.modules.marketplace.contracts import events as marketplace_events
 from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
@@ -58,7 +59,7 @@ PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
 EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
 # The marketplace's events stay readable with MB_EBAY_MODE=off (the setting may change).
-FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events)
+FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events, manufacturing_events)
 
 
 async def run_worker(
