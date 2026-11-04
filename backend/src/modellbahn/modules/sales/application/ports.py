@@ -22,6 +22,7 @@ from modellbahn.modules.sales.domain.model import (
     PaymentOutcome,
     PaymentStart,
 )
+from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.events import DomainEvent
 
@@ -91,6 +92,16 @@ class OrderRepository(Protocol):
         self, provider: str, started_before: datetime, limit: int
     ) -> list[UUID]:
         """Orders with a payment on this provider's page begun before the cut-off, oldest first."""
+        ...
+
+
+class WithdrawalRepository(Protocol):
+    def add(self, withdrawal: Withdrawal) -> None: ...
+
+    async def get(self, withdrawal_id: UUID) -> Withdrawal | None: ...
+
+    async def recent(self, *, limit: int, order_id: UUID | None = None) -> list[Withdrawal]:
+        """The latest declarations first; only those naming the order, if one is given."""
         ...
 
 
@@ -223,6 +234,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def addresses(self) -> AddressRepository: ...
+
+    @property
+    def withdrawals(self) -> WithdrawalRepository: ...
 
     @property
     def catalog(self) -> Catalog: ...

@@ -38,7 +38,9 @@ import type {
   PaymentIn,
   PaymentProviderOut,
   Problem,
-  ValidationProblem
+  ValidationProblem,
+  WithdrawalIn,
+  WithdrawalReceiptOut
 } from '../model';
 
 import { apiFetch } from '../../fetcher';
@@ -784,3 +786,93 @@ export function useGetPaymentProvider<TData = Awaited<ReturnType<typeof getPayme
 
 
 
+export const getWithdrawContractUrl = () => {
+
+
+
+
+  return `/api/v1/store/withdrawals`
+}
+
+/**
+ * Takes every declaration, whether or not the number fits an order, and answers the
+ * same either way; staff judge it. The confirmation of receipt goes out by e-mail at once,
+ * with what came in and when.
+ * @summary Withdraw from a contract: the shop's withdrawal function (§ 356a BGB)
+ */
+export const withdrawContract = async (withdrawalIn: WithdrawalIn, options?: Parameters<typeof apiFetch>[1]): Promise<WithdrawalReceiptOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<WithdrawalReceiptOut>(getWithdrawContractUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(withdrawalIn)
+  }
+);}
+
+
+
+
+
+export const getWithdrawContractMutationKey = () => ['withdrawContract'] as const;
+
+export const getWithdrawContractMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawContract>>, TError,WithdrawContractMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawContract>>, TError,WithdrawContractMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawContractMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawContract>>, WithdrawContractMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  withdrawContract(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawContractMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawContract>>>
+    export type WithdrawContractMutationBody = WithdrawalIn
+    export type WithdrawContractMutationError = ErrorType<Problem | ValidationProblem>
+    export type WithdrawContractMutationVariables = {data: WithdrawalIn}
+
+    /**
+ * @summary Withdraw from a contract: the shop's withdrawal function (§ 356a BGB)
+ */
+export const useWithdrawContract = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawContract>>, TError,WithdrawContractMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawContract>>,
+        TError,
+        WithdrawContractMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawContractMutationOptions(options), queryClient);
+    }

@@ -248,3 +248,23 @@ customer_addresses = Table(
     Index("customer_addresses_account_idx", "account_id"),
     schema=SCHEMA,
 )
+
+
+# Declarations of withdrawal (§ 356a BGB, ADR 0020), kept as they came in.
+withdrawals = Table(
+    "withdrawals",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("name", Text, nullable=False),
+    Column("order_reference", Text, nullable=False),
+    Column("email", Text, nullable=False),
+    Column("scope", Text, nullable=False, server_default=text("''")),
+    # Set when number and e-mail address fit an order; orders are never deleted.
+    Column("order_id", Uuid, ForeignKey(orders.c.id, ondelete="RESTRICT")),
+    CheckConstraint("name <> ''", name="name_not_empty"),
+    CheckConstraint("order_reference <> ''", name="order_reference_not_empty"),
+    Index("withdrawals_received_idx", "received_at"),
+    Index("withdrawals_order_idx", "order_id"),
+    schema=SCHEMA,
+)

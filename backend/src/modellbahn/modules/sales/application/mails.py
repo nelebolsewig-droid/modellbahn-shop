@@ -5,11 +5,13 @@ from typing import Final
 from zoneinfo import ZoneInfo
 
 from modellbahn.modules.sales.domain.model import CancelReason, Order
+from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.mail import MailAction, MailContent, MailRow
 
 ORDER_STATUS_PATH: Final = "/bestellung"
 FAIRS_PATH: Final = "/termine"
+ADMIN_ORDERS_PATH: Final = "/admin/bestellungen"
 SHOP_TIME_ZONE: Final = ZoneInfo("Europe/Berlin")
 
 
@@ -148,4 +150,79 @@ def cancelled_mail(order: Order, *, base_url: str, refunded: bool) -> MailConten
         paragraphs=tuple(paragraphs),
         action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
         closing=("Bei Fragen antworte nicht auf diese E-Mail, sondern schreib uns über den Shop.",),
+    )
+
+
+def _received(withdrawal: Withdrawal) -> str:
+    """``04.11.2026 um 15:42 Uhr``: when the declaration came in, in the shop's time zone."""
+    local = withdrawal.received_at.astimezone(SHOP_TIME_ZONE)
+    return f"{local:%d.%m.%Y} um {local:%H:%M} Uhr"
+
+
+def _declared(withdrawal: Withdrawal) -> tuple[list[MailRow], str]:
+    """What the consumer declared, as the confirmation repeats it (§ 356a Abs. 4 BGB)."""
+    rows = [
+        MailRow("Name", withdrawal.name),
+        MailRow("Bestellnummer", withdrawal.order_reference),
+        MailRow("E-Mail-Adresse", withdrawal.email),
+        MailRow("Eingegangen am", _received(withdrawal), strong=True),
+    ]
+    scope = (
+        "Widerrufen: die ganze Bestellung."
+        if withdrawal.whole_order
+        else f"Widerrufen: {withdrawal.scope}"
+    )
+    return rows, scope
+
+
+def withdrawal_receipt_mail(withdrawal: Withdrawal) -> MailContent:
+    """The confirmation of receipt on a durable medium: what came in, and when.
+
+    It repeats only what the consumer entered, so it tells nobody whether an order with
+    that number exists.
+    """
+    rows, scope = _declared(withdrawal)
+    return MailContent(
+        subject=f"Eingangsbestätigung: dein Widerruf zu Bestellung {withdrawal.order_reference}",
+        greeting=f"Hallo {withdrawal.name},",
+        paragraphs=(
+            f"dein Widerruf ist am {_received(withdrawal)} bei uns eingegangen. Diese E-Mail "
+            "bestätigt den Eingang. Das hast du uns übermittelt:",
+            scope,
+        ),
+        rows=rows,
+        closing=(
+            "Ist die Ware schon bei dir, schick sie bitte innerhalb von 14 Tagen an die "
+            "Anschrift am Ende dieser E-Mail. Die Kosten der Rücksendung trägst du.",
+            "Den Kaufpreis und die Versandkosten erstatten wir dir spätestens 14 Tage nach "
+            "Eingang deines Widerrufs, auf dem Weg, auf dem du bezahlt hast. Wir dürfen damit "
+            "warten, bis die Ware wieder bei uns ist oder du die Rücksendung nachweist. Ist die "
+            "Bestellung noch nicht verschickt, stornieren wir sie.",
+            "Bewahre diese E-Mail auf: Sie belegt, wann dein Widerruf eingegangen ist.",
+        ),
+    )
+
+
+def withdrawal_notice_mail(withdrawal: Withdrawal, *, base_url: str) -> MailContent:
+    """The shop's notice: a withdrawal came in, and whether it names one of its orders."""
+    rows, scope = _declared(withdrawal)
+    if withdrawal.order_id is not None:
+        match = "Nummer und E-Mail-Adresse passen zu einer Bestellung des Shops."
+        link = f"{base_url}{ADMIN_ORDERS_PATH}/{withdrawal.order_id}"
+    else:
+        match = (
+            "Zu Nummer und E-Mail-Adresse passt keine Bestellung des Shops. Bitte von Hand "
+            "prüfen, etwa ob es um einen Kauf auf eBay geht."
+        )
+        link = f"{base_url}{ADMIN_ORDERS_PATH}"
+    return MailContent(
+        subject=f"Widerruf eingegangen: {withdrawal.order_reference}",
+        greeting="Hallo,",
+        paragraphs=(
+            "über die Widerrufsfunktion des Shops ist ein Widerruf eingegangen:",
+            scope,
+        ),
+        rows=rows,
+        action=MailAction(label="Im Stellwerk ansehen", url=link),
+        closing=(match, "Die Eingangsbestätigung ist an die angegebene E-Mail-Adresse gegangen."),
     )

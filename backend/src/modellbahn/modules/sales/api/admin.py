@@ -10,9 +10,17 @@ from modellbahn.modules.sales.api.deps import (
     OrderServiceDep,
     OrderShipper,
     OrderViewer,
+    WithdrawalServiceDep,
 )
 from modellbahn.modules.sales.api.errors import ORDER_NOT_FOUND, STAFF_ACCESS
-from modellbahn.modules.sales.api.schemas import AdminOrderOut, CancelIn, OrderPageOut, ShipIn
+from modellbahn.modules.sales.api.schemas import (
+    AdminOrderOut,
+    CancelIn,
+    OrderPageOut,
+    ShipIn,
+    WithdrawalListOut,
+    WithdrawalOut,
+)
 from modellbahn.modules.sales.domain.model import OrderStatus
 from modellbahn.platform.errors import problems
 
@@ -95,3 +103,24 @@ async def cancel_order(
     order_id: UUID, body: CancelIn, _: OrderManager, service: OrderServiceDep
 ) -> AdminOrderOut:
     return AdminOrderOut.from_details(await service.cancel(order_id, note=body.note))
+
+
+withdrawals_router = APIRouter(prefix="/admin/withdrawals", tags=["admin-sales"])
+
+
+@withdrawals_router.get(
+    "",
+    operation_id="listWithdrawals",
+    summary="Declarations of withdrawal, newest first (§ 356a BGB)",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def list_withdrawals(
+    _: OrderViewer,
+    service: WithdrawalServiceDep,
+    order_id: Annotated[
+        UUID | None, Query(description="Only the declarations that name this order.")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> WithdrawalListOut:
+    withdrawals = await service.recent(limit=limit, order_id=order_id)
+    return WithdrawalListOut(items=[WithdrawalOut.from_withdrawal(w) for w in withdrawals])

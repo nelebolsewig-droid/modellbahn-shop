@@ -74,6 +74,7 @@ from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import PaymentGateway
+from modellbahn.modules.sales.application.withdrawals import WithdrawalService
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.fairs import FairService
@@ -95,6 +96,9 @@ DEFAULT_POSTGRES_IMAGE = "postgres:17-alpine"
 PUBLIC_BASE_URL = "https://shop.test"
 SHOP_NAME = "Modellbahn-Shop"
 MEDIA_BASE_URL = "/medien"
+# Where the shop's own notices go (withdrawals).
+SHOP_EMAIL = "werkstatt@shop.test"
+
 # The sender lines the settings below produce (MB_IMPRINT_*).
 IMPRINT_FOOTER = (
     "adp-Modelle · Johann-Leon Diesterhaupt",
@@ -206,6 +210,7 @@ WRITABLE_TABLES = (
     "inventory.units",
     "inventory.allocations",
     "inventory.locations",
+    "sales.withdrawals",
     "sales.cart_lines",
     "sales.carts",
     "sales.payments",
@@ -375,6 +380,11 @@ def payments(
 
 
 @pytest.fixture
+def withdrawals(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> WithdrawalService:
+    return WithdrawalService(uow_factory=sales_uow, clock=clock)
+
+
+@pytest.fixture
 def addresses(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> AddressService:
     return AddressService(uow_factory=sales_uow, clock=clock)
 
@@ -389,6 +399,7 @@ def sales_handlers(
         clock=clock,
         public_base_url=PUBLIC_BASE_URL,
         shop_name=SHOP_NAME,
+        shop_email=SHOP_EMAIL,
     )
 
 

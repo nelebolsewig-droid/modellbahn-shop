@@ -17,6 +17,7 @@ from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
 from modellbahn.modules.sales.domain.model import (
     CANCEL_NOTE_MAX_LENGTH,
     CARRIER_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
     LINE_MAX_QUANTITY,
     SHIPPING_ZONES,
     TRACKING_NUMBER_MAX_LENGTH,
@@ -30,6 +31,12 @@ from modellbahn.modules.sales.domain.model import (
     PostalAddress,
     SalesChannel,
     ShippingZone,
+)
+from modellbahn.modules.sales.domain.withdrawals import (
+    ORDER_REFERENCE_MAX_LENGTH,
+    WITHDRAWAL_NAME_MAX_LENGTH,
+    WITHDRAWAL_SCOPE_MAX_LENGTH,
+    Withdrawal,
 )
 from modellbahn.platform.config import PaymentProvider
 
@@ -482,3 +489,68 @@ class CustomerAddressPatchIn(_Request):
     label: str | None = Field(default=None, max_length=100)
     address: AddressIn | None = None
     is_default: bool = False
+
+
+# --- Withdrawals (§ 356a BGB) ----------------------------------------------------------
+
+
+class WithdrawalIn(_Request):
+    """What the withdrawal function asks for: who, which contract, where to confirm."""
+
+    name: str = Field(min_length=1, max_length=WITHDRAWAL_NAME_MAX_LENGTH)
+    order_number: str = Field(
+        min_length=1, max_length=ORDER_REFERENCE_MAX_LENGTH, examples=["MB-2026-00042"]
+    )
+    email: str = Field(
+        min_length=3,
+        max_length=EMAIL_MAX_LENGTH,
+        description="The address the confirmation of receipt goes to.",
+    )
+    scope: str = Field(
+        default="",
+        max_length=WITHDRAWAL_SCOPE_MAX_LENGTH,
+        description="Only some of the articles: which ones. Empty withdraws the whole order.",
+    )
+
+
+class WithdrawalReceiptOut(BaseModel):
+    """What came in and when; the same goes out by e-mail as the confirmation of receipt."""
+
+    received_at: datetime
+    name: str
+    order_number: str
+    email: str
+    scope: str
+
+    @classmethod
+    def from_withdrawal(cls, withdrawal: Withdrawal) -> Self:
+        return cls(
+            received_at=withdrawal.received_at,
+            name=withdrawal.name,
+            order_number=withdrawal.order_reference,
+            email=withdrawal.email,
+            scope=withdrawal.scope,
+        )
+
+
+class WithdrawalOut(WithdrawalReceiptOut):
+    """A declaration in the admin area; ``order_id`` is set when it fits an order."""
+
+    id: UUID
+    order_id: UUID | None
+
+    @classmethod
+    def from_withdrawal(cls, withdrawal: Withdrawal) -> Self:
+        return cls(
+            id=withdrawal.id,
+            received_at=withdrawal.received_at,
+            name=withdrawal.name,
+            order_number=withdrawal.order_reference,
+            email=withdrawal.email,
+            scope=withdrawal.scope,
+            order_id=withdrawal.order_id,
+        )
+
+
+class WithdrawalListOut(BaseModel):
+    items: list[WithdrawalOut]
