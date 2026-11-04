@@ -38,6 +38,8 @@ export interface AdminOrderOut {
   paid_at: string | null;
   /** Until when a pending order can be paid; afterwards it is cancelled. */
   payment_due_at: string | null;
+  /** The provider's page where a payment that was begun is still open (``syncOrderPayment`` asks the provider how it went). */
+  payment_url: string | null;
   payments: PaymentOut[];
   placed_at: string;
   public_token: string;

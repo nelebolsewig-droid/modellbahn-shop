@@ -27,6 +27,7 @@ export const CANCEL_REASON_LABELS = {
 } as const satisfies Record<CancelReason, string>;
 
 export const PAYMENT_STATUS_LABELS = {
+  pending: "Offen bei SumUp",
   captured: "Bezahlt",
   failed: "Abgelehnt",
   refunded: "Erstattet",

@@ -16,10 +16,11 @@ from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder
 from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.sales.domain.model import (
     Cart,
-    ChargeResult,
     CustomerAddress,
     Order,
     OrderStatus,
+    PaymentOutcome,
+    PaymentStart,
 )
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.events import DomainEvent
@@ -80,6 +81,14 @@ class OrderRepository(Protocol):
 
     async def overdue_ids(self, placed_before: datetime, limit: int) -> list[UUID]:
         """Orders still waiting for their payment that were placed before the cut-off."""
+        ...
+
+    async def id_by_payment(self, provider: str, provider_ref: str) -> UUID | None:
+        """The order of the provider's payment, if it is one of ours."""
+        ...
+
+    async def pending_payment_ids(self, started_before: datetime, limit: int) -> list[UUID]:
+        """Orders with a payment on the provider's page started before the cut-off, oldest first."""
         ...
 
 
@@ -145,18 +154,60 @@ class Marketplace(Protocol):
     async def received_order(self, marketplace_order_id: UUID) -> ReceivedOrder | None: ...
 
 
-class PaymentGateway(Protocol):
-    """The payment provider behind an anti-corruption layer (KONZEPT §2.6).
+@dataclass(frozen=True, slots=True)
+class PaymentRequest:
+    """What the provider needs to begin a payment for an order."""
 
-    Both methods raise :class:`~modellbahn.modules.sales.domain.errors.PaymentUnavailableError`
+    payment_id: UUID
+    """Our id of the payment attempt; the provider keeps it as its reference."""
+    order_number: str
+    amount_cents: int
+    method: str
+    """The test payment's chosen outcome; SumUp ignores it (the customer chooses there)."""
+    return_url: str
+    """Where the customer comes back to after paying on the provider's page."""
+    valid_until: datetime
+    """After this the provider's page no longer takes the payment (the order is given up)."""
+
+
+class PaymentGateway(Protocol):
+    """The payment provider behind an anti-corruption layer (KONZEPT §2.6, ADR 0019).
+
+    Every method raises :class:`~modellbahn.modules.sales.domain.errors.PaymentUnavailableError`
     if the provider cannot be reached; nothing has been charged or refunded then.
     """
 
-    async def charge(self, *, order_number: str, amount_cents: int, method: str) -> ChargeResult:
-        """Charge the amount; a declined payment is a result, not an error."""
+    @property
+    def provider(self) -> str:
+        """The name stored with each payment (``mock``, ``sumup``)."""
         ...
 
-    async def refund(self, *, provider_ref: str, amount_cents: int) -> None: ...
+    @property
+    def takes_payments(self) -> bool:
+        """False if no provider is connected: the shop then takes no orders."""
+        ...
+
+    async def begin(self, request: PaymentRequest) -> PaymentStart:
+        """Begin a payment, answered at once (declined too) or later on the provider page."""
+        ...
+
+    async def outcome(self, provider_ref: str) -> PaymentOutcome:
+        """The provider's current answer about a payment that went to its page."""
+        ...
+
+    async def abandon(self, provider_ref: str) -> None:
+        """Close the provider's page so that nothing can be paid there any more.
+
+        Also raises ``PaymentUnavailableError`` if the page was used meanwhile (paid or
+        failed): only :meth:`outcome` tells then what happened.
+        """
+        ...
+
+    async def refund(self, *, refund_ref: str, amount_cents: int) -> None: ...
+
+    async def aclose(self) -> None:
+        """Release the provider's connections (at shutdown)."""
+        ...
 
 
 class SalesUnitOfWork(Protocol):

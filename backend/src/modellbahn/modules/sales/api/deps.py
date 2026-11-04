@@ -19,6 +19,7 @@ from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.domain.model import CART_LIFETIME
 from modellbahn.platform.config import Settings
 from modellbahn.platform.http import app_state
@@ -45,6 +46,10 @@ def get_order_service(request: Request) -> OrderService:
     return app_state(request, "order_service", OrderService)
 
 
+def get_payment_service(request: Request) -> PaymentService:
+    return app_state(request, "payment_service", PaymentService)
+
+
 def get_address_service(request: Request) -> AddressService:
     return app_state(request, "address_service", AddressService)
 
@@ -57,6 +62,7 @@ CartServiceDep = Annotated[CartService, Depends(get_cart_service)]
 CheckoutServiceDep = Annotated[CheckoutService, Depends(get_checkout_service)]
 OrderServiceDep = Annotated[OrderService, Depends(get_order_service)]
 AddressServiceDep = Annotated[AddressService, Depends(get_address_service)]
+PaymentServiceDep = Annotated[PaymentService, Depends(get_payment_service)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 OptionalCustomer = Annotated[Customer | None, Depends(customer_or_none)]

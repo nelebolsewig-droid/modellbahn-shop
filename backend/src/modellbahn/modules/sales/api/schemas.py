@@ -31,6 +31,7 @@ from modellbahn.modules.sales.domain.model import (
     SalesChannel,
     ShippingZone,
 )
+from modellbahn.platform.config import PaymentProvider
 
 Cents = Annotated[int, Field(ge=0, examples=[8480])]
 
@@ -247,8 +248,22 @@ class CheckoutIn(_Request):
 
 
 class PaymentIn(_Request):
-    method: Literal["succeeds", "declined", "fails"] = Field(
-        description="Test payment: the outcome the mock provider simulates."
+    method: Literal["succeeds", "declined", "fails", "sumup"] = Field(
+        description=(
+            "``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment "
+            "takes the outcome the mock provider simulates. ``getPaymentProvider`` says which."
+        )
+    )
+
+
+class PaymentProviderOut(BaseModel):
+    """Who takes the shop's payments (ADR 0019)."""
+
+    provider: PaymentProvider = Field(
+        description=(
+            "``sumup``: the customer pays on SumUp's page; ``mock``: the test payment, nothing "
+            "is charged; ``off``: the shop takes no orders."
+        )
     )
 
 
@@ -320,6 +335,13 @@ class OrderOut(BaseModel):
     payment_due_at: datetime | None = Field(
         description="Until when a pending order can be paid; afterwards it is cancelled."
     )
+    payment_url: str | None = Field(
+        description=(
+            "The provider's page where a payment that was begun is still open "
+            "(``syncOrderPayment`` asks the provider how it went)."
+        ),
+        examples=["https://checkout.sumup.com/pay/c-1a2b3c"],
+    )
 
     @classmethod
     def from_details(cls, details: OrderDetails) -> Self:
@@ -341,6 +363,7 @@ class OrderOut(BaseModel):
             carrier=order.carrier,
             tracking_number=order.tracking_number,
             payment_due_at=order.payment_due_at,
+            payment_url=pending.checkout_url if (pending := order.pending_payment) else None,
         )
 
 

@@ -102,6 +102,7 @@ export function orderOut(overrides: Partial<OrderOut> = {}): OrderOut {
     carrier: "",
     tracking_number: "",
     payment_due_at: "2026-10-26T09:00:00Z",
+    payment_url: null,
     ...overrides,
   };
 }

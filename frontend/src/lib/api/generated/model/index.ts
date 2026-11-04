@@ -152,6 +152,8 @@ export * from './passwordResetConfirmIn';
 export * from './paymentIn';
 export * from './paymentInMethod';
 export * from './paymentOut';
+export * from './paymentProvider';
+export * from './paymentProviderOut';
 export * from './paymentStatus';
 export * from './pickItemOut';
 export * from './pickListOut';

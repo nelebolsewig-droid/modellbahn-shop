@@ -12,6 +12,7 @@ from modellbahn.modules.sales.api.deps import (
     IdempotencyKey,
     OptionalCustomer,
     OrderServiceDep,
+    PaymentServiceDep,
     SettingsDep,
     limit_checkouts,
     set_cart_cookie,
@@ -23,8 +24,10 @@ from modellbahn.modules.sales.api.schemas import (
     CheckoutIn,
     OrderOut,
     PaymentIn,
+    PaymentProviderOut,
 )
 from modellbahn.modules.sales.application.checkout import Buyer, CheckoutRequest, CheckoutResult
+from modellbahn.platform.config import PaymentProvider
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/store", tags=["store-sales"])
@@ -148,14 +151,24 @@ async def get_order(public_token: str, service: OrderServiceDep, response: Respo
     return OrderOut.from_details(await service.by_token(public_token))
 
 
+@router.get(
+    "/payment-provider",
+    operation_id="getPaymentProvider",
+    summary="Who takes the shop's payments: SumUp, the test payment, or nobody",
+    responses=problems({}, unsafe=False),
+)
+async def get_payment_provider(service: PaymentServiceDep) -> PaymentProviderOut:
+    return PaymentProviderOut(provider=PaymentProvider(service.provider))
+
+
 @router.post(
     "/orders/{public_token}/payments",
     operation_id="payOrder",
-    summary="Pay for an order (test payment with a chosen outcome)",
+    summary="Pay for an order: begin on SumUp's page, or the test payment's chosen outcome",
     responses=problems(
         {
             **ORDER_NOT_FOUND,
-            409: ["order_not_payable", "idempotency_key_reused"],
+            409: ["order_not_payable", "idempotency_key_reused", "checkout_closed"],
             503: ["payment_unavailable"],
         },
         rate_limited=True,
@@ -169,10 +182,27 @@ async def pay_order(
     service: CheckoutServiceDep,
     response: Response,
 ) -> OrderOut:
-    """A declined payment is recorded and answered with the order, still waiting for its
-    payment; a provider failure (503) records nothing. Repeating the request with the same
-    ``Idempotency-Key`` never charges twice."""
+    """With SumUp the order comes back with ``payment_url``, the page the customer pays on;
+    a page still open is reused. The test payment answers at once: a declined payment is
+    recorded, and the order still waits for its payment. A provider failure (503) records
+    nothing. Repeating the request with the same ``Idempotency-Key`` never charges twice."""
     result = await service.pay(
         public_token=public_token, method=body.method, idempotency_key=idempotency_key
     )
     return _answer(result, response)
+
+
+@router.post(
+    "/orders/{public_token}/payments/sync",
+    operation_id="syncOrderPayment",
+    summary="Back from the provider's page: ask it how the payment went",
+    responses=problems({**ORDER_NOT_FOUND, 503: ["payment_unavailable"]}, rate_limited=True),
+    dependencies=[Depends(limit_checkouts)],
+)
+async def sync_payment(
+    public_token: str, service: PaymentServiceDep, response: Response
+) -> OrderOut:
+    """The shop asks the provider itself; what the browser was told on the way back counts
+    for nothing. A payment that is still open keeps its ``payment_url``."""
+    _private(response)
+    return OrderOut.from_details(await service.sync(public_token))

@@ -10,6 +10,7 @@ from modellbahn.modules.sales.domain.errors import (
     AddressNotFoundError,
     CartFullError,
     CartItemsUnavailableError,
+    CheckoutClosedError,
     EmptyCartError,
     IdempotencyKeyReusedError,
     InsufficientStockError,
@@ -90,6 +91,10 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "The payment provider is not available; nothing was charged. Try again shortly.",
         code="payment_unavailable",
         headers={"Retry-After": _PAYMENT_RETRY_AFTER},
+    ),
+    CheckoutClosedError: lambda _: ConflictError(
+        "The shop takes no orders yet: no payment provider is connected.",
+        code="checkout_closed",
     ),
     AddressNotFoundError: lambda _: NotFoundError(
         "The address does not exist.", code="address_not_found"

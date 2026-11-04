@@ -175,6 +175,11 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/store/checkouts"): ("placeOrder", "store-sales"),
     ("GET", "/api/v1/store/orders/{public_token}"): ("getOrderByToken", "store-sales"),
     ("POST", "/api/v1/store/orders/{public_token}/payments"): ("payOrder", "store-sales"),
+    ("POST", "/api/v1/store/orders/{public_token}/payments/sync"): (
+        "syncOrderPayment",
+        "store-sales",
+    ),
+    ("GET", "/api/v1/store/payment-provider"): ("getPaymentProvider", "store-sales"),
     ("GET", "/api/v1/store/account/orders"): ("listMyOrders", "store-account"),
     ("GET", "/api/v1/store/account/orders/{number}"): ("getMyOrder", "store-account"),
     ("GET", "/api/v1/store/account/addresses"): ("listAddresses", "store-account"),

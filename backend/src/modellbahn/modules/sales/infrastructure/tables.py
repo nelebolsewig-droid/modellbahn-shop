@@ -194,12 +194,24 @@ payments = Table(
     Column("failure_code", Text),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
-    CheckConstraint("status IN ('captured', 'failed', 'refunded')", name="status"),
+    # The provider's page while the customer pays there (ADR 0019).
+    Column("checkout_url", Text),
+    # The provider's transaction of a captured payment, which a refund names.
+    Column("transaction_ref", Text),
+    CheckConstraint("status IN ('pending', 'captured', 'failed', 'refunded')", name="status"),
     CheckConstraint("amount_cents >= 0", name="amount_non_negative"),
     CheckConstraint("request_fingerprint ~ '^[0-9a-f]{64}$'", name="request_fingerprint_format"),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_code"),
+    CheckConstraint("(status = 'pending') = (checkout_url IS NOT NULL)", name="checkout_url"),
     Index("payments_provider_ref_idx", "provider", "provider_ref", unique=True),
     Index("payments_order_idx", "order_id"),
+    # One trip to the provider's page at a time; the open ones are what the worker checks.
+    Index(
+        "payments_one_pending_idx",
+        "order_id",
+        unique=True,
+        postgresql_where=text("status = 'pending'"),
+    ),
     schema=SCHEMA,
 )
 

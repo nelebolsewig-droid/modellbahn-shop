@@ -13,7 +13,7 @@
  */
 
 /**
- * Test payment: the outcome the mock provider simulates.
+ * ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which.
  */
 export type PaymentInMethod = typeof PaymentInMethod[keyof typeof PaymentInMethod];
 
@@ -22,4 +22,5 @@ export const PaymentInMethod = {
   succeeds: 'succeeds',
   declined: 'declined',
   fails: 'fails',
+  sumup: 'sumup',
 } as const;

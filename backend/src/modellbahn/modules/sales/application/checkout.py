@@ -4,6 +4,9 @@ Both requests carry an ``Idempotency-Key``. It is stored with the order or the p
 in the same transaction, together with a fingerprint of the request: repeating the
 request returns what the first one did, a different request with the same key is
 refused. A double click or a retry after a lost answer thus never orders or charges twice.
+
+With SumUp the payment begins here and ends on SumUp's page (ADR 0019): the order then
+carries a pending payment with the page's address, and :mod:`.payments` learns the outcome.
 """
 
 from dataclasses import asdict, dataclass
@@ -16,15 +19,22 @@ from modellbahn.modules.sales.application.common import (
     fingerprint,
     order_details,
 )
-from modellbahn.modules.sales.application.ports import PaymentGateway, SalesUnitOfWork
+from modellbahn.modules.sales.application.payments import settle
+from modellbahn.modules.sales.application.ports import (
+    PaymentGateway,
+    PaymentRequest,
+    SalesUnitOfWork,
+)
 from modellbahn.modules.sales.domain.errors import (
     AddressNotFoundError,
     CartItemsUnavailableError,
+    CheckoutClosedError,
     EmptyCartError,
     IdempotencyKeyReusedError,
     InsufficientStockError,
     InvalidFieldError,
     OrderNotFoundError,
+    OrderNotPayableError,
     PriceChangedError,
 )
 from modellbahn.modules.sales.domain.model import (
@@ -32,6 +42,8 @@ from modellbahn.modules.sales.domain.model import (
     Cart,
     CustomerAddress,
     Order,
+    OrderStatus,
+    PaymentStatus,
     PostalAddress,
     PricedItem,
     Totals,
@@ -39,6 +51,7 @@ from modellbahn.modules.sales.domain.model import (
     order_number,
 )
 from modellbahn.platform.clock import Clock
+from modellbahn.platform.ids import new_id
 from modellbahn.platform.security import generate_token
 from modellbahn.platform.uow import UniqueViolationError
 
@@ -93,13 +106,24 @@ class CheckoutResult:
     """True if the key was seen before and this is the first request's order."""
 
 
+def payment_page_path(public_token: str) -> str:
+    """The shop's payment page of an order; the customer comes back here from the provider."""
+    return f"/bestellung/{public_token}/bezahlen"
+
+
 class CheckoutService:
     def __init__(
-        self, *, uow_factory: UnitOfWorkFactory, clock: Clock, gateway: PaymentGateway
+        self,
+        *,
+        uow_factory: UnitOfWorkFactory,
+        clock: Clock,
+        gateway: PaymentGateway,
+        shop_url: str = "http://localhost:3000",
     ) -> None:
         self._uow = uow_factory
         self._clock = clock
         self._gateway = gateway
+        self._shop_url = shop_url.rstrip("/")
 
     async def place_order(
         self,
@@ -110,6 +134,9 @@ class CheckoutService:
         idempotency_key: UUID,
     ) -> CheckoutResult:
         """Order what is in the cart, at today's prices; the cart is empty afterwards."""
+        if not self._gateway.takes_payments:
+            # An order nobody can pay would only wait 24 hours to be cancelled.
+            raise CheckoutClosedError
         request_fingerprint = fingerprint(
             {
                 "cart": cart_id,
@@ -147,7 +174,11 @@ class CheckoutService:
             return replay
 
     async def pay(self, *, public_token: str, method: str, idempotency_key: UUID) -> CheckoutResult:
-        """Charge the order's total; a captured payment makes it binding."""
+        """Pay for the order: the test payment answers at once, SumUp on its page.
+
+        A payment still open on the provider's page is asked about first; if it is still
+        open, the order comes back with the same page instead of a second one.
+        """
         request_fingerprint = fingerprint({"order": public_token, "method": method})
         try:
             async with self._uow() as uow:
@@ -160,17 +191,26 @@ class CheckoutService:
                 if replay is not None:
                     return replay
                 # The row lock keeps a second payment attempt waiting until this one is
-                # recorded; record_payment then refuses an order that is no longer open.
-                result = await self._gateway.charge(
-                    order_number=order.number, amount_cents=order.total_cents, method=method
-                )
-                events = order.record_payment(
-                    result,
+                # recorded; the order then refuses a payment it no longer needs.
+                waiting = order.pending_payment
+                if waiting is not None:
+                    await settle(uow, order, self._gateway, self._clock)
+                    # Still open: the same page again. Paid there meanwhile: nothing to pay.
+                    if (
+                        waiting.status is PaymentStatus.PENDING
+                        or order.status is not OrderStatus.PENDING_PAYMENT
+                    ):
+                        await uow.commit()
+                        return CheckoutResult(
+                            details=await order_details(uow, order), replayed=False
+                        )
+                await self._begin(
+                    uow,
+                    order,
+                    method=method,
                     idempotency_key=idempotency_key,
                     request_fingerprint=request_fingerprint,
-                    now=self._clock.now(),
                 )
-                uow.publish(*events)
                 await uow.commit()
                 return CheckoutResult(details=await order_details(uow, order), replayed=False)
         except UniqueViolationError as exc:
@@ -185,6 +225,40 @@ class CheckoutService:
                 # The key was used for the payment of another order.
                 raise IdempotencyKeyReusedError from None
             return replay
+
+    async def _begin(
+        self,
+        uow: SalesUnitOfWork,
+        order: Order,
+        *,
+        method: str,
+        idempotency_key: UUID,
+        request_fingerprint: str,
+    ) -> None:
+        due = order.payment_due_at
+        if order.status is not OrderStatus.PENDING_PAYMENT or due is None:
+            # Paid meanwhile (perhaps on the provider's page just now), or given up.
+            raise OrderNotPayableError
+        payment_id = new_id()
+        start = await self._gateway.begin(
+            PaymentRequest(
+                payment_id=payment_id,
+                order_number=order.number,
+                amount_cents=order.total_cents,
+                method=method,
+                return_url=self._shop_url + payment_page_path(order.public_token),
+                valid_until=due,
+            )
+        )
+        uow.publish(
+            *order.start_payment(
+                start,
+                payment_id=payment_id,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                now=self._clock.now(),
+            )
+        )
 
     async def _place(
         self,

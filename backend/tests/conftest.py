@@ -72,6 +72,8 @@ from modellbahn.modules.sales.application.common import (
 from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.application.payments import PaymentService
+from modellbahn.modules.sales.application.ports import PaymentGateway
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.fairs import FairService
@@ -340,7 +342,7 @@ def sales_uow(session_factory: async_sessionmaker[AsyncSession]) -> SalesUnitOfW
 
 
 @pytest.fixture
-def payment_gateway() -> MockPaymentGateway:
+def payment_gateway() -> PaymentGateway:
     return MockPaymentGateway()
 
 
@@ -351,16 +353,25 @@ def carts(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> CartService:
 
 @pytest.fixture
 def checkout(
-    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: MockPaymentGateway
+    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: PaymentGateway
 ) -> CheckoutService:
-    return CheckoutService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+    return CheckoutService(
+        uow_factory=sales_uow, clock=clock, gateway=payment_gateway, shop_url=PUBLIC_BASE_URL
+    )
 
 
 @pytest.fixture
 def orders(
-    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: MockPaymentGateway
+    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: PaymentGateway
 ) -> OrderService:
     return OrderService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+
+
+@pytest.fixture
+def payments(
+    sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: PaymentGateway
+) -> PaymentService:
+    return PaymentService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
 
 
 @pytest.fixture

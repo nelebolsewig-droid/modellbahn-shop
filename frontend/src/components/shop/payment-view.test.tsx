@@ -11,9 +11,19 @@ import { PaymentView } from "./payment-view";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+const openPaymentPage = vi.fn();
+vi.mock("@/lib/sales/payment-page", () => ({ openPaymentPage: (url: string) => openPaymentPage(url) }));
 
 const fetchMock = vi.fn<typeof fetch>();
+const ORDER = "GET /api/v1/store/orders/status-token";
 const PAY = "POST /api/v1/store/orders/status-token/payments";
+const SYNC = "POST /api/v1/store/orders/status-token/payments/sync";
+const PROVIDER = "GET /api/v1/store/payment-provider";
+const SUMUP_PAGE = "https://checkout.sumup.com/pay/c-1a2b3c";
+
+function provider(name: "mock" | "sumup" | "off") {
+  return () => jsonResponse({ provider: name });
+}
 
 const PAYMENT = { amount_cents: 7990, created_at: "2026-10-25T09:01:00Z", provider: "mock" };
 const DECLINED: OrderOut = orderOut({ payments: [{ ...PAYMENT, status: "failed", failure_code: "card_declined" }] });
@@ -34,13 +44,15 @@ beforeEach(() => {
 afterEach(() => {
   fetchMock.mockReset();
   push.mockReset();
+  openPaymentPage.mockReset();
 });
 
 describe("PaymentView", () => {
   it("tries again with a new key after a declined payment and then shows the order", async () => {
     const answers = [DECLINED, PAID];
     routeFetch(fetchMock, {
-      "GET /api/v1/store/orders/status-token": () => jsonResponse(orderOut()),
+      [ORDER]: () => jsonResponse(orderOut()),
+      [PROVIDER]: provider("mock"),
       [PAY]: () => jsonResponse(answers.shift()),
     });
     const user = userEvent.setup();
@@ -62,7 +74,8 @@ describe("PaymentView", () => {
 
   it("keeps the order open when the payment provider is down", async () => {
     routeFetch(fetchMock, {
-      "GET /api/v1/store/orders/status-token": () => jsonResponse(orderOut()),
+      [ORDER]: () => jsonResponse(orderOut()),
+      [PROVIDER]: provider("mock"),
       [PAY]: () => problemResponse(503, "payment_unavailable"),
     });
     const user = userEvent.setup();
@@ -74,10 +87,107 @@ describe("PaymentView", () => {
   });
 
   it("offers nothing to pay for an order that is paid already", async () => {
-    routeFetch(fetchMock, { "GET /api/v1/store/orders/status-token": () => jsonResponse(PAID) });
+    routeFetch(fetchMock, { [ORDER]: () => jsonResponse(PAID), [PROVIDER]: provider("sumup") });
     renderWithQueryClient(<PaymentView token="status-token" />);
 
     expect(await screen.findByText("Diese Bestellung ist bezahlt")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bezahlen/ })).toBeNull();
+  });
+
+  describe("with SumUp", () => {
+    const SUMUP_PAYMENT = { ...PAYMENT, provider: "sumup" };
+    const ON_THE_PAGE: OrderOut = orderOut({
+      payment_url: SUMUP_PAGE,
+      payments: [{ ...SUMUP_PAYMENT, status: "pending", failure_code: null }],
+    });
+    const PAID_ON_THE_PAGE: OrderOut = orderOut({
+      status: "paid",
+      paid_at: "2026-10-25T09:04:00Z",
+      payment_due_at: null,
+      payments: [{ ...SUMUP_PAYMENT, status: "captured", failure_code: null }],
+    });
+
+    it("sends the customer to SumUp's page", async () => {
+      routeFetch(fetchMock, {
+        [ORDER]: () => jsonResponse(orderOut()),
+        [PROVIDER]: provider("sumup"),
+        [PAY]: () => jsonResponse(ON_THE_PAGE),
+      });
+      const user = userEvent.setup();
+      renderWithQueryClient(<PaymentView token="status-token" />);
+
+      expect(await screen.findByText("Sicher bezahlen mit SumUp")).toBeInTheDocument();
+      expect(screen.queryByRole("radio")).toBeNull();
+      await user.click(screen.getByRole("button", { name: /^79,90\s€ bezahlen$/ }));
+
+      await waitFor(() => expect(openPaymentPage).toHaveBeenCalledWith(SUMUP_PAGE));
+      expect(screen.getByRole("button", { name: "SumUp wird geöffnet …" })).toBeDisabled();
+      const [started] = requestsTo(fetchMock, PAY);
+      expect(started?.body).toEqual({ method: "sumup" });
+      expect(started?.headers.get("Idempotency-Key")).toBeTruthy();
+      expect(requestsTo(fetchMock, SYNC)).toEqual([]);
+    });
+
+    it("asks SumUp on the way back and shows the paid order", async () => {
+      routeFetch(fetchMock, {
+        [ORDER]: () => jsonResponse(ON_THE_PAGE),
+        [PROVIDER]: provider("sumup"),
+        [SYNC]: () => jsonResponse(PAID_ON_THE_PAGE),
+      });
+      renderWithQueryClient(<PaymentView token="status-token" />);
+
+      expect(await screen.findByText(/Wir fragen bei SumUp nach/)).toBeInTheDocument();
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/bestellung/status-token"));
+      expect(requestsTo(fetchMock, SYNC)).toHaveLength(1);
+      expect(requestsTo(fetchMock, PAY)).toEqual([]);
+    });
+
+    it("offers the open page again and checks once more on request", async () => {
+      const answers = [ON_THE_PAGE, ON_THE_PAGE, PAID_ON_THE_PAGE];
+      routeFetch(fetchMock, {
+        [ORDER]: () => jsonResponse(ON_THE_PAGE),
+        [PROVIDER]: provider("sumup"),
+        [SYNC]: () => jsonResponse(answers.shift() ?? PAID_ON_THE_PAGE),
+      });
+      const user = userEvent.setup();
+      renderWithQueryClient(<PaymentView token="status-token" />);
+
+      expect(await screen.findByText("Die Zahlung ist noch nicht abgeschlossen")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Weiter zu SumUp" })).toHaveAttribute("href", SUMUP_PAGE);
+      await user.click(screen.getByRole("button", { name: "Erneut prüfen" }));
+      await user.click(await screen.findByRole("button", { name: "Erneut prüfen" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/bestellung/status-token"));
+      expect(requestsTo(fetchMock, PAY)).toEqual([]);
+    });
+
+    it("says so when SumUp does not answer", async () => {
+      routeFetch(fetchMock, {
+        [ORDER]: () => jsonResponse(ON_THE_PAGE),
+        [PROVIDER]: provider("sumup"),
+        [SYNC]: () => problemResponse(503, "payment_unavailable"),
+      });
+      renderWithQueryClient(<PaymentView token="status-token" />);
+
+      expect(await screen.findByText("SumUp antwortet gerade nicht")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Weiter zu SumUp" })).toHaveAttribute("href", SUMUP_PAGE);
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("starts anew after an expired page", async () => {
+      const expired = orderOut({ payments: [{ ...SUMUP_PAYMENT, status: "failed", failure_code: "expired" }] });
+      routeFetch(fetchMock, { [ORDER]: () => jsonResponse(expired), [PROVIDER]: provider("sumup") });
+      renderWithQueryClient(<PaymentView token="status-token" />);
+
+      expect(await screen.findByText(/Die letzte Bezahlseite ist abgelaufen/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^79,90\s€ bezahlen$/ })).toBeEnabled();
+    });
+  });
+
+  it("takes no payment without a provider", async () => {
+    routeFetch(fetchMock, { [ORDER]: () => jsonResponse(orderOut()), [PROVIDER]: provider("off") });
+    renderWithQueryClient(<PaymentView token="status-token" />);
+
+    expect(await screen.findByText("Bezahlen ist gerade nicht möglich")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bezahlen/ })).toBeNull();
   });
 });

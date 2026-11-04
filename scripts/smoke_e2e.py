@@ -689,7 +689,7 @@ class Demo:
             ("Gastbestellung mit Idempotency-Key, keine Doppelbestellung", self.guest_order),
             ("Eingangsbestätigung mit Zahlungslink kommt an", self.receipt_mail),
             ("Statusseite /bestellung/… ohne Konto, nicht für Suchmaschinen", self.status_page),
-            ("Testzahlung: abgelehnt, Dienst gestört (503), dann bezahlt", self.payments),
+            ("Testzahlung: abgelehnt, Dienst gestört (503), bezahlt, abgeglichen", self.payments),
             ("Zahlungsmail kommt an, Ereignis sales.order.paid im Stellwerk", self.paid_mail),
             ("Gast registriert sich: Bestellung erscheint im Konto", self.adoption),
             ("Versand erst nach dem Kommissionieren (409), Pickliste vom Worker", self.pick_list),
@@ -1546,6 +1546,10 @@ class Demo:
         return None
 
     def payments(self) -> str | None:
+        # The development stack takes the test payment; production refuses it (ADR 0019).
+        provider = self.guest_browser.api("GET", f"{SHOP}/payment-provider")
+        expect_status(provider, 200, "Zahlungsanbieter")
+        expect(provider.json() == {"provider": "mock"}, f"Zahlungsanbieter {provider.json()}")
         declined = self._pay("declined", str(uuid.uuid4()))
         expect_status(declined, 200, "Abgelehnte Zahlung")
         order = declined.json()
@@ -1565,6 +1569,15 @@ class Demo:
         expect(len(captured) == 1, f"Doppelt abgebucht: {again.json()['payments']}")
         expect_problem(
             self._pay("succeeds", str(uuid.uuid4())), 409, "order_not_payable", "Zweite Zahlung"
+        )
+        # Back from a provider's page: nothing open, so the shop has nothing to ask.
+        synced = self.guest_browser.api(
+            "POST", f"{SHOP}/orders/{order['public_token']}/payments/sync"
+        )
+        expect_status(synced, 200, "Abgleich nach der Rückkehr")
+        expect(
+            (synced.json()["status"], synced.json()["payment_url"]) == ("paid", None),
+            f"Nach dem Abgleich: {synced.json()['status']}",
         )
         self._order = order
         return f"{len(order['payments'])} Zahlungsversuche, einmal abgebucht"

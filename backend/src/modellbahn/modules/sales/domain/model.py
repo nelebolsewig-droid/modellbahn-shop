@@ -357,9 +357,21 @@ class SalesChannel(StrEnum):
 
 
 class PaymentStatus(StrEnum):
+    PENDING = "pending"
+    """The customer pays on the provider's page; its answer is still outstanding."""
     CAPTURED = "captured"
     FAILED = "failed"
     REFUNDED = "refunded"
+
+
+class PaymentProgress(StrEnum):
+    """What the provider says about a payment that went to its page."""
+
+    PENDING = "pending"
+    """Not completed yet: the customer is still on the page, or may try again there."""
+    CAPTURED = "captured"
+    FAILED = "failed"
+    """Over without money: the page expired or was given up."""
 
 
 def order_number(year: int, serial: int) -> str:
@@ -409,6 +421,28 @@ class ChargeResult:
     failure_code: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PaymentStart:
+    """A payment begun with the provider: settled at once, or waiting on the provider's page."""
+
+    provider: str
+    provider_ref: str
+    result: ChargeResult | None = None
+    """The answer, when the provider settles at once (the test payment)."""
+    checkout_url: str | None = None
+    """The provider's page where the customer pays, when the answer comes later (SumUp)."""
+
+
+@dataclass(frozen=True, slots=True)
+class PaymentOutcome:
+    """The provider's answer about a payment on its page."""
+
+    progress: PaymentProgress
+    transaction_ref: str | None = None
+    """The provider's transaction, which a refund names."""
+    failure_code: str | None = None
+
+
 @dataclass(eq=False)
 class Payment:
     id: UUID
@@ -422,6 +456,29 @@ class Payment:
     failure_code: str | None
     created_at: datetime
     updated_at: datetime
+    checkout_url: str | None = None
+    """Where the customer pays while the payment is pending (the provider's page)."""
+    transaction_ref: str | None = None
+    """The provider's transaction of a captured payment; refunds name it."""
+
+    @property
+    def refund_ref(self) -> str:
+        """What the provider refunds: its transaction, else the payment's own reference."""
+        return self.transaction_ref or self.provider_ref
+
+    def settle(self, outcome: PaymentOutcome, now: datetime) -> bool:
+        """Take over the provider's answer for a pending payment; True if it changed."""
+        if self.status is not PaymentStatus.PENDING or outcome.progress is PaymentProgress.PENDING:
+            return False
+        if outcome.progress is PaymentProgress.CAPTURED:
+            self.status = PaymentStatus.CAPTURED
+            self.transaction_ref = outcome.transaction_ref
+        else:
+            self.status = PaymentStatus.FAILED
+            self.failure_code = outcome.failure_code or "failed"
+        self.checkout_url = None
+        self.updated_at = now
+        return True
 
     def refund(self, now: datetime) -> None:
         if self.status is not PaymentStatus.CAPTURED:
@@ -635,6 +692,11 @@ class Order:
     def captured_payment(self) -> Payment | None:
         return next((p for p in self.payments if p.status is PaymentStatus.CAPTURED), None)
 
+    @property
+    def pending_payment(self) -> Payment | None:
+        """The payment whose customer is on the provider's page, if there is one."""
+        return next((p for p in self.payments if p.status is PaymentStatus.PENDING), None)
+
     def payment_with_key(self, idempotency_key: UUID) -> Payment | None:
         return next((p for p in self.payments if p.idempotency_key == idempotency_key), None)
 
@@ -651,6 +713,79 @@ class Order:
             self.status is OrderStatus.PENDING_PAYMENT and now - self.placed_at >= PAYMENT_TIMEOUT
         )
 
+    def start_payment(
+        self,
+        start: PaymentStart,
+        *,
+        payment_id: UUID,
+        idempotency_key: UUID,
+        request_fingerprint: str,
+        now: datetime,
+    ) -> list[DomainEvent]:
+        """Note a payment begun with the provider: settled at once, or pending on its page."""
+        if start.result is not None:
+            return self.record_payment(
+                start.result,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                now=now,
+                payment_id=payment_id,
+            )
+        if self.status is not OrderStatus.PENDING_PAYMENT or self.pending_payment is not None:
+            raise OrderNotPayableError
+        self.payments.append(
+            Payment(
+                id=payment_id,
+                order_id=self.id,
+                provider=start.provider,
+                provider_ref=start.provider_ref,
+                status=PaymentStatus.PENDING,
+                amount_cents=self.total_cents,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                failure_code=None,
+                created_at=now,
+                updated_at=now,
+                checkout_url=start.checkout_url,
+            )
+        )
+        self.updated_at = now
+        return []
+
+    def settle_payment(
+        self, payment: Payment, outcome: PaymentOutcome, now: datetime
+    ) -> list[DomainEvent]:
+        """Take over the provider's answer; money that came in makes the order binding.
+
+        Money can come in after the order was given up (paid at the last minute, the
+        answer late): the payment is then captured on a cancelled order, and the caller
+        refunds it.
+        """
+        if not payment.settle(outcome, now):
+            return []
+        self.updated_at = now
+        if payment.status is not PaymentStatus.CAPTURED or (
+            self.status is not OrderStatus.PENDING_PAYMENT
+        ):
+            return []
+        self.status = OrderStatus.PAID
+        self.paid_at = now
+        return [
+            OrderPaid(
+                aggregate_id=self.id,
+                occurred_at=now,
+                number=self.number,
+                total_cents=self.total_cents,
+            )
+        ]
+
+    @property
+    def stray_payment(self) -> Payment | None:
+        """Money captured on an order that was given up meanwhile; it goes back."""
+        if self.status is not OrderStatus.CANCELLED:
+            return None
+        return self.captured_payment
+
     def record_payment(
         self,
         result: ChargeResult,
@@ -658,13 +793,14 @@ class Order:
         idempotency_key: UUID,
         request_fingerprint: str,
         now: datetime,
+        payment_id: UUID | None = None,
     ) -> list[DomainEvent]:
         """Note the provider's answer; a captured payment makes the order binding."""
         if self.status is not OrderStatus.PENDING_PAYMENT:
             raise OrderNotPayableError
         self.payments.append(
             Payment(
-                id=new_id(),
+                id=payment_id or new_id(),
                 order_id=self.id,
                 provider=result.provider,
                 provider_ref=result.provider_ref,
