@@ -355,8 +355,14 @@ E-Mail-Adresse schaltet auf Let's Encrypt), `MB_PUBLIC_BASE_URL`, `MB_ENVIRONMEN
 setzen (`.env.example` zeigt, wie man sie erzeugt; in Produktion verweigert das Backend den
 Entwicklungsschlüssel). Echte Anbieterangaben gehören nur in `.env`; `.env.example` hat
 Platzhalter. Der Shopname kommt aus dem Absender `MB_SMTP_FROM` (E-Mails) und
-`NEXT_PUBLIC_SHOP_NAME` (Oberfläche). Der Produktionsbetrieb (Sicherungen von Datenbank und
-Objektspeicher, HSTS, ohne Mailpit) und ein echter Zahlungsanbieter fehlen noch.
+`NEXT_PUBLIC_SHOP_NAME` (Oberfläche).
+
+**Auf einem eigenen Server** richtet `scripts/einrichten.sh` all das geführt ein, samt
+Firewall, Docker, DNS-Prüfung, Strato-Mail, Konten und nächtlicher Sicherung
+(`scripts/sicherung.sh`); `docker-compose.prod.yml` lässt dort Mailpit weg, `CADDY_HSTS`
+schaltet HSTS ein. Die Schritte davor und danach (Server bestellen, Aktualisieren,
+Wiederherstellen, Umzug von `www`) stehen in [docs/BETRIEB.md](docs/BETRIEB.md). Ein echter
+Zahlungsanbieter fehlt noch.
 
 Für den echten eBay-Verkauf braucht es ein Entwicklerkonto auf developer.ebay.com: die
 Schlüssel der Anwendung (`MB_EBAY_CLIENT_ID`, `MB_EBAY_CLIENT_SECRET`) und einen RuName

@@ -34,10 +34,11 @@
 	# "internal" for localhost; an e-mail address switches to Let's Encrypt for a real domain.
 	tls {$CADDY_TLS:internal}
 
-	# No Strict-Transport-Security header: on localhost it would pin HTTPS for every
-	# development server on that host name in the visitor's browser. A public domain
-	# should add `Strict-Transport-Security "max-age=31536000"` here.
+	# Strict-Transport-Security comes from CADDY_HSTS: "max-age=31536000" on a public
+	# domain (one value, no spaces). The default max-age=0 pins nothing, so localhost
+	# keeps working for every development server on that host name.
 	header {
+		Strict-Transport-Security "{$CADDY_HSTS:max-age=0}"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		# Keeps the token query string of e-mail links out of Referer headers.
