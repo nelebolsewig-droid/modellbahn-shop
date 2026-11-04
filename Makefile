@@ -143,6 +143,8 @@ check-contract: $(NODE_MODULES)
 # Compose file, Caddyfile and both images, exactly as in the CI job "compose".
 check-compose:
 	$(COMPOSE) --env-file .env.example config --quiet
+	$(COMPOSE) --file docker-compose.yml --file docker-compose.prod.yml --env-file .env.example config --quiet
+	bash -n scripts/einrichten.sh && bash -n scripts/sicherung.sh
 	docker run --rm --volume "$(CURDIR)/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
 		caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 	$(COMPOSE) --env-file .env.example build

@@ -1,0 +1,11 @@
+# Overrides for a server on a public domain (docs/BETRIEB.md). Compose reads them on top of
+# docker-compose.yml when .env says
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#
+# so `make up`, `make staff` and `make logs` work on the server unchanged.
+
+services:
+  # The development mail catcher stays off: e-mails go to the real relay (MB_SMTP_*).
+  mailpit:
+    profiles: ["development"]

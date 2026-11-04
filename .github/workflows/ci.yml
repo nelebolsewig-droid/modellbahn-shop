@@ -160,6 +160,12 @@ jobs:
       # .env is not committed; the example file supplies every variable the stack needs.
       - name: Validate docker-compose.yml
         run: docker compose --env-file .env.example config --quiet
+      - name: Validate the production overrides
+        run: >-
+          docker compose --file docker-compose.yml --file docker-compose.prod.yml
+          --env-file .env.example config --quiet
+      - name: Check the server scripts
+        run: bash -n scripts/einrichten.sh && bash -n scripts/sicherung.sh
       - name: Validate Caddyfile
         run: >-
           docker run --rm --volume "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine

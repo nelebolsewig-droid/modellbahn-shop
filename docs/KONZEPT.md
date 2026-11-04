@@ -1612,4 +1612,4 @@ Noch offen:
 | --- | --- |
 | Zahlungsanbieter | Bis dahin bezahlt der Shop mit einer sichtbaren Testzahlung (ADR 0009). Vor dem Start mit echtem Geld wird ein Anbieter als weiterer Adapter angebunden, mit Webhooks. |
 | USt-IdNr. | Reicht der Inhaber nach; dann genügt `MB_IMPRINT_VAT_ID` in `.env`. |
-| Domain und Umzug | adp-modelle.de läuft noch bei Shopify. Der Umzug braucht `SITE_ADDRESS`, `MB_PUBLIC_BASE_URL` und einen Mail-Relay, der für die Domain senden darf. |
+| Domain und Umzug | Entschieden (04.11.2026): eigener Server bei Strato, zuerst unter `neu.adp-modelle.de`; www zieht von Shopify um, sobald SumUp Online als Zahlung angebunden ist. Mail über ein Strato-Postfach. Einrichtung und Betrieb: `docs/BETRIEB.md`. |

@@ -229,6 +229,7 @@ services:
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
       CADDY_TLS: ${CADDY_TLS:-internal}
+      CADDY_HSTS: ${CADDY_HSTS:-max-age=0}
     ports:
       - "80:80"
       - "443:443"
