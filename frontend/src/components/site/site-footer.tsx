@@ -25,7 +25,7 @@ type FooterLink = { href: Route; label: string; strong?: boolean };
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-small text-ink-tertiary sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-small text-ink-tertiary sm:px-8 lg:grid-cols-[minmax(14rem,1fr)_auto] lg:items-center">
         <p>{SHOP_NAME} · Fahrzeugmodelle in Handarbeit, seit 1992</p>
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-10">
           <FooterLinks label="Werkstatt" links={WORKSHOP} />
