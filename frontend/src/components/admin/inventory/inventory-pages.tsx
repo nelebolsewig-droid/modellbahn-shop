@@ -2,8 +2,10 @@
 
 import { AdminShell } from "@/components/admin/admin-shell";
 
+import { AssemblyDesk } from "./assembly-desk";
 import { InventoryOverview } from "./inventory-overview";
 import { LocationDesk } from "./location-desk";
+import { PartDesk } from "./part-desk";
 import { ScannerDesk } from "./scanner-desk";
 import { UnitDesk } from "./unit-desk";
 
@@ -37,6 +39,22 @@ export function UnitPage({ code }: { code: string }) {
   return (
     <AdminShell>
       {({ staff, revalidate }) => <UnitDesk code={code} staffRole={staff.role} onStreamClosed={revalidate} />}
+    </AdminShell>
+  );
+}
+
+export function PartPage({ partNumber }: { partNumber: string }) {
+  return (
+    <AdminShell>
+      {({ staff, revalidate }) => <PartDesk partNumber={partNumber} staffRole={staff.role} onStreamClosed={revalidate} />}
+    </AdminShell>
+  );
+}
+
+export function AssemblyPage() {
+  return (
+    <AdminShell>
+      {({ staff, revalidate }) => <AssemblyDesk staffRole={staff.role} onStreamClosed={revalidate} />}
     </AdminShell>
   );
 }

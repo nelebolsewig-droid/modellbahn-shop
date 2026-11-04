@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { useListLocations } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { LocationNodeOut } from "@/lib/api/generated/model";
-import { LOCATION_KIND_LABELS } from "@/lib/inventory/labels";
+import { LOCATION_KIND_LABELS, partCount } from "@/lib/inventory/labels";
 import { labelCodes } from "@/lib/inventory/locations";
 import { errorMessage } from "@/lib/i18n/problems";
 import { cn } from "@/lib/utils";
@@ -83,6 +83,11 @@ export function LocationTree({ items, className }: { items: readonly LocationNod
                 <span className="font-mono text-small font-medium group-hover:underline">{item.code}</span>
                 <span className="ml-2 text-hint text-ink-tertiary">{item.name || LOCATION_KIND_LABELS[item.kind]}</span>
               </span>
+              {item.part_count > 0 ? (
+                <span className="rounded-full border border-accent/40 px-2 py-0.5 text-hint whitespace-nowrap tabular-nums text-accent">
+                  {partCount(item.part_count)}
+                </span>
+              ) : null}
               {item.total_count > 0 ? (
                 <span className="rounded-full bg-sunken px-2 py-0.5 text-hint font-medium tabular-nums text-ink-secondary">
                   {item.total_count}

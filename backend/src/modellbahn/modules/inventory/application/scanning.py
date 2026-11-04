@@ -6,17 +6,20 @@ booking. Every scan is kept with its answer, the rejected ones too.
 
 * **Put away** (*Einlagern*): scan the location, then any number of units. A labelled
   unit is stored there, a stored one moves there. A unit that becomes free goes to the
-  order that has waited longest for its variant.
+  order that has waited longest for its variant. A part's label (its part number) puts
+  every part of it that waits in receiving into the location (*Wareneingang*).
 * **Pick** (*Kommissionieren*): for one paid order. A reserved unit of the order is
   picked; any free unit of an article the order still lacks is taken instead of the
   reserved one (that one goes back to free stock). A wrong article is rejected.
 * **Look up** (*Auskunft*): show what a code is, book nothing.
 
-A booking scan can be undone for ten minutes, as long as its units have not moved on:
-the movements are booked backwards, the journal keeps both.
+A booking scan can be undone for ten minutes, as long as its units have not moved on
+and its parts are still in the box: the movements are booked backwards, the journals
+keep both.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Final
 from uuid import UUID
 
@@ -27,10 +30,17 @@ from modellbahn.modules.inventory.application.allocation import (
     PieceState,
     load_pick_list,
 )
-from modellbahn.modules.inventory.application.common import Journal, UnitOfWorkFactory
+from modellbahn.modules.inventory.application.common import (
+    Journal,
+    PartJournal,
+    UnitOfWorkFactory,
+)
+from modellbahn.modules.inventory.application.parts import walking_order
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
 from modellbahn.modules.inventory.application.units import unit_views
 from modellbahn.modules.inventory.domain.errors import (
+    InsufficientPartsError,
+    InvalidReceiptStateError,
     InvalidUnitStateError,
     ScanIdReusedError,
     ScanNotFoundError,
@@ -46,7 +56,9 @@ from modellbahn.modules.inventory.domain.model import (
     Unit,
     UnitStatus,
 )
+from modellbahn.modules.inventory.domain.parts import PartMovementReason
 from modellbahn.modules.inventory.domain.scanning import CodeKind, Reading, interpretations
+from modellbahn.modules.manufacturing.contracts.parts import PartInfo
 from modellbahn.modules.sales.contracts.orders import OrderStatus
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import JsonObject, JsonValue
@@ -55,6 +67,7 @@ from modellbahn.platform.uow import UniqueViolationError
 LOCATION_CONTEXT: Final = "location_code"
 ORDER_CONTEXT: Final = "order_id"
 SCAN_SOURCES: Final = frozenset({"camera", "scanner", "keyboard"})
+PART_LOCATIONS_SHOWN: Final = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +90,9 @@ class _Answer:
     unit: JsonObject | None = None
     location: JsonObject | None = None
     variant: JsonObject | None = None
+    part: JsonObject | None = None
     effect: JsonObject | None = None
+    part_effect: JsonObject | None = None
     progress: JsonObject | None = None
     next_expected: JsonObject | None = None
 
@@ -96,7 +111,9 @@ class _Answer:
             "unit": self.unit,
             "location": self.location,
             "variant": self.variant,
+            "part": self.part,
             "effect": self.effect,
+            "part_effect": self.part_effect,
             "progress": self.progress,
             "next_expected": self.next_expected,
         }
@@ -140,7 +157,9 @@ class ScanService:
             # The journal entries refer to the scan.
             await uow.flush()
             journal = Journal(uow, staff_id=staff_id, now=now, scan_id=scan.id)
-            answer = await _Interpreter(uow, journal, request).run()
+            part_journal = PartJournal(uow, staff_id=staff_id, now=now, scan_id=scan.id)
+            answer = await _Interpreter(uow, journal, part_journal, request).run()
+            await part_journal.announce()
             scan.outcome = answer.outcome
             scan.response = answer.to_json(scan)
             await uow.commit()
@@ -182,9 +201,37 @@ class ScanService:
                 except InvalidUnitStateError as exc:
                     raise ScanNotUndoableError("changed_since") from exc
                 await journal.book(unit, movement, reverses=entry)
+            await _undo_parts(uow, scan, staff_id=staff_id, now=now)
             scan.mark_undone(now)
             await uow.commit()
             return _with_undo_state(scan, dict(scan.response), can_undo=False)
+
+
+async def _undo_parts(
+    uow: InventoryUnitOfWork, scan: Scan, *, staff_id: UUID, now: datetime
+) -> None:
+    """Take the parts a scan put into a box back out; they wait in receiving again."""
+    entries = await uow.part_ledger.for_scan(scan.id)
+    if not entries:
+        return
+    journal = PartJournal(uow, staff_id=staff_id, now=now)
+    for entry in reversed(entries):
+        if (
+            entry.reason is not PartMovementReason.RECEIVE
+            or entry.receipt_id is None
+            or entry.to_location_id is None
+        ):  # pragma: no cover - scans only put parts away
+            raise ScanNotUndoableError("changed_since")
+        receipt = await uow.receipts.get(entry.receipt_id, for_update=True)
+        if receipt is None:  # pragma: no cover - receipts are never deleted
+            raise ScanNotUndoableError("changed_since")
+        stock = await uow.part_stock.lock(entry.part_id, entry.to_location_id, now=now)
+        try:
+            movement = receipt.unstore(entry.movement(), stock, now)
+        except (InvalidReceiptStateError, InsufficientPartsError) as exc:
+            raise ScanNotUndoableError("changed_since") from exc
+        journal.book(movement, reverses=entry)
+    await journal.announce()
 
 
 def _put_away_refusal(unit: Unit, location: Location) -> str | None:
@@ -203,9 +250,16 @@ def _put_away_refusal(unit: Unit, location: Location) -> str | None:
 class _Interpreter:
     """Decides what one scan means and books it, inside the scan's unit of work."""
 
-    def __init__(self, uow: InventoryUnitOfWork, journal: Journal, request: ScanRequest) -> None:
+    def __init__(
+        self,
+        uow: InventoryUnitOfWork,
+        journal: Journal,
+        part_journal: PartJournal,
+        request: ScanRequest,
+    ) -> None:
         self._uow = uow
         self._journal = journal
+        self._part_journal = part_journal
         self._request = request
         self._now = journal.now
 
@@ -223,6 +277,10 @@ class _Interpreter:
                 location = await self._uow.locations.get_by_code(reading.code)
                 if location is not None:
                     return await self._on_location(reading, location)
+            elif reading.kind is CodeKind.PART:
+                part = await self._uow.manufacturing.part_by_number(reading.code)
+                if part is not None:
+                    return await self._on_part(reading, part)
             else:
                 variant = await self._uow.catalog.variant_by_gtin(reading.code)
                 if variant is not None:
@@ -280,7 +338,65 @@ class _Interpreter:
         answer.variant = await self._variant_info(variant_id)
         return answer
 
+    async def _on_part(self, reading: Reading, part: PartInfo) -> _Answer:
+        """A part's label (on the box its parts lie in): parts, not a single piece."""
+        match self._request.mode:
+            case ScanMode.LOOKUP:
+                answer = _Answer(ScanOutcome.INFO, "part")
+            case ScanMode.PUT_AWAY:
+                answer = await self._store_parts(part)
+            case ScanMode.PICK:
+                answer = _Answer(ScanOutcome.REJECTED, "scan_unit_label")
+                await self._add_progress(answer)
+        answer.resolved = reading
+        answer.part = await self._part_info(part)
+        return answer
+
     # --- Putting away ---------------------------------------------------------------
+
+    async def _store_parts(self, part: PartInfo) -> _Answer:
+        """Every part of it waiting in receiving goes into the chosen location."""
+        code = self._request.context.get(LOCATION_CONTEXT)
+        if not code:
+            return _Answer(ScanOutcome.REJECTED, "location_required")
+        location = await self._uow.locations.get_by_code(code.strip().upper())
+        if location is None:
+            return _Answer(ScanOutcome.REJECTED, "location_unknown")
+        if not location.holds_goods:
+            return _Answer(
+                ScanOutcome.REJECTED,
+                "holds_no_goods",
+                location=await self._location_info(location),
+            )
+        receipts = await self._uow.receipts.open(part.part_id, for_update=True)
+        if not receipts:
+            return _Answer(
+                ScanOutcome.REJECTED,
+                "no_parts_to_store",
+                location=await self._location_info(location),
+            )
+        stock = await self._uow.part_stock.lock(part.part_id, location.id, now=self._now)
+        stored = 0
+        for receipt in receipts:
+            movement = receipt.store(stock, self._now)
+            self._part_journal.book(movement)
+            stored += movement.quantity
+        jobs = await self._uow.manufacturing.print_jobs({r.print_job_id for r in receipts})
+        numbers: list[JsonValue] = [
+            jobs[r.print_job_id].number for r in receipts if r.print_job_id in jobs
+        ]
+        await self._uow.flush()
+        return _Answer(
+            ScanOutcome.APPLIED,
+            "parts_stored",
+            location=await self._location_info(location),
+            part_effect={
+                "quantity": stored,
+                "to_location": location.code,
+                "in_location": stock.quantity,
+                "print_jobs": numbers,
+            },
+        )
 
     async def _put_away(self, unit: Unit) -> _Answer:
         code = self._request.context.get(LOCATION_CONTEXT)
@@ -474,12 +590,33 @@ class _Interpreter:
 
     async def _location_info(self, location: Location) -> JsonObject:
         units = await self._uow.units.in_locations([location.id])
+        parts = await self._uow.part_stock.in_locations([location.id])
         return {
             "code": location.code,
             "name": location.name,
             "kind": location.kind.value,
             "holds_goods": location.holds_goods,
             "unit_count": len(units),
+            "part_count": sum(entry.quantity for entry in parts),
+        }
+
+    async def _part_info(self, part: PartInfo) -> JsonObject:
+        stock = await self._uow.part_stock.for_parts([part.part_id])
+        locations = await self._uow.locations.by_ids({entry.location_id for entry in stock})
+        receipts = await self._uow.receipts.open(part.part_id)
+        placed = [entry for entry in walking_order(stock, locations) if entry.quantity > 0]
+        return {
+            "part_id": str(part.part_id),
+            "part_number": part.part_number,
+            "name": part.name,
+            "scale_code": part.scale_code,
+            "total": sum(entry.quantity for entry in placed),
+            "incoming": sum(receipt.open for receipt in receipts),
+            "locations": [
+                {"code": locations[entry.location_id].code, "quantity": entry.quantity}
+                for entry in placed[:PART_LOCATIONS_SHOWN]
+                if entry.location_id in locations
+            ],
         }
 
     async def _variant_info(self, variant_id: UUID) -> JsonObject:

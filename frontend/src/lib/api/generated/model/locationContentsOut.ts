@@ -11,6 +11,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { LocatedPartsOut } from './locatedPartsOut';
 import type { LocatedUnitOut } from './locatedUnitOut';
 import type { LocationNodeOut } from './locationNodeOut';
 import type { LocationOut } from './locationOut';
@@ -20,6 +21,8 @@ export interface LocationContentsOut {
   ancestors: LocationOut[];
   children: LocationNodeOut[];
   location: LocationNodeOut;
+  /** Printed parts in this location and below it, by part number. */
+  parts: LocatedPartsOut[];
   /** In this location and below it, oldest first. */
   units: LocatedUnitOut[];
 }

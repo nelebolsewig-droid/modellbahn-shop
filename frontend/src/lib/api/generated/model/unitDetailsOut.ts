@@ -11,6 +11,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { AssembledPartOut } from './assembledPartOut';
 import type { HistoryEntryOut } from './historyEntryOut';
 import type { LocationOut } from './locationOut';
 import type { UnitStatus } from './unitStatus';
@@ -27,6 +28,8 @@ export interface UnitDetailsOut {
   location: LocationOut | null;
   order_id: string | null;
   order_number: string | null;
+  /** What the unit was assembled from; empty for a unit labelled by hand. */
+  parts: AssembledPartOut[];
   scrap_note: string;
   status: UnitStatus;
   updated_at: string;

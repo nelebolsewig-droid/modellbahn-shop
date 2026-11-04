@@ -32,6 +32,7 @@ def variant(finish: str = "painted", color: str = "", **changes: object) -> Sale
         variant_id=uuid4(),
         gtin="2000000000017",
         product_id=PRODUCT,
+        product_scale_id=uuid4(),
         product_slug="ifa-w50-kipper",
         product_name="IFA W50 Kipper",
         scale_code="H0",

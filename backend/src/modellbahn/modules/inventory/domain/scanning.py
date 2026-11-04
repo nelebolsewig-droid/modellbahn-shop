@@ -1,4 +1,4 @@
-"""What a scanned or typed code names: a unit, a location, a variant, or nothing.
+"""What a scanned or typed code names: a unit, a location, a variant, a part, or nothing.
 
 The labels carry URLs (``https://shop.example/u/7KQ2X9F4MZ``), so that an ordinary phone
 camera opens the right page; a hand scanner delivers the same text. People type codes
@@ -17,6 +17,7 @@ from modellbahn.modules.inventory.domain.codes import (
     is_valid_unit_code,
     normalize_unit_code,
 )
+from modellbahn.modules.manufacturing.contracts.part_numbers import is_part_number
 
 MAX_RAW_LENGTH = 300
 
@@ -25,6 +26,7 @@ class CodeKind(StrEnum):
     UNIT = "unit"
     LOCATION = "location"
     VARIANT = "variant"
+    PART = "part"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,8 @@ def interpretations(raw: str) -> list[Reading]:
 
     A typed ``R001-F004-B1`` could in theory also be a unit code with a valid check
     character; both readings are returned, and the caller takes the one that exists.
+    A part number (``STW-ALT-DACH-H0``, on the label of a box of parts) looks like a
+    location code as well; it comes last, after every location.
     """
     text = raw.strip()
     if not text or len(text) > MAX_RAW_LENGTH:
@@ -80,4 +84,6 @@ def interpretations(raw: str) -> list[Reading]:
             readings.insert(0, reading)
         else:
             readings.append(reading)
+    if is_part_number(location):
+        readings.append(Reading(CodeKind.PART, location))
     return readings

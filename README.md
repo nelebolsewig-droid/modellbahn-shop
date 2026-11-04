@@ -7,7 +7,7 @@ Worker), ein Frontend in Next.js, PostgreSQL als Datenbank und Warteschlange, Ca
 HTTPS-Eingang. Das vollständige Architekturkonzept steht in [docs/KONZEPT.md](docs/KONZEPT.md),
 die tragenden Entscheidungen in [docs/adr/](docs/adr/).
 
-**Stand: Schritt 6a – Fertigung.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
+**Stand: Schritt 6 – Fertigung, Wareneingang und Montage.** Auf dem Fundament aus Schritt 2 (Plattform-Kern
 mit Outbox, Unit of Work, IDs, Fehlerformat und Echtzeit; Modul *Identität* mit Kundenkonten
 und Mitarbeiterzugang; Docker Compose, CI, Architekturregeln), den Modulen *Katalog* und
 *Medien* aus Schritt 3 und *Verkauf* aus Schritt 4 steht jetzt das Modul *Lager*:
@@ -18,8 +18,9 @@ Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länd
 (ADR 0012). Seit ADR 0013 gibt es jedes Modell als **Bausatz** oder **Fertigmodell** in
 Farben, eine **Schnellerfassung** fürs Handy und einen Startbestand zum Einspielen. Mit
 Schritt 6a kam das Modul *Fertigung*: die Drucker der Werkstatt mit ihrem Zustand, Teile,
-Stücklisten und Druckaufträge in einer Druckerhalle, die live mitläuft (ADR 0017).
-Wareneingang und Montage folgen mit Schritt 6b.
+Stücklisten und Druckaufträge in einer Druckerhalle, die live mitläuft (ADR 0017). Mit
+Schritt 6b gehen die guten Teile fertiger Platten in den Wareneingang und per Scan in ihre
+Boxen; die Montage baut daraus nach Stückliste Einheiten mit Etikett (ADR 0018).
 
 Was sich vorführen lässt:
 
@@ -67,6 +68,16 @@ Was sich vorführen lässt:
   (70 × 37 mm, ab einem freien Feld) oder den Brother QL (62 mm). Der Bestand zeigt je
   Artikel, was frei, reserviert, kommissioniert, noch einzulagern oder in Fertigung ist,
   live. Die Artikelliste für die Kasse (SumUp) gibt es als CSV.
+- **Teilelager und Wareneingang.** Meldet jemand eine Platte fertig, liegen ihre guten Teile
+  im **Wareneingang**, als Lieferschein je Platte. Im Scanner unter „Einlagern“ die Box
+  scannen, dann das **Teileetikett** (Code 128 mit der Teilenummer), und die Teile liegen in
+  der Box. Das **Teilelager** zeigt je Teil seine Boxen; jede Teileseite hat ihr Journal.
+  „Gezählt“ setzt den Bestand einer Box, „Ausbuchen“ nimmt verlorene Teile aus dem
+  Wareneingang.
+- **Montage.** Unter „Lager · Montage“ wählt man einen Artikel und die Stückzahl. Die
+  **Entnahmeliste** nennt je Teil die Boxen in Laufreihenfolge („nimm 3“) und wie viele Stücke
+  der Bestand hergibt. „Montieren“ nimmt die Teile heraus, erzeugt die Einheiten mit Etikett
+  und hält fest, aus welchen Boxen jedes Stück gebaut ist.
 - **Scanner.** Unter „Scanner“ arbeitet das Handy mit der Kamera, ein Handscanner per
   Tastatureingabe oder die Eingabe von Hand: Platz scannen, dann die Ware, und sie ist
   eingelagert. Beim Kommissionieren wählt man die Bestellung und scannt die Pickliste ab; das
@@ -425,3 +436,4 @@ secrets:
   - [0015 Löschmeldungen von eBay (Marketplace Account Deletion)](docs/adr/0015-ebay-loeschmeldungen.md)
   - [0016 Explosionszeichnung „So entsteht ein Modell“](docs/adr/0016-explosionszeichnung.md)
   - [0017 Fertigung: Drucker mit Zustand, Teile, Stücklisten, Druckaufträge](docs/adr/0017-fertigung-drucker-teile-stuecklisten.md)
+  - [0018 Teilelager, Wareneingang und Montage](docs/adr/0018-teilelager-wareneingang-montage.md)

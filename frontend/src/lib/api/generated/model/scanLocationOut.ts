@@ -18,5 +18,6 @@ export interface ScanLocationOut {
   holds_goods: boolean;
   kind: LocationKind;
   name: string;
+  part_count: number;
   unit_count: number;
 }

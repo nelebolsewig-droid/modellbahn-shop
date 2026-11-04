@@ -53,9 +53,10 @@ const RETRY_MS = 20_000;
 const MODES = [ScanMode.put_away, ScanMode.pick, ScanMode.lookup] as const;
 
 const MODE_HINTS: Readonly<Record<ScanMode, string>> = {
-  put_away: "Erst den Lagerplatz scannen, dann jedes Stück, das dort hineinkommt.",
+  put_away:
+    "Erst den Lagerplatz scannen, dann jedes Stück, das dort hineinkommt. Ein Teileetikett bringt die Teile aus dem Wareneingang hinein.",
   pick: "Bestellung wählen, dann jedes Stück der Pickliste scannen.",
-  lookup: "Etikett, Platz oder Artikel scannen: zeigt, was dazu im Lager steht. Bucht nichts.",
+  lookup: "Etikett, Platz, Artikel oder Teil scannen: zeigt, was dazu im Lager steht. Bucht nichts.",
 };
 
 const ENTRY_DOTS: Readonly<Record<ScanEntry["state"], string>> = {

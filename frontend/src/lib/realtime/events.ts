@@ -22,6 +22,7 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
   "inventory.allocation.backordered": "Stück muss gefertigt werden",
+  "inventory.parts.arrived": "Teile im Wareneingang",
   "manufacturing.printer.status_changed": "Druckerzustand gemeldet",
   "manufacturing.print_job.completed": "Druck fertig",
   "manufacturing.print_job.failed": "Fehldruck",
@@ -48,6 +49,8 @@ export const INVENTORY_EVENT_TYPES = [
   "inventory.stock.changed",
   "inventory.location.changed",
   "inventory.allocation.backordered",
+  "inventory.part_stock.changed",
+  "inventory.parts.arrived",
 ] as const;
 
 /**
@@ -93,6 +96,9 @@ const printerPayloadSchema = z.object({ printer_id: z.string(), code: z.string()
 /** Public payload of the print job events: the job's number and its printer. */
 const printJobPayloadSchema = z.object({ job_id: z.string(), number: z.number().int(), printer_code: z.string() });
 
+/** Public payload of a finished plate's parts arriving in receiving. */
+const partsArrivedPayloadSchema = z.object({ job_id: z.string(), number: z.number().int(), parts: z.number().int() });
+
 const PRINTER_STATE_NAMES: Readonly<Record<string, string>> = {
   in_service: "in Betrieb",
   defective: "defekt",
@@ -115,6 +121,7 @@ const assetPayloadSchema = z.object({ asset_id: z.string() });
 /** Public payload of the stock events: codes and ids, never who did it. */
 const stockPayloadSchema = z.object({
   variant_id: z.string().optional(),
+  part_number: z.string().optional(),
   order_id: z.string().nullable().optional(),
   unit_code: z.string().optional(),
   location_code: z.string().nullable().optional(),
@@ -159,6 +166,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
   const fair = fairPayloadSchema.safeParse(event.data);
   const printer = printerPayloadSchema.safeParse(event.data);
   const printJob = printJobPayloadSchema.safeParse(event.data);
+  const arrived = partsArrivedPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
@@ -173,6 +181,9 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
       subject: `${printer.data.code} · ${PRINTER_STATE_NAMES[printer.data.status] ?? printer.data.status}`,
     }),
     ...(printJob.success && { subject: `Druck ${printJob.data.number} · ${printJob.data.printer_code}` }),
+    ...(arrived.success && {
+      subject: `Druck ${arrived.data.number} · ${arrived.data.parts === 1 ? "1 Teil" : `${arrived.data.parts} Teile`}`,
+    }),
     ...(order.success && {
       subject: `${order.data.number} · ${euro.format(order.data.total_cents / 100)}`,
     }),
@@ -212,6 +223,8 @@ export type StockEvent = {
   variantId: string | null;
   orderId: string | null;
   unitCode: string | null;
+  /** The part whose quantity changed (parts store events). */
+  partNumber: string | null;
   /** The locations the event touched: where a unit went and came from, or the changed location. */
   locationCodes: string[];
 };
@@ -231,6 +244,7 @@ export function stockEventOf(raw: string): StockEvent | null {
     variantId: payload.variant_id ?? null,
     orderId: payload.order_id ?? null,
     unitCode: payload.unit_code ?? null,
+    partNumber: payload.part_number ?? null,
     locationCodes,
   };
 }

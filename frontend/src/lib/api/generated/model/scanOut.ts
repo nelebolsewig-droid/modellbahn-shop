@@ -17,6 +17,8 @@ import type { ScanLocationOut } from './scanLocationOut';
 import type { ScanMode } from './scanMode';
 import type { ScanOutcome } from './scanOutcome';
 import type { ScanOutMessage } from './scanOutMessage';
+import type { ScanPartEffectOut } from './scanPartEffectOut';
+import type { ScanPartOut } from './scanPartOut';
 import type { ScanProgressOut } from './scanProgressOut';
 import type { ScanResolvedOut } from './scanResolvedOut';
 import type { ScanUnitOut } from './scanUnitOut';
@@ -33,6 +35,8 @@ export interface ScanOut {
   mode: ScanMode;
   next_expected: ScanExpectedOut | null;
   outcome: ScanOutcome;
+  part: ScanPartOut | null;
+  part_effect: ScanPartEffectOut | null;
   progress: ScanProgressOut | null;
   resolved: ScanResolvedOut | null;
   scan_id: string;

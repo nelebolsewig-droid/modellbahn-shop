@@ -82,6 +82,7 @@ describe("parseFeedEntry", () => {
       "sales.order.shipped",
       "sales.order.cancelled",
       "inventory.allocation.backordered",
+      "inventory.parts.arrived",
       "manufacturing.printer.status_changed",
       "manufacturing.print_job.completed",
       "manufacturing.print_job.failed",
@@ -187,8 +188,31 @@ describe("stockEventOf", () => {
       variantId: "v1",
       orderId: null,
       unitCode: "J4WZXRT2S2",
+      partNumber: null,
       locationCodes: ["R01-F02", "R01-F01"],
     });
+  });
+
+  it("reads the part and the box of a change in the parts store", () => {
+    const raw = message({
+      type: "inventory.part_stock.changed",
+      data: {
+        part_id: "p1",
+        part_number: "STW-ALT-DACH-H0",
+        reason: "receive",
+        quantity: 7,
+        location_code: "R01-F01-B02",
+        previous_location_code: null,
+      },
+    });
+    expect(stockEventOf(raw)).toMatchObject({ partNumber: "STW-ALT-DACH-H0", locationCodes: ["R01-F01-B02"] });
+  });
+
+  it("names the plate whose parts arrived in receiving", () => {
+    const entry = parseFeedEntry(
+      message({ type: "inventory.parts.arrived", data: { job_id: "j1", number: 17, parts: 11 } }),
+    );
+    expect(entry).toMatchObject({ label: "Teile im Wareneingang", subject: "Druck 17 · 11 Teile" });
   });
 
   it("reads the code of a changed location", () => {

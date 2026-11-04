@@ -23,7 +23,9 @@ function answer(scan: ScanIn, change: Partial<ScanOut>): ScanOut {
     unit: null,
     location: null,
     variant: null,
+    part: null,
     effect: null,
+    part_effect: null,
     progress: null,
     next_expected: null,
     undoable: false,
@@ -41,7 +43,7 @@ function workshop({ body }: RouteRequest): Response {
         outcome: "selected",
         message: "location_selected",
         resolved: { kind: "location", code: "R01-F01" },
-        location: { code: "R01-F01", name: "Fach am Fenster", kind: "compartment", holds_goods: true, unit_count: 0 },
+        location: { code: "R01-F01", name: "Fach am Fenster", kind: "compartment", holds_goods: true, unit_count: 0, part_count: 0 },
       }),
     );
   }

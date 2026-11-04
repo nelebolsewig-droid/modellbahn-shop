@@ -1,14 +1,16 @@
 """The workshop's stock in the admin area (``/api/v1/admin/inventory``)."""
 
-from typing import Final
+from typing import Annotated, Final
 from uuid import UUID
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Query, Response, status
 
 from modellbahn.modules.inventory.api.deps import (
     AllocationServiceDep,
+    AssemblyServiceDep,
     LabelServiceDep,
     LocationServiceDep,
+    PartStoreServiceDep,
     ScanServiceDep,
     StockManager,
     StockWorker,
@@ -16,6 +18,9 @@ from modellbahn.modules.inventory.api.deps import (
 )
 from modellbahn.modules.inventory.api.errors import STAFF_ACCESS
 from modellbahn.modules.inventory.api.schemas import (
+    AssemblyIn,
+    AssemblyOut,
+    AssemblyPlanOut,
     LabelsIn,
     LocationContentsOut,
     LocationCreateIn,
@@ -23,7 +28,13 @@ from modellbahn.modules.inventory.api.schemas import (
     LocationOut,
     LocationPatchIn,
     LocationTreeOut,
+    PartCountIn,
+    PartDetailsOut,
+    PartStockLineOut,
+    PartStockOut,
     PickListOut,
+    ReceiptOut,
+    ReceivingOut,
     ScanIn,
     ScanOut,
     ScrapIn,
@@ -33,9 +44,11 @@ from modellbahn.modules.inventory.api.schemas import (
     UnitDetailsOut,
     UnitOut,
     UnitsCreateIn,
+    WriteOffIn,
 )
 from modellbahn.modules.inventory.application.labels import LabelRequest
 from modellbahn.modules.inventory.application.scanning import ScanRequest
+from modellbahn.modules.inventory.domain.parts import KITS_PER_ASSEMBLY_MAX
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/admin/inventory", tags=["admin-inventory"])
@@ -43,6 +56,7 @@ router = APIRouter(prefix="/admin/inventory", tags=["admin-inventory"])
 _LOCATION_NOT_FOUND: Final = {404: ["location_not_found"]}
 _UNIT_NOT_FOUND: Final = {404: ["unit_not_found"]}
 _ORDER_NOT_FOUND: Final = {404: ["order_not_found"]}
+_PART_NOT_FOUND: Final = {404: ["part_not_found"]}
 _PDF: Final = "application/pdf"
 
 
@@ -174,6 +188,124 @@ async def scrap_unit(
     return UnitOut.from_view(await service.scrap(code, note=body.note, staff_id=staff.id))
 
 
+# --- Parts ----------------------------------------------------------------------------
+
+
+@router.get(
+    "/parts",
+    operation_id="listPartStock",
+    summary="Printed parts in stock and in receiving, by part number",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def list_part_stock(_: StockWorker, service: PartStoreServiceDep) -> PartStockOut:
+    return PartStockOut(
+        items=[PartStockLineOut.from_line(line) for line in await service.overview()]
+    )
+
+
+@router.get(
+    "/parts/{part_number}",
+    operation_id="getPartStock",
+    summary="A part with its boxes, what waits in receiving, and its journal",
+    responses=problems({**STAFF_ACCESS, **_PART_NOT_FOUND}, unsafe=False),
+)
+async def get_part_stock(
+    part_number: str, _: StockWorker, service: PartStoreServiceDep
+) -> PartDetailsOut:
+    return PartDetailsOut.from_details(await service.details(part_number))
+
+
+@router.post(
+    "/parts/{part_number}/count",
+    operation_id="countParts",
+    summary="Set a part's quantity in a location to what was counted there",
+    responses=problems({**STAFF_ACCESS, 404: ["part_not_found", "location_not_found"]}),
+)
+async def count_parts(
+    part_number: str, body: PartCountIn, staff: StockManager, service: PartStoreServiceDep
+) -> PartDetailsOut:
+    details = await service.count(
+        part_number,
+        location_code=body.location_code,
+        quantity=body.quantity,
+        note=body.note,
+        staff_id=staff.id,
+    )
+    return PartDetailsOut.from_details(details)
+
+
+@router.get(
+    "/receiving",
+    operation_id="listReceiving",
+    summary="Good parts of finished plates that wait to be put into a box",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def list_receiving(_: StockWorker, service: PartStoreServiceDep) -> ReceivingOut:
+    return ReceivingOut(items=[ReceiptOut.from_view(view) for view in await service.receiving()])
+
+
+@router.post(
+    "/receiving/{receipt_id}/write-off",
+    operation_id="writeOffReceipt",
+    summary="The rest of a receipt never reached a shelf: take it out of receiving",
+    responses=problems(
+        {**STAFF_ACCESS, 404: ["receipt_not_found"], 409: ["invalid_receipt_state"]}
+    ),
+)
+async def write_off_receipt(
+    receipt_id: UUID, body: WriteOffIn, staff: StockManager, service: PartStoreServiceDep
+) -> ReceiptOut:
+    return ReceiptOut.from_view(
+        await service.write_off(receipt_id, note=body.note, staff_id=staff.id)
+    )
+
+
+# --- Assembly -------------------------------------------------------------------------
+
+
+@router.get(
+    "/assembly-plan",
+    operation_id="planAssembly",
+    summary="Which parts kits of a variant take, and from which boxes",
+    responses=problems(
+        {**STAFF_ACCESS, 404: ["variant_not_found"], 409: ["no_bill_of_materials"]},
+        unsafe=False,
+    ),
+)
+async def plan_assembly(
+    variant_id: UUID,
+    quantity: Annotated[int, Query(ge=1, le=KITS_PER_ASSEMBLY_MAX)],
+    _: StockWorker,
+    service: AssemblyServiceDep,
+) -> AssemblyPlanOut:
+    return AssemblyPlanOut.from_plan(await service.plan(variant_id, quantity))
+
+
+@router.post(
+    "/assemblies",
+    operation_id="assemble",
+    summary="Take the parts out of their boxes and label the new units",
+    status_code=status.HTTP_201_CREATED,
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            404: ["variant_not_found", "location_not_found"],
+            409: ["no_bill_of_materials", "parts_missing"],
+        }
+    ),
+)
+async def assemble(
+    body: AssemblyIn, staff: StockManager, service: AssemblyServiceDep
+) -> AssemblyOut:
+    assembly = await service.assemble(
+        body.variant_id,
+        body.quantity,
+        location_code=body.location_code or None,
+        staff_id=staff.id,
+    )
+    return AssemblyOut.from_assembly(assembly)
+
+
 # --- Scans ----------------------------------------------------------------------------
 
 
@@ -266,6 +398,7 @@ async def print_labels(body: LabelsIn, _: StockWorker, service: LabelServiceDep)
         LabelRequest(
             unit_codes=body.unit_codes,
             location_codes=body.location_codes,
+            part_numbers=body.part_numbers,
             sheet=body.sheet,
             skip=body.skip,
         )

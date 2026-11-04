@@ -18,7 +18,7 @@ import {
   useGetLocation,
   useListLocations,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
-import type { LocatedUnitOut, LocationContentsOut, StaffRole } from "@/lib/api/generated/model";
+import type { LocatedPartsOut, LocatedUnitOut, LocationContentsOut, StaffRole } from "@/lib/api/generated/model";
 import { LOCATION_KIND_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
 import { childKinds, labelCodes, subtree } from "@/lib/inventory/locations";
 import { errorMessage } from "@/lib/i18n/problems";
@@ -30,6 +30,7 @@ import { LabelPrinter } from "./label-printer";
 import { LocationCreateDialog, LocationDeleteDialog, LocationRenameDialog } from "./location-dialogs";
 import { LocationGlyph } from "./location-glyph";
 import { LocationTree } from "./location-panel";
+import { partHref } from "./parts-panels";
 
 /** Whether a stock event touched this location or a place below it. */
 function concerns(codes: readonly string[], contents: LocationContentsOut | undefined, code: string): boolean {
@@ -75,7 +76,7 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
       </div>
     );
   }
-  const { location, ancestors, children, units } = contents.data;
+  const { location, ancestors, children, units, parts } = contents.data;
   const nested = subtree(tree.data?.items ?? [], location.code);
   const below = nested.length > 0 ? nested : [location, ...children];
   const canHaveChildren = childKinds(location).length > 0;
@@ -146,15 +147,22 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <Panel title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`} code="LG 11">
-          {units.length === 0 ? (
-            <p className="text-small text-ink-secondary">
-              {location.holds_goods ? "Leer. Beim Einlagern diesen Platz scannen, dann die Ware." : "Hier liegt nichts direkt; die Ware liegt in den Plätzen darin."}
-            </p>
-          ) : (
-            <UnitTable units={units} here={location.code} />
-          )}
-        </Panel>
+        <div className="min-w-0 space-y-6">
+          <Panel title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`} code="LG 11">
+            {units.length === 0 ? (
+              <p className="text-small text-ink-secondary">
+                {location.holds_goods ? "Leer. Beim Einlagern diesen Platz scannen, dann die Ware." : "Hier liegt nichts direkt; die Ware liegt in den Plätzen darin."}
+              </p>
+            ) : (
+              <UnitTable units={units} here={location.code} />
+            )}
+          </Panel>
+          {parts.length > 0 ? (
+            <Panel title={`Teile · ${parts.reduce((sum, entry) => sum + entry.quantity, 0)}`} code="LG 13">
+              <PartTable parts={parts} here={location.code} />
+            </Panel>
+          ) : null}
+        </div>
         {canHaveChildren ? (
           <Panel title="Plätze darin" code="LG 12">
             {below.length <= 1 ? (
@@ -190,6 +198,31 @@ function UnitTable({ units, here }: { units: readonly LocatedUnitOut[]; here: st
               {unit.order_number ? ` ${unit.order_number}` : ""}
             </p>
           </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PartTable({ parts, here }: { parts: readonly LocatedPartsOut[]; here: string }) {
+  return (
+    <ul className="divide-y divide-line border-y border-line">
+      {parts.map((entry) => (
+        <li key={`${entry.part?.part_id ?? "?"}-${entry.location_code ?? ""}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 py-2.5">
+          <div className="min-w-0">
+            {entry.part ? (
+              <Link href={partHref(entry.part.part_number)} className="block truncate text-small font-medium hover:underline">
+                {entry.part.name}
+              </Link>
+            ) : (
+              <p className="text-small">Unbekanntes Teil</p>
+            )}
+            <p className="truncate font-mono text-hint text-ink-tertiary">
+              {entry.part?.part_number}
+              {entry.location_code && entry.location_code !== here ? ` · ${entry.location_code}` : ""}
+            </p>
+          </div>
+          <span className="text-body-lg font-medium tabular-nums">{entry.quantity}</span>
         </li>
       ))}
     </ul>

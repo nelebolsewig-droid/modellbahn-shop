@@ -89,8 +89,26 @@ class TestScanResolver:
 
     def test_typed_codes(self) -> None:
         assert interpretations(f"  {format_unit_code(CODE)} ") == [Reading(CodeKind.UNIT, CODE)]
-        assert interpretations("r02-f04") == [Reading(CodeKind.LOCATION, "R02-F04")]
-        assert interpretations("LAGER") == [Reading(CodeKind.LOCATION, "LAGER")]
+        # Anything shaped like a location could also be a part number; locations come first.
+        assert interpretations("r02-f04") == [
+            Reading(CodeKind.LOCATION, "R02-F04"),
+            Reading(CodeKind.PART, "R02-F04"),
+        ]
+        assert interpretations("LAGER") == [
+            Reading(CodeKind.LOCATION, "LAGER"),
+            Reading(CodeKind.PART, "LAGER"),
+        ]
+
+    def test_part_numbers_from_the_label_of_a_box(self) -> None:
+        assert interpretations("stw-alt-dach-h0") == [
+            Reading(CodeKind.LOCATION, "STW-ALT-DACH-H0"),
+            Reading(CodeKind.PART, "STW-ALT-DACH-H0"),
+        ]
+        # Segments longer than a location's are part numbers only.
+        assert interpretations("STW-SCHORNSTEIN-H0") == [
+            Reading(CodeKind.PART, "STW-SCHORNSTEIN-H0")
+        ]
+        assert interpretations("A" * 41) == []
 
     def test_ean13_names_a_variant(self) -> None:
         assert interpretations("2000000000015") == [Reading(CodeKind.VARIANT, "2000000000015")]
@@ -100,6 +118,7 @@ class TestScanResolver:
         assert interpretations(grouped) == [
             Reading(CodeKind.UNIT, CODE),
             Reading(CodeKind.LOCATION, grouped),
+            Reading(CodeKind.PART, grouped),
         ]
 
     @pytest.mark.parametrize("raw", ["", "   ", "x" * 301, "Hallo Welt", "R02_F04"])

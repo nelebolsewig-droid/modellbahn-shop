@@ -48,10 +48,24 @@ describe("unit codes", () => {
 
 describe("interpretations", () => {
   it("reads what the scanners deliver", () => {
-    expect(interpretations(CODE)).toEqual([{ kind: "unit", code: CODE }]);
-    expect(interpretations(" r02-f04-b12 ")).toEqual([{ kind: "location", code: "R02-F04-B12" }]);
+    expect(interpretations(CODE)).toEqual([
+      { kind: "unit", code: CODE },
+      { kind: "part", code: CODE },
+    ]);
+    expect(interpretations(" r02-f04-b12 ")).toEqual([
+      { kind: "location", code: "R02-F04-B12" },
+      { kind: "part", code: "R02-F04-B12" },
+    ]);
     expect(interpretations("2000000000015")).toEqual([{ kind: "variant", code: "2000000000015" }]);
-    expect(interpretations("LAGER")).toEqual([{ kind: "location", code: "LAGER" }]);
+    expect(interpretations("LAGER")).toEqual([
+      { kind: "location", code: "LAGER" },
+      { kind: "part", code: "LAGER" },
+    ]);
+  });
+
+  it("reads the part number on the label of a box of parts", () => {
+    expect(interpretations("stw-schornstein-h0")).toEqual([{ kind: "part", code: "STW-SCHORNSTEIN-H0" }]);
+    expect(interpretations("A".repeat(41))).toEqual([]);
   });
 
   it("still understands label URLs", () => {
@@ -67,6 +81,7 @@ describe("interpretations", () => {
     expect(interpretations("7KQ2-X9F4-MZ")).toEqual([
       { kind: "unit", code: CODE },
       { kind: "location", code: "7KQ2-X9F4-MZ" },
+      { kind: "part", code: "7KQ2-X9F4-MZ" },
     ]);
   });
 
