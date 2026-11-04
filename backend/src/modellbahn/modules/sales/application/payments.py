@@ -126,7 +126,7 @@ class PaymentService:
         """Ask the provider about pending payments that nobody has asked about (a periodic job)."""
         async with self._uow() as uow:
             ids = await uow.orders.pending_payment_ids(
-                self._clock.now() - RECONCILE_AFTER, RECONCILE_BATCH_SIZE
+                self._gateway.provider, self._clock.now() - RECONCILE_AFTER, RECONCILE_BATCH_SIZE
             )
         settled = 0
         for order_id in ids:

@@ -87,8 +87,10 @@ class OrderRepository(Protocol):
         """The order of the provider's payment, if it is one of ours."""
         ...
 
-    async def pending_payment_ids(self, started_before: datetime, limit: int) -> list[UUID]:
-        """Orders with a payment on the provider's page started before the cut-off, oldest first."""
+    async def pending_payment_ids(
+        self, provider: str, started_before: datetime, limit: int
+    ) -> list[UUID]:
+        """Orders with a payment on this provider's page begun before the cut-off, oldest first."""
         ...
 
 

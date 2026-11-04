@@ -151,11 +151,16 @@ class SqlOrderRepository:
         )
         return (await self._session.execute(statement)).scalar_one_or_none()
 
-    async def pending_payment_ids(self, started_before: datetime, limit: int) -> list[UUID]:
+    async def pending_payment_ids(
+        self, provider: str, started_before: datetime, limit: int
+    ) -> list[UUID]:
+        # Only the configured provider's: another one's could never be asked, and would hold
+        # the batch for good.
         statement = (
             select(payments.c.order_id)
             .where(
                 payments.c.status == PaymentStatus.PENDING,
+                payments.c.provider == provider,
                 payments.c.created_at <= started_before,
             )
             .order_by(payments.c.created_at)

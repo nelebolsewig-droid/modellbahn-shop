@@ -36,7 +36,7 @@ from modellbahn.platform.clock import FixedClock
 from tests.conftest import PUBLIC_BASE_URL, Deliver
 from tests.integration.test_sales_service import event_types
 from tests.media_support import InMemoryMediaStorage
-from tests.sales_support import FakeSumUp, filled_cart, place, shop_product, variant_id
+from tests.sales_support import SUMUP, FakeSumUp, filled_cart, place, shop_product, variant_id
 
 
 @pytest.fixture
@@ -199,6 +199,7 @@ class TestNotifications:
 
     async def test_the_worker_asks_about_forgotten_pages(
         self,
+        sales_uow: UnitOfWorkFactory,
         carts: CartService,
         checkout: CheckoutService,
         orders: OrderService,
@@ -215,6 +216,11 @@ class TestNotifications:
         sumup.reachable = False
         assert await payments.reconcile() == 0
         sumup.reachable = True
+        # Only the configured provider's open payments: another's could never be asked.
+        async with sales_uow() as uow:
+            cutoff = clock.now() - RECONCILE_AFTER
+            assert await uow.orders.pending_payment_ids("off", cutoff, 50) == []
+            assert await uow.orders.pending_payment_ids(SUMUP, cutoff, 50) == [order.id]
         assert await payments.reconcile() == 1
         assert (await orders.get(order.id)).order.status is OrderStatus.PAID
         assert await payments.reconcile() == 0

@@ -25,7 +25,7 @@ import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import { IDEMPOTENCY_HEADER, useIdempotencyKeys } from "@/lib/sales/idempotency";
 import { TEST_PAYMENT_METHODS } from "@/lib/sales/labels";
-import { openPaymentPage } from "@/lib/sales/payment-page";
+import { openPaymentPage, reloadPaymentPage } from "@/lib/sales/payment-page";
 import { cn } from "@/lib/utils";
 
 /** How often the page asks SumUp after the customer came back, and how far apart. */
@@ -145,6 +145,17 @@ function SumUpSheet({ order, token, statusHref }: SheetProps) {
       show(check.data);
     }
   }, [check.data, show]);
+  // Back from SumUp with the browser's back button, the page may come from the browser's
+  // cache as it was left ("SumUp wird geöffnet …"): load it afresh, which asks SumUp.
+  useEffect(() => {
+    const reloadIfCached = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        reloadPaymentPage();
+      }
+    };
+    window.addEventListener("pageshow", reloadIfCached);
+    return () => window.removeEventListener("pageshow", reloadIfCached);
+  }, []);
 
   const lastPayment = order.payments.at(-1);
   const expired = lastPayment?.status === "failed" && lastPayment.failure_code === "expired";

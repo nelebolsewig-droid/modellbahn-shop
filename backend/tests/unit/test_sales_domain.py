@@ -35,6 +35,7 @@ from modellbahn.modules.sales.domain.model import (
     CustomerAddress,
     Order,
     OrderStatus,
+    Payment,
     PaymentOutcome,
     PaymentProgress,
     PaymentStart,
@@ -432,6 +433,11 @@ def started(order: Order, reference: str = "chk_1") -> None:
     )
 
 
+def stray(order: Order) -> Payment | None:
+    """Read afresh each time (an assert on the property would narrow it for mypy)."""
+    return order.stray_payment
+
+
 PAID: Final = PaymentOutcome(progress=PaymentProgress.CAPTURED, transaction_ref="txn_1")
 EXPIRED: Final = PaymentOutcome(progress=PaymentProgress.FAILED, failure_code="expired")
 STILL_OPEN: Final = PaymentOutcome(progress=PaymentProgress.PENDING)
@@ -494,13 +500,13 @@ class TestPaymentOnTheProvidersPage:
         order, _ = placed()
         started(order)
         order.cancel(reason=CancelReason.PAYMENT_TIMEOUT, note="", now=NOW)
-        assert order.stray_payment is None
+        assert stray(order) is None
         payment = order.payments[0]
         assert order.settle_payment(payment, PAID, NOW) == []
         assert order.status is OrderStatus.CANCELLED
-        assert order.stray_payment is payment
+        assert stray(order) is payment
         payment.refund(NOW)
-        assert order.stray_payment is None
+        assert stray(order) is None
 
 
 class TestAddressBook:

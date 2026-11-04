@@ -12,7 +12,11 @@ import { PaymentView } from "./payment-view";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 const openPaymentPage = vi.fn();
-vi.mock("@/lib/sales/payment-page", () => ({ openPaymentPage: (url: string) => openPaymentPage(url) }));
+const reloadPaymentPage = vi.fn();
+vi.mock("@/lib/sales/payment-page", () => ({
+  openPaymentPage: (url: string) => openPaymentPage(url),
+  reloadPaymentPage: () => reloadPaymentPage(),
+}));
 
 const fetchMock = vi.fn<typeof fetch>();
 const ORDER = "GET /api/v1/store/orders/status-token";
@@ -45,6 +49,7 @@ afterEach(() => {
   fetchMock.mockReset();
   push.mockReset();
   openPaymentPage.mockReset();
+  reloadPaymentPage.mockReset();
 });
 
 describe("PaymentView", () => {
@@ -126,6 +131,17 @@ describe("PaymentView", () => {
       expect(started?.body).toEqual({ method: "sumup" });
       expect(started?.headers.get("Idempotency-Key")).toBeTruthy();
       expect(requestsTo(fetchMock, SYNC)).toEqual([]);
+    });
+
+    it("loads afresh when the browser brings the page back from its cache", async () => {
+      routeFetch(fetchMock, { [ORDER]: () => jsonResponse(orderOut()), [PROVIDER]: provider("sumup") });
+      renderWithQueryClient(<PaymentView token="status-token" />);
+      await screen.findByText("Sicher bezahlen mit SumUp");
+
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false }));
+      expect(reloadPaymentPage).not.toHaveBeenCalled();
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+      expect(reloadPaymentPage).toHaveBeenCalledOnce();
     });
 
     it("asks SumUp on the way back and shows the paid order", async () => {
