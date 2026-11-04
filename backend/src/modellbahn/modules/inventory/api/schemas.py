@@ -8,18 +8,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.application.allocation import PickItem, PickList, PieceState
+from modellbahn.modules.inventory.application.assembly import Assembly, AssemblyPlan, PlannedPart
 from modellbahn.modules.inventory.application.availability import VariantAvailability
 from modellbahn.modules.inventory.application.labels import (
     A4_LABELS_PER_SHEET,
     LABELS_PER_PRINT_MAX,
 )
 from modellbahn.modules.inventory.application.locations import LocationContents, LocationNode
+from modellbahn.modules.inventory.application.parts import (
+    PartDetails,
+    PartHistoryEntry,
+    PartStockLine,
+    ReceiptView,
+)
 from modellbahn.modules.inventory.application.ports import LabelSheet
 from modellbahn.modules.inventory.application.scanning import (
     LOCATION_CONTEXT,
     ORDER_CONTEXT,
 )
 from modellbahn.modules.inventory.application.units import (
+    AssembledPart,
     HistoryEntry,
     StockLine,
     UnitDetails,
@@ -38,7 +46,15 @@ from modellbahn.modules.inventory.domain.model import (
     ScanOutcome,
     UnitStatus,
 )
+from modellbahn.modules.inventory.domain.parts import (
+    KITS_PER_ASSEMBLY_MAX,
+    PART_NOTE_MAX_LENGTH,
+    PART_QUANTITY_MAX,
+    PartMovementReason,
+)
 from modellbahn.modules.inventory.domain.scanning import MAX_RAW_LENGTH, CodeKind
+from modellbahn.modules.manufacturing.contracts.part_numbers import PART_NUMBER_MAX_LENGTH
+from modellbahn.modules.manufacturing.contracts.parts import PartInfo, PrintJobInfo, Technology
 from modellbahn.modules.sales.contracts.orders import OrderStatus
 
 
@@ -76,6 +92,7 @@ class LocationOut(BaseModel):
 class LocationNodeOut(LocationOut):
     unit_count: int = Field(description="Units lying in this location itself.")
     total_count: int = Field(description="Units in this location and everything below it.")
+    part_count: int = Field(description="Printed parts lying in this location itself.")
 
     @classmethod
     def from_node(cls, node: LocationNode) -> Self:
@@ -83,6 +100,7 @@ class LocationNodeOut(LocationOut):
             **LocationOut.from_location(node.location).model_dump(),
             unit_count=node.unit_count,
             total_count=node.total_count,
+            part_count=node.part_count,
         )
 
 
@@ -103,6 +121,171 @@ class LocationCreateIn(_Request):
 
 class LocationPatchIn(_Request):
     name: str = Field(max_length=LOCATION_NAME_MAX_LENGTH)
+
+
+# --- Parts ----------------------------------------------------------------------------
+
+
+class StockPartOut(BaseModel):
+    """A printed part as the manufacturing module names it."""
+
+    part_id: UUID
+    part_number: str = Field(examples=["STW-ALT-DACH-H0"])
+    name: str
+    scale_code: str
+    technology: Technology
+    active: bool
+
+    @classmethod
+    def from_part(cls, part: PartInfo) -> Self:
+        return cls(
+            part_id=part.part_id,
+            part_number=part.part_number,
+            name=part.name,
+            scale_code=part.scale_code,
+            technology=part.technology,
+            active=part.active,
+        )
+
+
+class PartPlaceOut(BaseModel):
+    location_code: str
+    location_name: str
+    quantity: int
+
+
+class PartStockLineOut(BaseModel):
+    part: StockPartOut
+    total: int = Field(description="Parts in boxes and compartments.")
+    incoming: int = Field(description="Good parts of finished plates still in receiving.")
+    places: list[PartPlaceOut] = Field(description="Where they lie, in walking order.")
+
+    @classmethod
+    def from_line(cls, line: PartStockLine) -> Self:
+        return cls(
+            part=StockPartOut.from_part(line.part),
+            total=line.total,
+            incoming=line.incoming,
+            places=[
+                PartPlaceOut(
+                    location_code=place.location.code,
+                    location_name=place.location.name,
+                    quantity=place.quantity,
+                )
+                for place in line.locations
+            ],
+        )
+
+
+class PartStockOut(BaseModel):
+    items: list[PartStockLineOut] = Field(description="By part number.")
+
+
+class PrintJobRefOut(BaseModel):
+    job_id: UUID
+    number: int = Field(examples=[17])
+    printer_code: str = Field(examples=["D04"])
+    finished_at: datetime | None
+
+    @classmethod
+    def from_job(cls, job: PrintJobInfo) -> Self:
+        return cls(
+            job_id=job.job_id,
+            number=job.number,
+            printer_code=job.printer_code,
+            finished_at=job.finished_at,
+        )
+
+
+class ReceiptOut(BaseModel):
+    """The good parts of one part from one finished plate, on their way into a box."""
+
+    id: UUID
+    part: StockPartOut | None
+    print_job: PrintJobRefOut | None
+    quantity: int
+    stored: int
+    written_off: int
+    open: int = Field(description="Still waiting for a box.")
+    created_at: datetime
+
+    @classmethod
+    def from_view(cls, view: ReceiptView) -> Self:
+        receipt = view.receipt
+        return cls(
+            id=receipt.id,
+            part=StockPartOut.from_part(view.part) if view.part else None,
+            print_job=PrintJobRefOut.from_job(view.job) if view.job else None,
+            quantity=receipt.quantity,
+            stored=receipt.stored,
+            written_off=receipt.written_off,
+            open=receipt.open,
+            created_at=receipt.created_at,
+        )
+
+
+class ReceivingOut(BaseModel):
+    items: list[ReceiptOut] = Field(description="Oldest first.")
+
+
+class PartHistoryEntryOut(BaseModel):
+    id: int
+    reason: PartMovementReason
+    quantity: int
+    from_location_code: str | None
+    to_location_code: str | None
+    print_job_number: int | None
+    unit_code: str | None
+    note: str
+    staff_name: str | None
+    scan_id: UUID | None
+    reverses_id: int | None
+    occurred_at: datetime
+
+    @classmethod
+    def from_entry(cls, item: PartHistoryEntry) -> Self:
+        entry = item.entry
+        if entry.id is None:  # pragma: no cover - entries are read after they were stored
+            msg = "journal entry without id"
+            raise ValueError(msg)
+        return cls(
+            id=entry.id,
+            reason=entry.reason,
+            quantity=entry.quantity,
+            from_location_code=item.from_location.code if item.from_location else None,
+            to_location_code=item.to_location.code if item.to_location else None,
+            print_job_number=item.job_number,
+            unit_code=item.unit_code,
+            note=entry.note,
+            staff_name=item.staff_name,
+            scan_id=entry.scan_id,
+            reverses_id=entry.reverses_id,
+            occurred_at=entry.occurred_at,
+        )
+
+
+class PartDetailsOut(BaseModel):
+    stock: PartStockLineOut
+    receipts: list[ReceiptOut] = Field(description="Still in receiving, oldest first.")
+    history: list[PartHistoryEntryOut] = Field(description="Newest first.")
+
+    @classmethod
+    def from_details(cls, details: PartDetails) -> Self:
+        return cls(
+            stock=PartStockLineOut.from_line(details.line),
+            receipts=[ReceiptOut.from_view(view) for view in details.receipts],
+            history=[PartHistoryEntryOut.from_entry(item) for item in details.history],
+        )
+
+
+class PartCountIn(_Request):
+    location_code: str = Field(min_length=1, max_length=44, examples=["R02-F04-B12"])
+    quantity: int = Field(ge=0, le=PART_QUANTITY_MAX, description="What was counted there.")
+    note: str = Field(default="", max_length=PART_NOTE_MAX_LENGTH)
+
+
+class WriteOffIn(_Request):
+    note: str = Field(default="", max_length=PART_NOTE_MAX_LENGTH)
 
 
 # --- Units ----------------------------------------------------------------------------
@@ -203,14 +386,32 @@ class HistoryEntryOut(BaseModel):
         )
 
 
+class AssembledPartOut(BaseModel):
+    part: StockPartOut | None
+    quantity: int
+    location_code: str | None = Field(description="The box the parts were taken from.")
+
+    @classmethod
+    def from_part(cls, item: AssembledPart) -> Self:
+        return cls(
+            part=StockPartOut.from_part(item.part) if item.part else None,
+            quantity=item.quantity,
+            location_code=item.location.code if item.location else None,
+        )
+
+
 class UnitDetailsOut(UnitOut):
     history: list[HistoryEntryOut] = Field(description="Oldest first.")
+    parts: list[AssembledPartOut] = Field(
+        description="What the unit was assembled from; empty for a unit labelled by hand."
+    )
 
     @classmethod
     def from_details(cls, details: UnitDetails) -> Self:
         return cls(
             **UnitOut.from_view(details.view).model_dump(),
             history=[HistoryEntryOut.from_entry(item) for item in details.history],
+            parts=[AssembledPartOut.from_part(item) for item in details.parts],
         )
 
 
@@ -239,11 +440,20 @@ class LocatedUnitOut(BaseModel):
     order_number: str | None
 
 
+class LocatedPartsOut(BaseModel):
+    part: StockPartOut | None
+    quantity: int
+    location_code: str | None
+
+
 class LocationContentsOut(BaseModel):
     location: LocationNodeOut
     ancestors: list[LocationOut] = Field(description="From the site down to the parent.")
     children: list[LocationNodeOut]
     units: list[LocatedUnitOut] = Field(description="In this location and below it, oldest first.")
+    parts: list[LocatedPartsOut] = Field(
+        description="Printed parts in this location and below it, by part number."
+    )
 
     @classmethod
     def from_contents(cls, contents: LocationContents) -> Self:
@@ -265,11 +475,23 @@ class LocationContentsOut(BaseModel):
                     else None,
                 )
             )
+        parts = []
+        for entry in contents.parts:
+            part = contents.part_infos.get(entry.part_id)
+            location = contents.locations.get(entry.location_id)
+            parts.append(
+                LocatedPartsOut(
+                    part=StockPartOut.from_part(part) if part else None,
+                    quantity=entry.quantity,
+                    location_code=location.code if location else None,
+                )
+            )
         return cls(
             location=LocationNodeOut.from_node(contents.node),
             ancestors=[LocationOut.from_location(location) for location in contents.ancestors],
             children=[LocationNodeOut.from_node(child) for child in contents.children],
             units=units,
+            parts=parts,
         )
 
 
@@ -337,6 +559,29 @@ class ScanLocationOut(BaseModel):
     kind: LocationKind
     holds_goods: bool
     unit_count: int
+    part_count: int
+
+
+class ScanPartPlaceOut(BaseModel):
+    code: str
+    quantity: int
+
+
+class ScanPartOut(BaseModel):
+    part_id: UUID
+    part_number: str
+    name: str
+    scale_code: str
+    total: int
+    incoming: int = Field(description="Still in receiving.")
+    locations: list[ScanPartPlaceOut] = Field(description="The first few, in walking order.")
+
+
+class ScanPartEffectOut(BaseModel):
+    quantity: int = Field(description="Parts put into the location from receiving.")
+    to_location: str
+    in_location: int = Field(description="Parts of it in the location now.")
+    print_jobs: list[int] = Field(description="Numbers of the plates they came off.")
 
 
 class ScanVariantOut(BaseModel):
@@ -395,6 +640,9 @@ ScanMessage = Literal[
     "unit_not_stored",
     "no_unit_to_store",
     "variant_not_in_stock",
+    "part",
+    "parts_stored",
+    "no_parts_to_store",
 ]
 
 
@@ -409,7 +657,9 @@ class ScanOut(BaseModel):
     unit: ScanUnitOut | None
     location: ScanLocationOut | None
     variant: ScanVariantOut | None
+    part: ScanPartOut | None
     effect: ScanEffectOut | None
+    part_effect: ScanPartEffectOut | None
     progress: ScanProgressOut | None
     next_expected: ScanExpectedOut | None
     undoable: bool
@@ -484,6 +734,9 @@ class LabelsIn(_Request):
     location_codes: list[Annotated[str, Field(max_length=44)]] = Field(
         default_factory=list, max_length=LABELS_PER_PRINT_MAX
     )
+    part_numbers: list[Annotated[str, Field(max_length=PART_NUMBER_MAX_LENGTH)]] = Field(
+        default_factory=list, max_length=LABELS_PER_PRINT_MAX
+    )
     sheet: LabelSheet = Field(
         description="`a4_70x37`: A4 sheet, 3 x 8 labels; `ql_62x29`: Brother QL, 62 mm roll."
     )
@@ -493,6 +746,83 @@ class LabelsIn(_Request):
         lt=A4_LABELS_PER_SHEET,
         description="Labels of a started A4 sheet to leave empty.",
     )
+
+
+# --- Assembly -------------------------------------------------------------------------
+
+
+class AssemblyTakeOut(BaseModel):
+    location_code: str
+    location_name: str
+    quantity: int
+
+
+class AssemblyPartOut(BaseModel):
+    part: StockPartOut
+    per_kit: int
+    needed: int
+    available: int
+    missing: int
+    takes: list[AssemblyTakeOut] = Field(description="Where to take them, in walking order.")
+
+    @classmethod
+    def from_planned(cls, planned: PlannedPart) -> Self:
+        need = planned.need
+        return cls(
+            part=StockPartOut.from_part(planned.part),
+            per_kit=need.per_kit,
+            needed=need.needed,
+            available=need.available,
+            missing=need.missing,
+            takes=[
+                AssemblyTakeOut(
+                    location_code=take.location.code,
+                    location_name=take.location.name,
+                    quantity=take.quantity,
+                )
+                for take in planned.takes
+            ],
+        )
+
+
+class AssemblyPlanOut(BaseModel):
+    variant: VariantRefOut
+    quantity: int = Field(description="Kits to assemble.")
+    parts: list[AssemblyPartOut] = Field(description="In the order of the bill of materials.")
+    possible: int = Field(description="Kits the parts in stock suffice for.")
+    ready: bool = Field(description="Every part is there for the kits asked for.")
+
+    @classmethod
+    def from_plan(cls, plan: AssemblyPlan) -> Self:
+        return cls(
+            variant=VariantRefOut.from_variant(plan.variant),
+            quantity=plan.kits,
+            parts=[AssemblyPartOut.from_planned(planned) for planned in plan.parts],
+            possible=plan.possible,
+            ready=plan.ready,
+        )
+
+
+class AssemblyIn(_Request):
+    variant_id: UUID
+    quantity: int = Field(ge=1, le=KITS_PER_ASSEMBLY_MAX, description="Kits to assemble.")
+    location_code: str | None = Field(
+        default=None,
+        max_length=44,
+        description="Put the new units away here at once; otherwise they wait for a scan.",
+    )
+
+
+class AssemblyOut(BaseModel):
+    plan: AssemblyPlanOut
+    units: list[UnitOut] = Field(description="The new units, ready for their labels.")
+
+    @classmethod
+    def from_assembly(cls, assembly: Assembly) -> Self:
+        return cls(
+            plan=AssemblyPlanOut.from_plan(assembly.plan),
+            units=[UnitOut.from_view(view) for view in assembly.units],
+        )
 
 
 # --- Shop -----------------------------------------------------------------------------

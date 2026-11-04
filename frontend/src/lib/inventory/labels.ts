@@ -2,6 +2,7 @@ import type { StatusTone } from "@/components/ui/status-badge";
 import type {
   LocationKind,
   MovementReason,
+  PartMovementReason,
   PieceState,
   ScanMode,
   ScanOut,
@@ -76,6 +77,15 @@ export const MOVEMENT_LABELS: Readonly<Record<MovementReason, string>> = {
   undo: "Rückgängig gemacht",
 };
 
+/** What happened to printed parts, as the parts journal says it. */
+export const PART_MOVEMENT_LABELS: Readonly<Record<PartMovementReason, string>> = {
+  receive: "Eingelagert",
+  assemble: "Montiert",
+  count: "Gezählt",
+  write_off: "Ausgebucht",
+  undo: "Rückgängig gemacht",
+};
+
 export const SCAN_MODE_LABELS: Readonly<Record<ScanMode, string>> = {
   put_away: "Einlagern",
   pick: "Kommissionieren",
@@ -124,7 +134,15 @@ const MESSAGES: Readonly<Record<ScanOutMessage, string>> = {
   not_in_order: "Falscher Artikel: Er gehört nicht zu dieser Bestellung.",
   unit_not_stored: "Dieses Stück ist noch nicht eingelagert.",
   variant_not_in_stock: "Kein Stück dieses Artikels im Lager.",
+  part: "Teil",
+  parts_stored: "Teile eingelagert.",
+  no_parts_to_store: "Von diesem Teil wartet nichts im Wareneingang.",
 };
+
+/** `3 Teile` or `1 Teil`. */
+export function partCount(count: number): string {
+  return count === 1 ? "1 Teil" : `${count} Teile`;
+}
 
 /** One line saying what a scan did, in German. */
 export function scanHeadline(answer: ScanOut): string {
@@ -139,6 +157,9 @@ export function scanHeadline(answer: ScanOut): string {
   }
   if (answer.message === "picked" && answer.effect?.released_unit) {
     return "Kommissioniert. Das reservierte Stück bleibt im Lager.";
+  }
+  if (answer.message === "parts_stored" && answer.part_effect && answer.part) {
+    return `${answer.part_effect.quantity} × ${answer.part.name} eingelagert.`;
   }
   return MESSAGES[answer.message];
 }

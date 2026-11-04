@@ -1,11 +1,13 @@
 """SQLAlchemy Core tables of the ``inventory`` schema.
 
-They mirror migration ``0005_inventory`` exactly, including constraint names;
-``tests/integration/test_migrations.py`` compares both.
+They mirror migrations ``0005_inventory`` and ``0011_part_stock`` exactly, including
+constraint names; ``tests/integration/test_migrations.py`` compares both.
 
 Units refer to catalogue variants with a ``RESTRICT`` key: a variant that has ever had a
 unit keeps existing (it can be deactivated). Allocations refer to the order, the
 aggregate root, and name the order line and variant without a key, like sales does.
+The parts store refers to the manufacturing module's parts the same way, and a receipt
+to the line of the plate its parts came off.
 """
 
 from sqlalchemy import (
@@ -14,8 +16,11 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Identity,
     Index,
+    Integer,
+    PrimaryKeyConstraint,
     SmallInteger,
     Table,
     Text,
@@ -34,6 +39,11 @@ from modellbahn.modules.inventory.domain.model import (
     ScanMode,
     ScanOutcome,
     UnitStatus,
+)
+from modellbahn.modules.inventory.domain.parts import PartMovementReason
+from modellbahn.modules.manufacturing.contracts.parts import (
+    PART_REFERENCE,
+    PRINT_JOB_LINE_REFERENCE,
 )
 from modellbahn.modules.sales.contracts.orders import ORDER_REFERENCE
 from modellbahn.platform.db import Ltree, StrEnumType, metadata
@@ -181,5 +191,99 @@ stock_ledger = Table(
     CheckConstraint("(reason = 'undo') = (reverses_id IS NOT NULL)", name="undo_reverses"),
     Index("stock_ledger_unit_idx", "unit_id", "id"),
     Index("stock_ledger_scan_idx", "scan_id", postgresql_where=text("scan_id IS NOT NULL")),
+    schema=SCHEMA,
+)
+
+
+# --- Parts store ----------------------------------------------------------------------
+
+part_stock = Table(
+    "part_stock",
+    metadata,
+    Column("part_id", Uuid, ForeignKey(PART_REFERENCE, ondelete="RESTRICT"), nullable=False),
+    Column("location_id", Uuid, ForeignKey(locations.c.id, ondelete="RESTRICT"), nullable=False),
+    Column("quantity", Integer, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    PrimaryKeyConstraint("part_id", "location_id"),
+    # An emptied box keeps its row at 0 until something goes in again.
+    CheckConstraint("quantity >= 0", name="quantity_non_negative"),
+    Index("part_stock_location_idx", "location_id"),
+    schema=SCHEMA,
+)
+
+part_receipts = Table(
+    "part_receipts",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("print_job_id", Uuid, nullable=False),
+    Column("part_id", Uuid, nullable=False),
+    Column("quantity", Integer, nullable=False),
+    Column("stored", Integer, nullable=False, server_default=text("0")),
+    Column("written_off", Integer, nullable=False, server_default=text("0")),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    # The parts came off a line of that plate; a plate yields one receipt per part.
+    ForeignKeyConstraint(
+        ["print_job_id", "part_id"], list(PRINT_JOB_LINE_REFERENCE), ondelete="RESTRICT"
+    ),
+    UniqueConstraint("print_job_id", "part_id"),
+    CheckConstraint("quantity > 0", name="quantity_positive"),
+    CheckConstraint("stored >= 0 AND written_off >= 0", name="counts_non_negative"),
+    # Never more parts stored and written off than came off the plate.
+    CheckConstraint("stored + written_off <= quantity", name="counts_within_quantity"),
+    # The receiving area: what still waits for a box, first come first served.
+    Index(
+        "part_receipts_open_idx",
+        "part_id",
+        "created_at",
+        postgresql_where=text("stored + written_off < quantity"),
+    ),
+    schema=SCHEMA,
+)
+
+part_ledger = Table(
+    "part_ledger",
+    metadata,
+    Column("id", BigInteger, Identity(always=True), primary_key=True),
+    Column("part_id", Uuid, ForeignKey(PART_REFERENCE, ondelete="RESTRICT"), nullable=False),
+    Column("reason", StrEnumType(PartMovementReason), nullable=False),
+    Column("quantity", Integer, nullable=False),
+    Column("from_location_id", Uuid, ForeignKey(locations.c.id, ondelete="RESTRICT")),
+    Column("to_location_id", Uuid, ForeignKey(locations.c.id, ondelete="RESTRICT")),
+    Column("receipt_id", Uuid, ForeignKey(part_receipts.c.id, ondelete="RESTRICT")),
+    # The unit an assembly made: every kit knows the boxes its parts came from.
+    Column("unit_id", Uuid, ForeignKey(units.c.id, ondelete="RESTRICT")),
+    Column("note", Text, nullable=False, server_default=text("''")),
+    Column("scan_id", Uuid, ForeignKey(scans.c.id, ondelete="RESTRICT")),
+    Column("staff_id", Uuid, ForeignKey(ACCOUNT_REFERENCE, ondelete="RESTRICT")),
+    Column(
+        "reverses_id",
+        BigInteger,
+        ForeignKey("inventory.part_ledger.id", ondelete="RESTRICT"),
+        unique=True,
+    ),
+    Column("occurred_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "reason IN ('receive', 'assemble', 'count', 'write_off', 'undo')", name="reason"
+    ),
+    CheckConstraint("quantity > 0", name="quantity_positive"),
+    # Where each kind of movement comes from and goes to.
+    CheckConstraint(
+        "CASE reason "
+        "WHEN 'receive' THEN receipt_id IS NOT NULL "
+        "AND from_location_id IS NULL AND to_location_id IS NOT NULL "
+        "WHEN 'assemble' THEN unit_id IS NOT NULL "
+        "AND from_location_id IS NOT NULL AND to_location_id IS NULL "
+        "WHEN 'count' THEN (from_location_id IS NULL) <> (to_location_id IS NULL) "
+        "WHEN 'write_off' THEN receipt_id IS NOT NULL "
+        "AND from_location_id IS NULL AND to_location_id IS NULL "
+        "ELSE from_location_id IS DISTINCT FROM to_location_id END",
+        name="shape",
+    ),
+    CheckConstraint("unit_id IS NULL OR reason = 'assemble'", name="unit_for_assembly"),
+    CheckConstraint("(reason = 'undo') = (reverses_id IS NOT NULL)", name="undo_reverses"),
+    Index("part_ledger_part_idx", "part_id", "id"),
+    Index("part_ledger_unit_idx", "unit_id", postgresql_where=text("unit_id IS NOT NULL")),
+    Index("part_ledger_scan_idx", "scan_id", postgresql_where=text("scan_id IS NOT NULL")),
     schema=SCHEMA,
 )

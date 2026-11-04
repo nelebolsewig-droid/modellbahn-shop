@@ -63,6 +63,26 @@ class ScanNotFoundError(InventoryError):
     pass
 
 
+class PartNotFoundError(InventoryError):
+    """The manufacturing module knows no such part."""
+
+
+class ReceiptNotFoundError(InventoryError):
+    pass
+
+
+class InvalidReceiptStateError(InventoryError):
+    """Nothing left to store or write off, or the booking does not belong to the receipt."""
+
+
+class InsufficientPartsError(InventoryError):
+    """Fewer parts in the location (or the store) than are to be taken."""
+
+
+class BillOfMaterialsMissingError(InventoryError):
+    """The variant's product has no bill of materials in its scale: nothing to assemble."""
+
+
 class ScanNotUndoableError(InventoryError):
     """The scan booked nothing, is too old, was undone already, or its units moved on."""
 

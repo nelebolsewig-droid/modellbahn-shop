@@ -31,14 +31,23 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AssemblyIn,
+  AssemblyOut,
+  AssemblyPlanOut,
   LabelsIn,
   LocationContentsOut,
   LocationCreateIn,
   LocationOut,
   LocationPatchIn,
   LocationTreeOut,
+  PartCountIn,
+  PartDetailsOut,
+  PartStockOut,
   PickListOut,
+  PlanAssemblyParams,
   Problem,
+  ReceiptOut,
+  ReceivingOut,
   ScanIn,
   ScanOut,
   ScrapIn,
@@ -47,7 +56,8 @@ import type {
   UnitDetailsOut,
   UnitOut,
   UnitsCreateIn,
-  ValidationProblem
+  ValidationProblem,
+  WriteOffIn
 } from '../model';
 
 import { apiFetch } from '../../fetcher';
@@ -72,6 +82,200 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getAssembleUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/assemblies`
+}
+
+/**
+ * @summary Take the parts out of their boxes and label the new units
+ */
+export const assemble = async (assemblyIn: AssemblyIn, options?: Parameters<typeof apiFetch>[1]): Promise<AssemblyOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AssemblyOut>(getAssembleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(assemblyIn)
+  }
+);}
+
+
+
+
+
+export const getAssembleMutationKey = () => ['assemble'] as const;
+
+export const getAssembleMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assemble>>, TError,AssembleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assemble>>, TError,AssembleMutationVariables, TContext> => {
+
+const mutationKey = getAssembleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assemble>>, AssembleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  assemble(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssembleMutationResult = NonNullable<Awaited<ReturnType<typeof assemble>>>
+    export type AssembleMutationBody = AssemblyIn
+    export type AssembleMutationError = ErrorType<Problem | ValidationProblem>
+    export type AssembleMutationVariables = {data: AssemblyIn}
+
+    /**
+ * @summary Take the parts out of their boxes and label the new units
+ */
+export const useAssemble = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assemble>>, TError,AssembleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assemble>>,
+        TError,
+        AssembleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssembleMutationOptions(options), queryClient);
+    }
+    export const getPlanAssemblyUrl = (params: PlanAssemblyParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/inventory/assembly-plan?${stringifiedParams}` : `/api/v1/admin/inventory/assembly-plan`
+}
+
+/**
+ * @summary Which parts kits of a variant take, and from which boxes
+ */
+export const planAssembly = async (params: PlanAssemblyParams, options?: Parameters<typeof apiFetch>[1]): Promise<AssemblyPlanOut> => {
+
+  return apiFetch<AssemblyPlanOut>(getPlanAssemblyUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPlanAssemblyQueryKey = (params?: PlanAssemblyParams,) => {
+    return [
+    `/api/v1/admin/inventory/assembly-plan`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPlanAssemblyQueryOptions = <TData = Awaited<ReturnType<typeof planAssembly>>, TError = ErrorType<Problem | ValidationProblem>>(params: PlanAssemblyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPlanAssemblyQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof planAssembly>>> = ({ signal }) => planAssembly(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PlanAssemblyQueryResult = NonNullable<Awaited<ReturnType<typeof planAssembly>>>
+export type PlanAssemblyQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function usePlanAssembly<TData = Awaited<ReturnType<typeof planAssembly>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: PlanAssemblyParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof planAssembly>>,
+          TError,
+          Awaited<ReturnType<typeof planAssembly>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePlanAssembly<TData = Awaited<ReturnType<typeof planAssembly>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: PlanAssemblyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof planAssembly>>,
+          TError,
+          Awaited<ReturnType<typeof planAssembly>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePlanAssembly<TData = Awaited<ReturnType<typeof planAssembly>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: PlanAssemblyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Which parts kits of a variant take, and from which boxes
+ */
+
+export function usePlanAssembly<TData = Awaited<ReturnType<typeof planAssembly>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: PlanAssemblyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planAssembly>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPlanAssemblyQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
 
 export const getPrintLabelsUrl = () => {
 
@@ -781,7 +985,483 @@ export function useGetPickList<TData = Awaited<ReturnType<typeof getPickList>>, 
 
 
 
-export const getRecordScanUrl = () => {
+export const getListPartStockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/parts`
+}
+
+/**
+ * @summary Printed parts in stock and in receiving, by part number
+ */
+export const listPartStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PartStockOut> => {
+
+  return apiFetch<PartStockOut>(getListPartStockUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPartStockQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/parts`
+    ] as const;
+    }
+
+
+export const getListPartStockQueryOptions = <TData = Awaited<ReturnType<typeof listPartStock>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPartStockQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPartStock>>> = ({ signal }) => listPartStock({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPartStockQueryResult = NonNullable<Awaited<ReturnType<typeof listPartStock>>>
+export type ListPartStockQueryError = ErrorType<Problem>
+
+
+export function useListPartStock<TData = Awaited<ReturnType<typeof listPartStock>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartStock>>,
+          TError,
+          Awaited<ReturnType<typeof listPartStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartStock<TData = Awaited<ReturnType<typeof listPartStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPartStock>>,
+          TError,
+          Awaited<ReturnType<typeof listPartStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPartStock<TData = Awaited<ReturnType<typeof listPartStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Printed parts in stock and in receiving, by part number
+ */
+
+export function useListPartStock<TData = Awaited<ReturnType<typeof listPartStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPartStockQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetPartStockUrl = (partNumber: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/parts/${partNumber}`
+}
+
+/**
+ * @summary A part with its boxes, what waits in receiving, and its journal
+ */
+export const getPartStock = async (partNumber: string, options?: Parameters<typeof apiFetch>[1]): Promise<PartDetailsOut> => {
+
+  return apiFetch<PartDetailsOut>(getGetPartStockUrl(partNumber),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartStockQueryKey = (partNumber: string,) => {
+    return [
+    `/api/v1/admin/inventory/parts/${partNumber}`
+    ] as const;
+    }
+
+
+export const getGetPartStockQueryOptions = <TData = Awaited<ReturnType<typeof getPartStock>>, TError = ErrorType<Problem | ValidationProblem>>(partNumber: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartStockQueryKey(partNumber);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartStock>>> = ({ signal }) => getPartStock(partNumber, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partNumber !== null && partNumber !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPartStockQueryResult = NonNullable<Awaited<ReturnType<typeof getPartStock>>>
+export type GetPartStockQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetPartStock<TData = Awaited<ReturnType<typeof getPartStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ partNumber: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartStock>>,
+          TError,
+          Awaited<ReturnType<typeof getPartStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartStock<TData = Awaited<ReturnType<typeof getPartStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ partNumber: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPartStock>>,
+          TError,
+          Awaited<ReturnType<typeof getPartStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPartStock<TData = Awaited<ReturnType<typeof getPartStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ partNumber: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A part with its boxes, what waits in receiving, and its journal
+ */
+
+export function useGetPartStock<TData = Awaited<ReturnType<typeof getPartStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ partNumber: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPartStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPartStockQueryOptions(partNumber,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getCountPartsUrl = (partNumber: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/parts/${partNumber}/count`
+}
+
+/**
+ * @summary Set a part's quantity in a location to what was counted there
+ */
+export const countParts = async (partNumber: string,
+    partCountIn: PartCountIn, options?: Parameters<typeof apiFetch>[1]): Promise<PartDetailsOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<PartDetailsOut>(getCountPartsUrl(partNumber),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partCountIn)
+  }
+);}
+
+
+
+
+
+export const getCountPartsMutationKey = () => ['countParts'] as const;
+
+export const getCountPartsMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countParts>>, TError,CountPartsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof countParts>>, TError,CountPartsMutationVariables, TContext> => {
+
+const mutationKey = getCountPartsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof countParts>>, CountPartsMutationVariables> = (props) => {
+          const {partNumber,data} = props ?? {};
+
+          return  countParts(partNumber,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CountPartsMutationResult = NonNullable<Awaited<ReturnType<typeof countParts>>>
+    export type CountPartsMutationBody = PartCountIn
+    export type CountPartsMutationError = ErrorType<Problem | ValidationProblem>
+    export type CountPartsMutationVariables = {partNumber: string;data: PartCountIn}
+
+    /**
+ * @summary Set a part's quantity in a location to what was counted there
+ */
+export const useCountParts = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countParts>>, TError,CountPartsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof countParts>>,
+        TError,
+        CountPartsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCountPartsMutationOptions(options), queryClient);
+    }
+    export const getListReceivingUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/receiving`
+}
+
+/**
+ * @summary Good parts of finished plates that wait to be put into a box
+ */
+export const listReceiving = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ReceivingOut> => {
+
+  return apiFetch<ReceivingOut>(getListReceivingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReceivingQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/receiving`
+    ] as const;
+    }
+
+
+export const getListReceivingQueryOptions = <TData = Awaited<ReturnType<typeof listReceiving>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReceivingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReceiving>>> = ({ signal }) => listReceiving({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReceivingQueryResult = NonNullable<Awaited<ReturnType<typeof listReceiving>>>
+export type ListReceivingQueryError = ErrorType<Problem>
+
+
+export function useListReceiving<TData = Awaited<ReturnType<typeof listReceiving>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceiving>>,
+          TError,
+          Awaited<ReturnType<typeof listReceiving>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceiving<TData = Awaited<ReturnType<typeof listReceiving>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReceiving>>,
+          TError,
+          Awaited<ReturnType<typeof listReceiving>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReceiving<TData = Awaited<ReturnType<typeof listReceiving>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Good parts of finished plates that wait to be put into a box
+ */
+
+export function useListReceiving<TData = Awaited<ReturnType<typeof listReceiving>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReceiving>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReceivingQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getWriteOffReceiptUrl = (receiptId: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/receiving/${receiptId}/write-off`
+}
+
+/**
+ * @summary The rest of a receipt never reached a shelf: take it out of receiving
+ */
+export const writeOffReceipt = async (receiptId: string,
+    writeOffIn: WriteOffIn, options?: Parameters<typeof apiFetch>[1]): Promise<ReceiptOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ReceiptOut>(getWriteOffReceiptUrl(receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(writeOffIn)
+  }
+);}
+
+
+
+
+
+export const getWriteOffReceiptMutationKey = () => ['writeOffReceipt'] as const;
+
+export const getWriteOffReceiptMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffReceipt>>, TError,WriteOffReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeOffReceipt>>, TError,WriteOffReceiptMutationVariables, TContext> => {
+
+const mutationKey = getWriteOffReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeOffReceipt>>, WriteOffReceiptMutationVariables> = (props) => {
+          const {receiptId,data} = props ?? {};
+
+          return  writeOffReceipt(receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteOffReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof writeOffReceipt>>>
+    export type WriteOffReceiptMutationBody = WriteOffIn
+    export type WriteOffReceiptMutationError = ErrorType<Problem | ValidationProblem>
+    export type WriteOffReceiptMutationVariables = {receiptId: string;data: WriteOffIn}
+
+    /**
+ * @summary The rest of a receipt never reached a shelf: take it out of receiving
+ */
+export const useWriteOffReceipt = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeOffReceipt>>, TError,WriteOffReceiptMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeOffReceipt>>,
+        TError,
+        WriteOffReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteOffReceiptMutationOptions(options), queryClient);
+    }
+    export const getRecordScanUrl = () => {
 
 
 
