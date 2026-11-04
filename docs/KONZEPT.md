@@ -1,9 +1,9 @@
 # Modellbahn-Shop · Architekturkonzept
 
 > **Stand:** Schritt 1 freigegeben am 21.10.2026 · Schritte 2 bis 5 umgesetzt, dazu Messen,
-> Messe-Post und Impressum (ADR 0012); der Shop läuft als **adp-Modelle** · Schritt 6a
-> (Fertigung: Drucker, Teile, Stücklisten, Druckaufträge, ADR 0017) umgesetzt · als Nächstes
-> Schritt 6b (Wareneingang und Montage)
+> Messe-Post und Impressum (ADR 0012); der Shop läuft als **adp-Modelle** · Schritt 6
+> umgesetzt: Fertigung mit Druckern, Teilen, Stücklisten und Druckaufträgen (ADR 0017),
+> Teilelager, Wareneingang und Montage (ADR 0018) · als Nächstes Schritt 7 (KI-Produkttexte)
 > **Umfang:** Domänenmodell (DDD), Systemarchitektur, Tech-Stack, Datenmodell (ERD),
 > Medien-Pipeline, Barcode-Engine, KI-Schnittstellen, API-Architektur, Gestaltung, Fahrplan
 > **Geprüft:** Das Datenmodell wurde gegen PostgreSQL 17 geprüft
@@ -157,10 +157,12 @@ Ereignis verloren“.
 | `sales.order.cancelled` | Verkauf | Lager: Zuteilung freigeben |
 | `inventory.allocation.backordered` | Lager | Planung: Rückstand einplanen |
 | `inventory.stock.changed` | Lager | Planung, Dashboard per SSE |
+| `inventory.part_stock.changed` | Lager | Teilelager, Teileseite und Montageplan per SSE (ADR 0018) |
+| `inventory.parts.arrived` | Lager | Wareneingang und Startseite des Stellwerks per SSE |
 | `inventory.stock.below_reorder_point` | Lager | Planung: außerplanmäßig neu rechnen |
 | `manufacturing.printer.status_changed` | Fertigung | Druckerhalle und Startseite des Stellwerks per SSE |
 | `manufacturing.print_job.changed`, `.failed` | Fertigung | Druckerhalle per SSE |
-| `manufacturing.print_job.completed` | Fertigung | Lager: Teile im Wareneingang buchen (ab Schritt 6b); Druckerhalle per SSE |
+| `manufacturing.print_job.completed` | Fertigung | Lager: gute Teile in den Wareneingang (ADR 0018); Druckerhalle per SSE |
 | `planning.proposal.accepted` | Planung | Fertigung: Druckauftrag anlegen |
 | `ai.copy.drafted` | KI-Inhalte | Admin-Oberfläche per SSE |
 | `site.subscription.requested` | Auftritt | Worker: Mail mit Bestätigungslink |
@@ -1073,14 +1075,15 @@ Groß- und Kleinschreibung, URL-Präfixe).
 
 **4 · Scan-Sitzung.** Ein Zustandsautomat als reine Funktion (Reducer, kein XState;
 ADR 0011). Was ein Scan *bedeutet*, entscheidet der Server je Modus. Umgesetzt sind
-Einlagern, Kommissionieren und Auskunft; die übrigen folgen mit der Fertigung:
+Einlagern, Kommissionieren und Auskunft. Den Wareneingang erledigt das Einlagern mit:
+erst die Box, dann das Teileetikett (ADR 0018). Umlagern und Inventur folgen:
 
 | Modus | Ablauf |
 | --- | --- |
-| Einlagern | Platz scannen → Ware scannen, beliebig oft → nächster Platz |
+| Einlagern | Platz scannen → Ware scannen, beliebig oft → nächster Platz; ein Teileetikett bringt die wartenden Teile dieses Teils aus dem Wareneingang in den Platz |
 | Kommissionieren | Bestellung wählen → Pickliste erscheint → jede gescannte Einheit wird gegen die offenen Positionen geprüft. Ein falscher Artikel gibt einen Fehlerton und wird nicht gebucht. |
 | Umlagern | Quelle → Ware → Ziel |
-| Wareneingang | Druckauftrag wählen → Box scannen → gute Teile werden gebucht |
+| Wareneingang | im Einlagern enthalten: Box scannen → Teileetikett scannen → gute Teile werden gebucht (ADR 0018) |
 | Inventur | Platz scannen → alles scannen, was dort liegt → Abweichungen erscheinen sofort |
 | Auskunft | Irgendetwas scannen → alles dazu anzeigen, nichts buchen |
 
@@ -1364,8 +1367,13 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
 | | GET | `/units/{code}` | Einheit mit Lebenslauf |
 | | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` |
+| | GET | `/parts` · `/parts/{Teilenummer}` | Teilelager; ein Teil mit Boxen, Wareneingang und Journal (ADR 0018) |
+| | POST | `/parts/{Teilenummer}/count` | Gezählt: Menge in einem Platz setzen, das Journal bucht den Unterschied |
+| | GET | `/receiving` | Wareneingang: gute Teile fertiger Platten, die auf eine Box warten |
+| | POST | `/receiving/{id}/write-off` | Rest eines Eingangs ausbuchen |
+| | GET | `/assembly-plan` | Montageplan: Bedarf, Bestand, Entnahme je Box in Laufreihenfolge |
 | | POST | `/assemblies` | Bausätze aus Teilen montieren, Einheiten und Etiketten erzeugen |
-| | POST | `/movements` | Korrekturbuchung mit Begründung |
+| | POST | `/movements` | Korrekturbuchung mit Begründung (für Teile: `/parts/{Teilenummer}/count`) |
 | | POST | `/labels` | Etiketten als PDF oder an den Etikettendrucker |
 | | POST · PATCH | `/stocktakes` … | Inventur |
 | Verkauf | GET | `/orders` | Liste nach Zustand (`status`, mehrfach), Suche nach Nummer oder E-Mail (`q`), Cursor |
@@ -1558,7 +1566,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 29.10.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016). Mit Schritt 6a kennt das Stellwerk die Drucker der Werkstatt mit ihrem Zustand, Teile, Stücklisten und Druckaufträge, in einer Druckerhalle, die live mitläuft (ADR 0017); Wareneingang und Montage folgen mit 6b.
+**Stand 04.11.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016). Mit Schritt 6a kennt das Stellwerk die Drucker der Werkstatt mit ihrem Zustand, Teile, Stücklisten und Druckaufträge, in einer Druckerhalle, die live mitläuft (ADR 0017). Mit 6b gehen die guten Teile fertiger Platten in den Wareneingang und per Scan in ihre Boxen; die Montage nimmt sie nach Stückliste heraus und erzeugt Einheiten, die wissen, aus welchen Boxen ihre Teile stammen (ADR 0018).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1568,7 +1576,7 @@ das man anfassen kann.
 | 4 | **Shop-Frontend + Verkauf** | Startseite, Kategorien, Produktseite mit Galerie und Ausführungswahl, Warenkorb, Checkout mit Konto oder als Gast, Mock-Zahlung, Adressbuch, Bestellhistorie mit übernommenen Gastbestellungen |
 | 5 | **Lager + Barcode-Engine** | Lagerbaum, Etiketten drucken (A4 und Brother QL), mit dem Handy ein- und auslagern, Kommissionieren ohne Neuladen, Lieferbarkeit im Shop, Artikelliste für die Kasse |
 | 6a | **Fertigung** | Drucker mit Zustand und Verlauf, Material, Teile, Stücklisten, Druckaufträge in der Druckerhalle, live (ADR 0017) |
-| 6b | **Wareneingang und Montage** | Teilebestand in Boxen, fertige Platten buchen gute Teile ein, Teile-Etiketten, Montage zu Einheiten nach Stückliste |
+| 6b | **Wareneingang und Montage** | Teilebestand in Boxen, fertige Platten buchen gute Teile ein, Teile-Etiketten, Montage zu Einheiten nach Stückliste, live (ADR 0018) |
 | 7 | **KI-Produkttexte** | Text aus Fakten erzeugen, vergleichen, feldweise übernehmen |
 | 8 | **Planung + Dashboard** | Prognose, Druckwarteschlange mit Begründung, Auslastung, Annahme erzeugt Druckauftrag |
 

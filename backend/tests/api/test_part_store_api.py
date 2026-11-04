@@ -19,6 +19,7 @@ INVENTORY: Final = "/api/v1/admin/inventory"
 ROOF: Final = "STW-ALT-DACH-H0"
 CHIMNEY: Final = "STW-ALT-SCHORNSTEIN-H0"
 
+
 @pytest.fixture
 async def build_store(staff_client: AsyncClient) -> None:
     """Site LAGER, shelf R01 and its compartment R01-F01."""

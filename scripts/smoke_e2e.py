@@ -81,8 +81,12 @@ STOCK_CHANGED: Final = "inventory.stock.changed"
 BACKORDERED: Final = "inventory.allocation.backordered"
 FAIR_ANNOUNCED: Final = "site.fair.announced"
 PRINT_JOB_FAILED: Final = "manufacturing.print_job.failed"
+PARTS_ARRIVED: Final = "inventory.parts.arrived"
 # A full resin plate of the smoke part; on resin the plate takes as long as its slowest part.
 SMOKE_PLATE_MINUTES: Final = 120
+# Good parts of the smoke plate (of 8), and kits of two roofs assembled from them.
+SMOKE_GOOD_PARTS: Final = 7
+SMOKE_KITS: Final = 3
 SMOKE_CATEGORY: Final = "smoke-test"
 # The smoke product's two variants, and shipping to Germany below the free threshold.
 UNPAINTED_CENTS: Final = 3490
@@ -644,6 +648,7 @@ class Demo:
         self._ebay_external = ""
         self._ebay_product: dict[str, Any] = {}
         self._ebay_order: dict[str, Any] = {}
+        self._smoke_part: dict[str, Any] = {}
 
     def steps(self) -> list[tuple[str, Callable[[], str | None]]]:
         return [
@@ -702,6 +707,10 @@ class Demo:
             (
                 "Fertigung: Drucker, Teil, Stückliste, Platte bis fertig, Defekt live im Stellwerk",
                 self.manufacturing,
+            ),
+            (
+                "Wareneingang: gute Teile in die Box per Scan, Montage nach Stückliste",
+                self.parts_store,
             ),
             (
                 "eBay (Testmarktplatz): verbinden, anbieten, Kauf wird bezahlte Bestellung",
@@ -1881,10 +1890,13 @@ class Demo:
         )
         expect_status(self._staff("POST", f"{jobs}/{first['id']}/take-off"), 200, "Abnehmen")
         done = self._staff(
-            "POST", f"{jobs}/{first['id']}/complete", {"lines": [{"part_id": part_id, "good": 7}]}
+            "POST",
+            f"{jobs}/{first['id']}/complete",
+            {"lines": [{"part_id": part_id, "good": SMOKE_GOOD_PARTS}]},
         )
         expect_status(done, 200, "Fertig melden")
         expect(done.json()["lines"][0]["failed"] == 1, "Ausschuss nicht gezählt")
+        self._smoke_part = {"number": f"SMOKE-{code}-DACH-H0", "job": first["number"]}
         expect_status(self._staff("POST", f"{jobs}/{second['id']}/start"), 200, "Zweite Platte")
         broken = self._staff(
             "POST",
@@ -1923,6 +1935,87 @@ class Demo:
         return (
             f"{code}: Druck {first['number']} fertig (7 von 8), Druck {second['number']} Fehldruck"
         )
+
+    def parts_store(self) -> str | None:
+        """The finished plate's good parts: receiving, into a box by scan, into kits."""
+        number, job = self._smoke_part["number"], self._smoke_part["job"]
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == PARTS_ARRIVED and e.json().get("data", {}).get("number") == job
+                ),
+                what=f"{PARTS_ARRIVED} für Druck {job}",
+            )
+
+        def arrived() -> dict[str, Any] | None:
+            receiving = self._staff("GET", f"{INVENTORY}/receiving")
+            expect_status(receiving, 200, "Wareneingang")
+            items: list[dict[str, Any]] = receiving.json()["items"]
+            return next((r for r in items if (r["part"] or {}).get("part_number") == number), None)
+
+        receipt = self._until(f"Druck {job} im Wareneingang", arrived)
+        expect(
+            receipt["open"] == SMOKE_GOOD_PARTS, f"Gute Teile im Wareneingang: {receipt['open']}"
+        )
+        box = self._staff(
+            "POST",
+            f"{INVENTORY}/locations",
+            {"segment": "B01", "kind": "box", "parent_code": self._compartment, "name": "Dächer"},
+        )
+        expect_status(box, 201, "Box anlegen")
+        box_code = box.json()["code"]
+        label = self.staff_browser._send(  # a PDF, not JSON
+            "POST",
+            f"{INVENTORY}/labels",
+            accept="application/pdf",
+            body={"sheet": "ql_62x29", "part_numbers": [number]},
+            headers={CLIENT_HEADER: "web"},
+            cookies=None,
+        )
+        expect_status(label, 200, "Teileetikett")
+        expect(label.body.startswith(b"%PDF"), "Teileetikett ist kein PDF")
+
+        self._scan("put_away", box_code)
+        stored = self._scan("put_away", number, {"location_code": box_code})
+        effect = stored.get("part_effect") or {}
+        expect(
+            (stored["message"], effect.get("quantity"), effect.get("print_jobs"))
+            == ("parts_stored", SMOKE_GOOD_PARTS, [job]),
+            f"Einlagern per Teileetikett: {stored['message']}, {effect}",
+        )
+
+        variant_id = self._product["scales"][0]["variants"][0]["id"]
+        plan = self._staff(
+            "GET", f"{INVENTORY}/assembly-plan?variant_id={variant_id}&quantity={SMOKE_KITS}"
+        )
+        expect_status(plan, 200, "Montageplan")
+        expect(
+            (plan.json()["ready"], plan.json()["possible"]) == (True, SMOKE_KITS),
+            f"Montageplan: bereit {plan.json()['ready']}, möglich {plan.json()['possible']}",
+        )
+        assembled = self._staff(
+            "POST",
+            f"{INVENTORY}/assemblies",
+            {"variant_id": variant_id, "quantity": SMOKE_KITS, "location_code": box_code},
+        )
+        expect_status(assembled, 201, "Montage")
+        units = assembled.json()["units"]
+        expect(len(units) == SMOKE_KITS, f"Montierte Einheiten: {len(units)}")
+        unit = self._staff("GET", f"{INVENTORY}/units/{units[0]['code']}")
+        expect_status(unit, 200, "Montierte Einheit")
+        parts = [
+            (p["part"]["part_number"], p["quantity"], p["location_code"])
+            for p in unit.json()["parts"]
+        ]
+        expect(parts == [(number, 2, box_code)], f"Teile der Einheit: {parts}")
+        left = self._staff("GET", f"{INVENTORY}/parts/{number}")
+        expect_status(left, 200, "Teil im Lager")
+        expect(
+            left.json()["stock"]["total"] == 1, f"Übrige Dächer: {left.json()['stock']['total']}"
+        )
+        for path in (f"/admin/lager/teile/{number}", "/admin/lager/montage"):
+            expect_status(self.staff_browser.page(path), 200, f"{path} mit Admin-Sitzung")
+        return f"Druck {job}: 7 Dächer in {box_code}, 3 Bausätze montiert, 1 Dach übrig"
 
     def _ebay_connect(self) -> None:
         """The owner connects eBay, chooses the shipping policy and maps the category."""
