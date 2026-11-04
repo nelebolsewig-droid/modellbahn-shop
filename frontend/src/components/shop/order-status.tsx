@@ -99,6 +99,22 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
             </h2>
             <p className="mt-3 text-small break-all">{order.email}</p>
           </section>
+          {order.status === "paid" || order.status === "shipped" ? (
+            <section aria-labelledby="widerruf">
+              <h2 id="widerruf" className="label-caps text-ink-tertiary">
+                Widerruf
+              </h2>
+              <p className="mt-3 text-small text-ink-secondary">
+                Du kannst diese Bestellung innerhalb von 14 Tagen nach Erhalt der Ware widerrufen.
+              </p>
+              <Link
+                href={`/widerruf/erklaeren?bestellung=${encodeURIComponent(order.number)}` as Route}
+                className="mt-2 inline-block text-small font-medium text-ink underline underline-offset-4 hover:text-accent"
+              >
+                Vertrag widerrufen
+              </Link>
+            </section>
+          ) : null}
           {order.payments.length > 0 ? (
             <section aria-labelledby="zahlungen">
               <h2 id="zahlungen" className="label-caps text-ink-tertiary">

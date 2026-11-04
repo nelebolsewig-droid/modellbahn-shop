@@ -9,6 +9,7 @@ import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
+import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { OrderLines, OrderTimeline } from "@/components/shop/order-parts";
@@ -37,6 +38,7 @@ import {
   cancelOrder,
   getGetOrderQueryKey,
   getListOrdersQueryKey,
+  getListWithdrawalsQueryKey,
   shipOrder,
   useGetOrder,
 } from "@/lib/api/generated/admin-sales/admin-sales";
@@ -52,6 +54,7 @@ import {
   ORDER_EVENT_TYPES,
   orderEventOf,
   stockEventOf,
+  withdrawalEventOf,
 } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import {
@@ -87,6 +90,9 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
     url: ADMIN_EVENTS_URL,
     eventTypes: [...ORDER_EVENT_TYPES, ...INVENTORY_EVENT_TYPES],
     onMessage(data) {
+      if (withdrawalEventOf(data)?.orderId === orderId) {
+        void queryClient.invalidateQueries({ queryKey: getListWithdrawalsQueryKey({ order_id: orderId }) });
+      }
       if (orderEventOf(data)?.orderId === orderId) {
         void queryClient.invalidateQueries({ queryKey: getGetOrderQueryKey(orderId) });
         void queryClient.invalidateQueries({ queryKey: getGetPickListQueryKey(orderId) });
@@ -150,6 +156,7 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-6">
+          <OrderWithdrawals orderId={orderId} />
           <Panel title="Verlauf" code="VK 11">
             <OrderTimeline order={data} />
             <StateNote order={data} />

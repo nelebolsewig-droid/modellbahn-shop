@@ -3034,6 +3034,14 @@
             "title": "Shop Name",
             "type": "string"
           },
+          "site_url": {
+            "description": "The shop's public address (MB_PUBLIC_BASE_URL); the legal texts name it, e.g. where the withdrawal function is.",
+            "examples": [
+              "https://neu.adp-modelle.de"
+            ],
+            "title": "Site Url",
+            "type": "string"
+          },
           "street": {
             "title": "Street",
             "type": "string"
@@ -3054,7 +3062,8 @@
           "phone",
           "email",
           "vat_id",
-          "complete"
+          "complete",
+          "site_url"
         ],
         "title": "ImprintOut",
         "type": "object"

@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 
 import { OrderDesk } from "./order-desk";
 import { OrderList } from "./order-list";
+import { WithdrawalsPanel } from "./withdrawals";
 
 // The pages pass functions to the shell, which only client components can do.
 
@@ -14,6 +15,7 @@ export function OrderListPage() {
         <>
           <p className="label-caps text-ink-tertiary">Verkauf</p>
           <h1 className="mt-4 mb-8 text-heading sm:text-title">Bestellungen</h1>
+          <WithdrawalsPanel />
           <OrderList onStreamClosed={revalidate} />
         </>
       )}

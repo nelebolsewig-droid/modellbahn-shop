@@ -164,9 +164,16 @@ class ImprintOut(BaseModel):
     email: str
     vat_id: str
     complete: bool = Field(description="Everything § 5 DDG asks for is there.")
+    site_url: str = Field(
+        description=(
+            "The shop's public address (MB_PUBLIC_BASE_URL); the legal texts name it, e.g. "
+            "where the withdrawal function is."
+        ),
+        examples=["https://neu.adp-modelle.de"],
+    )
 
     @classmethod
-    def from_imprint(cls, imprint: Imprint) -> Self:
+    def from_imprint(cls, imprint: Imprint, *, site_url: str) -> Self:
         return cls(
             shop_name=imprint.shop_name,
             company=imprint.company,
@@ -179,4 +186,5 @@ class ImprintOut(BaseModel):
             email=imprint.email,
             vat_id=imprint.vat_id,
             complete=imprint.is_complete,
+            site_url=site_url,
         )

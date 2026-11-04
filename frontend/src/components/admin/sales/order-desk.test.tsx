@@ -173,4 +173,29 @@ describe("OrderDesk", () => {
 
     await waitFor(() => expect(requestsTo(fetchMock, ORDER)).toHaveLength(2));
   });
+
+  it("shows a withdrawal of this order at the top", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder()),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      "GET /api/v1/admin/withdrawals": () =>
+        jsonResponse({
+          items: [
+            {
+              id: "w1",
+              received_at: "2026-11-04T14:42:00Z",
+              name: "Erika Mustermann",
+              order_number: "MB-2026-00042",
+              email: "erika@example.de",
+              scope: "",
+              order_id: "o1",
+            },
+          ],
+        }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    expect(await screen.findByText("Widerruf eingegangen am 4. November 2026, 15:42 Uhr")).toBeInTheDocument();
+    expect(screen.getByText(/Die ganze Bestellung, erklärt von Erika Mustermann/)).toBeInTheDocument();
+  });
 });

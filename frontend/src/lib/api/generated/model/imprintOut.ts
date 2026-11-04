@@ -26,6 +26,8 @@ export interface ImprintOut {
   phone: string;
   postal_code: string;
   shop_name: string;
+  /** The shop's public address (MB_PUBLIC_BASE_URL); the legal texts name it, e.g. where the withdrawal function is. */
+  site_url: string;
   street: string;
   vat_id: string;
 }

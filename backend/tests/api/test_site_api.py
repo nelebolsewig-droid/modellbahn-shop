@@ -146,4 +146,5 @@ class TestImprint:
             "email": "info@adp-modelle.de",
             "vat_id": "",
             "complete": True,
+            "site_url": PUBLIC_BASE_URL,
         }

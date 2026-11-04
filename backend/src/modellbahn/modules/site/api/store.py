@@ -139,6 +139,8 @@ async def unsubscribe(body: TokenIn, service: SubscriptionServiceDep) -> None:
     summary="Who runs the shop (provider details, § 5 DDG)",
     responses=problems(unsafe=False, validated=False),
 )
-async def get_imprint(response: Response, imprint: ImprintDep) -> ImprintOut:
+async def get_imprint(
+    response: Response, imprint: ImprintDep, base_url: PublicBaseUrlDep
+) -> ImprintOut:
     response.headers["Cache-Control"] = IMPRINT_CACHE_CONTROL
-    return ImprintOut.from_imprint(imprint)
+    return ImprintOut.from_imprint(imprint, site_url=base_url)
