@@ -6,7 +6,7 @@ type PartBinProps = {
   className?: string;
 };
 
-const COLUMNS = 6;
+const COLUMNS = 5;
 const ROWS = 4;
 
 /**
@@ -21,7 +21,7 @@ export function PartBin({ level, className }: PartBinProps) {
       viewBox="0 0 44 34"
       aria-hidden="true"
       focusable="false"
-      className={cn("block h-auto w-11 shrink-0 overflow-visible", className)}
+      className={cn("block h-auto w-12 shrink-0 overflow-visible", className)}
     >
       <g fill="none" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" className="stroke-drawing-line">
         {/* Back wall, sides and the low front with its grip. */}
@@ -34,18 +34,18 @@ export function PartBin({ level, className }: PartBinProps) {
           const column = index % COLUMNS;
           const row = Math.floor(index / COLUMNS);
           // Stacked like loose parts: every other row shifted by half a piece.
-          const x = 7 + column * 5 + (row % 2) * 2;
-          const y = 26 - row * 4;
+          const x = 7 + column * 6 + (row % 2) * 1.5;
+          const y = 28 - row * 5;
           return (
             <rect
               key={index}
-              x={Math.min(x, 34)}
-              y={y - 3}
-              width={4}
-              height={3}
-              rx={0.8}
+              x={Math.min(x, 32)}
+              y={y - 4.2}
+              width={5.2}
+              height={4.2}
+              rx={1}
               className="fill-accent-subtle stroke-accent"
-              strokeWidth={0.6}
+              strokeWidth={0.7}
             />
           );
         })}

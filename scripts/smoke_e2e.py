@@ -81,7 +81,7 @@ STOCK_CHANGED: Final = "inventory.stock.changed"
 BACKORDERED: Final = "inventory.allocation.backordered"
 FAIR_ANNOUNCED: Final = "site.fair.announced"
 PRINT_JOB_FAILED: Final = "manufacturing.print_job.failed"
-PARTS_ARRIVED: Final = "inventory.parts.arrived"
+PART_STOCK_CHANGED: Final = "inventory.part_stock.changed"
 # A full resin plate of the smoke part; on resin the plate takes as long as its slowest part.
 SMOKE_PLATE_MINUTES: Final = 120
 # Good parts of the smoke plate (of 8), and kits of two roofs assembled from them.
@@ -1938,14 +1938,9 @@ class Demo:
 
     def parts_store(self) -> str | None:
         """The finished plate's good parts: receiving, into a box by scan, into kits."""
+        # The worker books the plate's parts on manufacturing.print_job.completed; the step
+        # before read past inventory.parts.arrived while waiting for its failed plate.
         number, job = self._smoke_part["number"], self._smoke_part["job"]
-        if self.stream is not None:
-            self.stream.wait_for(
-                lambda e: (
-                    e.event == PARTS_ARRIVED and e.json().get("data", {}).get("number") == job
-                ),
-                what=f"{PARTS_ARRIVED} für Druck {job}",
-            )
 
         def arrived() -> dict[str, Any] | None:
             receiving = self._staff("GET", f"{INVENTORY}/receiving")
@@ -1983,6 +1978,14 @@ class Demo:
             == ("parts_stored", SMOKE_GOOD_PARTS, [job]),
             f"Einlagern per Teileetikett: {stored['message']}, {effect}",
         )
+        if self.stream is not None:
+            self.stream.wait_for(
+                lambda e: (
+                    e.event == PART_STOCK_CHANGED
+                    and e.json().get("data", {}).get("location_code") == box_code
+                ),
+                what=f"{PART_STOCK_CHANGED} für {box_code}",
+            )
 
         variant_id = self._product["scales"][0]["variants"][0]["id"]
         plan = self._staff(

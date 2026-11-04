@@ -82,7 +82,11 @@ function DeliveryNote({ slip, mayManage }: { slip: ReceivingSlip; mayManage: boo
           {slip.number === null ? "Eingang" : `Druck ${slip.number}`}
           {slip.printerCode ? <span className="ml-2 font-mono normal-case">{slip.printerCode}</span> : null}
         </p>
-        {since ? <p className="text-hint text-ink-tertiary">fertig {since.replace(/^seit /, "vor ")}</p> : null}
+        {since ? (
+          <p className="text-hint text-ink-tertiary">
+            {since === "seit eben" ? "eben fertig" : `fertig ${since.replace(/^seit /, "vor ")}`}
+          </p>
+        ) : null}
       </header>
       <ul className="mt-2 divide-y divide-line border-t border-line">
         {slip.receipts.map((receipt) => (

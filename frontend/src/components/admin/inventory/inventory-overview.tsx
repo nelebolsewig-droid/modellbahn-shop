@@ -82,8 +82,8 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-6">
-          <StockPanel />
           <ReceivingPanel mayManage={mayManage} />
+          <StockPanel />
           <PartStockPanel />
         </div>
         <LocationPanel mayManage={mayManage} />
