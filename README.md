@@ -59,6 +59,11 @@ Was sich vorführen lässt:
   gestört ist. Eingangsbestätigung, Zahlungseingang, Versand
   und Storno kommen als E-Mail (in Mailpit). Wer als Gast bestellt und später ein Konto mit
   derselben Adresse bestätigt, findet die Bestellung unter „Mein Konto → Bestellungen“.
+- **Rechtliches.** AGB, Widerrufsbelehrung (nach gesetzlichem Muster) und
+  Datenschutzerklärung nehmen den Anbieter aus `MB_IMPRINT_*`. „Vertrag widerrufen“ im Fuß
+  jeder Seite und an jeder Bestellung ist die Widerrufsfunktion nach § 356a BGB. Sie
+  bestätigt den Eingang sofort per E-Mail, mit Inhalt, Datum und Uhrzeit, und meldet den
+  Widerruf dem Shop und live im Stellwerk (ADR 0020).
 - **Bestellungen im Stellwerk.** Unter „Bestellungen“ erscheinen neue Bestellungen live mit
   blinkendem Signal. Das Bestellpult zeigt Verlauf, Zahlungen, Artikel, die Pickliste und
   einen Paketaufkleber; Packer melden den Versand mit Sendungsnummer, sobald alles
@@ -441,3 +446,4 @@ secrets:
   - [0017 Fertigung: Drucker mit Zustand, Teile, Stücklisten, Druckaufträge](docs/adr/0017-fertigung-drucker-teile-stuecklisten.md)
   - [0018 Teilelager, Wareneingang und Montage](docs/adr/0018-teilelager-wareneingang-montage.md)
   - [0019 Zahlung mit SumUp Online](docs/adr/0019-zahlung-mit-sumup-online.md)
+  - [0020 Rechtstexte und Widerrufsfunktion](docs/adr/0020-rechtstexte-und-widerrufsfunktion.md)

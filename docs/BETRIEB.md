@@ -124,6 +124,18 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 - **Zum Ausprobieren** vor dem Start eine Bestellung über ein paar Euro mit echter Karte
   bezahlen und im Stellwerk stornieren: Das prüft Zahlung und Erstattung in einem.
 
+### Widerrufe
+
+- Ein Widerruf über „Vertrag widerrufen“ kommt als E-Mail an `MB_IMPRINT_EMAIL` und steht
+  im Stellwerk über der Bestellliste. Der Kunde hat seine Eingangsbestätigung dann schon
+  (ADR 0020).
+- **Noch nicht versendet:** die Bestellung im Stellwerk stornieren; das erstattet den Betrag.
+- **Schon versendet:** auf die Ware warten (oder den Nachweis der Rücksendung), dann
+  Kaufpreis und Hinsendekosten innerhalb von 14 Tagen nach Eingang des Widerrufs im
+  SumUp-Konto erstatten.
+- Passt ein Widerruf zu keiner Bestellung des Shops, ist es vielleicht ein eBay-Kauf; den
+  erstattet man über eBay.
+
 `make up` und `make logs` funktionieren auch, denn `.env` wählt mit
 `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` die Einstellungen für den echten
 Betrieb (ohne das Test-Postfach Mailpit).
@@ -139,7 +151,8 @@ Betrieb (ohne das Test-Postfach Mailpit).
 - Beides liegt in `/var/backups/modellbahn` und bleibt **14 Tage**.
 
 Eine Sicherung auf demselben Server übersteht dessen Verlust nicht. Darum regelmäßig vom
-eigenen Rechner herunterladen:
+eigenen Rechner herunterladen; heruntergeladene Sicherungen nach 14 Tagen löschen, so wie es
+die Datenschutzerklärung zusagt:
 
 ```bash
 scp 'root@<IPv4-Adresse>:/var/backups/modellbahn/*' ./modellbahn-sicherung/
@@ -181,8 +194,11 @@ Der Umzug von Shopify ist ein eigener Schritt. Er setzt voraus:
 - **Zahlung:** SumUp Online ist angebunden (Schritt 8 des Skripts) und mit einer echten
   Bestellung geprüft.
 - **Katalog:** Der Katalog ist vollständig, mit Fotos.
-- **Rechtliches:** AGB, Widerruf und Datenschutz sind geprüft. Die AGB-Seite sagt bis dahin,
-  Bestellungen seien Testbestellungen; das muss vor der ersten echten Zahlung weg.
+- **Rechtliches:**
+  - AGB, Widerrufsbelehrung und Datenschutzerklärung stehen im Shop (ADR 0020); vor dem
+    Start sollte sie ein Anwalt durchsehen.
+  - Mit Strato ist im Kundenlogin der Vertrag zur Auftragsverarbeitung abgeschlossen.
+  - Der EU-Gewährleistungshinweis (Pflicht seit 27.09.2026) ist eingebunden.
 
 Dann:
 

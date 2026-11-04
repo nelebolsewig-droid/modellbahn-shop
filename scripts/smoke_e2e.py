@@ -698,6 +698,10 @@ class Demo:
             ("Kundenbestellung speichert die Adresse im Adressbuch", self.account_order),
             ("Auf Bestellung: Stück wird zur Fertigung vorgemerkt", self.backorder),
             ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
+            (
+                "„Vertrag widerrufen“: Eingangsbestätigung, Meldung an Shop und Stellwerk",
+                self.withdrawal,
+            ),
             ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
             ("Archivieren nimmt das Produkt aus dem Shop", self.archive),
             (
@@ -1746,6 +1750,40 @@ class Demo:
         expect("erstatt" in text, "Stornomail erwähnt die Erstattung nicht")
         expect("Smoke-Test: nicht lieferbar" in text, "Stornomail ohne Hinweis")
         return f"{number} storniert, 85,80 € erstattet"
+
+    def withdrawal(self) -> str | None:
+        # The shipped guest order, withdrawn through the shop's withdrawal function (§ 356a BGB).
+        number = self._order["number"]
+        declared = self.guest_browser.api(
+            "POST",
+            f"{SHOP}/withdrawals",
+            {
+                "name": self.buyer.display_name,
+                "order_number": number.lower(),
+                "email": self.buyer.email,
+                "scope": "",
+            },
+        )
+        expect_status(declared, 201, "Widerruf")
+        receipt = declared.json()
+        expect(receipt["order_number"] == number, f"Widerruf zu {receipt['order_number']}")
+        message = self.mailpit.wait_for(
+            self.buyer.email, f"Eingangsbestätigung: dein Widerruf zu Bestellung {number}"
+        )
+        text = str(message.get("Text", ""))
+        expect("Eingegangen am" in text, "Eingangsbestätigung ohne Datum und Uhrzeit")
+        expect("die ganze Bestellung" in text, "Eingangsbestätigung ohne Umfang")
+        shop_email = self.guest_browser.api("GET", f"{SHOP}/imprint").json()["email"]
+        if shop_email:
+            self.mailpit.wait_for(shop_email, f"Widerruf eingegangen: {number}")
+        listed = self._staff("GET", f"{ADMIN}/withdrawals").json()["items"]
+        expect(
+            any(item["order_number"] == number and item["order_id"] for item in listed),
+            f"Widerruf nicht im Stellwerk: {[item['order_number'] for item in listed]}",
+        )
+        return f"{number} widerrufen, bestätigt" + (
+            f", Meldung an {shop_email}" if shop_email else ""
+        )
 
     def order_pages(self) -> str | None:
         mine = self.buyer_browser.page("/konto/bestellungen")
