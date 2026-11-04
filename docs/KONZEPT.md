@@ -74,7 +74,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Unterstützend | Auftritt | Messetermine, Messe-Post und Impressum: wie der Shop nach außen auftritt, ohne schwierige Fachlogik (ADR 0012). |
 | Unterstützend | Marktplatz | eBay als zweiter Verkaufsweg: Angebote, Bestand und Bestellungen im Gleichschritt mit dem Shop (ADR 0014). |
 | Generisch | Identität | Konten für Mitarbeiter und Kunden, Sitzungen, Rollen. Bewährte Verfahren, sorgfältig umgesetzt. |
-| Generisch | Zahlung | Angebunden über eine Schutzschicht, zunächst als Mock. |
+| Generisch | Zahlung | SumUp Online über eine Schutzschicht; die Testzahlung ist ein gleichwertiger Adapter für die Entwicklung (ADR 0019). |
 
 ### 2.2 Bounded Contexts
 
@@ -217,7 +217,7 @@ flowchart TB
 | Lager, Verkauf, Fertigung → Planung | Published Language | Planung liest nur und schreibt nirgends hinein. Damit ist sie der ideale erste Kandidat für einen eigenen Dienst. |
 | Planung → Fertigung | Customer/Supplier | Ein Vorschlag wird erst durch Annahme zum Auftrag. |
 | Medien → Katalog, Fertigung | Open Host Service | Medien kennt weder Produkte noch Teile, nur Assets. |
-| Verkauf → Zahlungsanbieter | Anti-Corruption Layer | Das Modell des Anbieters dringt nicht ins eigene ein; der Mock ist ein gleichwertiger Adapter. |
+| Verkauf → Zahlungsanbieter | Anti-Corruption Layer | Das Modell des Anbieters (SumUp) dringt nicht ins eigene ein; der Mock ist ein gleichwertiger Adapter. Meldungen des Anbieters sind nur Anlass, ihn selbst zu fragen (ADR 0019). |
 | KI-Inhalte → Claude API | Anti-Corruption Layer (`LlmPort`) | Modell und Anbieter sind austauschbar, Kosten werden zentral erfasst. |
 | Katalog, Lager → Marktplatz | Published Language, asynchron | Der Marktplatz folgt dem Shop: Jede Änderung macht Angebote fällig, der Worker gleicht ab. Auf eBay wird nichts von Hand bearbeitet. |
 | Marktplatz ↔ Verkauf | Customer/Supplier, asynchron | Eine bezahlte eBay-Bestellung wird eine Shop-Bestellung (Kanal `ebay`); ihr Versand geht als Sendungsnummer zurück. |
@@ -246,7 +246,7 @@ flowchart LR
     S3[("Objektspeicher<br/>S3-kompatibel")]
     CL["Claude API"]
     PR["3D-Drucker"]
-    PAY["Zahlung<br/>Mock-Adapter"]
+    PAY["Zahlung<br/>SumUp Online"]
 
     K --> C
     A --> C
@@ -773,9 +773,11 @@ erDiagram
     PAYMENT {
         uuid id PK
         uuid order_id FK
-        text provider "mock, später ein Anbieter"
-        text provider_ref
-        text status "captured, failed, refunded"
+        text provider "mock, sumup"
+        text provider_ref "bei SumUp die Bezahlseite"
+        text status "pending, captured, failed, refunded"
+        text checkout_url "nur solange pending"
+        text transaction_ref "SumUps Transaktion, für Erstattungen"
         int amount_cents
         uuid idempotency_key UK
         char request_fingerprint
@@ -1605,11 +1607,11 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 15 | Lieferzeit auf Bestellung (28.10.2026) | Ohne Angabe **1 bis 2 Wochen** statt 4 bis 6: Die Werkstatt hat 12 Drucker, defekte werden repariert. Je Variante bleibt die Lieferzeit einstellbar. Die Drucker mit ihrem Zustand (in Betrieb, defekt, in Reparatur) gehören in Schritt 6 (ADR 0013) |
 | 16 | eBay statt Kleinanzeigen (28.10.2026) | eBay wird zweiter Verkaufsweg, geführt vom Shop: Angebote je Produkt und Maßstab, gemeinsamer Bestand, Bestellungen im selben Lager- und Versandablauf. Aufschlag einstellbar, zum Start 0 %; EAN „Nicht zutreffend“; Modelle auf Bestellung auch auf eBay (ADR 0014) |
 | 17 | Bestehende eBay-Angebote (29.10.2026) | Die laufenden Angebote des Inhabers werden übernommen: Fotos, Titel und Preise als Katalog-Entwürfe; geht das Angebot des Shops online, endet das alte (ADR 0014, folgt als eigener Schritt) |
+| 18 | Zahlungsanbieter (04.11.2026) | **SumUp Online**, wie die Kasse auf Messen: Der Kunde bezahlt auf SumUps Seite, der Shop fragt SumUp selbst nach dem Ausgang; ohne Anbieter nimmt der Shop keine Bestellungen an (ADR 0019) |
 
 Noch offen:
 
 | Frage | Wovon es abhängt |
 | --- | --- |
-| Zahlungsanbieter | Bis dahin bezahlt der Shop mit einer sichtbaren Testzahlung (ADR 0009). Vor dem Start mit echtem Geld wird ein Anbieter als weiterer Adapter angebunden, mit Webhooks. |
 | USt-IdNr. | Reicht der Inhaber nach; dann genügt `MB_IMPRINT_VAT_ID` in `.env`. |
-| Domain und Umzug | Entschieden (04.11.2026): eigener Server bei Strato, zuerst unter `neu.adp-modelle.de`; www zieht von Shopify um, sobald SumUp Online als Zahlung angebunden ist. Mail über ein Strato-Postfach. Einrichtung und Betrieb: `docs/BETRIEB.md`. |
+| Domain und Umzug | Entschieden (04.11.2026): eigener Server bei Strato, zuerst unter `neu.adp-modelle.de`; www zieht von Shopify um, sobald SumUp Online mit echtem Geld geprüft ist (angebunden seit ADR 0019). Mail über ein Strato-Postfach. Einrichtung und Betrieb: `docs/BETRIEB.md`. |

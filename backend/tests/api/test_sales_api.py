@@ -248,6 +248,9 @@ class TestPayment:
             assert status.json()["number"] == order["number"]
             assert_problem(await stranger.get(f"{SHOP}/orders/unbekannt"), 404, "order_not_found")
 
+        assert (await client.get(f"{SHOP}/payment-provider")).json() == {"provider": "mock"}
+        # SumUp's method is no test payment.
+        assert_problem(await pay(client, token, "sumup"), 422, "validation_failed")
         declined = await pay(client, token, "declined")
         assert declined.status_code == 200
         assert declined.json()["status"] == "pending_payment"

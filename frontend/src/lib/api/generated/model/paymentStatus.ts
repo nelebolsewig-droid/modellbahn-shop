@@ -16,6 +16,7 @@ export type PaymentStatus = typeof PaymentStatus[keyof typeof PaymentStatus];
 
 
 export const PaymentStatus = {
+  pending: 'pending',
   captured: 'captured',
   failed: 'failed',
   refunded: 'refunded',

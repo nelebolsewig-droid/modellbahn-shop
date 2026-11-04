@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from modellbahn.platform.clock import FixedClock, SystemClock
-from modellbahn.platform.config import Environment, Settings
+from modellbahn.platform.config import Environment, PaymentProvider, Settings
 from modellbahn.platform.errors import _field_error
 from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
@@ -50,9 +50,32 @@ class TestSettings:
                 **IMPRINT,
             )
         production = Settings(
-            environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY, **IMPRINT
+            environment=Environment.PRODUCTION,
+            s3_access_key_id=OWN_KEY,
+            payment_provider=PaymentProvider.OFF,
+            **IMPRINT,
         )
         assert production.is_production
+
+    def test_production_refuses_the_test_payment(self) -> None:
+        with pytest.raises(ValidationError, match="MB_PAYMENT_PROVIDER=mock"):
+            Settings(environment=Environment.PRODUCTION, s3_access_key_id=OWN_KEY, **IMPRINT)
+
+    def test_sumup_needs_its_key_and_merchant_code(self) -> None:
+        with pytest.raises(ValidationError, match="MB_SUMUP_API_KEY, MB_SUMUP_MERCHANT_CODE"):
+            Settings(payment_provider=PaymentProvider.SUMUP)
+        with pytest.raises(ValidationError, match="MB_SUMUP_MERCHANT_CODE"):
+            Settings(payment_provider=PaymentProvider.SUMUP, sumup_api_key=SecretStr("sup_sk_x"))
+        sumup = Settings(
+            environment=Environment.PRODUCTION,
+            s3_access_key_id=OWN_KEY,
+            payment_provider=PaymentProvider.SUMUP,
+            sumup_api_key=SecretStr("sup_sk_x"),
+            sumup_merchant_code="MC123",
+            **IMPRINT,
+        )
+        assert sumup.payment_provider is PaymentProvider.SUMUP
+        assert "sup_sk_x" not in repr(sumup)
 
     def test_production_needs_the_imprint(self) -> None:
         with pytest.raises(ValidationError, match="MB_IMPRINT_"):

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from itertools import count
+from typing import Final, Literal
 from uuid import UUID, uuid4
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
@@ -15,6 +16,9 @@ from modellbahn.modules.sales.application.checkout import (
     CheckoutResult,
     CheckoutService,
 )
+from modellbahn.modules.sales.application.ports import PaymentRequest
+from modellbahn.modules.sales.domain.errors import PaymentUnavailableError
+from modellbahn.modules.sales.domain.model import PaymentOutcome, PaymentProgress, PaymentStart
 from tests.conftest import Deliver
 from tests.media_support import InMemoryMediaStorage, photo, ready_image
 
@@ -109,3 +113,74 @@ async def place(
     return await checkout.place_order(
         cart_id=cart, request=request, buyer=buyer, idempotency_key=key or uuid4()
     )
+
+
+type CheckoutState = Literal["PENDING", "PAID", "EXPIRED"]
+
+SUMUP: Final = "sumup"
+
+
+class FakeSumUp:
+    """SumUp as the shop sees it: checkouts with a page, their state, refunds."""
+
+    provider = SUMUP
+    takes_payments = True
+
+    def __init__(self) -> None:
+        self.checkouts: dict[str, CheckoutState] = {}
+        self.requests: list[PaymentRequest] = []
+        self.closed: list[str] = []
+        self.refunds: list[tuple[str, int]] = []
+        self.reachable = True
+        self.refuses_to_close = False
+
+    # What the customer does on the page.
+
+    def pay(self, reference: str) -> None:
+        self.checkouts[reference] = "PAID"
+
+    def expire(self, reference: str) -> None:
+        self.checkouts[reference] = "EXPIRED"
+
+    # The API the shop calls.
+
+    async def begin(self, request: PaymentRequest) -> PaymentStart:
+        self._answer()
+        reference = f"chk_{len(self.checkouts) + 1}"
+        self.checkouts[reference] = "PENDING"
+        self.requests.append(request)
+        return PaymentStart(
+            provider=SUMUP,
+            provider_ref=reference,
+            checkout_url=f"https://pay.sumup.test/{reference}",
+        )
+
+    async def outcome(self, provider_ref: str) -> PaymentOutcome:
+        self._answer()
+        match self.checkouts[provider_ref]:
+            case "PAID":
+                return PaymentOutcome(
+                    progress=PaymentProgress.CAPTURED, transaction_ref=f"txn_{provider_ref}"
+                )
+            case "EXPIRED":
+                return PaymentOutcome(progress=PaymentProgress.FAILED, failure_code="expired")
+            case "PENDING":
+                return PaymentOutcome(progress=PaymentProgress.PENDING)
+
+    async def abandon(self, provider_ref: str) -> None:
+        self._answer()
+        if self.refuses_to_close or self.checkouts[provider_ref] != "PENDING":
+            raise PaymentUnavailableError
+        self.checkouts[provider_ref] = "EXPIRED"
+        self.closed.append(provider_ref)
+
+    async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
+        self._answer()
+        self.refunds.append((refund_ref, amount_cents))
+
+    async def aclose(self) -> None:
+        return
+
+    def _answer(self) -> None:
+        if not self.reachable:
+            raise PaymentUnavailableError

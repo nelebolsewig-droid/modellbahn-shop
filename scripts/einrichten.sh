@@ -260,7 +260,7 @@ public_ipv6() {
 
 run_wizard() {
 
-TOTAL_STAGES=10
+TOTAL_STAGES=11
 
 if [[ $EUID -ne 0 ]]; then
   printf 'Bitte als root starten: sudo %s\n' "$0" >&2
@@ -418,7 +418,7 @@ say "Damit eBay die Produktions-Schlüssel freigibt, muss dieser Server eBays L�
 say "annehmen. Trag im eBay-Entwicklerkonto unter „Alerts & Notifications“ ein:"
 step "Endpunkt: ${BOLD}https://$SITE_ADDRESS/api/v1/webhooks/ebay/account-deletion${RESET}"
 step "Verification token: ${BOLD}$(_existing MB_EBAY_VERIFICATION_TOKEN)${RESET}"
-note "Das klappt erst, wenn der Shop läuft (Schritt 8); eBay prüft die Adresse beim Speichern."
+note "Das klappt erst, wenn der Shop läuft (Schritt 9); eBay prüft die Adresse beim Speichern."
 printf '\n'
 if confirm "Johanns eBay-Schlüssel jetzt eintragen?"; then
   open_url "https://developer.ebay.com/my/keys"
@@ -439,6 +439,34 @@ fi
 pause
 
 # ── 8 ─────────────────────────────────────────────────────────────────────
+stage "Zahlung mit SumUp"
+say "Kunden bezahlen auf der Seite von SumUp: mit Karte, je nach Gerät auch mit Apple Pay oder"
+say "Google Pay. Der Shop braucht dafür einen API-Schlüssel des SumUp-Kontos und den Händlercode."
+note "Ohne SumUp nimmt der Shop keine Bestellungen an; die Testzahlung gibt es nur auf dem Laptop."
+printf '\n'
+if confirm "SumUp jetzt anbinden?"; then
+  open_url "https://developer.sumup.com/tools/authorization"
+  step "Im SumUp-Konto unter den Entwickler-Einstellungen einen API-Schlüssel anlegen."
+  step "Er beginnt mit ${BOLD}sup_sk_${RESET} und steht danach nur noch hier in .env, nirgends sonst."
+  ask_secret MB_SUMUP_API_KEY "API-Schlüssel (unsichtbar):"
+  until [[ "$MB_SUMUP_API_KEY" == sup_sk_* ]]; do
+    warn "Ein geheimer SumUp-Schlüssel beginnt mit sup_sk_ (nicht sup_pk_)."
+    ask_secret MB_SUMUP_API_KEY "API-Schlüssel (unsichtbar):"
+  done
+  step "Den Händlercode zeigt das SumUp-Konto im Profil, z. B. ${BOLD}MC123456789${RESET}."
+  ask_real MB_SUMUP_MERCHANT_CODE "Händlercode:"
+  write_env MB_SUMUP_API_KEY "$MB_SUMUP_API_KEY"
+  write_env MB_SUMUP_MERCHANT_CODE "$MB_SUMUP_MERCHANT_CODE"
+  write_env MB_PAYMENT_PROVIDER "sumup"
+  note "Wohin SumUp Bescheid gibt, nennt der Shop bei jeder Zahlung selbst:"
+  note "https://$SITE_ADDRESS/api/v1/webhooks/sumup. Im SumUp-Konto ist dafür nichts einzutragen."
+else
+  write_env MB_PAYMENT_PROVIDER "off"
+  SKIPPED+=("SumUp: bis dahin nimmt der Shop keine Bestellungen an; Skript erneut starten")
+fi
+pause
+
+# ── 9 ─────────────────────────────────────────────────────────────────────
 stage "Shop bauen und starten"
 say "Der erste Bau dauert 10 bis 20 Minuten; danach startet der Shop mit HTTPS."
 if confirm "Jetzt bauen und starten?"; then
@@ -460,7 +488,7 @@ else
 fi
 pause
 
-# ── 9 ─────────────────────────────────────────────────────────────────────
+# ── 10 ────────────────────────────────────────────────────────────────────
 stage "Konten für das Stellwerk"
 say "Das erste Konto bekommt die Rolle Inhaber. Das Passwort fragt das Programm gleich ab"
 say "(mindestens 12 Zeichen)."
@@ -478,7 +506,7 @@ fi
 step "Anmelden: ${BOLD}https://$SITE_ADDRESS/admin${RESET}"
 pause
 
-# ── 10 ────────────────────────────────────────────────────────────────────
+# ── 11 ────────────────────────────────────────────────────────────────────
 stage "Nächtliche Sicherung"
 say "Jede Nacht um 3:30 sichert der Server Datenbank und Bilder nach /var/backups/modellbahn"
 say "und hält 14 Tage vor."

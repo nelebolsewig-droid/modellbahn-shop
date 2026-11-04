@@ -29,7 +29,7 @@ from modellbahn.modules.marketplace.infrastructure.ebay import (
     money,
 )
 from modellbahn.modules.marketplace.infrastructure.tokens import FernetTokenCipher
-from modellbahn.platform.config import Environment, MarketplaceMode, Settings
+from modellbahn.platform.config import Environment, MarketplaceMode, PaymentProvider, Settings
 
 API = "https://api.sandbox.ebay.com"
 TOKEN = "v^1.1#access"
@@ -471,6 +471,7 @@ class TestSettings:
                 imprint_postal_code="12345",
                 imprint_city="Musterstadt",
                 imprint_email="info@example.com",
+                payment_provider=PaymentProvider.OFF,
                 ebay_mode=mode,
                 ebay_client_id="id",
                 ebay_client_secret=SecretStr("secret"),

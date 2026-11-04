@@ -36,6 +36,7 @@ import type {
   CheckoutIn,
   OrderOut,
   PaymentIn,
+  PaymentProviderOut,
   Problem,
   ValidationProblem
 } from '../model';
@@ -525,10 +526,11 @@ export const getPayOrderUrl = (publicToken: string,) => {
 }
 
 /**
- * A declined payment is recorded and answered with the order, still waiting for its
- * payment; a provider failure (503) records nothing. Repeating the request with the same
- * ``Idempotency-Key`` never charges twice.
- * @summary Pay for an order (test payment with a chosen outcome)
+ * With SumUp the order comes back with ``payment_url``, the page the customer pays on;
+ * a page still open is reused. The test payment answers at once: a declined payment is
+ * recorded, and the order still waits for its payment. A provider failure (503) records
+ * nothing. Repeating the request with the same ``Idempotency-Key`` never charges twice.
+ * @summary Pay for an order: begin on SumUp's page, or the test payment's chosen outcome
  */
 export const payOrder = async (publicToken: string,
     paymentIn: PaymentIn, options?: Parameters<typeof apiFetch>[1]): Promise<OrderOut> => {
@@ -595,7 +597,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type PayOrderMutationVariables = {publicToken: string;data: PaymentIn}
 
     /**
- * @summary Pay for an order (test payment with a chosen outcome)
+ * @summary Pay for an order: begin on SumUp's page, or the test payment's chosen outcome
  */
 export const usePayOrder = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payOrder>>, TError,PayOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -607,3 +609,178 @@ export const usePayOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getPayOrderMutationOptions(options), queryClient);
     }
+    export const getSyncOrderPaymentUrl = (publicToken: string,) => {
+
+
+
+
+  return `/api/v1/store/orders/${publicToken}/payments/sync`
+}
+
+/**
+ * The shop asks the provider itself; what the browser was told on the way back counts
+ * for nothing. A payment that is still open keeps its ``payment_url``.
+ * @summary Back from the provider's page: ask it how the payment went
+ */
+export const syncOrderPayment = async (publicToken: string, options?: Parameters<typeof apiFetch>[1]): Promise<OrderOut> => {
+
+  return apiFetch<OrderOut>(getSyncOrderPaymentUrl(publicToken),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSyncOrderPaymentMutationKey = () => ['syncOrderPayment'] as const;
+
+export const getSyncOrderPaymentMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOrderPayment>>, TError,SyncOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncOrderPayment>>, TError,SyncOrderPaymentMutationVariables, TContext> => {
+
+const mutationKey = getSyncOrderPaymentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncOrderPayment>>, SyncOrderPaymentMutationVariables> = (props) => {
+          const {publicToken} = props ?? {};
+
+          return  syncOrderPayment(publicToken,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncOrderPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof syncOrderPayment>>>
+
+    export type SyncOrderPaymentMutationError = ErrorType<Problem | ValidationProblem>
+    export type SyncOrderPaymentMutationVariables = {publicToken: string}
+
+    /**
+ * @summary Back from the provider's page: ask it how the payment went
+ */
+export const useSyncOrderPayment = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOrderPayment>>, TError,SyncOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof syncOrderPayment>>,
+        TError,
+        SyncOrderPaymentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncOrderPaymentMutationOptions(options), queryClient);
+    }
+    export const getGetPaymentProviderUrl = () => {
+
+
+
+
+  return `/api/v1/store/payment-provider`
+}
+
+/**
+ * @summary Who takes the shop's payments: SumUp, the test payment, or nobody
+ */
+export const getPaymentProvider = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PaymentProviderOut> => {
+
+  return apiFetch<PaymentProviderOut>(getGetPaymentProviderUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentProviderQueryKey = () => {
+    return [
+    `/api/v1/store/payment-provider`
+    ] as const;
+    }
+
+
+export const getGetPaymentProviderQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentProvider>>, TError = ErrorType<ValidationProblem | Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentProviderQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentProvider>>> = ({ signal }) => getPaymentProvider({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPaymentProviderQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentProvider>>>
+export type GetPaymentProviderQueryError = ErrorType<ValidationProblem | Problem>
+
+
+export function useGetPaymentProvider<TData = Awaited<ReturnType<typeof getPaymentProvider>>, TError = ErrorType<ValidationProblem | Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPaymentProvider>>,
+          TError,
+          Awaited<ReturnType<typeof getPaymentProvider>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPaymentProvider<TData = Awaited<ReturnType<typeof getPaymentProvider>>, TError = ErrorType<ValidationProblem | Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPaymentProvider>>,
+          TError,
+          Awaited<ReturnType<typeof getPaymentProvider>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPaymentProvider<TData = Awaited<ReturnType<typeof getPaymentProvider>>, TError = ErrorType<ValidationProblem | Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Who takes the shop's payments: SumUp, the test payment, or nobody
+ */
+
+export function useGetPaymentProvider<TData = Awaited<ReturnType<typeof getPaymentProvider>>, TError = ErrorType<ValidationProblem | Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentProvider>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPaymentProviderQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

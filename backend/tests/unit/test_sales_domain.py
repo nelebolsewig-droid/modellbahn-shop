@@ -35,6 +35,10 @@ from modellbahn.modules.sales.domain.model import (
     CustomerAddress,
     Order,
     OrderStatus,
+    Payment,
+    PaymentOutcome,
+    PaymentProgress,
+    PaymentStart,
     PaymentStatus,
     PostalAddress,
     PricedItem,
@@ -411,6 +415,98 @@ class TestOrder:
         assert order.customer_account_id == account
         assert not order.adopt(uuid4(), NOW)
         assert order.customer_account_id == account
+
+
+def on_page(reference: str = "chk_1") -> PaymentStart:
+    return PaymentStart(
+        provider="sumup", provider_ref=reference, checkout_url=f"https://pay.example/{reference}"
+    )
+
+
+def started(order: Order, reference: str = "chk_1") -> None:
+    order.start_payment(
+        on_page(reference),
+        payment_id=uuid4(),
+        idempotency_key=uuid4(),
+        request_fingerprint="f",
+        now=NOW,
+    )
+
+
+def stray(order: Order) -> Payment | None:
+    """Read afresh each time (an assert on the property would narrow it for mypy)."""
+    return order.stray_payment
+
+
+PAID: Final = PaymentOutcome(progress=PaymentProgress.CAPTURED, transaction_ref="txn_1")
+EXPIRED: Final = PaymentOutcome(progress=PaymentProgress.FAILED, failure_code="expired")
+STILL_OPEN: Final = PaymentOutcome(progress=PaymentProgress.PENDING)
+
+
+class TestPaymentOnTheProvidersPage:
+    def test_an_immediate_answer_is_recorded_at_once(self) -> None:
+        order, _ = placed()
+        payment_id = uuid4()
+        start = PaymentStart(provider="mock", provider_ref="mock_1", result=captured())
+        (event,) = order.start_payment(
+            start, payment_id=payment_id, idempotency_key=uuid4(), request_fingerprint="f", now=NOW
+        )
+        assert isinstance(event, OrderPaid)
+        assert order.payments[0].id == payment_id
+        assert order.pending_payment is None
+
+    def test_a_page_leaves_the_payment_pending(self) -> None:
+        order, _ = placed()
+        started(order)
+        payment = order.pending_payment
+        assert payment is not None
+        assert (payment.status, payment.checkout_url) == (
+            PaymentStatus.PENDING,
+            "https://pay.example/chk_1",
+        )
+        assert payment.amount_cents == order.total_cents
+        assert order.status is OrderStatus.PENDING_PAYMENT
+        # One page at a time: the shop offers the open one again instead of a second.
+        with pytest.raises(OrderNotPayableError):
+            started(order, "chk_2")
+
+    def test_money_on_the_page_makes_the_order_binding(self) -> None:
+        order, _ = placed()
+        started(order)
+        payment = order.payments[0]
+        assert order.settle_payment(payment, STILL_OPEN, NOW) == []
+        assert payment.status is PaymentStatus.PENDING
+        later = NOW + timedelta(minutes=3)
+        (event,) = order.settle_payment(payment, PAID, later)
+        assert isinstance(event, OrderPaid)
+        assert (order.status, order.paid_at) == (OrderStatus.PAID, later)
+        assert (payment.status, payment.checkout_url) == (PaymentStatus.CAPTURED, None)
+        assert payment.refund_ref == "txn_1"
+        # The same answer twice changes nothing.
+        assert order.settle_payment(payment, PAID, later) == []
+
+    def test_an_expired_page_frees_the_order_for_another(self) -> None:
+        order, _ = placed()
+        started(order)
+        payment = order.payments[0]
+        assert order.settle_payment(payment, EXPIRED, NOW) == []
+        assert (payment.status, payment.failure_code) == (PaymentStatus.FAILED, "expired")
+        assert payment.checkout_url is None
+        assert payment.refund_ref == payment.provider_ref
+        started(order, "chk_2")
+        assert order.pending_payment is order.payments[1]
+
+    def test_money_after_the_order_was_given_up_is_stray(self) -> None:
+        order, _ = placed()
+        started(order)
+        order.cancel(reason=CancelReason.PAYMENT_TIMEOUT, note="", now=NOW)
+        assert stray(order) is None
+        payment = order.payments[0]
+        assert order.settle_payment(payment, PAID, NOW) == []
+        assert order.status is OrderStatus.CANCELLED
+        assert stray(order) is payment
+        payment.refund(NOW)
+        assert stray(order) is None
 
 
 class TestAddressBook:

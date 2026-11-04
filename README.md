@@ -52,9 +52,11 @@ Was sich vorführen lässt:
   Farbe (mit Farbtupfern; die Bühne springt auf Fotos der gewählten Farbe), Preis und Maße.
 - **Kaufen.** Der Warenkorb zeigt Preise vom Server und den Versand: 5,90 € nach
   Deutschland, 16,90 € in die übrigen EU-Länder. An der Kasse bestellt man als
-  Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Die Zahlung ist bis zur
-  Anbindung eines Anbieters eine sichtbare **Testzahlung**: Man wählt, ob sie gelingt,
-  abgelehnt wird oder der Dienst gestört ist. Eingangsbestätigung, Zahlungseingang, Versand
+  Gast oder mit Konto (dann mit Auswahl aus dem Adressbuch). Bezahlt wird mit **SumUp
+  Online** auf SumUps Seite; zurück im Shop fragt die Bezahlseite SumUp selbst, wie es
+  ausging, ebenso SumUps Meldung und der Worker (ADR 0019). Auf dem Laptop ist es eine
+  sichtbare **Testzahlung**: Man wählt, ob sie gelingt, abgelehnt wird oder der Dienst
+  gestört ist. Eingangsbestätigung, Zahlungseingang, Versand
   und Storno kommen als E-Mail (in Mailpit). Wer als Gast bestellt und später ein Konto mit
   derselben Adresse bestätigt, findet die Bestellung unter „Mein Konto → Bestellungen“.
 - **Bestellungen im Stellwerk.** Unter „Bestellungen“ erscheinen neue Bestellungen live mit
@@ -372,8 +374,9 @@ Platzhalter. Der Shopname kommt aus dem Absender `MB_SMTP_FROM` (E-Mails) und
 Firewall, Docker, DNS-Prüfung, Strato-Mail, Konten und nächtlicher Sicherung
 (`scripts/sicherung.sh`); `docker-compose.prod.yml` lässt dort Mailpit weg, `CADDY_HSTS`
 schaltet HSTS ein. Die Schritte davor und danach (Server bestellen, Aktualisieren,
-Wiederherstellen, Umzug von `www`) stehen in [docs/BETRIEB.md](docs/BETRIEB.md). Ein echter
-Zahlungsanbieter fehlt noch.
+Wiederherstellen, Umzug von `www`) stehen in [docs/BETRIEB.md](docs/BETRIEB.md). SumUp
+bindet das Skript mit API-Schlüssel und Händlercode an (`MB_PAYMENT_PROVIDER=sumup`); der
+echte Betrieb startet nicht mit der Testzahlung.
 
 Für den echten eBay-Verkauf braucht es ein Entwicklerkonto auf developer.ebay.com: die
 Schlüssel der Anwendung (`MB_EBAY_CLIENT_ID`, `MB_EBAY_CLIENT_SECRET`) und einen RuName
@@ -437,3 +440,4 @@ secrets:
   - [0016 Explosionszeichnung „So entsteht ein Modell“](docs/adr/0016-explosionszeichnung.md)
   - [0017 Fertigung: Drucker mit Zustand, Teile, Stücklisten, Druckaufträge](docs/adr/0017-fertigung-drucker-teile-stuecklisten.md)
   - [0018 Teilelager, Wareneingang und Montage](docs/adr/0018-teilelager-wareneingang-montage.md)
+  - [0019 Zahlung mit SumUp Online](docs/adr/0019-zahlung-mit-sumup-online.md)

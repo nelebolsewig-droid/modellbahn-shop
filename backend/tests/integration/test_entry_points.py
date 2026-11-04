@@ -242,6 +242,7 @@ async def test_worker_process_stops_gracefully_on_sigterm(settings: Settings) ->
         **os.environ,
         "MB_DATABASE_URL": settings.database_url,
         "MB_ENVIRONMENT": "production",
+        "MB_PAYMENT_PROVIDER": "off",
         # Production refuses the development key of .env.example.
         "MB_S3_ACCESS_KEY_ID": "GK000000000000000000000001",
         # ... and starts only with an imprint.

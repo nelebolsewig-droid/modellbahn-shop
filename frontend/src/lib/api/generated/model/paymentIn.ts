@@ -14,6 +14,6 @@
 import type { PaymentInMethod } from './paymentInMethod';
 
 export interface PaymentIn {
-  /** Test payment: the outcome the mock provider simulates. */
+  /** ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. */
   method: PaymentInMethod;
 }

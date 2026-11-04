@@ -63,6 +63,10 @@ x-backend-env: &backend-env
   MB_EBAY_RU_NAME:
   MB_EBAY_TOKEN_KEY:
   MB_EBAY_VERIFICATION_TOKEN:
+  # Payments: mock (development), sumup or off; see .env.example (ADR 0019).
+  MB_PAYMENT_PROVIDER:
+  MB_SUMUP_API_KEY:
+  MB_SUMUP_MERCHANT_CODE:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

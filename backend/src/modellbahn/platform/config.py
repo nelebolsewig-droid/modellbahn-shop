@@ -51,6 +51,17 @@ class MarketplaceMode(StrEnum):
     PRODUCTION = "production"
 
 
+class PaymentProvider(StrEnum):
+    """Who takes the shop's payments (ADR 0019)."""
+
+    MOCK = "mock"
+    """The test payment: the customer chooses the outcome, nothing is charged."""
+    SUMUP = "sumup"
+    """SumUp Online: the customer pays on SumUp's page (card, Apple Pay, Google Pay)."""
+    OFF = "off"
+    """No provider: the shop takes no orders."""
+
+
 class Settings(BaseSettings):
     """All runtime configuration of the API, the worker and the CLI.
 
@@ -136,6 +147,13 @@ class Settings(BaseSettings):
     # Answers eBay's check of the account deletion endpoint (ADR 0015): the token entered
     # with the endpoint in the developer account, 32 to 80 letters, digits, "_" or "-".
     ebay_verification_token: SecretStr = SecretStr("")
+
+    # Payments (ADR 0019). SumUp needs an API key of the merchant account (sup_sk_...)
+    # and its merchant code (MC...); the API address only changes in tests.
+    payment_provider: PaymentProvider = PaymentProvider.MOCK
+    sumup_api_key: SecretStr = SecretStr("")
+    sumup_merchant_code: str = ""
+    sumup_api_url: str = "https://api.sumup.com"
 
     @field_validator("database_url")
     @classmethod
@@ -231,6 +249,23 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _require_sumup_keys(self) -> Self:
+        if self.payment_provider is not PaymentProvider.SUMUP:
+            return self
+        missing = [
+            name
+            for name, value in (
+                ("MB_SUMUP_API_KEY", self.sumup_api_key.get_secret_value()),
+                ("MB_SUMUP_MERCHANT_CODE", self.sumup_merchant_code),
+            )
+            if not value.strip()
+        ]
+        if missing:
+            msg = f"MB_PAYMENT_PROVIDER=sumup needs {', '.join(missing)}"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
     def _refuse_insecure_production(self) -> Self:
         if self.environment is not Environment.PRODUCTION:
             return self
@@ -255,6 +290,10 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if self.ebay_verification_token.get_secret_value() == _DEVELOPMENT_EBAY_VERIFICATION_TOKEN:
             msg = "the development MB_EBAY_VERIFICATION_TOKEN is not allowed in production"
+            raise ValueError(msg)
+        if self.payment_provider is PaymentProvider.MOCK:
+            # Orders would count as paid without any money.
+            msg = "MB_PAYMENT_PROVIDER=mock is not allowed in production (sumup or off)"
             raise ValueError(msg)
         return self
 

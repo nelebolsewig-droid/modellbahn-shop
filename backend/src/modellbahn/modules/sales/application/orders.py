@@ -11,6 +11,7 @@ from modellbahn.modules.sales.application.common import (
     order_details,
 )
 from modellbahn.modules.sales.application.cursors import decode_cursor, encode_cursor
+from modellbahn.modules.sales.application.payments import close_page
 from modellbahn.modules.sales.application.ports import (
     OrderCursor,
     OrderQuery,
@@ -21,6 +22,7 @@ from modellbahn.modules.sales.domain.errors import (
     MarketplaceOrderError,
     OrderNotFoundError,
     OrderNotPickedError,
+    PaymentUnavailableError,
 )
 from modellbahn.modules.sales.domain.model import (
     PAYMENT_TIMEOUT,
@@ -115,6 +117,9 @@ class OrderService:
             order = await self._locked(uow, order_id)
             if order.from_marketplace:
                 raise MarketplaceOrderError
+            # The customer may be on the provider's page right now. Money that comes in
+            # there makes the order paid, and the cancellation below refunds it.
+            await close_page(uow, order, self._gateway, self._clock)
             await self._cancel(uow, order, CancelReason.BY_SHOP, note)
             await uow.commit()
             return await order_details(uow, order)
@@ -131,9 +136,17 @@ class OrderService:
                 # Paid in the meantime, or cancelled by someone: nothing to do.
                 if order is None or not order.is_overdue(self._clock.now()):
                     continue
-                await self._cancel(uow, order, CancelReason.PAYMENT_TIMEOUT, "")
+                try:
+                    await close_page(uow, order, self._gateway, self._clock)
+                except PaymentUnavailableError:
+                    # The next round asks again; nobody pays on an expired page meanwhile.
+                    _logger.warning("sales.orders.overdue_unanswered", order=order.number)
+                    continue
+                # Paid at the last minute on the provider's page: the order stays.
+                if order.is_overdue(self._clock.now()):
+                    await self._cancel(uow, order, CancelReason.PAYMENT_TIMEOUT, "")
+                    cancelled += 1
                 await uow.commit()
-                cancelled += 1
         if cancelled:
             _logger.info("sales.orders.overdue_cancelled", count=cancelled)
         return cancelled
@@ -145,7 +158,7 @@ class OrderService:
         if payment is not None and order.status is OrderStatus.PAID and not order.from_marketplace:
             # Refund first: if the provider fails, the order stays as it is.
             await self._gateway.refund(
-                provider_ref=payment.provider_ref, amount_cents=payment.amount_cents
+                refund_ref=payment.refund_ref, amount_cents=payment.amount_cents
             )
         uow.publish(order.cancel(reason=reason, note=note, now=self._clock.now()))
 

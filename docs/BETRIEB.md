@@ -58,7 +58,7 @@ Die Frage nach dem Fingerabdruck von github.com mit `yes` beantworten.
 cd /opt/modellbahn-shop && ./scripts/einrichten.sh
 ```
 
-Das Skript führt durch zehn Schritte und sagt bei jedem, was zu tun ist:
+Das Skript führt durch elf Schritte und sagt bei jedem, was zu tun ist:
 
 1. **Grundsystem:** Updates, Firewall (nur SSH, HTTP, HTTPS), automatische Sicherheitsupdates.
 2. **Docker** aus der offiziellen Paketquelle.
@@ -74,14 +74,16 @@ Das Skript führt durch zehn Schritte und sagt bei jedem, was zu tun ist:
      Let's Encrypt und HSTS.
 7. **eBay** (überspringbar): Johanns Schlüssel und die zwei Adressen, die im
    eBay-Entwicklerkonto eingetragen werden.
-8. **Shop bauen und starten**: beim ersten Mal 10 bis 20 Minuten.
-9. **Konten**: dein Inhaberkonto, auf Wunsch eins für Johann.
-10. **Nächtliche Sicherung** um 3:30 Uhr.
+8. **SumUp** (überspringbar): API-Schlüssel (`sup_sk_…`, verdeckt) und Händlercode des
+   SumUp-Kontos. Ohne sie nimmt der Shop keine Bestellungen an (`MB_PAYMENT_PROVIDER=off`).
+9. **Shop bauen und starten**: beim ersten Mal 10 bis 20 Minuten.
+10. **Konten**: dein Inhaberkonto, auf Wunsch eins für Johann.
+11. **Nächtliche Sicherung** um 3:30 Uhr.
 
 Alle Werte stehen danach in `/opt/modellbahn-shop/.env` (nur für root lesbar). Das Skript
 lässt sich jederzeit erneut starten: Es bietet die gespeicherten Werte an, und einmal
-erzeugte Geheimnisse bleiben, wie sie sind. So lassen sich etwa die eBay-Schlüssel
-nachtragen.
+erzeugte Geheimnisse bleiben, wie sie sind. So lassen sich etwa die eBay-Schlüssel oder
+SumUp nachtragen.
 
 Das Stellwerk ist dann unter **`https://neu.adp-modelle.de/admin`** erreichbar.
 
@@ -105,6 +107,22 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Weiteres Mitarbeiterkonto | `make staff EMAIL=… NAME="…" ROLE=staff` (oder `owner`, `packer`) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
 | Neu starten | `docker compose restart api worker` |
+
+### Zahlungen mit SumUp
+
+- **Ablauf:** Der Kunde bezahlt auf der Seite von SumUp und kommt zur Bezahlseite des Shops
+  zurück. Der Shop fragt SumUp dann selbst, wie die Zahlung ausging (ADR 0019).
+  - SumUp meldet sich zusätzlich unter `/api/v1/webhooks/sumup`; diese Adresse nennt der Shop
+    bei jeder Zahlung selbst, im SumUp-Konto ist nichts einzutragen.
+  - Kommt beides nicht an, fragt der Worker nach einer Minute nach.
+- **Im Stellwerk** steht eine Zahlung, die noch auf SumUps Seite läuft, als „Offen bei SumUp“.
+- **Stornieren** schließt eine offene Bezahlseite bei SumUp. Geld, das danach noch eingeht,
+  erstattet der Shop von selbst; das Log zeigt dann `sales.payment.refunded_after_cancel`.
+- **Prüfen, ob SumUp antwortet:** `docker compose logs --tail 200 api worker | grep sumup`.
+  `sales.sumup.error` mit `status=401` heißt: Der API-Schlüssel stimmt nicht (Skript erneut
+  starten und den Schlüssel neu eintragen).
+- **Zum Ausprobieren** vor dem Start eine Bestellung über ein paar Euro mit echter Karte
+  bezahlen und im Stellwerk stornieren: Das prüft Zahlung und Erstattung in einem.
 
 `make up` und `make logs` funktionieren auch, denn `.env` wählt mit
 `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` die Einstellungen für den echten
@@ -160,9 +178,11 @@ wiederherstellen.
 
 Der Umzug von Shopify ist ein eigener Schritt. Er setzt voraus:
 
-- **Zahlung:** SumUp Online ist angebunden; die Testzahlung des Shops kassiert nichts.
+- **Zahlung:** SumUp Online ist angebunden (Schritt 8 des Skripts) und mit einer echten
+  Bestellung geprüft.
 - **Katalog:** Der Katalog ist vollständig, mit Fotos.
-- **Rechtliches:** AGB, Widerruf und Datenschutz sind geprüft.
+- **Rechtliches:** AGB, Widerruf und Datenschutz sind geprüft. Die AGB-Seite sagt bis dahin,
+  Bestellungen seien Testbestellungen; das muss vor der ersten echten Zahlung weg.
 
 Dann:
 

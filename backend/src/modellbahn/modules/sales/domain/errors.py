@@ -95,6 +95,10 @@ class PaymentUnavailableError(SalesError):
     """The payment provider could not be reached or failed; nothing was charged."""
 
 
+class CheckoutClosedError(SalesError):
+    """No payment provider is connected (MB_PAYMENT_PROVIDER=off): the shop takes no orders."""
+
+
 class AddressNotFoundError(SalesError):
     pass
 

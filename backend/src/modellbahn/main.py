@@ -100,6 +100,7 @@ from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.sales.api import account as sales_account
 from modellbahn.modules.sales.api import admin as sales_admin
 from modellbahn.modules.sales.api import store as sales_store
+from modellbahn.modules.sales.api import webhooks as sales_webhooks
 from modellbahn.modules.sales.api.deps import CHECKOUT_RATE_LIMITER
 from modellbahn.modules.sales.api.errors import (
     install_error_translations as install_sales_error_translations,
@@ -109,8 +110,10 @@ from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.application.orders import OrderService
+from modellbahn.modules.sales.application.payments import PaymentService
+from modellbahn.modules.sales.application.ports import PaymentGateway
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
-from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
+from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.api import admin as site_admin
 from modellbahn.modules.site.api import store as site_store
@@ -206,6 +209,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     hub = RealtimeHub(asyncpg_dsn(settings.database_url))
     marketplace = build_marketplace(settings, session_factory, clock)
+    payment_gateway = build_payment_gateway(settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -219,6 +223,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await hub.stop()
             if marketplace is not None:
                 await marketplace.aclose()
+            await payment_gateway.aclose()
             await engine.dispose()
 
     # The interactive documentation is a development aid; production does not expose it.
@@ -251,6 +256,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session_factory, public_base_url=settings.media_public_base_url
         ),
         clock=clock,
+        gateway=payment_gateway,
+        shop_url=settings.public_base_url,
     )
     _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
     _attach_manufacturing_services(
@@ -318,6 +325,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(site_admin.router)
     api.include_router(marketplace_admin.router)
     api.include_router(marketplace_webhooks.router)
+    api.include_router(sales_webhooks.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,
@@ -369,14 +377,21 @@ def _attach_catalog_services(
 
 
 def _attach_sales_services(
-    app: FastAPI, *, uow_factory: UnitOfWorkFactory, clock: SystemClock
+    app: FastAPI,
+    *,
+    uow_factory: UnitOfWorkFactory,
+    clock: SystemClock,
+    gateway: PaymentGateway,
+    shop_url: str,
 ) -> None:
-    gateway = MockPaymentGateway()
     app.state.cart_service = CartService(uow_factory=uow_factory, clock=clock)
     app.state.checkout_service = CheckoutService(
-        uow_factory=uow_factory, clock=clock, gateway=gateway
+        uow_factory=uow_factory, clock=clock, gateway=gateway, shop_url=shop_url
     )
     app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
+    app.state.payment_service = PaymentService(
+        uow_factory=uow_factory, clock=clock, gateway=gateway
+    )
     app.state.address_service = AddressService(uow_factory=uow_factory, clock=clock)
 
 

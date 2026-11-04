@@ -26,6 +26,7 @@ from modellbahn.modules.sales.domain.model import (
     CustomerAddress,
     Order,
     OrderStatus,
+    PaymentStatus,
     SalesChannel,
 )
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers
@@ -34,6 +35,7 @@ from modellbahn.modules.sales.infrastructure.tables import (
     customer_addresses,
     order_number_seq,
     orders,
+    payments,
 )
 from modellbahn.modules.site.contracts.fairs import load_next_fair
 from modellbahn.modules.site.contracts.next_fair import NextFair
@@ -139,6 +141,29 @@ class SqlOrderRepository:
                 orders.c.placed_at <= placed_before,
             )
             .order_by(orders.c.placed_at)
+            .limit(limit)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def id_by_payment(self, provider: str, provider_ref: str) -> UUID | None:
+        statement = select(payments.c.order_id).where(
+            payments.c.provider == provider, payments.c.provider_ref == provider_ref
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none()
+
+    async def pending_payment_ids(
+        self, provider: str, started_before: datetime, limit: int
+    ) -> list[UUID]:
+        # Only the configured provider's: another one's could never be asked, and would hold
+        # the batch for good.
+        statement = (
+            select(payments.c.order_id)
+            .where(
+                payments.c.status == PaymentStatus.PENDING,
+                payments.c.provider == provider,
+                payments.c.created_at <= started_before,
+            )
+            .order_by(payments.c.created_at)
             .limit(limit)
         )
         return list((await self._session.execute(statement)).scalars())

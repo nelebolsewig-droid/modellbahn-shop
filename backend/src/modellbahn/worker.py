@@ -35,7 +35,8 @@ from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
-from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
+from modellbahn.modules.sales.application.payments import PaymentService
+from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.handlers import SiteHandlers
 from modellbahn.modules.site.application.subscriptions import SubscriptionService
@@ -55,6 +56,7 @@ _logger = structlog.get_logger("modellbahn.worker")
 
 STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
 OVERDUE_ORDER_SWEEP_INTERVAL: Final = timedelta(minutes=15)
+PENDING_PAYMENT_CHECK_INTERVAL: Final = timedelta(minutes=2)
 EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
@@ -127,7 +129,9 @@ async def run_worker(
         clock=clock,
     ).register(handlers)
     media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)
-    order_service = OrderService(uow_factory=sales_uow, clock=clock, gateway=MockPaymentGateway())
+    payment_gateway = build_payment_gateway(settings)
+    order_service = OrderService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+    payment_service = PaymentService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
     cart_service = CartService(uow_factory=sales_uow, clock=clock)
     jobs = [
         PeriodicJob(
@@ -139,6 +143,11 @@ async def run_worker(
             name="sales.cancel_overdue_orders",
             interval=OVERDUE_ORDER_SWEEP_INTERVAL,
             run=order_service.cancel_overdue,
+        ),
+        PeriodicJob(
+            name="sales.reconcile_payments",
+            interval=PENDING_PAYMENT_CHECK_INTERVAL,
+            run=payment_service.reconcile,
         ),
         PeriodicJob(
             name="sales.purge_expired_carts",
@@ -181,6 +190,7 @@ async def run_worker(
     finally:
         if marketplace is not None:
             await marketplace.aclose()
+        await payment_gateway.aclose()
         await engine.dispose()
 
 

@@ -40,6 +40,12 @@ export default function PrivacyPage() {
           jederzeit mit dem Link in jeder Mail widerrufen – wir löschen deine Adresse dann sofort.
         </li>
         <li>
+          Bezahlst du eine Bestellung, gibst du deine Zahlungsdaten auf der Seite von SumUp ein, unserem
+          Zahlungsdienst. Wir übermitteln SumUp dafür Bestellnummer und Betrag und erfahren nur, ob die Zahlung
+          eingegangen ist; deine Kartendaten sehen wir nicht. Rechtsgrundlage ist die Erfüllung des Kaufvertrags
+          (Art. 6 Abs. 1 lit. b DSGVO).
+        </li>
+        <li>
           Die Links „Route planen“ (OpenStreetMap) und zu den Websites der Messen öffnen diese Seiten erst
           auf deinen Klick; vorher geht nichts an sie.
         </li>
