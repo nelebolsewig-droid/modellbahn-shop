@@ -9,6 +9,7 @@ import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
+import { RefundPanel } from "@/components/admin/sales/refund-panel";
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -62,7 +63,7 @@ import {
   CARRIERS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
-  PAYMENT_STATUS_LABELS,
+  paymentLabel,
 } from "@/lib/sales/labels";
 import { cancelSchema, shipSchema } from "@/lib/validation/orders";
 
@@ -214,6 +215,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
               </p>
             </Panel>
           ) : null}
+          {!fromEbay && MAY_CANCEL.has(staffRole) && (data.status === "shipped" || data.status === "paid") ? (
+            <Panel title="Erstattung" code="VK 18">
+              <RefundPanel order={data} onRefunded={store} />
+            </Panel>
+          ) : null}
         </div>
       </div>
     </>
@@ -253,7 +259,7 @@ function Payments({ order }: { order: AdminOrderOut }) {
               </time>
             </td>
             <td className="py-2 pr-4">
-              {PAYMENT_STATUS_LABELS[payment.status]}
+              {paymentLabel(payment)}
               <span className="ml-2 font-mono text-hint text-ink-tertiary">
                 {payment.provider}
                 {payment.failure_code ? ` · ${payment.failure_code}` : ""}

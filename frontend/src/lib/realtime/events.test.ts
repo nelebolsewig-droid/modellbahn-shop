@@ -81,6 +81,7 @@ describe("parseFeedEntry", () => {
       "sales.order.paid",
       "sales.order.shipped",
       "sales.order.cancelled",
+      "sales.order.refunded",
       "sales.withdrawal.received",
       "inventory.allocation.backordered",
       "inventory.parts.arrived",

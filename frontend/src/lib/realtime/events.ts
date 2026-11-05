@@ -21,6 +21,7 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.paid": "Bestellung bezahlt",
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
+  "sales.order.refunded": "Erstattung veranlasst",
   "sales.withdrawal.received": "Widerruf eingegangen",
   "inventory.allocation.backordered": "Stück muss gefertigt werden",
   "inventory.parts.arrived": "Teile im Wareneingang",
@@ -39,6 +40,7 @@ export const ORDER_EVENT_TYPES = [
   "sales.order.paid",
   "sales.order.shipped",
   "sales.order.cancelled",
+  "sales.order.refunded",
   "sales.withdrawal.received",
 ] as const;
 

@@ -19,7 +19,7 @@ import {
   CANCEL_REASON_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
-  PAYMENT_STATUS_LABELS,
+  paymentLabel,
 } from "@/lib/sales/labels";
 
 /** The status page behind the link in the order e-mails: works without an account. */
@@ -124,7 +124,7 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
                 {order.payments.map((payment) => (
                   <li key={payment.created_at} className="flex justify-between gap-4">
                     <span>
-                      {PAYMENT_STATUS_LABELS[payment.status]}
+                      {paymentLabel(payment)}
                       <span className="text-ink-tertiary"> · {formatClock(new Date(payment.created_at))}</span>
                     </span>
                     <span className="tabular-nums">{formatPrice(payment.amount_cents)}</span>

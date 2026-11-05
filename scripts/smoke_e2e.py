@@ -1777,10 +1777,20 @@ class Demo:
         if shop_email:
             self.mailpit.wait_for(shop_email, f"Widerruf eingegangen: {number}")
         listed = self._staff("GET", f"{ADMIN}/withdrawals").json()["items"]
-        expect(
-            any(item["order_number"] == number and item["order_id"] for item in listed),
-            f"Widerruf nicht im Stellwerk: {[item['order_number'] for item in listed]}",
+        mine = [item for item in listed if item["order_number"] == number and item["order_id"]]
+        expect(bool(mine), f"Widerruf nicht im Stellwerk: {[i['order_number'] for i in listed]}")
+        # Shipped: the shop waits for the return; then one click refunds (ADR 0020).
+        expect(mine[0]["state"] == "awaiting_return", f"Stand des Widerrufs: {mine[0]['state']}")
+        total = self._order["totals"]["total_cents"]
+        refunded = self._staff(
+            "POST", f"{ADMIN}/orders/{mine[0]['order_id']}/refunds", {"amount_cents": total}
         )
+        expect_status(refunded, 200, "Erstatten nach der Rücksendung")
+        expect(
+            refunded.json()["payments"][-1]["status"] == "refunded",
+            f"Nicht erstattet: {refunded.json()['payments']}",
+        )
+        self.mailpit.wait_for(self.buyer.email, f"Erstattung für deine Bestellung {number}")
         return f"{number} widerrufen, bestätigt" + (
             f", Meldung an {shop_email}" if shop_email else ""
         )

@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
+import { WarrantyNotice } from "@/components/shop/warranty-notice";
 import type { AccountOut, CartOut, CheckoutIn, CustomerAddressOut } from "@/lib/api/generated/model";
 import {
   getListAddressesQueryKey,
@@ -260,6 +261,7 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
           <Link href="/widerruf" className="underline underline-offset-4 hover:text-ink">Widerrufsbelehrung</Link> gilt.
           Im nächsten Schritt bezahlst du.
         </p>
+        <WarrantyNotice compact className="mt-6" />
       </aside>
     </form>
   );
