@@ -699,7 +699,7 @@ class Demo:
             ("Auf Bestellung: Stück wird zur Fertigung vorgemerkt", self.backorder),
             ("Stornieren erstattet die Zahlung, Stornomail", self.cancel),
             (
-                "„Vertrag widerrufen“: Eingangsbestätigung, Meldung an Shop und Stellwerk",
+                "„Vertrag widerrufen“: Bestätigung, Meldung an den Shop, Erstattung per Knopf",
                 self.withdrawal,
             ),
             ("Seiten /konto/bestellungen und /admin/bestellungen", self.order_pages),
@@ -1791,8 +1791,11 @@ class Demo:
             f"Nicht erstattet: {refunded.json()['payments']}",
         )
         self.mailpit.wait_for(self.buyer.email, f"Erstattung für deine Bestellung {number}")
-        return f"{number} widerrufen, bestätigt" + (
-            f", Meldung an {shop_email}" if shop_email else ""
+        euros = f"{total // 100},{total % 100:02d} €"
+        return (
+            f"{number} widerrufen, bestätigt"
+            + (f", Meldung an {shop_email}" if shop_email else "")
+            + f", {euros} erstattet"
         )
 
     def order_pages(self) -> str | None:
