@@ -2,7 +2,8 @@
 
 * Identity events: a verified address adopts the guest orders placed with it; a deleted
   account loses its address book (its orders stay for the retention periods).
-* Order events: receipt, payment, dispatch and cancellation e-mails to the ordering address.
+* Order events: receipt, payment, dispatch, cancellation and refund e-mails to the ordering
+  address.
   Orders from a marketplace get none: their buyer hears from the marketplace.
 * Withdrawals: the confirmation of receipt to the consumer (§ 356a BGB) and a notice to
   the shop's own address.
@@ -22,6 +23,7 @@ from modellbahn.modules.sales.domain.events import (
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
+    OrderRefunded,
     OrderShipped,
     WithdrawalReceived,
 )
@@ -63,6 +65,7 @@ class SalesHandlers:
         registry.register(OrderPaid, self.send_confirmation)
         registry.register(OrderShipped, self.send_shipped_notice)
         registry.register(OrderCancelled, self.send_cancellation_notice)
+        registry.register(OrderRefunded, self.send_refund_notice)
         registry.register(WithdrawalReceived, self.confirm_withdrawal)
 
     async def adopt_guest_orders(self, event: EmailVerified) -> None:
@@ -124,6 +127,14 @@ class SalesHandlers:
         order = await self._order(event)
         if order is not None:
             content = mails.cancelled_mail(order, base_url=self._base_url, refunded=event.refunded)
+            await self._send(event, order, content)
+
+    async def send_refund_notice(self, event: OrderRefunded) -> None:
+        order = await self._order(event)
+        if order is not None:
+            content = mails.refunded_mail(
+                order, amount_cents=event.amount_cents, base_url=self._base_url
+            )
             await self._send(event, order, content)
 
     async def confirm_withdrawal(self, event: WithdrawalReceived) -> None:

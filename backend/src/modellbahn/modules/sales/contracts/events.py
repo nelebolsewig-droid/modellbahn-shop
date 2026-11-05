@@ -7,8 +7,16 @@ from modellbahn.modules.sales.domain.events import (
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
+    OrderRefunded,
     OrderShipped,
     WithdrawalReceived,
 )
 
-__all__ = ["OrderCancelled", "OrderPaid", "OrderPlaced", "OrderShipped", "WithdrawalReceived"]
+__all__ = [
+    "OrderCancelled",
+    "OrderPaid",
+    "OrderPlaced",
+    "OrderRefunded",
+    "OrderShipped",
+    "WithdrawalReceived",
+]

@@ -223,9 +223,11 @@ class SumUpPaymentGateway:
         _logger.info("sales.sumup.checkout_closed", checkout=provider_ref)
 
     async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
-        # Without a body SumUp refunds the whole transaction, which is what a cancellation is.
+        # Always with the amount: all of it for a cancellation, a part after a partial return.
         await self._call(
-            "POST", f"/v1.0/merchants/{self._merchant_code}/payments/{refund_ref}/refunds"
+            "POST",
+            f"/v1.0/merchants/{self._merchant_code}/payments/{refund_ref}/refunds",
+            json={"amount": _amount(amount_cents)},
         )
         _logger.info("sales.sumup.refund", transaction=refund_ref, amount_cents=amount_cents)
 

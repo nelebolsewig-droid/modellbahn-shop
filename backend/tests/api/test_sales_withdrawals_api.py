@@ -10,7 +10,7 @@ from modellbahn.modules.catalog.application.services import CatalogService
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.platform.mail import InMemoryMailer
 from tests.api.helpers import SHOP, assert_problem
-from tests.api.test_sales_api import checkout, put_line
+from tests.api.test_sales_api import checkout, paid_order, put_line
 from tests.conftest import SHOP_EMAIL, Deliver
 from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import shop_product, variant_id
@@ -102,3 +102,37 @@ class TestWithdrawalFunction:
 
     async def test_only_staff_see_the_declarations(self, client: AsyncClient) -> None:
         assert_problem(await client.get(ADMIN_WITHDRAWALS), 401, "not_authenticated")
+
+
+class TestRefundButton:
+    async def test_staff_refund_part_and_then_the_rest(
+        self,
+        client: AsyncClient,
+        staff_client: AsyncClient,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        painted: UUID,
+    ) -> None:
+        order = await paid_order(client, painted)  # two pieces
+        order_id = (
+            await staff_client.get("/api/v1/admin/orders", params={"q": order["number"]})
+        ).json()["items"][0]["id"]
+        refunds = f"/api/v1/admin/orders/{order_id}/refunds"
+
+        assert_problem(
+            await client.post(refunds, json={"amount_cents": 100}), 401, "not_authenticated"
+        )
+        too_much = await staff_client.post(
+            refunds, json={"amount_cents": order["totals"]["total_cents"] + 1}
+        )
+        assert_problem(too_much, 409, "refund_not_possible")
+        part = await staff_client.post(refunds, json={"amount_cents": 4990})
+        assert part.status_code == 200, part.text
+        assert part.json()["payments"][0]["refunded_cents"] == 4990
+        rest = order["totals"]["total_cents"] - 4990
+        done = (await staff_client.post(refunds, json={"amount_cents": rest})).json()
+        assert done["payments"][0]["status"] == "refunded"
+
+        await deliver()
+        subjects = [mail.subject for mail in mails_to(mailer, "gast@example.de")]
+        assert subjects.count(f"Erstattung für deine Bestellung {order['number']}") == 2

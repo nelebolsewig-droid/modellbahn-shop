@@ -14,6 +14,7 @@ from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
 from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
+from modellbahn.modules.sales.application.withdrawals import WithdrawalState, WithdrawalView
 from modellbahn.modules.sales.domain.model import (
     CANCEL_NOTE_MAX_LENGTH,
     CARRIER_MAX_LENGTH,
@@ -306,6 +307,9 @@ class OrderLineOut(BaseModel):
 class PaymentOut(BaseModel):
     status: PaymentStatus
     amount_cents: Cents
+    refunded_cents: Cents = Field(
+        description="What went back so far: part of it after a return, all of it when refunded."
+    )
     provider: str = Field(examples=["mock"])
     failure_code: str | None = Field(examples=["declined"])
     created_at: datetime
@@ -315,6 +319,7 @@ class PaymentOut(BaseModel):
         return cls(
             status=payment.status,
             amount_cents=payment.amount_cents,
+            refunded_cents=payment.refunded_cents,
             provider=payment.provider,
             failure_code=payment.failure_code,
             created_at=payment.created_at,
@@ -534,13 +539,22 @@ class WithdrawalReceiptOut(BaseModel):
 
 
 class WithdrawalOut(WithdrawalReceiptOut):
-    """A declaration in the admin area; ``order_id`` is set when it fits an order."""
+    """A declaration in the admin area, with where it stands (ADR 0020).
+
+    ``order_id`` is set when it fits an order. ``refund_due_at`` is 14 days after its
+    receipt, the latest day for the money to go back.
+    """
 
     id: UUID
     order_id: UUID | None
+    state: WithdrawalState
+    order_status: OrderStatus | None
+    refunded_cents: Cents
+    refund_due_at: datetime
 
     @classmethod
-    def from_withdrawal(cls, withdrawal: Withdrawal) -> Self:
+    def from_view(cls, view: WithdrawalView) -> Self:
+        withdrawal = view.withdrawal
         return cls(
             id=withdrawal.id,
             received_at=withdrawal.received_at,
@@ -549,7 +563,17 @@ class WithdrawalOut(WithdrawalReceiptOut):
             email=withdrawal.email,
             scope=withdrawal.scope,
             order_id=withdrawal.order_id,
+            state=view.state,
+            order_status=view.order_status,
+            refunded_cents=view.refunded_cents,
+            refund_due_at=view.refund_due_at,
         )
+
+
+class RefundIn(_Request):
+    """What goes back after a return: all that is left, or the articles that came back."""
+
+    amount_cents: int = Field(gt=0, description="At most what is left of the payment.")
 
 
 class WithdrawalListOut(BaseModel):

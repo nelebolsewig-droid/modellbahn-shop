@@ -69,6 +69,19 @@ class OrderCancelled(_OrderEvent):
     refunded: bool
 
 
+@domain_event
+@dataclass(frozen=True, kw_only=True)
+class OrderRefunded(_OrderEvent):
+    """Money went back for a paid or shipped order, e.g. after a return (ADR 0020)."""
+
+    event_type: ClassVar[str] = "sales.order.refunded"
+    aggregate_type: ClassVar[str] = ORDER_AGGREGATE
+
+    amount_cents: int
+    refunded_cents: int
+    """Everything refunded for the order so far, this amount included."""
+
+
 WITHDRAWAL_AGGREGATE: Final = "sales.withdrawal"
 
 

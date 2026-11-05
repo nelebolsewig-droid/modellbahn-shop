@@ -194,8 +194,8 @@ class TestAbandonAndRefund:
             "POST",
             f"/v1.0/merchants/{MERCHANT}/payments/txn_ok/refunds",
         )
-        # Without a body SumUp refunds all of it.
-        assert sent.content == b""
+        # Always with the amount, in major units: all of it here, a part after a return.
+        assert json.loads(sent.content) == {"amount": 85.8}
 
     async def test_a_failed_refund_raises(self) -> None:
         with pytest.raises(PaymentUnavailableError):

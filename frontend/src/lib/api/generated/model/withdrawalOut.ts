@@ -11,9 +11,14 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderStatus } from './orderStatus';
+import type { WithdrawalState } from './withdrawalState';
 
 /**
- * A declaration in the admin area; ``order_id`` is set when it fits an order.
+ * A declaration in the admin area, with where it stands (ADR 0020).
+ *
+ * ``order_id`` is set when it fits an order. ``refund_due_at`` is 14 days after its
+ * receipt, the latest day for the money to go back.
  */
 export interface WithdrawalOut {
   email: string;
@@ -21,6 +26,11 @@ export interface WithdrawalOut {
   name: string;
   order_id: string | null;
   order_number: string;
+  order_status: OrderStatus | null;
   received_at: string;
+  refund_due_at: string;
+  /** @minimum 0 */
+  refunded_cents: number;
   scope: string;
+  state: WithdrawalState;
 }

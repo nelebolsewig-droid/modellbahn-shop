@@ -74,7 +74,10 @@ from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import PaymentGateway
-from modellbahn.modules.sales.application.withdrawals import WithdrawalService
+from modellbahn.modules.sales.application.withdrawals import (
+    WithdrawalAutomation,
+    WithdrawalService,
+)
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.fairs import FairService
@@ -542,12 +545,14 @@ def deliver(
     sales_uow: SalesUnitOfWorkFactory,
     marketplace: Marketplace,
     clock: FixedClock,
+    orders: OrderService,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
     mail_handlers.register(handlers)
     media_handlers.register(handlers)
     sales_handlers.register(handlers)
+    WithdrawalAutomation(orders=orders).register(handlers)
     site_handlers.register(handlers)
     InventoryHandlers(allocation=allocation, parts=part_store).register(handlers)
     MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)

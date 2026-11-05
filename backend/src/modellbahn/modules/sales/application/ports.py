@@ -104,6 +104,10 @@ class WithdrawalRepository(Protocol):
         """The latest declarations first; only those naming the order, if one is given."""
         ...
 
+    async def received_since(self, since: datetime) -> list[Withdrawal]:
+        """The declarations that came in since then, oldest first."""
+        ...
+
 
 class AddressRepository(Protocol):
     async def book(self, account_id: UUID, *, for_update: bool = False) -> list[CustomerAddress]:
@@ -216,7 +220,9 @@ class PaymentGateway(Protocol):
         """
         ...
 
-    async def refund(self, *, refund_ref: str, amount_cents: int) -> None: ...
+    async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
+        """Give back ``amount_cents`` of the payment: all of it, or a part after a return."""
+        ...
 
     async def aclose(self) -> None:
         """Release the provider's connections (at shutdown)."""

@@ -23,6 +23,7 @@ from modellbahn.modules.sales.domain.errors import (
     OrderNotFoundError,
     OrderNotPickedError,
     PaymentUnavailableError,
+    RefundNotPossibleError,
 )
 from modellbahn.modules.sales.domain.model import (
     PAYMENT_TIMEOUT,
@@ -124,6 +125,52 @@ class OrderService:
             await uow.commit()
             return await order_details(uow, order)
 
+    async def refund(self, order_id: UUID, *, amount_cents: int) -> OrderDetails:
+        """Give money back for a paid or shipped order, e.g. once a return has arrived.
+
+        The provider refunds first; if it fails, nothing is recorded. The customer gets an
+        e-mail (``sales.order.refunded``). A whole cancellation before dispatch is
+        :meth:`cancel`.
+        """
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            if order.from_marketplace:
+                raise MarketplaceOrderError
+            payment = order.captured_payment
+            if payment is None or not 0 < amount_cents <= order.refundable_cents:
+                raise RefundNotPossibleError(order.refundable_cents)
+            await self._gateway.refund(refund_ref=payment.refund_ref, amount_cents=amount_cents)
+            uow.publish(order.refund(amount_cents, self._clock.now()))
+            await uow.commit()
+            _logger.info("sales.order.refunded", order=order.number, amount_cents=amount_cents)
+            return await order_details(uow, order)
+
+    async def settle_withdrawal(self, withdrawal_id: UUID) -> str:
+        """What a withdrawal makes the shop do by itself (ADR 0020); the outcome, for the log.
+
+        A withdrawal of a whole order before dispatch cancels it, and a payment that came in
+        goes back. After dispatch the shop waits for the return (:meth:`refund`); a partial
+        withdrawal, one that fits no order and an eBay order are for staff to judge.
+        """
+        async with self._uow() as uow:
+            withdrawal = await uow.withdrawals.get(withdrawal_id)
+            if withdrawal is None or withdrawal.order_id is None:
+                return "unmatched"
+            if not withdrawal.whole_order:
+                return "partial"
+            order = await self._locked(uow, withdrawal.order_id)
+            if order.from_marketplace:
+                return "marketplace"
+            if order.status not in {OrderStatus.PENDING_PAYMENT, OrderStatus.PAID}:
+                return str(order.status)
+            # Raises PaymentUnavailableError if the provider cannot be asked: the outbox
+            # tries again.
+            await close_page(uow, order, self._gateway, self._clock)
+            await self._cancel(uow, order, CancelReason.WITHDRAWN, "")
+            await uow.commit()
+        _logger.info("sales.withdrawal.cancelled_order", order=order.number)
+        return "cancelled"
+
     async def cancel_overdue(self) -> int:
         """Give up orders whose payment has not come in within 24 hours (a periodic job)."""
         now = self._clock.now()
@@ -156,9 +203,10 @@ class OrderService:
     ) -> None:
         payment = order.captured_payment
         if payment is not None and order.status is OrderStatus.PAID and not order.from_marketplace:
-            # Refund first: if the provider fails, the order stays as it is.
+            # Refund first: if the provider fails, the order stays as it is. What went back
+            # already (part of a withdrawal) is not refunded twice.
             await self._gateway.refund(
-                refund_ref=payment.refund_ref, amount_cents=payment.amount_cents
+                refund_ref=payment.refund_ref, amount_cents=payment.refundable_cents
             )
         uow.publish(order.cancel(reason=reason, note=note, now=self._clock.now()))
 

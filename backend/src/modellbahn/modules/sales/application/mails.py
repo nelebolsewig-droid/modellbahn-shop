@@ -134,6 +134,11 @@ def cancelled_mail(order: Order, *, base_url: str, refunded: bool) -> MailConten
             f"deine Bestellung {order.number} haben wir storniert, weil die Zahlung nicht "
             "innerhalb von 24 Stunden eingegangen ist."
         )
+    elif order.cancel_reason is CancelReason.WITHDRAWN:
+        why = (
+            f"du hast deine Bestellung {order.number} widerrufen, bevor wir sie verschickt "
+            "haben. Wir haben sie deshalb storniert."
+        )
     else:
         why = f"deine Bestellung {order.number} haben wir storniert."
     paragraphs = [why]
@@ -225,4 +230,54 @@ def withdrawal_notice_mail(withdrawal: Withdrawal, *, base_url: str) -> MailCont
         rows=rows,
         action=MailAction(label="Im Stellwerk ansehen", url=link),
         closing=(match, "Die Eingangsbestätigung ist an die angegebene E-Mail-Adresse gegangen."),
+    )
+
+
+def refunded_mail(order: Order, *, amount_cents: int, base_url: str) -> MailContent:
+    """Money went back after a return (ADR 0020)."""
+    whole = order.refunded_cents >= order.total_cents
+    return MailContent(
+        subject=f"Erstattung für deine Bestellung {order.number}",
+        greeting=_greeting(order),
+        paragraphs=(
+            f"wir haben dir {format_euro(amount_cents)} für deine Bestellung {order.number} "
+            "erstattet, auf dem Weg, auf dem du bezahlt hast. Bis das Geld auf deinem Konto "
+            "ist, kann es je nach Bank ein paar Tage dauern.",
+            *(() if whole else (f"Insgesamt erstattet: {format_euro(order.refunded_cents)}.",)),
+        ),
+        action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
+        closing=("Danke, dass du die Ware zurückgeschickt hast.",),
+    )
+
+
+def refund_reminder_mail(
+    due: list[tuple[Withdrawal, datetime]], *, now: datetime, base_url: str
+) -> MailContent:
+    """The shop's reminder: refunds after a withdrawal that fall due (§ 357 Abs. 1 BGB)."""
+    rows = [
+        MailRow(
+            f"{withdrawal.order_reference} · {withdrawal.name}",
+            ("überfällig seit " if deadline < now else "fällig bis ")
+            + f"{deadline.astimezone(SHOP_TIME_ZONE):%d.%m.%Y}",
+            strong=deadline < now,
+        )
+        for withdrawal, deadline in due
+    ]
+    count = "Eine Erstattung" if len(due) == 1 else f"{len(due)} Erstattungen"
+    return MailContent(
+        subject=f"Erinnerung: {count} nach Widerruf fällig",
+        greeting="Hallo,",
+        paragraphs=(
+            f"{count} nach einem Widerruf {'steht' if len(due) == 1 else 'stehen'} noch aus. "
+            "Spätestens 14 Tage nach Eingang des Widerrufs muss das Geld zurück; warten darf "
+            "man, bis die Ware wieder da ist oder der Kunde die Rücksendung nachweist.",
+        ),
+        rows=rows,
+        action=MailAction(label="Im Stellwerk erstatten", url=f"{base_url}{ADMIN_ORDERS_PATH}"),
+        closing=(
+            # The button's own label, with its typographic dash.
+            "Ist die Ware da: Bestellung öffnen, „Rücksendung erhalten – erstatten“. SumUp "  # noqa: RUF001
+            "zahlt zurück, der Kunde bekommt eine E-Mail. Diese Erinnerung kommt täglich, "
+            "bis alles erstattet ist.",
+        ),
     )

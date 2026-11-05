@@ -182,6 +182,7 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/store/payment-provider"): ("getPaymentProvider", "store-sales"),
     ("POST", "/api/v1/store/withdrawals"): ("withdrawContract", "store-sales"),
     ("GET", "/api/v1/admin/withdrawals"): ("listWithdrawals", "admin-sales"),
+    ("POST", "/api/v1/admin/orders/{order_id}/refunds"): ("refundOrder", "admin-sales"),
     ("GET", "/api/v1/store/account/orders"): ("listMyOrders", "store-account"),
     ("GET", "/api/v1/store/account/orders/{number}"): ("getMyOrder", "store-account"),
     ("GET", "/api/v1/store/account/addresses"): ("listAddresses", "store-account"),

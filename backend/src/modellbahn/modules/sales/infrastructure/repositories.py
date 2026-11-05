@@ -189,6 +189,14 @@ class SqlWithdrawalRepository:
             statement = statement.where(withdrawals.c.order_id == order_id)
         return list((await self._session.execute(statement.limit(limit))).scalars())
 
+    async def received_since(self, since: datetime) -> list[Withdrawal]:
+        statement = (
+            select(Withdrawal)
+            .where(withdrawals.c.received_at >= since)
+            .order_by(withdrawals.c.received_at, withdrawals.c.id)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
 
 class SqlAddressRepository:
     def __init__(self, session: AsyncSession) -> None:

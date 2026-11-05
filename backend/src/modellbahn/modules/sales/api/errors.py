@@ -22,6 +22,7 @@ from modellbahn.modules.sales.domain.errors import (
     OrderNotPickedError,
     PaymentUnavailableError,
     PriceChangedError,
+    RefundNotPossibleError,
     VariantUnavailableError,
 )
 from modellbahn.platform.errors import (
@@ -56,7 +57,15 @@ def _price_changed(error: PriceChangedError) -> AppError:
     )
 
 
+def _refund_not_possible(error: RefundNotPossibleError) -> AppError:
+    return ConflictError(
+        f"At most {error.refundable_cents} cents can still be refunded for this order.",
+        code="refund_not_possible",
+    )
+
+
 _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
+    RefundNotPossibleError: _refund_not_possible,
     InvalidFieldError: _invalid_field,
     PriceChangedError: _price_changed,
     VariantUnavailableError: lambda _: ConflictError(

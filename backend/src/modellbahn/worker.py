@@ -36,6 +36,7 @@ from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
+from modellbahn.modules.sales.application.withdrawals import RefundReminder, WithdrawalAutomation
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.handlers import SiteHandlers
@@ -57,6 +58,7 @@ _logger = structlog.get_logger("modellbahn.worker")
 STALE_UPLOAD_SWEEP_INTERVAL: Final = timedelta(hours=1)
 OVERDUE_ORDER_SWEEP_INTERVAL: Final = timedelta(minutes=15)
 PENDING_PAYMENT_CHECK_INTERVAL: Final = timedelta(minutes=2)
+REFUND_REMINDER_INTERVAL: Final = timedelta(days=1)
 EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
@@ -133,6 +135,17 @@ async def run_worker(
     payment_gateway = build_payment_gateway(settings)
     order_service = OrderService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
     payment_service = PaymentService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+    # A withdrawal before dispatch cancels and refunds by itself (ADR 0020).
+    WithdrawalAutomation(orders=order_service).register(handlers)
+    refund_reminder = RefundReminder(
+        uow_factory=sales_uow,
+        clock=clock,
+        mailer=mailer,
+        shop_email=settings.imprint.email,
+        public_base_url=settings.public_base_url,
+        shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
+    )
     cart_service = CartService(uow_factory=sales_uow, clock=clock)
     jobs = [
         PeriodicJob(
@@ -149,6 +162,11 @@ async def run_worker(
             name="sales.reconcile_payments",
             interval=PENDING_PAYMENT_CHECK_INTERVAL,
             run=payment_service.reconcile,
+        ),
+        PeriodicJob(
+            name="sales.remind_refunds",
+            interval=REFUND_REMINDER_INTERVAL,
+            run=refund_reminder.remind,
         ),
         PeriodicJob(
             name="sales.purge_expired_carts",

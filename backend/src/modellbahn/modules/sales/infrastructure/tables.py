@@ -126,7 +126,7 @@ orders = Table(
     ),
     CheckConstraint(
         "cancel_reason IS NULL OR "
-        "cancel_reason IN ('payment_timeout', 'by_shop', 'by_marketplace')",
+        "cancel_reason IN ('payment_timeout', 'by_shop', 'by_marketplace', 'withdrawn')",
         name="cancel_reason",
     ),
     ForeignKeyConstraint(
@@ -198,11 +198,19 @@ payments = Table(
     Column("checkout_url", Text),
     # The provider's transaction of a captured payment, which a refund names.
     Column("transaction_ref", Text),
+    # What went back so far (ADR 0020): part after a return, all of it when refunded.
+    Column("refunded_cents", Integer, nullable=False, server_default=text("0")),
     CheckConstraint("status IN ('pending', 'captured', 'failed', 'refunded')", name="status"),
     CheckConstraint("amount_cents >= 0", name="amount_non_negative"),
     CheckConstraint("request_fingerprint ~ '^[0-9a-f]{64}$'", name="request_fingerprint_format"),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_code"),
     CheckConstraint("(status = 'pending') = (checkout_url IS NOT NULL)", name="checkout_url"),
+    CheckConstraint(
+        "refunded_cents >= 0 AND refunded_cents <= amount_cents", name="refunded_cents_range"
+    ),
+    CheckConstraint(
+        "status <> 'refunded' OR refunded_cents = amount_cents", name="refunded_in_full"
+    ),
     Index("payments_provider_ref_idx", "provider", "provider_ref", unique=True),
     Index("payments_order_idx", "order_id"),
     # One trip to the provider's page at a time; the open ones are what the worker checks.
