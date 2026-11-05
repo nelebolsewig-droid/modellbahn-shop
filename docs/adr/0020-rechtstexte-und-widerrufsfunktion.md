@@ -86,22 +86,56 @@ des Rechts kamen 2026 hinzu:
   - eine Meldung an `MB_IMPRINT_EMAIL`, mit dem Link ins Stellwerk.
   - Die Nutzdaten des Ereignisses nennen keine Person.
 - **Im Stellwerk:**
-  - Die Widerrufe stehen live über der Bestellliste. Einer ohne passende Bestellung ist
-    markiert, etwa ein eBay-Kauf.
+  - Die Widerrufe stehen live über der Bestellliste, jeder mit seinem Stand. Einer ohne
+    passende Bestellung ist markiert, etwa ein eBay-Kauf.
   - Am Bestellpult steht ein Hinweis mit dem nächsten Schritt.
-  - Noch nicht versendet: stornieren, das erstattet automatisch.
-  - Schon versendet: Ware zurücknehmen und im SumUp-Konto erstatten.
+
+### Was danach geschieht: so wenig Handarbeit wie möglich
+
+- **Vor dem Versand storniert der Shop von selbst.** Ein Widerruf der ganzen Bestellung, der
+  zu ihr passt, löst im Worker das Storno aus (Stornogrund `withdrawn`, Migration 0014).
+  - Eine offene SumUp-Seite wird geschlossen; eine eingegangene Zahlung geht zurück.
+  - Der Kunde bekommt die Stornomail: „widerrufen, bevor wir sie verschickt haben“.
+  - Ein Widerruf nur einzelner Artikel und eBay-Bestellungen bleiben für Mitarbeiter.
+- **Nach dem Versand ein Klick.** Das Bestellpult hat ein Feld „Erstattung“: alles Offene
+  oder die Artikel, die zurückgekommen sind.
+  - „Rücksendung erhalten – erstatten“ fragt einmal nach und lässt SumUp sofort zurückzahlen.
+  - `POST /admin/orders/{id}/refunds` erstattet höchstens, was von der Zahlung noch offen
+    ist (`payments.refunded_cents`); mehr ergibt 409 `refund_not_possible`.
+  - Teilerstattungen gehen mehrmals, die letzte macht die Zahlung „erstattet“.
+  - Der Kunde bekommt eine Mail (`sales.order.refunded`).
+  - SumUp bekommt immer den Betrag (`{"amount": …}`), auch bei der ganzen Summe.
+- **Erinnerung statt Wiedervorlage.** Der Worker sieht täglich nach (`sales.remind_refunds`).
+  - Steht eine Erstattung nach einem Widerruf noch aus und ist sie in vier Tagen fällig
+    oder überfällig, geht eine Mail an `MB_IMPRINT_EMAIL`.
+  - Die Frist: 14 Tage nach Eingang des Widerrufs.
+  - Die Mail kommt täglich, bis erstattet ist.
+- **Der Stand eines Widerrufs wird nicht gespeichert, sondern aus der Bestellung abgeleitet:**
+  - keine passende Bestellung;
+  - storniert;
+  - wartet auf Rücksendung;
+  - erstattet;
+  - prüfen.
+
+### Der EU-Gewährleistungshinweis
+
+- Der amtliche Hinweis (Durchführungsverordnung (EU) 2025/1960, deutsche Fassung) liegt als
+  Bild unter `frontend/public/rechtliches/eu-gewaehrleistung.jpg`. Er stammt aus der vom
+  Inhaber gelieferten Datei und ist unverändert.
+- Er erscheint vor Vertragsschluss gut sichtbar:
+  - im Warenkorb und in der Kasse über „Zahlungspflichtig bestellen“, verkleinert und zum
+    Vergrößern;
+  - auf der Seite „Versand und Lieferung“ in voller Größe.
+- Ein ausführlicher Alternativtext gibt seinen Inhalt für Screenreader wieder.
 
 ## Folgen
 
 - **Eine anwaltliche Prüfung** der drei Texte vor dem ersten echten Verkauf bleibt
   empfohlen. Die Texte folgen den gesetzlichen Mustern und den Pflichten nach BGB, EGBGB,
   DSGVO und TDDDG, sind aber keine Rechtsberatung.
-- **Der EU-Gewährleistungshinweis fehlt noch.** Er ist eine amtliche Grafik, die aus dieser
-  Umgebung nicht zu laden war. Sobald die Datei vorliegt, gehört sie in den Warenkorb und
-  auf die Seite „Versand und Lieferung“.
-- **Erstattungen nach einer Rücksendung** laufen bis auf Weiteres im SumUp-Konto. Ein
-  Knopf „Erstatten“ für versendete Bestellungen im Stellwerk wäre der nächste Schritt.
+- **Zurückgekommene Ware** bucht das Lager noch nicht von selbst wieder ein; das bleibt
+  „Einheiten erfassen“, bis es eine Rücknahme per Scan gibt.
+- **Ändert die EU den Hinweis**, wird nur die Bilddatei getauscht.
 - **Mit Strato** ist ein Vertrag zur Auftragsverarbeitung abzuschließen, im
   Strato-Kundenlogin. Die Datenschutzerklärung setzt ihn voraus.
 - **Heruntergeladene Sicherungen** gehören nach 14 Tagen gelöscht, wie auf dem Server; sonst

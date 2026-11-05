@@ -129,10 +129,14 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 - Ein Widerruf über „Vertrag widerrufen“ kommt als E-Mail an `MB_IMPRINT_EMAIL` und steht
   im Stellwerk über der Bestellliste. Der Kunde hat seine Eingangsbestätigung dann schon
   (ADR 0020).
-- **Noch nicht versendet:** die Bestellung im Stellwerk stornieren; das erstattet den Betrag.
-- **Schon versendet:** auf die Ware warten (oder den Nachweis der Rücksendung), dann
-  Kaufpreis und Hinsendekosten innerhalb von 14 Tagen nach Eingang des Widerrufs im
-  SumUp-Konto erstatten.
+- **Noch nicht versendet:** Nichts zu tun. Der Shop storniert die Bestellung von selbst und
+  erstattet eine eingegangene Zahlung über SumUp.
+- **Schon versendet:** Ist die Ware zurück (oder die Rücksendung nachgewiesen), am
+  Bestellpult unter „Erstattung“ auf „Rücksendung erhalten – erstatten“. SumUp zahlt sofort
+  zurück, der Kunde bekommt eine Mail. Nur einzelne Artikel zurück: „Einzelne Artikel“
+  wählen.
+- **Frist:** 14 Tage nach Eingang des Widerrufs. Vier Tage vorher kommt täglich eine
+  Erinnerung an `MB_IMPRINT_EMAIL`, bis erstattet ist.
 - Passt ein Widerruf zu keiner Bestellung des Shops, ist es vielleicht ein eBay-Kauf; den
   erstattet man über eBay.
 
@@ -198,7 +202,7 @@ Der Umzug von Shopify ist ein eigener Schritt. Er setzt voraus:
   - AGB, Widerrufsbelehrung und Datenschutzerklärung stehen im Shop (ADR 0020); vor dem
     Start sollte sie ein Anwalt durchsehen.
   - Mit Strato ist im Kundenlogin der Vertrag zur Auftragsverarbeitung abgeschlossen.
-  - Der EU-Gewährleistungshinweis (Pflicht seit 27.09.2026) ist eingebunden.
+  - Der EU-Gewährleistungshinweis (Pflicht seit 27.09.2026) ist eingebunden (ADR 0020).
 
 Dann:
 
