@@ -1198,7 +1198,8 @@
         "enum": [
           "payment_timeout",
           "by_shop",
-          "by_marketplace"
+          "by_marketplace",
+          "withdrawn"
         ],
         "title": "CancelReason",
         "type": "string"
@@ -3034,6 +3035,14 @@
             "title": "Shop Name",
             "type": "string"
           },
+          "site_url": {
+            "description": "The shop's public address (MB_PUBLIC_BASE_URL); the legal texts name it, e.g. where the withdrawal function is.",
+            "examples": [
+              "https://neu.adp-modelle.de"
+            ],
+            "title": "Site Url",
+            "type": "string"
+          },
           "street": {
             "title": "Street",
             "type": "string"
@@ -3054,7 +3063,8 @@
           "phone",
           "email",
           "vat_id",
-          "complete"
+          "complete",
+          "site_url"
         ],
         "title": "ImprintOut",
         "type": "object"
@@ -5674,6 +5684,15 @@
             "title": "Provider",
             "type": "string"
           },
+          "refunded_cents": {
+            "description": "What went back so far: part of it after a return, all of it when refunded.",
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Refunded Cents",
+            "type": "integer"
+          },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus"
           }
@@ -5681,6 +5700,7 @@
         "required": [
           "status",
           "amount_cents",
+          "refunded_cents",
           "provider",
           "failure_code",
           "created_at"
@@ -7944,6 +7964,23 @@
           "epochs"
         ],
         "title": "ReferencesOut",
+        "type": "object"
+      },
+      "RefundIn": {
+        "additionalProperties": false,
+        "description": "What goes back after a return: all that is left, or the articles that came back.",
+        "properties": {
+          "amount_cents": {
+            "description": "At most what is left of the payment.",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "amount_cents"
+        ],
+        "title": "RefundIn",
         "type": "object"
       },
       "RegistrationAcceptedOut": {
@@ -10641,6 +10678,195 @@
         ],
         "title": "WantIn",
         "type": "object"
+      },
+      "WithdrawalIn": {
+        "additionalProperties": false,
+        "description": "What the withdrawal function asks for: who, which contract, where to confirm.",
+        "properties": {
+          "email": {
+            "description": "The address the confirmation of receipt goes to.",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "order_number": {
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Order Number",
+            "type": "string"
+          },
+          "scope": {
+            "default": "",
+            "description": "Only some of the articles: which ones. Empty withdraws the whole order.",
+            "maxLength": 1000,
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "order_number",
+          "email"
+        ],
+        "title": "WithdrawalIn",
+        "type": "object"
+      },
+      "WithdrawalListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WithdrawalOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "WithdrawalListOut",
+        "type": "object"
+      },
+      "WithdrawalOut": {
+        "description": "A declaration in the admin area, with where it stands (ADR 0020).\n\n``order_id`` is set when it fits an order. ``refund_due_at`` is 14 days after its\nreceipt, the latest day for the money to go back.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "order_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "refund_due_at": {
+            "format": "date-time",
+            "title": "Refund Due At",
+            "type": "string"
+          },
+          "refunded_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Refunded Cents",
+            "type": "integer"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WithdrawalState"
+          }
+        },
+        "required": [
+          "received_at",
+          "name",
+          "order_number",
+          "email",
+          "scope",
+          "id",
+          "order_id",
+          "state",
+          "order_status",
+          "refunded_cents",
+          "refund_due_at"
+        ],
+        "title": "WithdrawalOut",
+        "type": "object"
+      },
+      "WithdrawalReceiptOut": {
+        "description": "What came in and when; the same goes out by e-mail as the confirmation of receipt.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "received_at",
+          "name",
+          "order_number",
+          "email",
+          "scope"
+        ],
+        "title": "WithdrawalReceiptOut",
+        "type": "object"
+      },
+      "WithdrawalState": {
+        "description": "Where a withdrawal stands, from its order; nothing about it is stored.",
+        "enum": [
+          "unmatched",
+          "cancelled",
+          "awaiting_return",
+          "refunded",
+          "to_check"
+        ],
+        "title": "WithdrawalState",
+        "type": "string"
       },
       "WriteOffIn": {
         "additionalProperties": false,
@@ -19132,6 +19358,125 @@
         ]
       }
     },
+    "/api/v1/admin/orders/{order_id}/refunds": {
+      "post": {
+        "description": "The payment provider refunds at once; at most what is left of the payment. A whole\norder that has not been shipped is cancelled instead (``cancelOrder``).",
+        "operationId": "refundOrder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `marketplace_order`, `refund_not_possible`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `payment_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Give money back after a return (the customer gets an e-mail)",
+        "tags": [
+          "admin-sales"
+        ]
+      }
+    },
     "/api/v1/admin/orders/{order_id}/ship": {
       "post": {
         "operationId": "shipOrder",
@@ -21565,6 +21910,105 @@
         "summary": "Change price, former price, made to order with lead time, colour or availability",
         "tags": [
           "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/withdrawals": {
+      "get": {
+        "operationId": "listWithdrawals",
+        "parameters": [
+          {
+            "description": "Only the declarations that name this order.",
+            "in": "query",
+            "name": "order_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the declarations that name this order.",
+              "title": "Order Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawalListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Declarations of withdrawal, newest first (§ 356a BGB)",
+        "tags": [
+          "admin-sales"
         ]
       }
     },
@@ -24342,6 +24786,88 @@
         "summary": "How soon each variant of a product can be delivered",
         "tags": [
           "store-inventory"
+        ]
+      }
+    },
+    "/api/v1/store/withdrawals": {
+      "post": {
+        "description": "Takes every declaration, whether or not the number fits an order, and answers the\nsame either way; staff judge it. The confirmation of receipt goes out by e-mail at once,\nwith what came in and when.",
+        "operationId": "withdrawContract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawalReceiptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "Withdraw from a contract: the shop's withdrawal function (§ 356a BGB)",
+        "tags": [
+          "store-sales"
         ]
       }
     },

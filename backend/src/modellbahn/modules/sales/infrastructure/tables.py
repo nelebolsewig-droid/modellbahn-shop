@@ -126,7 +126,7 @@ orders = Table(
     ),
     CheckConstraint(
         "cancel_reason IS NULL OR "
-        "cancel_reason IN ('payment_timeout', 'by_shop', 'by_marketplace')",
+        "cancel_reason IN ('payment_timeout', 'by_shop', 'by_marketplace', 'withdrawn')",
         name="cancel_reason",
     ),
     ForeignKeyConstraint(
@@ -198,11 +198,19 @@ payments = Table(
     Column("checkout_url", Text),
     # The provider's transaction of a captured payment, which a refund names.
     Column("transaction_ref", Text),
+    # What went back so far (ADR 0020): part after a return, all of it when refunded.
+    Column("refunded_cents", Integer, nullable=False, server_default=text("0")),
     CheckConstraint("status IN ('pending', 'captured', 'failed', 'refunded')", name="status"),
     CheckConstraint("amount_cents >= 0", name="amount_non_negative"),
     CheckConstraint("request_fingerprint ~ '^[0-9a-f]{64}$'", name="request_fingerprint_format"),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_code"),
     CheckConstraint("(status = 'pending') = (checkout_url IS NOT NULL)", name="checkout_url"),
+    CheckConstraint(
+        "refunded_cents >= 0 AND refunded_cents <= amount_cents", name="refunded_cents_range"
+    ),
+    CheckConstraint(
+        "status <> 'refunded' OR refunded_cents = amount_cents", name="refunded_in_full"
+    ),
     Index("payments_provider_ref_idx", "provider", "provider_ref", unique=True),
     Index("payments_order_idx", "order_id"),
     # One trip to the provider's page at a time; the open ones are what the worker checks.
@@ -246,5 +254,25 @@ customer_addresses = Table(
         initially="DEFERRED",
     ),
     Index("customer_addresses_account_idx", "account_id"),
+    schema=SCHEMA,
+)
+
+
+# Declarations of withdrawal (§ 356a BGB, ADR 0020), kept as they came in.
+withdrawals = Table(
+    "withdrawals",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("name", Text, nullable=False),
+    Column("order_reference", Text, nullable=False),
+    Column("email", Text, nullable=False),
+    Column("scope", Text, nullable=False, server_default=text("''")),
+    # Set when number and e-mail address fit an order; orders are never deleted.
+    Column("order_id", Uuid, ForeignKey(orders.c.id, ondelete="RESTRICT")),
+    CheckConstraint("name <> ''", name="name_not_empty"),
+    CheckConstraint("order_reference <> ''", name="order_reference_not_empty"),
+    Index("withdrawals_received_idx", "received_at"),
+    Index("withdrawals_order_idx", "order_id"),
     schema=SCHEMA,
 )

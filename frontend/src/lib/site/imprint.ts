@@ -22,3 +22,13 @@ export function providerName(imprint: Pick<ImprintOut, "company" | "owner">): st
   }
   return imprint.owner ? `${imprint.company}, Inhaber ${imprint.owner}` : imprint.company;
 }
+
+/** "Glambecker Straße 2, 17235 Neustrelitz, Deutschland": the postal address in one line. */
+export function postalAddress(imprint: Pick<ImprintOut, "street" | "postal_code" | "city" | "country">): string {
+  const town = [imprint.postal_code, imprint.city].filter(Boolean).join(" ");
+  return [imprint.street, town, imprint.country].filter(Boolean).join(", ");
+}
+
+/** The path of the withdrawal function (§ 356a BGB); the legal texts name it with the site's address. */
+export const WITHDRAWAL_FUNCTION_PATH = "/widerruf/erklaeren";
+

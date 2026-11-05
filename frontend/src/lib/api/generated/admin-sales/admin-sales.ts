@@ -34,10 +34,13 @@ import type {
   AdminOrderOut,
   CancelIn,
   ListOrdersParams,
+  ListWithdrawalsParams,
   OrderPageOut,
   Problem,
+  RefundIn,
   ShipIn,
-  ValidationProblem
+  ValidationProblem,
+  WithdrawalListOut
 } from '../model';
 
 import { apiFetch } from '../../fetcher';
@@ -367,6 +370,96 @@ export const useCancelOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getCancelOrderMutationOptions(options), queryClient);
     }
+    export const getRefundOrderUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/refunds`
+}
+
+/**
+ * The payment provider refunds at once; at most what is left of the payment. A whole
+ * order that has not been shipped is cancelled instead (``cancelOrder``).
+ * @summary Give money back after a return (the customer gets an e-mail)
+ */
+export const refundOrder = async (orderId: string,
+    refundIn: RefundIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AdminOrderOut>(getRefundOrderUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(refundIn)
+  }
+);}
+
+
+
+
+
+export const getRefundOrderMutationKey = () => ['refundOrder'] as const;
+
+export const getRefundOrderMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refundOrder>>, TError,RefundOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refundOrder>>, TError,RefundOrderMutationVariables, TContext> => {
+
+const mutationKey = getRefundOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refundOrder>>, RefundOrderMutationVariables> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  refundOrder(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefundOrderMutationResult = NonNullable<Awaited<ReturnType<typeof refundOrder>>>
+    export type RefundOrderMutationBody = RefundIn
+    export type RefundOrderMutationError = ErrorType<Problem | ValidationProblem>
+    export type RefundOrderMutationVariables = {orderId: string;data: RefundIn}
+
+    /**
+ * @summary Give money back after a return (the customer gets an e-mail)
+ */
+export const useRefundOrder = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refundOrder>>, TError,RefundOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refundOrder>>,
+        TError,
+        RefundOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefundOrderMutationOptions(options), queryClient);
+    }
     export const getShipOrderUrl = (orderId: string,) => {
 
 
@@ -455,3 +548,110 @@ export const useShipOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getShipOrderMutationOptions(options), queryClient);
     }
+    export const getListWithdrawalsUrl = (params?: ListWithdrawalsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/withdrawals?${stringifiedParams}` : `/api/v1/admin/withdrawals`
+}
+
+/**
+ * @summary Declarations of withdrawal, newest first (§ 356a BGB)
+ */
+export const listWithdrawals = async (params?: ListWithdrawalsParams, options?: Parameters<typeof apiFetch>[1]): Promise<WithdrawalListOut> => {
+
+  return apiFetch<WithdrawalListOut>(getListWithdrawalsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWithdrawalsQueryKey = (params?: ListWithdrawalsParams,) => {
+    return [
+    `/api/v1/admin/withdrawals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWithdrawalsQueryOptions = <TData = Awaited<ReturnType<typeof listWithdrawals>>, TError = ErrorType<Problem | ValidationProblem>>(params?: ListWithdrawalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWithdrawalsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWithdrawals>>> = ({ signal }) => listWithdrawals(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListWithdrawalsQueryResult = NonNullable<Awaited<ReturnType<typeof listWithdrawals>>>
+export type ListWithdrawalsQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useListWithdrawals<TData = Awaited<ReturnType<typeof listWithdrawals>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: undefined |  ListWithdrawalsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWithdrawals>>,
+          TError,
+          Awaited<ReturnType<typeof listWithdrawals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWithdrawals<TData = Awaited<ReturnType<typeof listWithdrawals>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListWithdrawalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWithdrawals>>,
+          TError,
+          Awaited<ReturnType<typeof listWithdrawals>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListWithdrawals<TData = Awaited<ReturnType<typeof listWithdrawals>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListWithdrawalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Declarations of withdrawal, newest first (§ 356a BGB)
+ */
+
+export function useListWithdrawals<TData = Awaited<ReturnType<typeof listWithdrawals>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListWithdrawalsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWithdrawals>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListWithdrawalsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

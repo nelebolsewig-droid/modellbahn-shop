@@ -95,6 +95,14 @@ class PaymentUnavailableError(SalesError):
     """The payment provider could not be reached or failed; nothing was charged."""
 
 
+class RefundNotPossibleError(SalesError):
+    """Nothing (or less than asked) is left to refund, or the order was never paid."""
+
+    def __init__(self, refundable_cents: int) -> None:
+        super().__init__(f"at most {refundable_cents} cents can be refunded")
+        self.refundable_cents = refundable_cents
+
+
 class CheckoutClosedError(SalesError):
     """No payment provider is connected (MB_PAYMENT_PROVIDER=off): the shop takes no orders."""
 

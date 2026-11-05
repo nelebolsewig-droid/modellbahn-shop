@@ -14,6 +14,7 @@ from modellbahn.modules.sales.api.deps import (
     OrderServiceDep,
     PaymentServiceDep,
     SettingsDep,
+    WithdrawalServiceDep,
     limit_checkouts,
     set_cart_cookie,
 )
@@ -25,6 +26,8 @@ from modellbahn.modules.sales.api.schemas import (
     OrderOut,
     PaymentIn,
     PaymentProviderOut,
+    WithdrawalIn,
+    WithdrawalReceiptOut,
 )
 from modellbahn.modules.sales.application.checkout import Buyer, CheckoutRequest, CheckoutResult
 from modellbahn.platform.config import PaymentProvider
@@ -206,3 +209,24 @@ async def sync_payment(
     for nothing. A payment that is still open keeps its ``payment_url``."""
     _private(response)
     return OrderOut.from_details(await service.sync(public_token))
+
+
+@router.post(
+    "/withdrawals",
+    operation_id="withdrawContract",
+    summary="Withdraw from a contract: the shop's withdrawal function (§ 356a BGB)",
+    status_code=status.HTTP_201_CREATED,
+    responses=problems({}, rate_limited=True),
+    dependencies=[Depends(limit_checkouts)],
+)
+async def withdraw_contract(
+    body: WithdrawalIn, service: WithdrawalServiceDep, response: Response
+) -> WithdrawalReceiptOut:
+    """Takes every declaration, whether or not the number fits an order, and answers the
+    same either way; staff judge it. The confirmation of receipt goes out by e-mail at once,
+    with what came in and when."""
+    _private(response)
+    withdrawal = await service.declare(
+        name=body.name, order_number=body.order_number, email=body.email, scope=body.scope
+    )
+    return WithdrawalReceiptOut.from_withdrawal(withdrawal)

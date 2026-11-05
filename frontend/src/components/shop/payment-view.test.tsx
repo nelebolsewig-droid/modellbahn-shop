@@ -29,7 +29,7 @@ function provider(name: "mock" | "sumup" | "off") {
   return () => jsonResponse({ provider: name });
 }
 
-const PAYMENT = { amount_cents: 7990, created_at: "2026-10-25T09:01:00Z", provider: "mock" };
+const PAYMENT = { amount_cents: 7990, refunded_cents: 0, created_at: "2026-10-25T09:01:00Z", provider: "mock" };
 const DECLINED: OrderOut = orderOut({ payments: [{ ...PAYMENT, status: "failed", failure_code: "card_declined" }] });
 const PAID: OrderOut = orderOut({
   status: "paid",

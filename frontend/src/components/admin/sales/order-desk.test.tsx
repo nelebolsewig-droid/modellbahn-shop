@@ -173,4 +173,98 @@ describe("OrderDesk", () => {
 
     await waitFor(() => expect(requestsTo(fetchMock, ORDER)).toHaveLength(2));
   });
+
+  it("shows a withdrawal of this order at the top", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder()),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      "GET /api/v1/admin/withdrawals": () =>
+        jsonResponse({
+          items: [
+            {
+              id: "w1",
+              received_at: "2026-11-04T14:42:00Z",
+              name: "Erika Mustermann",
+              order_number: "MB-2026-00042",
+              email: "erika@example.de",
+              scope: "",
+              order_id: "o1",
+              state: "to_check",
+              order_status: "paid",
+              refunded_cents: 0,
+              refund_due_at: "2026-11-18T14:42:00Z",
+            },
+          ],
+        }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    expect(await screen.findByText("Widerruf eingegangen am 4. November 2026, 15:42 Uhr")).toBeInTheDocument();
+    expect(screen.getByText(/Die ganze Bestellung, erklärt von Erika Mustermann/)).toBeInTheDocument();
+  });
+
+  it("refunds a returned order with one click and a confirmation", async () => {
+    const payment = {
+      status: "captured" as const,
+      amount_cents: 7990,
+      refunded_cents: 0,
+      provider: "sumup",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const shipped = adminOrder({ status: "shipped", shipped_at: "2026-10-26T09:00:00Z", payments: [payment] });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(shipped),
+      [PICK_LIST]: () => jsonResponse(pickList("picked")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+      "POST /api/v1/admin/orders/o1/refunds": () =>
+        jsonResponse({ ...shipped, payments: [{ ...payment, status: "refunded", refunded_cents: 7990 }] }),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/lässt sich nicht rückgängig machen/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Erstatten" }));
+
+    expect(await screen.findByText("Erstattet: 79,90 €. Es ist nichts mehr offen.")).toBeInTheDocument();
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/refunds")[0]?.body).toEqual({ amount_cents: 7990 });
+  });
+
+  it("refunds only the articles that came back", async () => {
+    const payment = {
+      status: "captured" as const,
+      amount_cents: 7990,
+      refunded_cents: 0,
+      provider: "sumup",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const shipped = adminOrder({ status: "shipped", shipped_at: "2026-10-26T09:00:00Z", payments: [payment] });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(shipped),
+      [PICK_LIST]: () => jsonResponse(pickList("picked")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    await user.click(await screen.findByRole("radio", { name: "Einzelne Artikel" }));
+    expect(screen.getByRole("button", { name: /^Rücksendung erhalten – 0,00\s€ erstatten$/ })).toBeDisabled();
+    await user.click(screen.getByRole("checkbox", { name: /Stellwerk Altenau/ }));
+    expect(screen.getByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ })).toBeEnabled();
+  });
+
+  it("offers no refund to packers", async () => {
+    const shipped = adminOrder({ status: "shipped", shipped_at: "2026-10-26T09:00:00Z" });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(shipped),
+      [PICK_LIST]: () => jsonResponse(pickList("picked")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
+    await screen.findByRole("heading", { name: "Versand" });
+    expect(screen.queryByRole("heading", { name: "Erstattung" })).toBeNull();
+  });
 });

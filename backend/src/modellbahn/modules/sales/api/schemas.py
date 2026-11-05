@@ -14,9 +14,11 @@ from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
 from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
+from modellbahn.modules.sales.application.withdrawals import WithdrawalState, WithdrawalView
 from modellbahn.modules.sales.domain.model import (
     CANCEL_NOTE_MAX_LENGTH,
     CARRIER_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
     LINE_MAX_QUANTITY,
     SHIPPING_ZONES,
     TRACKING_NUMBER_MAX_LENGTH,
@@ -30,6 +32,12 @@ from modellbahn.modules.sales.domain.model import (
     PostalAddress,
     SalesChannel,
     ShippingZone,
+)
+from modellbahn.modules.sales.domain.withdrawals import (
+    ORDER_REFERENCE_MAX_LENGTH,
+    WITHDRAWAL_NAME_MAX_LENGTH,
+    WITHDRAWAL_SCOPE_MAX_LENGTH,
+    Withdrawal,
 )
 from modellbahn.platform.config import PaymentProvider
 
@@ -299,6 +307,9 @@ class OrderLineOut(BaseModel):
 class PaymentOut(BaseModel):
     status: PaymentStatus
     amount_cents: Cents
+    refunded_cents: Cents = Field(
+        description="What went back so far: part of it after a return, all of it when refunded."
+    )
     provider: str = Field(examples=["mock"])
     failure_code: str | None = Field(examples=["declined"])
     created_at: datetime
@@ -308,6 +319,7 @@ class PaymentOut(BaseModel):
         return cls(
             status=payment.status,
             amount_cents=payment.amount_cents,
+            refunded_cents=payment.refunded_cents,
             provider=payment.provider,
             failure_code=payment.failure_code,
             created_at=payment.created_at,
@@ -482,3 +494,87 @@ class CustomerAddressPatchIn(_Request):
     label: str | None = Field(default=None, max_length=100)
     address: AddressIn | None = None
     is_default: bool = False
+
+
+# --- Withdrawals (§ 356a BGB) ----------------------------------------------------------
+
+
+class WithdrawalIn(_Request):
+    """What the withdrawal function asks for: who, which contract, where to confirm."""
+
+    name: str = Field(min_length=1, max_length=WITHDRAWAL_NAME_MAX_LENGTH)
+    order_number: str = Field(
+        min_length=1, max_length=ORDER_REFERENCE_MAX_LENGTH, examples=["MB-2026-00042"]
+    )
+    email: str = Field(
+        min_length=3,
+        max_length=EMAIL_MAX_LENGTH,
+        description="The address the confirmation of receipt goes to.",
+    )
+    scope: str = Field(
+        default="",
+        max_length=WITHDRAWAL_SCOPE_MAX_LENGTH,
+        description="Only some of the articles: which ones. Empty withdraws the whole order.",
+    )
+
+
+class WithdrawalReceiptOut(BaseModel):
+    """What came in and when; the same goes out by e-mail as the confirmation of receipt."""
+
+    received_at: datetime
+    name: str
+    order_number: str
+    email: str
+    scope: str
+
+    @classmethod
+    def from_withdrawal(cls, withdrawal: Withdrawal) -> Self:
+        return cls(
+            received_at=withdrawal.received_at,
+            name=withdrawal.name,
+            order_number=withdrawal.order_reference,
+            email=withdrawal.email,
+            scope=withdrawal.scope,
+        )
+
+
+class WithdrawalOut(WithdrawalReceiptOut):
+    """A declaration in the admin area, with where it stands (ADR 0020).
+
+    ``order_id`` is set when it fits an order. ``refund_due_at`` is 14 days after its
+    receipt, the latest day for the money to go back.
+    """
+
+    id: UUID
+    order_id: UUID | None
+    state: WithdrawalState
+    order_status: OrderStatus | None
+    refunded_cents: Cents
+    refund_due_at: datetime
+
+    @classmethod
+    def from_view(cls, view: WithdrawalView) -> Self:
+        withdrawal = view.withdrawal
+        return cls(
+            id=withdrawal.id,
+            received_at=withdrawal.received_at,
+            name=withdrawal.name,
+            order_number=withdrawal.order_reference,
+            email=withdrawal.email,
+            scope=withdrawal.scope,
+            order_id=withdrawal.order_id,
+            state=view.state,
+            order_status=view.order_status,
+            refunded_cents=view.refunded_cents,
+            refund_due_at=view.refund_due_at,
+        )
+
+
+class RefundIn(_Request):
+    """What goes back after a return: all that is left, or the articles that came back."""
+
+    amount_cents: int = Field(gt=0, description="At most what is left of the payment.")
+
+
+class WithdrawalListOut(BaseModel):
+    items: list[WithdrawalOut]

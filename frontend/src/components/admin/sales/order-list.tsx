@@ -15,13 +15,17 @@ import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { SignalLamp } from "@/components/ui/signal-lamp";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getListOrdersQueryKey, listOrders } from "@/lib/api/generated/admin-sales/admin-sales";
+import {
+  getListOrdersQueryKey,
+  getListWithdrawalsQueryKey,
+  listOrders,
+} from "@/lib/api/generated/admin-sales/admin-sales";
 import type { OrderPageOut, OrderStatus, OrderSummaryOut } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatEventTime } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
-import { ADMIN_EVENTS_URL, ORDER_EVENT_TYPES, orderEventOf } from "@/lib/realtime/events";
+import { ADMIN_EVENTS_URL, ORDER_EVENT_TYPES, orderEventOf, withdrawalEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/sales/labels";
 import { cn } from "@/lib/utils";
@@ -66,6 +70,10 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
     url: ADMIN_EVENTS_URL,
     eventTypes: ORDER_EVENT_TYPES,
     onMessage(data) {
+      if (withdrawalEventOf(data) !== null) {
+        void queryClient.invalidateQueries({ queryKey: getListWithdrawalsQueryKey() });
+        return;
+      }
       const event = orderEventOf(data);
       if (event === null) {
         return;

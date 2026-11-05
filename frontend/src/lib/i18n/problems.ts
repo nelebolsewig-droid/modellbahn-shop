@@ -92,6 +92,7 @@ export const PROBLEM_MESSAGES: Messages = {
   order_not_found: "Diese Bestellung gibt es nicht.",
   order_not_payable: "Diese Bestellung wartet nicht (mehr) auf eine Zahlung.",
   checkout_closed: "Im Moment nehmen wir keine Bestellungen an. Bitte versuche es später noch einmal.",
+  refund_not_possible: "So viel ist für diese Bestellung nicht mehr offen; es wurde nichts erstattet.",
   invalid_order_state: "Das ist im aktuellen Zustand der Bestellung nicht möglich.",
   payment_unavailable:
     "Der Zahlungsdienst ist gerade nicht erreichbar. Es wurde nichts abgebucht; versuche es bitte gleich noch einmal.",

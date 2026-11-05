@@ -2,8 +2,11 @@
 
 * Identity events: a verified address adopts the guest orders placed with it; a deleted
   account loses its address book (its orders stay for the retention periods).
-* Order events: receipt, payment, dispatch and cancellation e-mails to the ordering address.
+* Order events: receipt, payment, dispatch, cancellation and refund e-mails to the ordering
+  address.
   Orders from a marketplace get none: their buyer hears from the marketplace.
+* Withdrawals: the confirmation of receipt to the consumer (§ 356a BGB) and a notice to
+  the shop's own address.
 
 Delivery is at least once. Adopting and removing are idempotent by nature; a notice
 e-mail may in rare cases be sent twice.
@@ -20,7 +23,9 @@ from modellbahn.modules.sales.domain.events import (
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
+    OrderRefunded,
     OrderShipped,
+    WithdrawalReceived,
 )
 from modellbahn.modules.sales.domain.model import Order
 from modellbahn.modules.site.contracts.next_fair import NextFair
@@ -42,6 +47,7 @@ class SalesHandlers:
         public_base_url: str,
         shop_name: str,
         sender: Sequence[str] = (),
+        shop_email: str = "",
     ) -> None:
         self._uow = uow_factory
         self._mailer = mailer
@@ -49,6 +55,7 @@ class SalesHandlers:
         self._base_url = public_base_url
         self._shop_name = shop_name
         self._sender = tuple(sender)
+        self._shop_email = shop_email
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -58,6 +65,8 @@ class SalesHandlers:
         registry.register(OrderPaid, self.send_confirmation)
         registry.register(OrderShipped, self.send_shipped_notice)
         registry.register(OrderCancelled, self.send_cancellation_notice)
+        registry.register(OrderRefunded, self.send_refund_notice)
+        registry.register(WithdrawalReceived, self.confirm_withdrawal)
 
     async def adopt_guest_orders(self, event: EmailVerified) -> None:
         """Guest orders with the now verified address join the customer's order history."""
@@ -119,6 +128,45 @@ class SalesHandlers:
         if order is not None:
             content = mails.cancelled_mail(order, base_url=self._base_url, refunded=event.refunded)
             await self._send(event, order, content)
+
+    async def send_refund_notice(self, event: OrderRefunded) -> None:
+        order = await self._order(event)
+        if order is not None:
+            content = mails.refunded_mail(
+                order, amount_cents=event.amount_cents, base_url=self._base_url
+            )
+            await self._send(event, order, content)
+
+    async def confirm_withdrawal(self, event: WithdrawalReceived) -> None:
+        """Confirm the receipt to the consumer at once, and tell the shop."""
+        async with self._uow() as uow:
+            withdrawal = await uow.withdrawals.get(event.aggregate_id)
+        if withdrawal is None:  # pragma: no cover - withdrawals are never deleted
+            _logger.warning("sales.withdrawal.missing", event_id=str(event.event_id))
+            return
+        await self._mailer.send(
+            compose(
+                mails.withdrawal_receipt_mail(withdrawal),
+                to=withdrawal.email,
+                shop_name=self._shop_name,
+                sender=self._sender,
+            )
+        )
+        if self._shop_email:
+            await self._mailer.send(
+                compose(
+                    mails.withdrawal_notice_mail(withdrawal, base_url=self._base_url),
+                    to=self._shop_email,
+                    shop_name=self._shop_name,
+                    sender=self._sender,
+                )
+            )
+        _logger.info(
+            "sales.withdrawal.confirmed",
+            event_id=str(event.event_id),
+            withdrawal_id=str(withdrawal.id),
+            shop_notified=bool(self._shop_email),
+        )
 
     async def _next_fair(self) -> NextFair | None:
         today = self._clock.now().astimezone(mails.SHOP_TIME_ZONE).date()

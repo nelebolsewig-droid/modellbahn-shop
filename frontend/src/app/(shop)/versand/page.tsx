@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ShippingRates } from "@/components/shop/shipping-rates";
+import { WarrantyNotice } from "@/components/shop/warranty-notice";
 import { PageHeading } from "@/components/site/page-heading";
 
 export const metadata: Metadata = {
@@ -47,6 +48,16 @@ export default function ShippingPage() {
             </div>
           ))}
         </dl>
+      </section>
+      <section aria-labelledby="gewaehrleistung" className="mt-16 max-w-3xl">
+        <h2 id="gewaehrleistung" className="text-heading">
+          Gesetzliche Gewährleistung
+        </h2>
+        <p className="mt-4 text-ink-secondary">
+          Für alle unsere Modelle gilt die gesetzliche Gewährleistung von mindestens zwei Jahren. Was das heißt, erklärt
+          der Hinweis der Europäischen Union:
+        </p>
+        <WarrantyNotice className="mt-6 max-w-xl" />
       </section>
     </div>
   );

@@ -21,6 +21,8 @@ export const STAFF_EVENT_LABELS = {
   "sales.order.paid": "Bestellung bezahlt",
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
+  "sales.order.refunded": "Erstattung veranlasst",
+  "sales.withdrawal.received": "Widerruf eingegangen",
   "inventory.allocation.backordered": "Stück muss gefertigt werden",
   "inventory.parts.arrived": "Teile im Wareneingang",
   "manufacturing.printer.status_changed": "Druckerzustand gemeldet",
@@ -38,6 +40,8 @@ export const ORDER_EVENT_TYPES = [
   "sales.order.paid",
   "sales.order.shipped",
   "sales.order.cancelled",
+  "sales.order.refunded",
+  "sales.withdrawal.received",
 ] as const;
 
 /**
@@ -113,6 +117,13 @@ const orderPayloadSchema = z.object({
   total_cents: z.number().int(),
 });
 
+/** Public payload of a withdrawal: the order only when number and e-mail address fit one. */
+const withdrawalPayloadSchema = z.object({
+  withdrawal_id: z.string(),
+  order_id: z.string().nullable(),
+  number: z.string().nullable(),
+});
+
 const euro = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
 
 /** Public payload of the media events: the page fetches the asset itself. */
@@ -167,6 +178,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
   const printer = printerPayloadSchema.safeParse(event.data);
   const printJob = printJobPayloadSchema.safeParse(event.data);
   const arrived = partsArrivedPayloadSchema.safeParse(event.data);
+  const withdrawal = withdrawalPayloadSchema.safeParse(event.data);
   return {
     id: event.id,
     type: event.type,
@@ -187,6 +199,7 @@ export function parseFeedEntry(raw: string): FeedEntry | null {
     ...(order.success && {
       subject: `${order.data.number} · ${euro.format(order.data.total_cents / 100)}`,
     }),
+    ...(withdrawal.success && { subject: withdrawal.data.number ?? "ohne passende Bestellung" }),
     truncated: event.truncated,
   };
 }
@@ -216,6 +229,12 @@ export function assetIdOf(raw: string): string | null {
 export function orderEventOf(raw: string): { type: string; orderId: string } | null {
   const event = eventOf(raw, orderPayloadSchema);
   return event === null ? null : { type: event.type, orderId: event.payload.order_id };
+}
+
+/** A withdrawal that came in, and the order it names (null when none fits); null for anything else. */
+export function withdrawalEventOf(raw: string): { orderId: string | null } | null {
+  const event = eventOf(raw, withdrawalPayloadSchema);
+  return event === null || event.type !== "sales.withdrawal.received" ? null : { orderId: event.payload.order_id };
 }
 
 export type StockEvent = {

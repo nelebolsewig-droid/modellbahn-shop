@@ -112,6 +112,7 @@ from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import PaymentGateway
+from modellbahn.modules.sales.application.withdrawals import WithdrawalService
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
@@ -320,6 +321,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(catalog_admin.router)
     api.include_router(media_admin.router)
     api.include_router(sales_admin.router)
+    api.include_router(sales_admin.withdrawals_router)
     api.include_router(inventory_admin.router)
     api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
@@ -392,6 +394,7 @@ def _attach_sales_services(
     app.state.payment_service = PaymentService(
         uow_factory=uow_factory, clock=clock, gateway=gateway
     )
+    app.state.withdrawal_service = WithdrawalService(uow_factory=uow_factory, clock=clock)
     app.state.address_service = AddressService(uow_factory=uow_factory, clock=clock)
 
 

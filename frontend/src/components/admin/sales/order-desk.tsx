@@ -9,6 +9,8 @@ import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
+import { RefundPanel } from "@/components/admin/sales/refund-panel";
+import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { OrderLines, OrderTimeline } from "@/components/shop/order-parts";
@@ -37,6 +39,7 @@ import {
   cancelOrder,
   getGetOrderQueryKey,
   getListOrdersQueryKey,
+  getListWithdrawalsQueryKey,
   shipOrder,
   useGetOrder,
 } from "@/lib/api/generated/admin-sales/admin-sales";
@@ -52,6 +55,7 @@ import {
   ORDER_EVENT_TYPES,
   orderEventOf,
   stockEventOf,
+  withdrawalEventOf,
 } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import {
@@ -59,7 +63,7 @@ import {
   CARRIERS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
-  PAYMENT_STATUS_LABELS,
+  paymentLabel,
 } from "@/lib/sales/labels";
 import { cancelSchema, shipSchema } from "@/lib/validation/orders";
 
@@ -87,6 +91,9 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
     url: ADMIN_EVENTS_URL,
     eventTypes: [...ORDER_EVENT_TYPES, ...INVENTORY_EVENT_TYPES],
     onMessage(data) {
+      if (withdrawalEventOf(data)?.orderId === orderId) {
+        void queryClient.invalidateQueries({ queryKey: getListWithdrawalsQueryKey({ order_id: orderId }) });
+      }
       if (orderEventOf(data)?.orderId === orderId) {
         void queryClient.invalidateQueries({ queryKey: getGetOrderQueryKey(orderId) });
         void queryClient.invalidateQueries({ queryKey: getGetPickListQueryKey(orderId) });
@@ -150,6 +157,7 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-6">
+          <OrderWithdrawals orderId={orderId} />
           <Panel title="Verlauf" code="VK 11">
             <OrderTimeline order={data} />
             <StateNote order={data} />
@@ -207,6 +215,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
               </p>
             </Panel>
           ) : null}
+          {!fromEbay && MAY_CANCEL.has(staffRole) && (data.status === "shipped" || data.status === "paid") ? (
+            <Panel title="Erstattung" code="VK 18">
+              <RefundPanel order={data} onRefunded={store} />
+            </Panel>
+          ) : null}
         </div>
       </div>
     </>
@@ -246,7 +259,7 @@ function Payments({ order }: { order: AdminOrderOut }) {
               </time>
             </td>
             <td className="py-2 pr-4">
-              {PAYMENT_STATUS_LABELS[payment.status]}
+              {paymentLabel(payment)}
               <span className="ml-2 font-mono text-hint text-ink-tertiary">
                 {payment.provider}
                 {payment.failure_code ? ` · ${payment.failure_code}` : ""}

@@ -4,6 +4,8 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { FreeShippingMeter, OrderTotals } from "@/components/shop/order-totals";
+import { PaymentMethods } from "@/components/shop/payment-methods";
+import { WarrantyNotice } from "@/components/shop/warranty-notice";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ColorDot } from "@/components/ui/color-dot";
@@ -221,6 +223,8 @@ function CartSummary({ cart }: { cart: CartOut }) {
           Versand und Lieferung
         </Link>
       </p>
+      <PaymentMethods className="mt-2 text-hint text-ink-tertiary" />
+      <WarrantyNotice compact className="mt-6" />
     </aside>
   );
 }

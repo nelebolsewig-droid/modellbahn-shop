@@ -19,5 +19,10 @@ export interface PaymentOut {
   created_at: string;
   failure_code: string | null;
   provider: string;
+  /**
+     * What went back so far: part of it after a return, all of it when refunded.
+     * @minimum 0
+     */
+  refunded_cents: number;
   status: PaymentStatus;
 }

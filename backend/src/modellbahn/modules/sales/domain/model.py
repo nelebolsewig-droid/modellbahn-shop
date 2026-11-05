@@ -25,11 +25,13 @@ from modellbahn.modules.sales.domain.errors import (
     InvalidFieldError,
     InvalidOrderStateError,
     OrderNotPayableError,
+    RefundNotPossibleError,
 )
 from modellbahn.modules.sales.domain.events import (
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
+    OrderRefunded,
     OrderShipped,
 )
 from modellbahn.platform.events import DomainEvent
@@ -347,6 +349,8 @@ class CancelReason(StrEnum):
     BY_SHOP = "by_shop"
     BY_MARKETPLACE = "by_marketplace"
     """The buyer or the marketplace cancelled; the marketplace refunds the payment."""
+    WITHDRAWN = "withdrawn"
+    """The customer withdrew before dispatch (§ 356a BGB); the shop cancelled and refunded."""
 
 
 class SalesChannel(StrEnum):
@@ -460,6 +464,15 @@ class Payment:
     """Where the customer pays while the payment is pending (the provider's page)."""
     transaction_ref: str | None = None
     """The provider's transaction of a captured payment; refunds name it."""
+    refunded_cents: int = 0
+    """What went back so far; all of it once the payment is refunded."""
+
+    @property
+    def refundable_cents(self) -> int:
+        """What can still go back: the rest of a captured payment, else nothing."""
+        if self.status is not PaymentStatus.CAPTURED:
+            return 0
+        return self.amount_cents - self.refunded_cents
 
     @property
     def refund_ref(self) -> str:
@@ -481,10 +494,21 @@ class Payment:
         return True
 
     def refund(self, now: datetime) -> None:
+        """Everything that is left goes back."""
         if self.status is not PaymentStatus.CAPTURED:
             msg = "only a captured payment can be refunded"
             raise InvalidOrderStateError(msg)
+        self.refunded_cents = self.amount_cents
         self.status = PaymentStatus.REFUNDED
+        self.updated_at = now
+
+    def refund_part(self, amount_cents: int, now: datetime) -> None:
+        """Part of the payment goes back; the last part makes it refunded."""
+        if amount_cents <= 0 or amount_cents > self.refundable_cents:
+            raise RefundNotPossibleError(self.refundable_cents)
+        self.refunded_cents += amount_cents
+        if self.refunded_cents == self.amount_cents:
+            self.status = PaymentStatus.REFUNDED
         self.updated_at = now
 
 
@@ -691,6 +715,39 @@ class Order:
     @property
     def captured_payment(self) -> Payment | None:
         return next((p for p in self.payments if p.status is PaymentStatus.CAPTURED), None)
+
+    @property
+    def refunded_cents(self) -> int:
+        """Everything that went back for this order so far."""
+        return sum(payment.refunded_cents for payment in self.payments)
+
+    @property
+    def refundable_cents(self) -> int:
+        """What can still go back after a return (paid or shipped orders only)."""
+        if self.status not in {OrderStatus.PAID, OrderStatus.SHIPPED}:
+            return 0
+        payment = self.captured_payment
+        return payment.refundable_cents if payment is not None else 0
+
+    def refund(self, amount_cents: int, now: datetime) -> OrderRefunded:
+        """Record money given back for a paid or shipped order, e.g. after a return.
+
+        The caller refunds with the provider first; this records it. A whole cancellation
+        before dispatch is :meth:`cancel` instead.
+        """
+        payment = self.captured_payment
+        if self.status not in {OrderStatus.PAID, OrderStatus.SHIPPED} or payment is None:
+            raise RefundNotPossibleError(0)
+        payment.refund_part(amount_cents, now)
+        self.updated_at = now
+        return OrderRefunded(
+            aggregate_id=self.id,
+            occurred_at=now,
+            number=self.number,
+            total_cents=self.total_cents,
+            amount_cents=amount_cents,
+            refunded_cents=self.refunded_cents,
+        )
 
     @property
     def pending_payment(self) -> Payment | None:

@@ -3,8 +3,10 @@ import type {
   CancelReason,
   OrderStatus,
   PaymentInMethod,
+  PaymentOut,
   PaymentStatus,
 } from "@/lib/api/generated/model";
+import { formatPrice } from "@/lib/catalog/format";
 
 export const ORDER_STATUS_LABELS = {
   pending_payment: "Zahlung offen",
@@ -24,7 +26,16 @@ export const CANCEL_REASON_LABELS = {
   payment_timeout: "Die Zahlung ist nicht innerhalb von 24 Stunden eingegangen.",
   by_shop: "Wir haben die Bestellung storniert.",
   by_marketplace: "Die Bestellung wurde auf eBay storniert; eBay erstattet den Betrag.",
+  withdrawn: "Du hast die Bestellung vor dem Versand widerrufen; wir haben sie storniert und erstatten den Betrag.",
 } as const satisfies Record<CancelReason, string>;
+
+/** "Bezahlt", or "Teilweise erstattet (49,90 €)" once part of a captured payment went back. */
+export function paymentLabel(payment: Pick<PaymentOut, "status" | "refunded_cents">): string {
+  if (payment.status === "captured" && payment.refunded_cents > 0) {
+    return `Teilweise erstattet (${formatPrice(payment.refunded_cents)})`;
+  }
+  return PAYMENT_STATUS_LABELS[payment.status];
+}
 
 export const PAYMENT_STATUS_LABELS = {
   pending: "Offen bei SumUp",

@@ -10,9 +10,18 @@ from modellbahn.modules.sales.api.deps import (
     OrderServiceDep,
     OrderShipper,
     OrderViewer,
+    WithdrawalServiceDep,
 )
 from modellbahn.modules.sales.api.errors import ORDER_NOT_FOUND, STAFF_ACCESS
-from modellbahn.modules.sales.api.schemas import AdminOrderOut, CancelIn, OrderPageOut, ShipIn
+from modellbahn.modules.sales.api.schemas import (
+    AdminOrderOut,
+    CancelIn,
+    OrderPageOut,
+    RefundIn,
+    ShipIn,
+    WithdrawalListOut,
+    WithdrawalOut,
+)
 from modellbahn.modules.sales.domain.model import OrderStatus
 from modellbahn.platform.errors import problems
 
@@ -95,3 +104,47 @@ async def cancel_order(
     order_id: UUID, body: CancelIn, _: OrderManager, service: OrderServiceDep
 ) -> AdminOrderOut:
     return AdminOrderOut.from_details(await service.cancel(order_id, note=body.note))
+
+
+@router.post(
+    "/{order_id}/refunds",
+    operation_id="refundOrder",
+    summary="Give money back after a return (the customer gets an e-mail)",
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            **ORDER_NOT_FOUND,
+            409: ["refund_not_possible", "marketplace_order"],
+            503: ["payment_unavailable"],
+        }
+    ),
+)
+async def refund_order(
+    order_id: UUID, body: RefundIn, _: OrderManager, service: OrderServiceDep
+) -> AdminOrderOut:
+    """The payment provider refunds at once; at most what is left of the payment. A whole
+    order that has not been shipped is cancelled instead (``cancelOrder``)."""
+    return AdminOrderOut.from_details(
+        await service.refund(order_id, amount_cents=body.amount_cents)
+    )
+
+
+withdrawals_router = APIRouter(prefix="/admin/withdrawals", tags=["admin-sales"])
+
+
+@withdrawals_router.get(
+    "",
+    operation_id="listWithdrawals",
+    summary="Declarations of withdrawal, newest first (§ 356a BGB)",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def list_withdrawals(
+    _: OrderViewer,
+    service: WithdrawalServiceDep,
+    order_id: Annotated[
+        UUID | None, Query(description="Only the declarations that name this order.")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> WithdrawalListOut:
+    views = await service.recent(limit=limit, order_id=order_id)
+    return WithdrawalListOut(items=[WithdrawalOut.from_view(view) for view in views])

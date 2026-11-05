@@ -17,6 +17,7 @@ from modellbahn.modules.sales.domain.model import (
     Payment,
     PostalAddress,
 )
+from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.sales.infrastructure import tables
 from modellbahn.platform.db import mapper_registry
 
@@ -39,6 +40,7 @@ def start_mappers() -> None:
             )
         },
     )
+    mapper_registry.map_imperatively(Withdrawal, tables.withdrawals)
     mapper_registry.map_imperatively(OrderLine, tables.order_lines)
     mapper_registry.map_imperatively(Payment, tables.payments)
     orders = tables.orders.c

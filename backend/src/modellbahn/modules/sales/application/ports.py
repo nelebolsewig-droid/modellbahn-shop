@@ -22,6 +22,7 @@ from modellbahn.modules.sales.domain.model import (
     PaymentOutcome,
     PaymentStart,
 )
+from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.events import DomainEvent
 
@@ -91,6 +92,20 @@ class OrderRepository(Protocol):
         self, provider: str, started_before: datetime, limit: int
     ) -> list[UUID]:
         """Orders with a payment on this provider's page begun before the cut-off, oldest first."""
+        ...
+
+
+class WithdrawalRepository(Protocol):
+    def add(self, withdrawal: Withdrawal) -> None: ...
+
+    async def get(self, withdrawal_id: UUID) -> Withdrawal | None: ...
+
+    async def recent(self, *, limit: int, order_id: UUID | None = None) -> list[Withdrawal]:
+        """The latest declarations first; only those naming the order, if one is given."""
+        ...
+
+    async def received_since(self, since: datetime) -> list[Withdrawal]:
+        """The declarations that came in since then, oldest first."""
         ...
 
 
@@ -205,7 +220,9 @@ class PaymentGateway(Protocol):
         """
         ...
 
-    async def refund(self, *, refund_ref: str, amount_cents: int) -> None: ...
+    async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
+        """Give back ``amount_cents`` of the payment: all of it, or a part after a return."""
+        ...
 
     async def aclose(self) -> None:
         """Release the provider's connections (at shutdown)."""
@@ -223,6 +240,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def addresses(self) -> AddressRepository: ...
+
+    @property
+    def withdrawals(self) -> WithdrawalRepository: ...
 
     @property
     def catalog(self) -> Catalog: ...

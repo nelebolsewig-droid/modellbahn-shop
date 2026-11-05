@@ -8,20 +8,24 @@ const WORKSHOP = [
   { href: "/ueber-uns", label: "Über uns" },
   { href: "/so-entsteht-ein-modell", label: "So entsteht ein Modell" },
   { href: "/sonderanfertigung", label: "Sonderanfertigung" },
-] as const satisfies readonly { href: Route; label: string }[];
+] as const satisfies readonly FooterLink[];
 
+// "Vertrag widerrufen" is the withdrawal function (§ 356a BGB): on every page, and set off.
 const LINKS = [
   { href: "/versand", label: "Versand" },
   { href: "/agb", label: "AGB" },
-  { href: "/widerruf", label: "Widerruf" },
+  { href: "/widerruf", label: "Widerrufsbelehrung" },
+  { href: "/widerruf/erklaeren", label: "Vertrag widerrufen", strong: true },
   { href: "/impressum", label: "Impressum" },
   { href: "/datenschutz", label: "Datenschutz" },
-] as const satisfies readonly { href: Route; label: string }[];
+] as const satisfies readonly FooterLink[];
+
+type FooterLink = { href: Route; label: string; strong?: boolean };
 
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-small text-ink-tertiary sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-small text-ink-tertiary sm:px-8 lg:grid-cols-[minmax(14rem,1fr)_auto] lg:items-center">
         <p>{SHOP_NAME} · Fahrzeugmodelle in Handarbeit, seit 1992</p>
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-10">
           <FooterLinks label="Werkstatt" links={WORKSHOP} />
@@ -32,13 +36,20 @@ export function SiteFooter() {
   );
 }
 
-function FooterLinks({ label, links }: { label: string; links: readonly { href: Route; label: string }[] }) {
+function FooterLinks({ label, links }: { label: string; links: readonly FooterLink[] }) {
   return (
     <nav aria-label={label}>
       <ul className="flex flex-wrap gap-x-6 gap-y-2">
         {links.map((link) => (
           <li key={link.href}>
-            <Link href={link.href} className="rounded-xs text-ink-secondary underline-offset-4 hover:text-ink hover:underline">
+            <Link
+              href={link.href}
+              className={
+                link.strong
+                  ? "rounded-xs font-medium text-ink underline underline-offset-4 hover:text-accent"
+                  : "rounded-xs text-ink-secondary underline-offset-4 hover:text-ink hover:underline"
+              }
+            >
               {link.label}
             </Link>
           </li>

@@ -19,4 +19,5 @@ export const CancelReason = {
   payment_timeout: 'payment_timeout',
   by_shop: 'by_shop',
   by_marketplace: 'by_marketplace',
+  withdrawn: 'withdrawn',
 } as const;
