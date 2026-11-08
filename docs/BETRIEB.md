@@ -140,6 +140,33 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 - Passt ein Widerruf zu keiner Bestellung des Shops, ist es vielleicht ein eBay-Kauf; den
   erstattet man über eBay.
 
+### Fotos aus einem Ordner hochladen
+
+`scripts/fotos_hochladen.py` lädt Fotos vom eigenen Rechner in die Galerien der Produkte,
+statt sie einzeln im Stellwerk hochzuladen. Es braucht nur Python 3.
+
+- **Die Liste:** `modelle-uebersicht.csv` (Semikolon, Spalten `Datei`, `Modell`,
+  `Entwurf im Startbestand`, `Farbe`, `Eignung`, `Hauptbild (ja/nein)` …). Claude Code
+  schreibt sie beim Durchsehen eines Fotoordners. `Datei` ist relativ zum Ordner der Liste.
+- **Was hochgeht:** je Modell das Hauptbild, dann die Fotos mit „gut“, dann „brauchbar“,
+  höchstens 8 (`--max-fotos`). „nein“ bleibt draußen.
+- **Wohin:** in die Galerie des Produkts mit dem Namen aus `Entwurf im Startbestand`, bei
+  „neu“ aus `Modell`. Das Produkt muss es schon geben. Das Skript legt keine Produkte an und
+  veröffentlicht nichts.
+- **Ohne `--hochladen` ist es ein Probelauf** und zeigt nur, was passieren würde.
+- **Wiederholen ist unschädlich:** Der Server erkennt ein Foto an seiner Prüfsumme, und ein
+  Bild kommt nicht doppelt in eine Galerie.
+
+Im Ordner mit der Liste, auf dem Mac:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/nelebolsewig-droid/modellbahn-shop/main/scripts/fotos_hochladen.py
+python3 fotos_hochladen.py modelle-uebersicht.csv --email du@example.de              # Probelauf
+python3 fotos_hochladen.py modelle-uebersicht.csv --email du@example.de --hochladen
+```
+
+Das Passwort fürs Stellwerk fragt das Skript verdeckt ab.
+
 `make up` und `make logs` funktionieren auch, denn `.env` wählt mit
 `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` die Einstellungen für den echten
 Betrieb (ohne das Test-Postfach Mailpit).
