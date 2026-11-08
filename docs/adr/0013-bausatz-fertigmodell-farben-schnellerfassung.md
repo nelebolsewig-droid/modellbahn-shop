@@ -113,8 +113,8 @@ eine **Schnellerfassung** fürs Handy; die bekannten Modelle als Startbestand, d
   Preis noch Variante; ihre Beschreibung sagt „Bitte prüfen“ und was zu prüfen ist.
 - **Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026** (entschieden mit dem
   Inhaber):
-  - Verkaufspreis = Einkaufspreis der Liste plus 35 %; der Einkaufspreis selbst steht
-    nirgends.
+  - Ohne Preis und ohne Ausführung, wie die Entwürfe aus den Lagerfotos: Den Preis legt der
+    Inhaber im Stellwerk fest. Die Preise der Liste sind Einkaufspreise und stehen nirgends.
   - Die Stückzahl der Liste steht in der Beschreibung des Entwurfs. Bestand wird es erst,
     wenn die Einheiten mit Etikett erfasst sind.
   - Die Kategorien sind Vorschläge, dafür kamen Unterkategorien der Militärfahrzeuge,

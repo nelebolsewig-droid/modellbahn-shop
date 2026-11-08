@@ -1,5 +1,5 @@
 {
-  "about": "Startbestand von adp-Modelle (ADR 0013), geordnet wie mit dem Inhaber festgelegt: Straßenfahrzeuge → LKW → Feuerwehr. Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026; Verkaufspreis = Einkaufspreis + 35 %. Einspielen: make catalog-import.",
+  "about": "Startbestand von adp-Modelle (ADR 0013), geordnet wie mit dem Inhaber festgelegt: Straßenfahrzeuge → LKW → Feuerwehr. Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026, ohne Preis; den legt der Inhaber im Stellwerk fest. Einspielen: make catalog-import.",
   "categories": [
     {
       "name": "Straßenfahrzeuge",
@@ -485,1603 +485,1069 @@
       "name": "1S12 Rundblickstation zum KRUG-System",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "1S12 Rundblickstation zum KRUG-System als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 13500
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Lenkflugkörpersystem 9T29 Raketenkomplex 9K52",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "Lenkflugkörpersystem 9T29 Raketenkomplex 9K52 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "2S4 „Tulpan“ Panzermörser",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "2S4 „Tulpan“ Panzermörser als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ACPT-0.9 Trinkauflieger",
       "category": "Straßenfahrzeuge / Wohnwagen und Anhänger",
       "summary": "ACPT-0.9 Trinkauflieger als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 1890
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "AT-L Artillerieschlepper mit M-30 122-mm-Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "AT-L Artillerieschlepper mit M-30 122-mm-Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "ATS-59 Artillerieschlepper",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "ATS-59 Artillerieschlepper als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "BAT-M Planierraupe mit Drehkran am Heck",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "BAT-M Planierraupe mit Drehkran am Heck als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "BAZ-5922 Feuerwehr",
       "category": "Straßenfahrzeuge / LKW / Feuerwehr",
       "summary": "BAZ-5922 Feuerwehr als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "BTM-3 Grabenbagger",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "BTM-3 Grabenbagger als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "FAP-172U Fahrschulpanzer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "FAP-172U Fahrschulpanzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "FKW-10 auf Do-54",
       "category": "Straßenfahrzeuge / Sonderfahrzeuge",
       "summary": "FKW-10 auf Do-54 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "FS-1 Großschneepflug",
       "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
       "summary": "FS-1 Großschneepflug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "GAZ-AA LKW",
       "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
       "summary": "GAZ-AA LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3510
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "GAZ-51A AGTA-51 Flugzeugtreppe",
       "category": "Straßenfahrzeuge / Sonderfahrzeuge",
       "summary": "GAZ-51A AGTA-51 Flugzeugtreppe als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5130
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "GAZ-66 Tankwagen",
       "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
       "summary": "GAZ-66 Tankwagen als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3510
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "GAZ-66 Werkstatt",
       "category": "Straßenfahrzeuge / LKW / Kofferaufbau",
       "summary": "GAZ-66 Werkstatt als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3510
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "GAZ-68 Rad-SAU",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "GAZ-68 Rad-SAU als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "GT-S Überschneefahrzeug (GAZ-47)",
       "category": "Straßenfahrzeuge / Sonderfahrzeuge",
       "summary": "GT-S Überschneefahrzeug (GAZ-47) als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3510
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "GT-T Überschneefahrzeug",
       "category": "Straßenfahrzeuge / Sonderfahrzeuge",
       "summary": "GT-T Überschneefahrzeug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3645
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Hetzer Jagdpanzer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "Hetzer Jagdpanzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "IFA G5 Trägerfahrzeug für Pontonbrückenpark TPP",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "IFA G5 Trägerfahrzeug für Pontonbrückenpark TPP als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5130
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "IFA G5 LKW mit M-30 122-mm-Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "IFA G5 LKW mit M-30 122-mm-Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6075
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "IFA Horch H3A ADK 3 Bleichert Kran",
       "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "IFA Horch H3A ADK 3 Bleichert Kran als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5805
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "IFA H6-Sattelschlepperbus (Wismut AG)",
       "category": "Straßenfahrzeuge / Busse",
       "summary": "IFA H6-Sattelschlepperbus (Wismut AG) als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7290
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "IFA L60 PP-LKW mit Auflieger (THW)",
       "category": "Straßenfahrzeuge / LKW / Sattelzüge",
       "summary": "IFA L60 PP-LKW mit Auflieger (THW) als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2970
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "IS-2 Panzer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "IS-2 Panzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2700
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Kamaz-5511 Kipper",
       "category": "Straßenfahrzeuge / LKW / Kipper",
       "summary": "Kamaz-5511 Kipper als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4455
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Kamaz-43105 ADK-100-K Kran",
       "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "Kamaz-43105 ADK-100-K Kran als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Kamaz-5410 mit Tank-Sattelzug",
       "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
       "summary": "Kamaz-5410 mit Tank-Sattelzug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "KM-2301 Kehrmaschine",
       "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
       "summary": "KM-2301 Kehrmaschine als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4860
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "KrAZ-255B BRO-200 Abschleppwagen",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "KrAZ-255B BRO-200 Abschleppwagen als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4860
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "KrAZ-255L mit Holztransport TMZ-803",
       "category": "Straßenfahrzeuge / LKW / Sattelzüge",
       "summary": "KrAZ-255L mit Holztransport TMZ-803 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "KrAZ-257K1 Autodrehkran KS-4561A",
       "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "KrAZ-257K1 Autodrehkran KS-4561A als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 8370
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "KrAZ-250 Zugmaschine mit Auflieger",
       "category": "Straßenfahrzeuge / LKW / Sattelzüge",
       "summary": "KrAZ-250 Zugmaschine mit Auflieger als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 4 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 4 Stück; Preis fehlt"
     },
     {
       "name": "KRUG 1S32 Raketenleitstation",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "KRUG 1S32 Raketenleitstation als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "KRUG FlaRak-System Startrampe 2P24",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "KRUG FlaRak-System Startrampe 2P24 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Krupp Protze Kfz. 17 L2H143 Stabskom",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Krupp Protze Kfz. 17 L2H143 Stabskom als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Krupp Protze Kfz. 17 LKW",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Krupp Protze Kfz. 17 LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "LOWA Z8 DoSa",
       "category": "Straßenfahrzeuge / Busse",
       "summary": "LOWA Z8 DoSa als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7695
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "LOWA W602a mit Anhänger LOWA W700",
       "category": "Straßenfahrzeuge / Busse",
       "summary": "LOWA W602a mit Anhänger LOWA W700 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7830
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "LuAZ-967 TPK Krankenwagen",
       "category": "Straßenfahrzeuge / Rettungsdienst",
       "summary": "LuAZ-967 TPK Krankenwagen als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3375
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-200 TZ-200 Tankwagen",
       "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
       "summary": "MAZ-200 TZ-200 Tankwagen als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4860
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-200 K-51 Autodrehkran",
       "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "MAZ-200 K-51 Autodrehkran als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 4 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 4 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-504 Autodrehkran SMK-101",
       "category": "Straßenfahrzeuge / Kranfahrzeuge",
       "summary": "MAZ-504 Autodrehkran SMK-101 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7425
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-537L Schwerlastzugmaschine",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "MAZ-537L Schwerlastzugmaschine als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-537G KET-T Bergungsfahrzeug",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "MAZ-537G KET-T Bergungsfahrzeug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6750
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-7510 Kipper",
       "category": "Straßenfahrzeuge / LKW / Kipper",
       "summary": "MAZ-7510 Kipper als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "MAZ-7313 LKW",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "MAZ-7313 LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "MDK-2 Grubenaushubmaschine",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "MDK-2 Grubenaushubmaschine als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "MZKT-65271 Volat Schwerlastzugmaschine",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "MZKT-65271 Volat Schwerlastzugmaschine als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 9450
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "„OSA-AK“ 9T217B Raketen-Transport-Lade-Fahrzeug",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "„OSA-AK“ 9T217B Raketen-Transport-Lade-Fahrzeug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "MZKT-74131 Volat Zugmaschine",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "MZKT-74131 Volat Zugmaschine als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 9450
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Opel Blitz 3t PP-LKW",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Opel Blitz 3t PP-LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Opel Blitz 3t mit PAK-40 Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "Opel Blitz 3t mit PAK-40 Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2700
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Panzerjäger I",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "Panzerjäger I als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4050
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "PMD-3 Schmalspur-Lokomotive",
       "category": "Schienenfahrzeuge / Lokomotiven",
       "summary": "PMD-3 Schmalspur-Lokomotive als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3780
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "PMGT-31 Löschpanzer",
       "category": "Straßenfahrzeuge / LKW / Feuerwehr",
       "summary": "PMGT-31 Löschpanzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Präzisions-Landeradar RSP-7 auf ZIL-157",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "Präzisions-Landeradar RSP-7 auf ZIL-157 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6075
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Progress-7 Bus",
       "category": "Straßenfahrzeuge / Busse",
       "summary": "Progress-7 Bus als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 4 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 4 Stück; Preis fehlt"
     },
     {
       "name": "PRV-10 Radarstation",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "PRV-10 Radarstation als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7425
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "PTS-3 Landungsfahrzeug",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Pionier- und Bergefahrzeuge",
       "summary": "PTS-3 Landungsfahrzeug als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 6345
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Rundblick-Funkmessstation P-10 auf ZIS-151",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "Rundblick-Funkmessstation P-10 auf ZIS-151 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7425
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Rundblick-Funkmessstation RBS15M auf ZIL-157",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "Rundblick-Funkmessstation RBS15M auf ZIL-157 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 7425
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Sd.Kfz. 2 Kettenkraftrad Typ HK 101",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "Sd.Kfz. 2 Kettenkraftrad Typ HK 101 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 1890
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Sd.Kfz. 9 Famo",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Sd.Kfz. 9 Famo als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Sd.Kfz. 11 Leichter Zugkraftwagen 3t",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Sd.Kfz. 11 Leichter Zugkraftwagen 3t als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2160
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "SFL SU-100",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "SFL SU-100 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "SFL SU-122",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "SFL SU-122 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "„Shilka“ Flugabwehrpanzer ZSU-23-4 2A6",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "„Shilka“ Flugabwehrpanzer ZSU-23-4 2A6 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "Skoda 75-mm-Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "Skoda 75-mm-Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2160
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Schwerer Wehrmachtschlepper mit Nebelwerfer 42",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "Schwerer Wehrmachtschlepper mit Nebelwerfer 42 als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Schwerer Wehrmachtschlepper Lkw",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Schwerer Wehrmachtschlepper Lkw als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Schwerer Wehrmachtschlepper sWS",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "Schwerer Wehrmachtschlepper sWS als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "SM-90 FlaRak-System Startrampe S-75M „Wolhow“",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Funkmess- und Raketentechnik",
       "summary": "SM-90 FlaRak-System Startrampe S-75M „Wolhow“ als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 3 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 3 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 3 Stück; Preis fehlt"
     },
     {
       "name": "T-34-85 Panzer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "T-34-85 Panzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 2430
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "T-72AV Kampfpanzer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "T-72AV Kampfpanzer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "Tatra T163-390SKT 6x6.2R/371 Jamal",
       "category": "Straßenfahrzeuge / LKW / Kipper",
       "summary": "Tatra T163-390SKT 6x6.2R/371 Jamal als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4860
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "TM-59MG Eisabtaugerät",
       "category": "Straßenfahrzeuge / Sonderfahrzeuge",
       "summary": "TM-59MG Eisabtaugerät als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5670
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "Volvo F88 Zementmixer",
       "category": "Straßenfahrzeuge / Baumaschinen und Traktoren",
       "summary": "Volvo F88 Zementmixer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4860
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "„Woroshilovetz“ Artillerieschlepper",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Panzer und Kettenfahrzeuge",
       "summary": "„Woroshilovetz“ Artillerieschlepper als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4590
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ZIL-MMZ-4502 Kipper",
       "category": "Straßenfahrzeuge / LKW / Kipper",
       "summary": "ZIL-MMZ-4502 Kipper als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 6 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 6 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3780
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 6 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 6 Stück; Preis fehlt"
     },
     {
       "name": "ZIL-130V1 mit TC-4 Zementauflieger",
       "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
       "summary": "ZIL-130V1 mit TC-4 Zementauflieger als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 5400
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "ZIL-157 PP-LKW",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "ZIL-157 PP-LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3780
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ZIL-157 Kommando-Stabswagen",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
       "summary": "ZIL-157 Kommando-Stabswagen als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4050
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ZIS-2 Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "ZIS-2 Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 1890
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "ZIS-3 Kanone",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "ZIS-3 Kanone als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 2 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 1890
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 2 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 2 Stück; Preis fehlt"
     },
     {
       "name": "ZiS-5 LKW",
       "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
       "summary": "ZiS-5 LKW als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 1890
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ZIS-6 Geschosswerfer BM-13-16 „Katyusha“",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "ZIS-6 Geschosswerfer BM-13-16 „Katyusha“ als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 1 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 3510
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 1 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 1 Stück; Preis fehlt"
     },
     {
       "name": "ZIS-150 BM-13N-16 Geschosswerfer",
       "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
       "summary": "ZIS-150 BM-13N-16 Geschosswerfer als Fertigmodell in H0.",
-      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto.",
+      "description": "Entwurf aus der Bestandsliste vom 08.11.2026, Fertigmodell, laut Liste 4 Stück vorrätig. Bitte prüfen: Name, Kategorie, Farben, Foto; Ausführung Fertigmodell mit Preis anlegen.",
       "scales": [
         {
-          "code": "H0",
-          "variants": [
-            {
-              "finish": "painted",
-              "price_cents": 4050
-            }
-          ]
+          "code": "H0"
         }
       ],
-      "note": "Bestandsliste: 4 Stück; Preis = Einkaufspreis + 35 %"
+      "note": "Bestandsliste: 4 Stück; Preis fehlt"
     }
   ]
 }
