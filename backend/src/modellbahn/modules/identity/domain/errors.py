@@ -51,5 +51,9 @@ class AccountAlreadyExistsError(IdentityError):
     """An account of this kind already uses the e-mail address."""
 
 
+class LastOwnerError(IdentityError):
+    """The last active owner stays: without one, nobody could manage the shop."""
+
+
 class AccountNotFoundError(IdentityError):
     """No account of this kind uses the e-mail address (used by the server's CLI only)."""

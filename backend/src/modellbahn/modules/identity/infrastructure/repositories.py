@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from modellbahn.modules.identity.domain.model import (
     Account,
     AccountKind,
+    AccountStatus,
     AccountToken,
     LoginSession,
     TokenPurpose,
@@ -52,6 +53,15 @@ class SqlAccountRepository:
 
     def add(self, account: Account) -> None:
         self._session.add(account)
+
+    async def active_staff(self, *, for_update: bool = False) -> list[Account]:
+        statement = _locked(
+            select(Account)
+            .where(accounts.c.kind == AccountKind.STAFF, accounts.c.status == AccountStatus.ACTIVE)
+            .order_by(accounts.c.email),
+            for_update,
+        )
+        return list((await self._session.execute(statement)).scalars())
 
 
 class SqlLoginSessionRepository:

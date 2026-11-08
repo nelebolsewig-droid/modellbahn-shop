@@ -32,6 +32,10 @@ class AccountRepository(Protocol):
 
     def add(self, account: Account) -> None: ...
 
+    async def active_staff(self, *, for_update: bool = False) -> list[Account]:
+        """The active staff accounts, by address. ``for_update`` locks the rows until commit."""
+        ...
+
 
 class LoginSessionRepository(Protocol):
     async def get(self, token_hash: str) -> LoginSession | None: ...

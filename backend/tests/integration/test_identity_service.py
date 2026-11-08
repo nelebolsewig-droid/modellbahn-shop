@@ -15,6 +15,7 @@ from modellbahn.modules.identity.domain.errors import (
     InvalidCredentialsError,
     InvalidPasswordError,
     InvalidTokenError,
+    LastOwnerError,
     NotAuthenticatedError,
     PasswordPolicyViolationError,
 )
@@ -519,6 +520,63 @@ class TestStaffUnlock:
 
         with pytest.raises(AccountNotFoundError):
             await identity.unlock_staff(email="niemand@example.com")
+
+
+class TestStaffDeletion:
+    async def test_a_mistaken_account_goes_and_its_sessions_end(
+        self, identity: IdentityService
+    ) -> None:
+        for email, name in (("chefin@example.com", "Chefin"), ("ihre.echte@adresse.de", "Platz")):
+            await identity.create_staff(
+                email=email, display_name=name, role=StaffRole.OWNER, password=PASSWORD
+            )
+        started = await identity.login(
+            kind=AccountKind.STAFF,
+            email="ihre.echte@adresse.de",
+            password=PASSWORD,
+            user_agent=None,
+        )
+
+        deleted = await identity.delete_staff(email="IHRE.ECHTE@adresse.de")
+
+        assert deleted.status is AccountStatus.DELETED
+        assert [m.email for m in await identity.staff_members()] == ["chefin@example.com"]
+        with pytest.raises(NotAuthenticatedError):
+            await identity.authenticate(token=started.token, kind=AccountKind.STAFF)
+        with pytest.raises(InvalidCredentialsError):
+            await identity.login(
+                kind=AccountKind.STAFF,
+                email="ihre.echte@adresse.de",
+                password=PASSWORD,
+                user_agent=None,
+            )
+        # The address is free again for an account that is meant.
+        await identity.create_staff(
+            email="ihre.echte@adresse.de",
+            display_name="Neu",
+            role=StaffRole.STAFF,
+            password=PASSWORD,
+        )
+
+    async def test_the_last_owner_stays(self, identity: IdentityService) -> None:
+        await identity.create_staff(
+            email="chefin@example.com",
+            display_name="Chefin",
+            role=StaffRole.OWNER,
+            password=PASSWORD,
+        )
+        await identity.create_staff(
+            email="packer@example.com",
+            display_name="Packer",
+            role=StaffRole.PACKER,
+            password=PASSWORD,
+        )
+        with pytest.raises(LastOwnerError):
+            await identity.delete_staff(email="chefin@example.com")
+        await identity.delete_staff(email="packer@example.com")
+        with pytest.raises(AccountNotFoundError):
+            await identity.delete_staff(email="packer@example.com")
+        assert [m.email for m in await identity.staff_members()] == ["chefin@example.com"]
 
 
 async def test_a_login_does_not_wait_while_a_mail_is_being_sent(

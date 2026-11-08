@@ -208,6 +208,8 @@ bricht `make up` mit einem Hinweis auf die fehlende Variable ab.
 | `make dev-db` | Nur PostgreSQL und Mailpit starten, für die Entwicklung ohne Container |
 | `make migrate` | Migrationen mit dem Backend-Image auf die Datenbank des Stacks anwenden |
 | `make staff EMAIL=… NAME="…" [ROLE=owner\|staff\|packer]` | Mitarbeiterkonto anlegen |
+| `make staff-list` | Aktive Mitarbeiterkonten anzeigen |
+| `make staff-delete EMAIL=…` | Mitarbeiterkonto löschen (nicht das letzte Inhaberkonto) |
 | `make catalog-import` | Startbestand des Katalogs einspielen (`backend/seed/startbestand.json`); wiederholbar, legt nur Entwürfe an |
 | `make smoke` | End-to-End-Test gegen den laufenden Stack (siehe Schnellstart) |
 | `make test` | Tests von Backend (pytest) und Frontend (Vitest) |
