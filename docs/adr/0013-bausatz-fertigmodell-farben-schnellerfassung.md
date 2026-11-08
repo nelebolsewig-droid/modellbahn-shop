@@ -111,6 +111,16 @@ eine **Schnellerfassung** fürs Handy; die bekannten Modelle als Startbestand, d
 - **`backend/seed/startbestand.json`** enthält den Kategorienbaum, die bekannten Modelle
   mit Preisen und Farben und 16 Entwürfe aus den Lagerfotos. Die Entwürfe haben weder
   Preis noch Variante; ihre Beschreibung sagt „Bitte prüfen“ und was zu prüfen ist.
+- **Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026** (entschieden mit dem
+  Inhaber):
+  - Verkaufspreis = Einkaufspreis der Liste plus 35 %; der Einkaufspreis selbst steht
+    nirgends.
+  - Die Stückzahl der Liste steht in der Beschreibung des Entwurfs. Bestand wird es erst,
+    wenn die Einheiten mit Etikett erfasst sind.
+  - Die Kategorien sind Vorschläge, dafür kamen Unterkategorien der Militärfahrzeuge,
+    „Sonderfahrzeuge“ und „Lokomotiven“ hinzu.
+  - „HG-125 auf der Basis T-34“ stand schon als „HG 125 auf T-34“ im Startbestand und kam
+    nicht doppelt hinein.
 - **`make catalog-import`** (`python -m modellbahn.cli import-catalog PATH`) spielt die
   Datei ein und lässt sich wiederholen:
   - Kategorien werden über Elternteil und Namen wiedererkannt, Produkte über ihre Adresse.
