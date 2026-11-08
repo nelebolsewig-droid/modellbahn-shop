@@ -22,6 +22,12 @@ Aufruf im Ordner mit der CSV (nur Python 3, keine weiteren Pakete)::
     python3 fotos_hochladen.py modelle-uebersicht.csv --email du@example.de --hochladen
 
 Das Passwort fragt das Skript verdeckt ab (oder liest ``MB_STELLWERK_PASSWORT``).
+
+Rohfotos (DNG, TIFF) nimmt der Server nicht an. Auf dem Mac wandelt das Skript sie mit
+Quick Look und ``sips`` in JPEG um (längste Seite 4000 Pixel, richtig herum) und legt die
+Umwandlung unter ``~/Library/Caches/adp-fotos-hochladen`` ab; ein zweiter Lauf schickt so
+dieselben Bytes, und der Server erkennt das Foto wieder. Der Probelauf wandelt ein Foto
+zur Probe um und nennt die Datei, damit man sie ansehen kann.
 """
 
 # ruff: noqa: T201
@@ -36,12 +42,15 @@ import http.cookiejar
 import json
 import os
 import re
+import shutil
 import ssl
+import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
@@ -65,6 +74,10 @@ MIME_TYPES: Final = {
     ".heic": "image/heic",
     ".heif": "image/heif",
 }
+# Raw and TIFF photos go up as JPEG; sips (macOS) converts them.
+CONVERTIBLE: Final = {".dng", ".tif", ".tiff", ".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf"}
+LONG_SIDE: Final = 4000
+JPEG_QUALITY: Final = 90
 NEW_MARKERS: Final = {"", "neu", "-", "\u2013"}
 SUITABILITY_RANK: Final = {"gut": 0, "brauchbar": 1}
 
@@ -192,6 +205,83 @@ def make_plan(photos: Iterable[Photo], missing: list[str], *, max_photos: int) -
     return plan
 
 
+Converter = Callable[[Path, Path], None]
+
+
+def mac_converter() -> Converter | None:
+    """JPEG conversion with the Mac's own tools, or None elsewhere.
+
+    Quick Look renders the photo upright, as the Finder shows it; sips turns that into a
+    JPEG. sips alone keeps the camera's orientation flag out of raw files, and photos
+    taken on their side would arrive lying down.
+    """
+    qlmanage, sips = shutil.which("qlmanage"), shutil.which("sips")
+    if qlmanage is None or sips is None:
+        return None
+
+    def convert(source: Path, target: Path) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            # Fixed arguments and paths only, no shell.
+            subprocess.run(  # noqa: S603
+                [qlmanage, "-t", "-s", str(LONG_SIDE), "-o", folder, str(source)],
+                check=True,
+                capture_output=True,
+            )
+            # Quick Look names its picture after the source (IMG_1.DNG.png); take what it made.
+            rendered = next(Path(folder).glob("*.png"), None)
+            if rendered is None:
+                raise OSError("Quick Look hat kein Bild erzeugt")
+            subprocess.run(  # noqa: S603
+                [
+                    sips,
+                    "-s",
+                    "format",
+                    "jpeg",
+                    "-s",
+                    "formatOptions",
+                    str(JPEG_QUALITY),
+                    str(rendered),
+                    "--out",
+                    str(target),
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+    return convert
+
+
+def cache_dir() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Caches" / "adp-fotos-hochladen"
+    return Path(tempfile.gettempdir()) / "adp-fotos-hochladen"
+
+
+def needs_conversion(path: Path) -> bool:
+    suffix = path.suffix.lower()
+    return suffix not in MIME_TYPES or path.stat().st_size > IMAGE_MAX_BYTES
+
+
+def file_to_send(path: Path, converter: Converter | None, *, cache: Path) -> Path:
+    """The file as it goes up: as it is, or as a JPEG made once and kept in ``cache``."""
+    if not needs_conversion(path):
+        return path
+    stat = path.stat()
+    target = cache / f"{path.stem}-{stat.st_size}-{int(stat.st_mtime)}.jpg"
+    if target.is_file():
+        return target
+    if converter is None:
+        raise StellwerkError(f"{path.name}: umwandeln in JPEG geht nur auf dem Mac (sips)")
+    cache.mkdir(parents=True, exist_ok=True)
+    partial = target.with_name(f"{target.stem}.part.jpg")
+    try:
+        converter(path, partial)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise StellwerkError(f"{path.name}: Umwandeln in JPEG ging nicht ({error})") from None
+    partial.replace(target)
+    return target
+
+
 class StellwerkError(RuntimeError):
     """The server refused a request; the message says which and why."""
 
@@ -268,15 +358,15 @@ class Stellwerk:
     def gallery_size(self, product_id: str) -> int:
         return len(self.call("GET", f"{API}/products/{product_id}")["media"])
 
-    def upload(self, photo: Photo) -> str:
-        """The photo as a stored asset; a file the server already has is not sent again."""
-        data = photo.path.read_bytes()
+    def upload(self, path: Path) -> str:
+        """The file as a stored asset; a file the server already has is not sent again."""
+        data = path.read_bytes()
         ticket = self.call(
             "POST",
             f"{API}/media/uploads",
             {
-                "filename": photo.path.name,
-                "mime_type": MIME_TYPES[photo.path.suffix.lower()],
+                "filename": path.name,
+                "mime_type": MIME_TYPES[path.suffix.lower()],
                 "size_bytes": len(data),
                 "sha256": hashlib.sha256(data).hexdigest(),
             },
@@ -289,7 +379,7 @@ class Stellwerk:
             raise StellwerkError(f"Upload-Adresse zeigt nicht auf {self.base_url}")
         status, raw = self._send("PUT", upload["url"], data=data, headers=upload["headers"])
         if status >= HTTP_REDIRECT:
-            raise StellwerkError(f"Hochladen von {photo.path.name}: HTTP {status} {raw[:200]!r}")
+            raise StellwerkError(f"Hochladen von {path.name}: HTTP {status} {raw[:200]!r}")
         self.call("POST", f"{API}/media/{asset_id}/complete")
         return asset_id
 
@@ -301,15 +391,41 @@ class Stellwerk:
         )
 
 
-def _check_files(plan: Plan) -> list[str]:
-    problems = []
+def check_files(plan: Plan, *, can_convert: bool) -> tuple[list[str], int]:
+    """Photos that cannot go up, and how many go up as a converted JPEG."""
+    problems, converted = [], 0
     for photos in plan.galleries.values():
         for photo in photos:
-            if photo.path.suffix.lower() not in MIME_TYPES:
+            suffix = photo.path.suffix.lower()
+            if suffix not in MIME_TYPES and suffix not in CONVERTIBLE:
                 problems.append(f"{photo.path.name}: Dateityp {photo.path.suffix} geht nicht")
-            elif photo.path.stat().st_size > IMAGE_MAX_BYTES:
-                problems.append(f"{photo.path.name}: größer als 50 MB")
-    return problems
+            elif needs_conversion(photo.path):
+                if can_convert:
+                    converted += 1
+                else:
+                    problems.append(
+                        f"{photo.path.name}: muss in JPEG umgewandelt werden, das geht nur auf "
+                        "dem Mac"
+                    )
+    return problems, converted
+
+
+def _sample_conversion(
+    plan: Plan, found: Mapping[str, object], converter: Converter | None
+) -> None:
+    """Convert one raw photo now, so the result can be looked at before the real run."""
+    sample = next(
+        (p for t in sorted(found) for p in plan.galleries[t] if needs_conversion(p.path)), None
+    )
+    if sample is None:
+        return
+    try:
+        path = file_to_send(sample.path, converter, cache=cache_dir())
+    except StellwerkError as error:
+        print(f"Probe-Umwandlung ging nicht: {error}")
+        return
+    print(f"Probe-Umwandlung: {path}")
+    print("  Bitte öffnen und prüfen, ob das Foto richtig herum und scharf ist.")
 
 
 def _report(
@@ -339,7 +455,8 @@ def run(args: argparse.Namespace) -> int:
     csv_path = Path(args.liste).expanduser()
     photos, missing = read_overview(csv_path)
     plan = make_plan(photos, missing, max_photos=args.max_fotos)
-    problems = _check_files(plan)
+    converter = mac_converter()
+    problems, converted = check_files(plan, can_convert=converter is not None)
     if problems:
         print("Diese Fotos lassen sich nicht hochladen:", *problems, sep="\n  ")
         return 1
@@ -355,7 +472,12 @@ def run(args: argparse.Namespace) -> int:
     absent = sorted(t for t in plan.galleries if t not in found)
     count = sum(len(plan.galleries[t]) for t in found)
     print(f"{'Hochladen' if args.hochladen else 'Probelauf'}: {args.server}")
-    print(f"{len(found)} Modelle im Stellwerk gefunden, {photos_text(count)} dafür.\n")
+    print(f"{len(found)} Modelle im Stellwerk gefunden, {photos_text(count)} dafür.")
+    if converted:
+        print(f"{photos_text(converted)} davon gehen als JPEG hoch (DNG/TIFF umgewandelt).")
+        if not args.hochladen:
+            _sample_conversion(plan, found, converter)
+    print()
 
     uploaded = failed = 0
     for target in sorted(found):
@@ -371,7 +493,8 @@ def run(args: argparse.Namespace) -> int:
         try:
             before = stellwerk.gallery_size(product["id"])
             for photo in gallery:
-                stellwerk.attach(product["id"], stellwerk.upload(photo), photo.alt_text)
+                path = file_to_send(photo.path, converter, cache=cache_dir())
+                stellwerk.attach(product["id"], stellwerk.upload(path), photo.alt_text)
             added = stellwerk.gallery_size(product["id"]) - before
         except (StellwerkError, OSError) as error:
             failed += 1

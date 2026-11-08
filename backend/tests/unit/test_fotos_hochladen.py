@@ -91,3 +91,44 @@ def test_a_list_without_its_columns_is_refused(script: ModuleType, tmp_path: Pat
     path.write_text("Datei;Name\nx.jpg;Kran\n", encoding="utf-8")
     with pytest.raises(script.ListError, match="Modell"):
         script.read_overview(path)
+
+
+def test_raw_photos_go_up_as_a_jpeg_made_once(script: ModuleType, tmp_path: Path) -> None:
+    raw = tmp_path / "IMG_0376.DNG"
+    raw.write_bytes(b"raw")
+    jpeg = tmp_path / "IMG_0001.jpg"
+    jpeg.write_bytes(b"\xff\xd8\xff")
+    calls: list[Path] = []
+
+    def convert(source: Path, target: Path) -> None:
+        calls.append(source)
+        target.write_bytes(b"\xff\xd8\xff converted")
+
+    cache = tmp_path / "cache"
+    first = script.file_to_send(raw, convert, cache=cache)
+    again = script.file_to_send(raw, convert, cache=cache)
+
+    assert first == again
+    assert first.parent == cache
+    assert first.suffix == ".jpg"
+    assert calls == [raw]  # the second run sends the same bytes, so the server knows them
+    assert script.file_to_send(jpeg, convert, cache=cache) == jpeg
+    assert list(cache.glob("*.part.jpg")) == []
+
+
+def test_raw_photos_need_the_mac(script: ModuleType, tmp_path: Path) -> None:
+    csv = overview(
+        tmp_path,
+        [
+            "Modelle/a.DNG;GAZ-51;neu;H0;Rot;Fertigmodell;gut;gut;ja;",
+            "Modelle/b.jpg;GAZ-51;neu;H0;Rot;Fertigmodell;gut;gut;nein;",
+        ],
+        ["Modelle/a.DNG", "Modelle/b.jpg"],
+    )
+    plan = script.make_plan(*script.read_overview(csv), max_photos=8)
+
+    assert script.check_files(plan, can_convert=True) == ([], 1)
+    problems, _ = script.check_files(plan, can_convert=False)
+    assert [p.split(":")[0] for p in problems] == ["a.DNG"]
+    with pytest.raises(script.StellwerkError, match="nur auf dem Mac"):
+        script.file_to_send(tmp_path / "Modelle" / "a.DNG", None, cache=tmp_path / "cache")

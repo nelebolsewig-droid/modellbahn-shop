@@ -1,5 +1,5 @@
 {
-  "about": "Startbestand von adp-Modelle (ADR 0013), geordnet wie mit dem Inhaber festgelegt: Straßenfahrzeuge → LKW → Feuerwehr. Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026, ohne Preis; den legt der Inhaber im Stellwerk fest. Einspielen: make catalog-import.",
+  "about": "Startbestand von adp-Modelle (ADR 0013), geordnet wie mit dem Inhaber festgelegt: Straßenfahrzeuge → LKW → Feuerwehr. Bekannte Modelle aus dem Shopify-Export und der alten Website mit Preisen und Farben; Entwürfe aus den Lagerfotos vom 28.10.2026 ohne Preis, zum Prüfen und Ergänzen mit der Schnellerfassung. Dazu 89 Fertigmodelle in H0 aus der Bestandsliste vom 08.11.2026, ohne Preis; den legt der Inhaber im Stellwerk fest. Dazu 50 Modelle aus der Fotodurchsicht vom 08.11.2026 (modelle-uebersicht.csv), ohne Preis; ihre Namen sind die der Liste, damit scripts/fotos_hochladen.py die Fotos zuordnet. Einspielen: make catalog-import.",
   "categories": [
     {
       "name": "Straßenfahrzeuge",
@@ -1548,6 +1548,606 @@
         }
       ],
       "note": "Bestandsliste: 4 Stück; Preis fehlt"
+    },
+    {
+      "name": "Feldgeschütz mit Speichenrädern (Typ unbestimmt)",
+      "category": "Straßenfahrzeuge / Militärfahrzeuge / Geschütze und Raketenwerfer",
+      "summary": "Feldgeschütz mit Speichenrädern (Typ unbestimmt) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in grau. Hinweis: Typ nicht sicher bestimmbar. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Unimog-ähnlicher Kleinlaster mit Pritsche",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "Unimog-ähnlicher Kleinlaster mit Pritsche als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in grün / braun, rote Felgen. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA S4000-1 Pritschenwagen mit Plane",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "IFA S4000-1 Pritschenwagen mit Plane als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in blau / grau, grün / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 mit Kofferaufbau (Werkstatt-/Mannschaftswagen)",
+      "category": "Straßenfahrzeuge / LKW / Kofferaufbau",
+      "summary": "ZIL-130 mit Kofferaufbau (Werkstatt-/Mannschaftswagen) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "GAZ-51 Pritschenwagen",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "GAZ-51 Pritschenwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 5 Fotos, gesehen in rot / grau, oliv, blau / oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 5 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIS-150 Pritschenwagen mit Seilwinde",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "ZIS-150 Pritschenwagen mit Seilwinde als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130V1 Sattelzugmaschine (ohne Auflieger)",
+      "category": "Straßenfahrzeuge / LKW / Sattelzüge",
+      "summary": "ZIL-130V1 Sattelzugmaschine (ohne Auflieger) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in hellblau. Hinweis: evtl. Zugmaschine zu „ZIL-130V1 mit TC-4 Zementauflieger“. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Futtermittel-/Schüttguttransporter",
+      "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
+      "summary": "ZIL-130 Futtermittel-/Schüttguttransporter als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in hellblau / weinrot. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "KrAZ-256B Kipper",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
+      "summary": "KrAZ-256B Kipper als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in grün / dunkelgrau, dunkelgrau-oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Tempo Hanseat Dreirad-Lieferwagen",
+      "category": "Straßenfahrzeuge / LKW / Kofferaufbau",
+      "summary": "Tempo Hanseat Dreirad-Lieferwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 8 Fotos, gesehen in hellblau, oliv / blau, rotbraun, dunkelblau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 8 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Kurzer zweiachsiger Kranwagen (Typ unklar)",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "Kurzer zweiachsiger Kranwagen (Typ unklar) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in gelb. Hinweis: Kranwagen (kurzer zweiachsiger Autokran, Typ unklar). Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Phänomen Granit 27 Turmwagen",
+      "category": "Straßenfahrzeuge / Sonderfahrzeuge",
+      "summary": "Phänomen Granit 27 Turmwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in orange / grau. Hinweis: Typbestimmung nicht ganz sicher. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA H6 Pritschenwagen",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "IFA H6 Pritschenwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in rotbraun (matt). Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "MAZ-504 Sattelzugmaschine (ohne Auflieger)",
+      "category": "Straßenfahrzeuge / LKW / Sattelzüge",
+      "summary": "MAZ-504 Sattelzugmaschine (ohne Auflieger) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 4 Fotos, gesehen in blau. Hinweis: evtl. Zugmaschine zu „MAZ-504 Sattelzug mit Kühlauflieger“. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 4 Fotos; Preis fehlt"
+    },
+    {
+      "name": "MAZ-503 Kipper",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
+      "summary": "MAZ-503 Kipper als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in orange / gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Dampflok-Bausatz (Tenderlok)",
+      "category": "Schienenfahrzeuge / Lokomotiven",
+      "summary": "Dampflok-Bausatz (Tenderlok) als Bausatz in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Bausatz, 3 Fotos, gesehen in schwarz / rot. Hinweis: Bausatzzustand, für Shop nur mit Hinweis. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Bausatz mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA W50 Pressmüllwagen",
+      "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
+      "summary": "IFA W50 Pressmüllwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in blau / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "GAZ-93 Kipper",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
+      "summary": "GAZ-93 Kipper als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in beige / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Spreng-/Waschwagen",
+      "category": "Straßenfahrzeuge / LKW / Kommunalfahrzeuge",
+      "summary": "ZIL-130 Spreng-/Waschwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 4 Fotos, gesehen in hellblau / grau, hellblau / grün. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 4 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Chevrolet Impala 1959",
+      "category": "Straßenfahrzeuge / Pkw",
+      "summary": "Chevrolet Impala 1959 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in schwarz. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA H6 Pritschenwagen mit Plane",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "IFA H6 Pritschenwagen mit Plane als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in rotbraun. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Gasflaschentransporter",
+      "category": "Straßenfahrzeuge / LKW / Pritsche und Plane",
+      "summary": "ZIL-130 Gasflaschentransporter als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in hellblau / gelb, rote Flaschen, hellblau / gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIS-150 Kipper (ZIS-585)",
+      "category": "Straßenfahrzeuge / LKW / Kipper",
+      "summary": "ZIS-150 Kipper (ZIS-585) als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Kofferwagen",
+      "category": "Straßenfahrzeuge / LKW / Kofferaufbau",
+      "summary": "ZIL-130 Kofferwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in hellblau / silbergrau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Elektro-Gabelstapler",
+      "category": "Straßenfahrzeuge / Sonderfahrzeuge",
+      "summary": "Elektro-Gabelstapler als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in blau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "KrAZ-255B 6x6 mit Spezialaufbau",
+      "category": "Straßenfahrzeuge / Militärfahrzeuge / Lkw und Zugmaschinen",
+      "summary": "KrAZ-255B 6x6 mit Spezialaufbau als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in oliv. Hinweis: Typ des Aufbaus nicht sicher bestimmbar. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Tropfen-Wohnanhänger",
+      "category": "Straßenfahrzeuge / Wohnwagen und Anhänger",
+      "summary": "Tropfen-Wohnanhänger als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in weiß / grün. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Milchtankwagen",
+      "category": "Straßenfahrzeuge / LKW / Tank- und Silofahrzeuge",
+      "summary": "ZIL-130 Milchtankwagen als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in grün / weiß. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130V1 Sattelzug mit Pritschen-/Kippauflieger",
+      "category": "Straßenfahrzeuge / LKW / Sattelzüge",
+      "summary": "ZIL-130V1 Sattelzug mit Pritschen-/Kippauflieger als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in blau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Kompressor-/Aggregatanhänger",
+      "category": "Straßenfahrzeuge / Wohnwagen und Anhänger",
+      "summary": "Kompressor-/Aggregatanhänger als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA F9 Cabriolet",
+      "category": "Straßenfahrzeuge / Pkw",
+      "summary": "IFA F9 Cabriolet als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 8 Fotos, gesehen in grün, Verdeck grau, grün, blau, Verdeck grau, blau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 8 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA H6 mit ADK 63-2 Autodrehkran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "IFA H6 mit ADK 63-2 Autodrehkran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 12 Fotos, gesehen in orange, gelb und orange. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 12 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA H6 ADK V5 Panther Schnellbaukran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "IFA H6 ADK V5 Panther Schnellbaukran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 21 Fotos, gesehen in hellblau / silbergrau, rot / silbergrau, rot / weiß, gelb / silbergrau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 21 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Dieselgenerator-Anhänger für Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Wohnwagen und Anhänger",
+      "summary": "Dieselgenerator-Anhänger für Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 1 Foto, gesehen in blau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 1 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA G5 mit ADK 3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "IFA G5 mit ADK 3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 24 Fotos, gesehen in gelb, grau, oliv, hellblau / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 24 Fotos; Preis fehlt"
+    },
+    {
+      "name": "KrAZ-255B Autodrehkran KS-3575",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "KrAZ-255B Autodrehkran KS-3575 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 12 Fotos, gesehen in oliv / gelb, oliv/gelb und sand/grau, sand/grau und oliv/gelb, sand / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 12 Fotos; Preis fehlt"
+    },
+    {
+      "name": "MAZ-500 Autodrehkran KS-3577",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "MAZ-500 Autodrehkran KS-3577 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 11 Fotos, gesehen in petrol / gelb, oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 11 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Opel Blitz 3t mit Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "Opel Blitz 3t mit Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 5 Fotos, gesehen in rot / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 5 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Studebaker US6 mit ADK-3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "Studebaker US6 mit ADK-3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA H6 mit ADK 5 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "IFA H6 mit ADK 5 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 17 Fotos, gesehen in türkisgrün, hellblau / grau, oliv, rot, hellblau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 17 Fotos; Preis fehlt"
+    },
+    {
+      "name": "IFA S4000-1 mit ADK 3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "IFA S4000-1 mit ADK 3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 13 Fotos, gesehen in hellblau / grau, hellblau, grün, grau, grün, grau, hellblau, grün / hellgrau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 13 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Ural-375 Autodrehkran 8T210",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "Ural-375 Autodrehkran 8T210 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in oliv. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "Ural-5557 Autodrehkran KS-3574",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "Ural-5557 Autodrehkran KS-3574 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 9 Fotos, gesehen in gelb / grau, hellgrau / gelb, gelb/grau und grau/gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 9 Fotos; Preis fehlt"
+    },
+    {
+      "name": "YaAZ-210A Autodrehkran K-104",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "YaAZ-210A Autodrehkran K-104 als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 11 Fotos, gesehen in oliv / hellgrau, oliv, grün / blaugrau, grün / hellgrau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 11 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIS-150 mit ADK-3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIS-150 mit ADK-3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 2 Fotos, gesehen in grau / gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 2 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIS-151 mit ADK-3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIS-151 mit ADK-3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 7 Fotos, gesehen in braun / hellgrau, braun / creme. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 7 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIS-5V mit ADK-3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIS-5V mit ADK-3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 5 Fotos, gesehen in khaki / grau, dunkelblau / grau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 5 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-130 Autodrehkran KS-2561E",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIL-130 Autodrehkran KS-2561E als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 3 Fotos, gesehen in blau / gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 3 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-131 mit ADK-70 Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIL-131 mit ADK-70 Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 5 Fotos, gesehen in gelb, gelb und rot, rot und gelb. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 5 Fotos; Preis fehlt"
+    },
+    {
+      "name": "ZIL-157 mit ADK-3 Bleichert-Kran",
+      "category": "Straßenfahrzeuge / Kranfahrzeuge",
+      "summary": "ZIL-157 mit ADK-3 Bleichert-Kran als Fertigmodell in H0.",
+      "description": "Entwurf aus der Fotodurchsicht vom 08.11.2026, Fertigmodell, 7 Fotos, gesehen in oliv, hellblau. Bitte prüfen: Name, Kategorie, Maßstab, Farben; Ausführung Fertigmodell mit Preis anlegen.",
+      "scales": [
+        {
+          "code": "H0"
+        }
+      ],
+      "note": "aus der Fotodurchsicht: 7 Fotos; Preis fehlt"
     }
   ]
 }

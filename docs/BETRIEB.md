@@ -156,6 +156,12 @@ statt sie einzeln im Stellwerk hochzuladen. Es braucht nur Python 3.
 - **Ohne `--hochladen` ist es ein Probelauf** und zeigt nur, was passieren würde.
 - **Wiederholen ist unschädlich:** Der Server erkennt ein Foto an seiner Prüfsumme, und ein
   Bild kommt nicht doppelt in eine Galerie.
+- **Rohfotos (DNG, TIFF)** nimmt der Server nicht an. Auf dem Mac wandelt das Skript sie
+  über Quick Look in JPEG um, richtig herum und mit höchstens 4000 Pixeln. Die JPEGs bleiben
+  in `~/Library/Caches/adp-fotos-hochladen`. Der Probelauf wandelt ein Foto zur Probe um und
+  nennt die Datei.
+- **Erst Fotos, dann umbenennen:** Das Skript findet ein Produkt über seinen Namen. Wer ein
+  Modell im Stellwerk umbenennt, lädt dessen Fotos vorher hoch.
 
 Im Ordner mit der Liste, auf dem Mac:
 
