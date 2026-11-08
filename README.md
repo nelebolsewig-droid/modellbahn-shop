@@ -264,6 +264,7 @@ modellbahn-shop/
 ├── .env.example                jede Variable des Stacks mit Entwicklungswert
 ├── .github/workflows/ci.yml
 ├── scripts/smoke_e2e.py        End-to-End-Test des laufenden Stacks (make smoke)
+├── scripts/fotos_hochladen.py  Fotos vom eigenen Rechner in die Produktgalerien laden
 ├── docs/
 │   ├── KONZEPT.md              Architekturkonzept
 │   └── adr/                    Architekturentscheidungen

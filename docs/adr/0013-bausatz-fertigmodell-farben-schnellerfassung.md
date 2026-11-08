@@ -121,6 +121,11 @@ eine **Schnellerfassung** fürs Handy; die bekannten Modelle als Startbestand, d
     „Sonderfahrzeuge“ und „Lokomotiven“ hinzu.
   - „HG-125 auf der Basis T-34“ stand schon als „HG 125 auf T-34“ im Startbestand und kam
     nicht doppelt hinein.
+- **Dazu 50 Modelle aus der Fotodurchsicht vom 08.11.2026** (426 Fotos, ausgewertet von Claude
+  Code auf dem Mac in `modelle-uebersicht.csv`):
+  - H0, ohne Preis und Ausführung; die Beschreibung nennt Ausführung, Farben und Unsicheres.
+  - Die Namen sind genau die der Liste. So ordnet `scripts/fotos_hochladen.py` die Fotos zu
+    (BETRIEB, „Fotos aus einem Ordner hochladen“). Umbenannt wird erst danach.
 - **`make catalog-import`** (`python -m modellbahn.cli import-catalog PATH`) spielt die
   Datei ein und lässt sich wiederholen:
   - Kategorien werden über Elternteil und Namen wiedererkannt, Produkte über ihre Adresse.
