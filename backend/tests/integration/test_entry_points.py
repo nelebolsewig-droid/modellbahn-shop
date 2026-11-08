@@ -82,6 +82,65 @@ class TestUnlockStaff:
 
 
 @pytest.mark.usefixtures("cli_env")
+class TestStaffAccounts:
+    async def test_lists_and_deletes_a_staff_account(self, identity: IdentityService) -> None:
+        for email, role in (
+            ("chefin@example.com", StaffRole.OWNER),
+            ("ihre.echte@adresse.de", StaffRole.OWNER),
+        ):
+            await identity.create_staff(
+                email=email, display_name="Inhaber", role=role, password=PASSWORD
+            )
+
+        listed = await asyncio.to_thread(CliRunner().invoke, cli, ["list-staff"])
+        assert listed.exit_code == 0, listed.output
+        assert listed.output.splitlines() == [
+            "chefin@example.com  owner  Inhaber",
+            "ihre.echte@adresse.de  owner  Inhaber",
+        ]
+
+        # Without --yes it asks first; "n" leaves the account as it is.
+        kept = await asyncio.to_thread(
+            CliRunner().invoke,
+            cli,
+            ["delete-staff", "--email", "ihre.echte@adresse.de"],
+            input="n\n",
+        )
+        assert kept.exit_code == 1
+        assert len(await identity.staff_members()) == 2
+
+        deleted = await asyncio.to_thread(
+            CliRunner().invoke,
+            cli,
+            ["delete-staff", "--email", "ihre.echte@adresse.de"],
+            input="y\n",
+        )
+        assert deleted.exit_code == 0, deleted.output
+        assert "Mitarbeiterkonto gelöscht: ihre.echte@adresse.de" in deleted.output
+        assert [m.email for m in await identity.staff_members()] == ["chefin@example.com"]
+
+    async def test_the_last_owner_and_unknown_addresses_are_refused(
+        self, identity: IdentityService
+    ) -> None:
+        await identity.create_staff(
+            email="chefin@example.com",
+            display_name="Chefin",
+            role=StaffRole.OWNER,
+            password=PASSWORD,
+        )
+        last = await asyncio.to_thread(
+            CliRunner().invoke, cli, ["delete-staff", "--email", "chefin@example.com", "--yes"]
+        )
+        assert last.exit_code == 1
+        assert "das letzte Inhaberkonto" in last.output
+        unknown = await asyncio.to_thread(
+            CliRunner().invoke, cli, ["delete-staff", "--email", "niemand@example.com", "--yes"]
+        )
+        assert unknown.exit_code == 1
+        assert "kein aktives Mitarbeiterkonto" in unknown.output
+
+
+@pytest.mark.usefixtures("cli_env")
 class TestCreateStaff:
     async def test_creates_an_account_that_can_log_in(
         self, identity: IdentityService, uow_factory: UnitOfWorkFactory

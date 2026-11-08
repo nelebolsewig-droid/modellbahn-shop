@@ -105,6 +105,8 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Läuft alles? | `docker compose ps` |
 | Logs ansehen | `docker compose logs --tail 200 api worker caddy` |
 | Weiteres Mitarbeiterkonto | `make staff EMAIL=… NAME="…" ROLE=staff` (oder `owner`, `packer`) |
+| Mitarbeiterkonten anzeigen | `make staff-list` |
+| Mitarbeiterkonto löschen | `make staff-delete EMAIL=…` (fragt nach; Anmeldungen enden sofort; das letzte Inhaberkonto bleibt) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
 | Neu starten | `docker compose restart api worker` |
 

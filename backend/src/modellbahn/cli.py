@@ -28,6 +28,7 @@ from modellbahn.modules.identity.domain.errors import (
     AccountAlreadyExistsError,
     AccountNotFoundError,
     InvalidDisplayNameError,
+    LastOwnerError,
     PasswordPolicyViolationError,
     PasswordRule,
 )
@@ -117,6 +118,40 @@ def unlock_staff(
     except AccountNotFoundError:
         _fail(f"Es gibt kein aktives Mitarbeiterkonto mit der Adresse {email}.")
     typer.echo(f"Sperre aufgehoben: {email}")
+
+
+@app.command("list-staff")
+def list_staff() -> None:
+    """Aktive Mitarbeiterkonten anzeigen: Adresse, Rolle, Name."""
+    members = asyncio.run(_with_service(Settings(), lambda service: service.staff_members()))
+    if not members:
+        typer.echo("Es gibt kein aktives Mitarbeiterkonto.")
+        return
+    for member in members:
+        role = member.role.value if member.role is not None else "-"
+        typer.echo(f"{member.email}  {role}  {member.display_name}")
+
+
+@app.command("delete-staff")
+def delete_staff(
+    email: Annotated[str, typer.Option(help="E-Mail-Adresse des Mitarbeiterkontos.")],
+    yes: Annotated[bool, typer.Option("--yes", help="Ohne Rückfrage löschen.")] = False,
+) -> None:
+    """Mitarbeiterkonto löschen.
+
+    Anmeldungen enden sofort; Adresse und Name verschwinden, auch aus dem Verlauf der
+    Ereignisse. Bestellungen und Buchungen, an denen das Konto beteiligt war, bleiben.
+    Das letzte Inhaberkonto lässt sich nicht löschen.
+    """
+    if not yes:
+        typer.confirm(f"Mitarbeiterkonto {email} löschen?", abort=True)
+    try:
+        asyncio.run(_with_service(Settings(), lambda service: service.delete_staff(email=email)))
+    except AccountNotFoundError:
+        _fail(f"Es gibt kein aktives Mitarbeiterkonto mit der Adresse {email}.")
+    except LastOwnerError:
+        _fail(f"{email} ist das letzte Inhaberkonto. Erst ein anderes anlegen, dann löschen.")
+    typer.echo(f"Mitarbeiterkonto gelöscht: {email}")
 
 
 @app.command("init-storage")
@@ -225,9 +260,9 @@ def export_openapi(
     typer.echo(f"OpenAPI-Schema geschrieben: {output}")
 
 
-async def _with_service(
-    settings: Settings, action: Callable[[IdentityService], Awaitable[object]]
-) -> None:
+async def _with_service[T](
+    settings: Settings, action: Callable[[IdentityService], Awaitable[T]]
+) -> T:
     """Run ``action`` with an identity service on its own engine, then close the engine."""
     engine = create_engine(settings.database_url)
     start_mappers()
@@ -237,7 +272,7 @@ async def _with_service(
         clock=SystemClock(),
     )
     try:
-        await action(service)
+        return await action(service)
     finally:
         await engine.dispose()
 

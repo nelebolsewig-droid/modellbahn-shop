@@ -20,6 +20,7 @@ from modellbahn.modules.identity.domain.errors import (
     InvalidCredentialsError,
     InvalidPasswordError,
     InvalidTokenError,
+    LastOwnerError,
     NotAuthenticatedError,
 )
 from modellbahn.modules.identity.domain.events import MAIL_REQUEST_EVENT_TYPES
@@ -311,6 +312,35 @@ class IdentityService:
                 raise AccountNotFoundError
             account.unlock(self._clock.now())
             await uow.commit()
+
+    async def staff_members(self) -> list[Account]:
+        """The active staff accounts, by address (used by the CLI on the server)."""
+        async with self._uow() as uow:
+            return await uow.accounts.active_staff()
+
+    async def delete_staff(self, *, email: str) -> Account:
+        """Anonymise a staff account (used by the CLI on the server); its sessions end at once.
+
+        The row stays, as for customers, for what references it. The last active owner
+        stays too: without one, nobody could manage the shop. The staff rows are locked,
+        so two deletions cannot each leave the other owner as the last one.
+        """
+        async with self._uow() as uow:
+            now = self._clock.now()
+            staff = await uow.accounts.active_staff(for_update=True)
+            account = next((a for a in staff if a.email.casefold() == email.casefold()), None)
+            if account is None:
+                raise AccountNotFoundError
+            owners = [a for a in staff if a.role is StaffRole.OWNER]
+            if account.role is StaffRole.OWNER and len(owners) == 1:
+                raise LastOwnerError
+            deleted = account.delete(now)
+            await uow.sessions.delete_for_account(account.id)
+            await uow.tokens.delete_for_account(account.id)
+            await uow.redact_events(account.id, {"display_name": DELETED_DISPLAY_NAME})
+            uow.publish(deleted)
+            await uow.commit()
+            return account
 
     # --- Helpers ---------------------------------------------------------------------
 

@@ -25,7 +25,8 @@ SERVICE ?=
 # make staff EMAIL=... NAME="..." [ROLE=owner|staff|packer]
 ROLE ?= owner
 
-.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff catalog-import smoke check \
+.PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff staff-list staff-delete \
+	catalog-import smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -70,6 +71,14 @@ staff: .env ## Mitarbeiterkonto anlegen: make staff EMAIL=... NAME="..." [ROLE=o
 	$(if $(and $(EMAIL),$(NAME)),,$(error Aufruf: make staff EMAIL=chef@example.de NAME="Vorname Nachname" [ROLE=owner|staff|packer]))
 	$(COMPOSE) run --rm api python -m modellbahn.cli create-staff \
 		--email "$$STAFF_EMAIL" --name "$$STAFF_NAME" --role "$$STAFF_ROLE"
+
+staff-list: .env ## Aktive Mitarbeiterkonten anzeigen
+	$(COMPOSE) run --rm api python -m modellbahn.cli list-staff
+
+staff-delete: export STAFF_EMAIL = $(EMAIL)
+staff-delete: .env ## Mitarbeiterkonto löschen: make staff-delete EMAIL=...
+	$(if $(EMAIL),,$(error Aufruf: make staff-delete EMAIL=adresse@example.de))
+	$(COMPOSE) run --rm api python -m modellbahn.cli delete-staff --email "$$STAFF_EMAIL"
 
 catalog-import: .env ## Startbestand des Katalogs einspielen (wiederholbar, legt nur Entwürfe an)
 	$(COMPOSE) run --rm api python -m modellbahn.cli import-catalog seed/startbestand.json
