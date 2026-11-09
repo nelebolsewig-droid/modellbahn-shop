@@ -12,6 +12,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AddressOut } from './addressOut';
+import type { BankTransferOut } from './bankTransferOut';
 import type { CancelReason } from './cancelReason';
 import type { OrderLineOut } from './orderLineOut';
 import type { OrderStatus } from './orderStatus';
@@ -22,6 +23,8 @@ import type { TotalsOut } from './totalsOut';
  * An order as its customer sees it. ``public_token`` is the key of its status page.
  */
 export interface OrderOut {
+  /** What to transfer while the order waits for payment in advance; its GiroCode is at ``getOrderGirocode``. */
+  bank_transfer?: BankTransferOut | null;
   cancel_reason: CancelReason | null;
   cancelled_at: string | null;
   carrier: string;

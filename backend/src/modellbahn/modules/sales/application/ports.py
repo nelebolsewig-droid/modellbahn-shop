@@ -80,8 +80,11 @@ class OrderRepository(Protocol):
         """Guest orders placed with ``email`` (any letter case), locked for adoption."""
         ...
 
-    async def overdue_ids(self, placed_before: datetime, limit: int) -> list[UUID]:
-        """Orders still waiting for their payment that were placed before the cut-off."""
+    async def overdue_ids(self, now: datetime, limit: int) -> list[UUID]:
+        """Orders still waiting for their payment after their deadline, the oldest first.
+
+        24 hours after the order; ten days if the customer chose a bank transfer.
+        """
         ...
 
     async def id_by_payment(self, provider: str, provider_ref: str) -> UUID | None:

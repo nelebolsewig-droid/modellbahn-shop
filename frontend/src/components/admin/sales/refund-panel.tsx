@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
+import { paidByTransfer } from "@/components/admin/sales/transfer-booking";
 import { FormError } from "@/components/forms/form-error";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,7 @@ export function refundableCents(order: AdminOrderOut): number {
  */
 export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRefunded: (o: AdminOrderOut) => void }) {
   const shipped = order.status === "shipped";
+  const byTransfer = paidByTransfer(order);
   const refundable = refundableCents(order);
   const refunded = order.payments.reduce((sum, p) => sum + p.refunded_cents, 0);
   const [mode, setMode] = useState<Mode>(shipped ? "whole" : "lines");
@@ -81,7 +83,9 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
     <div className="space-y-4 text-small">
       <p className="text-ink-secondary">
         {shipped
-          ? "Ist die Ware zurück (oder hat der Kunde die Rücksendung nachgewiesen), hier erstatten. SumUp zahlt sofort zurück, der Kunde bekommt eine E-Mail."
+          ? byTransfer
+            ? "Ist die Ware zurück (oder hat der Kunde die Rücksendung nachgewiesen), hier erstatten. Bezahlt wurde per Überweisung: Ihr überweist zurück, der Kunde bekommt eine E-Mail."
+            : "Ist die Ware zurück (oder hat der Kunde die Rücksendung nachgewiesen), hier erstatten. SumUp zahlt sofort zurück, der Kunde bekommt eine E-Mail."
           : "Einzelne Artikel erstatten, die nicht verschickt werden. Für die ganze Bestellung: stornieren."}
         {refunded > 0 ? ` Schon erstattet: ${formatPrice(refunded)}.` : ""}
       </p>
@@ -153,8 +157,9 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
         <DialogContent>
           <DialogTitle>{formatPrice(amount)} erstatten?</DialogTitle>
           <DialogDescription>
-            SumUp zahlt {formatPrice(amount)} für {order.number} auf das Zahlungsmittel des Kunden zurück. Das lässt
-            sich nicht rückgängig machen.
+            {byTransfer
+              ? `Der Shop vermerkt die Erstattung von ${formatPrice(amount)} für ${order.number}; ihr überweist das Geld auf das Konto zurück, von dem es kam, und bekommt dazu eine E-Mail. Das lässt sich nicht rückgängig machen.`
+              : `SumUp zahlt ${formatPrice(amount)} für ${order.number} auf das Zahlungsmittel des Kunden zurück. Das lässt sich nicht rückgängig machen.`}
           </DialogDescription>
           <FormError message={refund.isError ? errorMessage(refund.error) : undefined} className="mt-4" />
           {refusal ? <RefundRefusal reason={refusal} /> : null}

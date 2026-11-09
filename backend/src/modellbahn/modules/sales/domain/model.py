@@ -28,6 +28,7 @@ from modellbahn.modules.sales.domain.errors import (
     RefundNotPossibleError,
 )
 from modellbahn.modules.sales.domain.events import (
+    BankTransferChosen,
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
@@ -41,6 +42,10 @@ CART_LIFETIME: Final = timedelta(days=30)
 CART_MAX_LINES: Final = 50
 LINE_MAX_QUANTITY: Final = 99
 PAYMENT_TIMEOUT: Final = timedelta(hours=24)
+BANK_TRANSFER: Final = "bank_transfer"
+"""The ``provider`` of a payment in advance: the staff book it once the money is in (ADR 0022)."""
+BANK_TRANSFER_TIMEOUT: Final = timedelta(days=10)
+"""How long an order paid in advance waits for the transfer before it is given up."""
 ADDRESS_BOOK_MAX_SIZE: Final = 20
 VAT_PERCENT: Final = 19
 EMAIL_MAX_LENGTH: Final = 254
@@ -475,6 +480,11 @@ class Payment:
         return self.amount_cents - self.refunded_cents
 
     @property
+    def by_transfer(self) -> bool:
+        """Paid in advance by bank transfer: no provider, refunds go back by hand."""
+        return self.provider == BANK_TRANSFER
+
+    @property
     def refund_ref(self) -> str:
         """What the provider refunds: its transaction, else the payment's own reference."""
         return self.transaction_ref or self.provider_ref
@@ -747,6 +757,7 @@ class Order:
             total_cents=self.total_cents,
             amount_cents=amount_cents,
             refunded_cents=self.refunded_cents,
+            by_transfer=payment.by_transfer,
         )
 
     @property
@@ -758,17 +769,80 @@ class Order:
         return next((p for p in self.payments if p.idempotency_key == idempotency_key), None)
 
     @property
+    def pays_by_transfer(self) -> bool:
+        """The customer chose payment in advance by bank transfer (ADR 0022)."""
+        return any(payment.by_transfer for payment in self.payments)
+
+    @property
     def payment_due_at(self) -> datetime | None:
-        """Until when an order waiting for its payment can be paid."""
+        """Until when an order waiting for its payment can be paid.
+
+        24 hours for the provider's page; ten days once the customer chose a bank
+        transfer, since a transfer takes a day or two and is not made at once.
+        """
         if self.status is not OrderStatus.PENDING_PAYMENT:
             return None
-        return self.placed_at + PAYMENT_TIMEOUT
+        timeout = BANK_TRANSFER_TIMEOUT if self.pays_by_transfer else PAYMENT_TIMEOUT
+        return self.placed_at + timeout
 
     def is_overdue(self, now: datetime) -> bool:
-        """An order whose payment has not come in within 24 hours is given up."""
-        return (
-            self.status is OrderStatus.PENDING_PAYMENT and now - self.placed_at >= PAYMENT_TIMEOUT
+        """An order whose payment has not come in by :attr:`payment_due_at` is given up."""
+        due = self.payment_due_at
+        return due is not None and now >= due
+
+    def choose_bank_transfer(
+        self,
+        *,
+        payment_id: UUID,
+        idempotency_key: UUID,
+        request_fingerprint: str,
+        now: datetime,
+    ) -> list[DomainEvent]:
+        """The customer pays in advance: a payment waits for the transfer, with ten days.
+
+        The order number is the transfer's reference; the staff book the payment when the
+        money is in the account (:meth:`confirm_bank_transfer`).
+        """
+        if self.status is not OrderStatus.PENDING_PAYMENT or self.pending_payment is not None:
+            raise OrderNotPayableError
+        self.payments.append(
+            Payment(
+                id=payment_id,
+                order_id=self.id,
+                provider=BANK_TRANSFER,
+                provider_ref=self.number,
+                status=PaymentStatus.PENDING,
+                amount_cents=self.total_cents,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                failure_code=None,
+                created_at=now,
+                updated_at=now,
+            )
         )
+        self.updated_at = now
+        return [
+            BankTransferChosen(
+                aggregate_id=self.id,
+                occurred_at=now,
+                number=self.number,
+                total_cents=self.total_cents,
+            )
+        ]
+
+    @property
+    def awaited_transfer(self) -> Payment | None:
+        """The bank transfer this order waits for, if it waits for one."""
+        payment = self.pending_payment
+        return payment if payment is not None and payment.by_transfer else None
+
+    def confirm_bank_transfer(self, now: datetime) -> list[DomainEvent]:
+        """The transfer is in the shop's account: the order is paid and binding."""
+        payment = self.awaited_transfer
+        if payment is None or self.status is not OrderStatus.PENDING_PAYMENT:
+            msg = "the order does not wait for a bank transfer"
+            raise InvalidOrderStateError(msg)
+        return self.settle_payment(payment, PaymentOutcome(progress=PaymentProgress.CAPTURED), now)
 
     def start_payment(
         self,
@@ -908,8 +982,15 @@ class Order:
             msg = f"an order that is {self.status} cannot be cancelled"
             raise InvalidOrderStateError(msg)
         payment = self.captured_payment
+        refund_cents = payment.refundable_cents if payment is not None else 0
         if payment is not None:
             payment.refund(now)
+        # Nobody waits for a transfer to a cancelled order any more.
+        waiting = self.awaited_transfer
+        if waiting is not None:
+            waiting.settle(
+                PaymentOutcome(progress=PaymentProgress.FAILED, failure_code="cancelled"), now
+            )
         self.cancel_note = _text(note, "note", CANCEL_NOTE_MAX_LENGTH, required=False)
         self.status = OrderStatus.CANCELLED
         self.cancel_reason = reason
@@ -921,6 +1002,8 @@ class Order:
             number=self.number,
             total_cents=self.total_cents,
             refunded=payment is not None,
+            refund_by_transfer=payment is not None and payment.by_transfer,
+            refund_cents=refund_cents,
         )
 
     def adopt(self, account_id: UUID, now: datetime) -> bool:

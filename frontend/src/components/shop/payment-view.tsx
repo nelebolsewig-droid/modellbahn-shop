@@ -7,11 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 
+import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
 import { Alert, Callout } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { RadioGroup } from "@/components/ui/radio-group";
-import type { OrderOut, PaymentInMethod } from "@/lib/api/generated/model";
+import type { BankTransferOut, OrderOut, PaymentInMethod } from "@/lib/api/generated/model";
 import {
   getGetOrderByTokenQueryKey,
   payOrder,
@@ -36,6 +37,8 @@ export const RETURN_CHECK_INTERVAL_MS = 3000;
  * The payment step (ADR 0019). With SumUp the customer pays on SumUp's page and comes
  * back here; the shop then asks SumUp itself how it went. Without a provider in
  * development it is a test payment: the customer picks what the provider answers.
+ * Where the shop offers it, the customer may pay in advance by bank transfer instead
+ * (ADR 0022); the page then shows what to transfer.
  */
 export function PaymentView({ token }: { token: string }) {
   const order = useGetOrderByToken(token);
@@ -64,11 +67,17 @@ export function PaymentView({ token }: { token: string }) {
       </div>
     );
   }
+  if (order.data.bank_transfer) {
+    return (
+      <BankTransferSheet order={order.data} token={token} statusHref={statusHref} transfer={order.data.bank_transfer} />
+    );
+  }
+  const offersTransfer = provider.data.bank_transfer ?? false;
   switch (provider.data.provider) {
     case "sumup":
-      return <SumUpSheet order={order.data} token={token} statusHref={statusHref} />;
+      return <SumUpSheet order={order.data} token={token} statusHref={statusHref} offersTransfer={offersTransfer} />;
     case "mock":
-      return <TestPaymentSheet order={order.data} token={token} statusHref={statusHref} />;
+      return <TestPaymentSheet order={order.data} token={token} statusHref={statusHref} offersTransfer={offersTransfer} />;
     case "off":
       return (
         <PaymentFrame order={order.data} statusHref={statusHref}>
@@ -81,6 +90,10 @@ export function PaymentView({ token }: { token: string }) {
 }
 
 type SheetProps = { order: OrderOut; token: string; statusHref: Route };
+type ChoiceProps = SheetProps & { offersTransfer: boolean };
+
+/** The two ways to pay: on the provider's page, or in advance by bank transfer. */
+type Way = "provider" | "bank_transfer";
 
 /** Show the order the server answered with; a paid one continues on its status page. */
 function useShowOrder(token: string, statusHref: Route) {
@@ -118,8 +131,9 @@ function usePayment(token: string, onAnswer: (updated: OrderOut) => void) {
   });
 }
 
-function SumUpSheet({ order, token, statusHref }: SheetProps) {
+function SumUpSheet({ order, token, statusHref, offersTransfer }: ChoiceProps) {
   const show = useShowOrder(token, statusHref);
+  const [way, setWay] = useState<Way>("provider");
   const pay = usePayment(token, (updated) => {
     if (updated.payment_url) {
       openPaymentPage(updated.payment_url);
@@ -192,6 +206,21 @@ function SumUpSheet({ order, token, statusHref }: SheetProps) {
                 {check.isFetching ? "Wird geprüft …" : "Erneut prüfen"}
               </Button>
             </div>
+            {offersTransfer ? (
+              <p className="text-small text-ink-secondary">
+                Lieber per Überweisung?{" "}
+                <button
+                  type="button"
+                  onClick={() => pay.mutate("bank_transfer")}
+                  disabled={pay.isPending}
+                  className="font-medium text-ink underline underline-offset-4 hover:text-accent"
+                >
+                  Vorkasse wählen
+                </button>
+                ; die Seite bei SumUp schließen wir dann.
+              </p>
+            ) : null}
+            {pay.isError ? <p className="text-small font-medium text-danger">{errorMessage(pay.error)}</p> : null}
           </div>
         )}
       </PaymentFrame>
@@ -202,12 +231,32 @@ function SumUpSheet({ order, token, statusHref }: SheetProps) {
     <PaymentFrame
       order={order}
       statusHref={statusHref}
-      badge={<SumUpBadge />}
-      onSubmit={() => pay.mutate("sumup")}
+      badge={way === "bank_transfer" ? <TransferBadge /> : <SumUpBadge />}
+      onSubmit={() => pay.mutate(way === "bank_transfer" ? "bank_transfer" : "sumup")}
     >
+      {offersTransfer ? (
+        <RadioGroup
+          aria-label="Wie möchtest du bezahlen?"
+          value={way}
+          onValueChange={(value) => setWay(value as Way)}
+          className="mb-6 space-y-3"
+        >
+          <ChoiceItem
+            value="provider"
+            label="Karte, Apple Pay oder Google Pay"
+            description="Sofort bezahlt, auf der sicheren Seite von SumUp."
+          />
+          <ChoiceItem
+            value="bank_transfer"
+            label="Vorkasse per Überweisung"
+            description="Du überweist innerhalb von zehn Tagen; wir verschicken, sobald das Geld da ist."
+          />
+        </RadioGroup>
+      ) : null}
       <p className="text-small text-ink-secondary">
-        Du bezahlst auf der sicheren Seite von SumUp, unserem Zahlungsdienst: mit Kredit- oder Debitkarte, je nach Gerät
-        auch mit Apple Pay oder Google Pay. Danach kommst du hierher zurück.
+        {way === "bank_transfer"
+          ? "Du bekommst gleich unsere Bankverbindung, die Bestellnummer als Verwendungszweck und einen GiroCode für deine Banking-App, auch per E-Mail."
+          : "Du bezahlst auf der sicheren Seite von SumUp, unserem Zahlungsdienst: mit Kredit- oder Debitkarte, je nach Gerät auch mit Apple Pay oder Google Pay. Danach kommst du hierher zurück."}
       </p>
       <div role="alert" className="not-empty:mt-6">
         {expired && !pay.isError ? (
@@ -223,9 +272,61 @@ function SumUpSheet({ order, token, statusHref }: SheetProps) {
         disabled={pay.isPending || pay.isSuccess}
         aria-busy={pay.isPending || pay.isSuccess || undefined}
       >
-        {pay.isPending || pay.isSuccess ? "SumUp wird geöffnet …" : `${formatPrice(order.totals.total_cents)} bezahlen`}
+        {way === "bank_transfer"
+          ? pay.isPending
+            ? "Wird vorbereitet …"
+            : "Per Überweisung bezahlen"
+          : pay.isPending || pay.isSuccess
+            ? "SumUp wird geöffnet …"
+            : `${formatPrice(order.totals.total_cents)} bezahlen`}
       </Button>
     </PaymentFrame>
+  );
+}
+
+/** Payment in advance: what to transfer, until when, and the GiroCode (ADR 0022). */
+function BankTransferSheet({ order, token, statusHref, transfer }: SheetProps & { transfer: BankTransferOut }) {
+  return (
+    <PaymentFrame order={order} statusHref={statusHref} badge={<TransferBadge />} byTransfer>
+      <p className="text-small text-ink-secondary">
+        Bitte überweise den Betrag auf unser Konto und gib als Verwendungszweck nur die Bestellnummer an; so ordnen wir
+        deine Zahlung sicher zu. Sobald das Geld da ist, bekommst du eine E-Mail und wir machen dein Paket fertig.
+      </p>
+      <BankTransferDetails transfer={transfer} token={token} className="mt-6" />
+    </PaymentFrame>
+  );
+}
+
+function TransferBadge() {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-hint font-medium text-ink-secondary">
+      <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 6.5 8 3l6 3.5M3 6.5V12m3.33-5.5V12m3.34-5.5V12M13 6.5V12M2 13.5h12" />
+      </svg>
+      Vorkasse · Überweisung
+    </span>
+  );
+}
+
+/** One way to pay in a radio group, with what it means below its name. */
+function ChoiceItem({ value, label, description }: { value: string; label: string; description: string }) {
+  return (
+    <Item
+      value={value}
+      className={cn(
+        "flex w-full cursor-pointer items-start gap-4 rounded-md border border-line-strong bg-canvas p-4 text-left",
+        "transition-[border-color,box-shadow] duration-150 hover:border-ink-secondary",
+        "data-[state=checked]:border-selected data-[state=checked]:bg-surface data-[state=checked]:shadow-[inset_0_0_0_1px_var(--selected)]",
+      )}
+    >
+      <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border border-line-control">
+        <Indicator className="size-2 rounded-full bg-selected" />
+      </span>
+      <span>
+        <span className="block font-medium">{label}</span>
+        <span className="mt-0.5 block text-hint text-ink-tertiary">{description}</span>
+      </span>
+    </Item>
   );
 }
 
@@ -241,7 +342,7 @@ function SumUpBadge() {
   );
 }
 
-function TestPaymentSheet({ order, token, statusHref }: SheetProps) {
+function TestPaymentSheet({ order, token, statusHref, offersTransfer }: ChoiceProps) {
   const show = useShowOrder(token, statusHref);
   const [method, setMethod] = useState<PaymentInMethod>("succeeds");
   const pay = usePayment(token, show);
@@ -271,24 +372,15 @@ function TestPaymentSheet({ order, token, statusHref }: SheetProps) {
           className="mt-5 space-y-3"
         >
           {TEST_PAYMENT_METHODS.map((option) => (
-            <Item
-              key={option.value}
-              value={option.value}
-              className={cn(
-                "flex w-full cursor-pointer items-start gap-4 rounded-md border border-line-strong bg-canvas p-4 text-left",
-                "transition-[border-color,box-shadow] duration-150 hover:border-ink-secondary",
-                "data-[state=checked]:border-selected data-[state=checked]:bg-surface data-[state=checked]:shadow-[inset_0_0_0_1px_var(--selected)]",
-              )}
-            >
-              <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border border-line-control">
-                <Indicator className="size-2 rounded-full bg-selected" />
-              </span>
-              <span>
-                <span className="block font-medium">{option.label}</span>
-                <span className="mt-0.5 block text-hint text-ink-tertiary">{option.description}</span>
-              </span>
-            </Item>
+            <ChoiceItem key={option.value} value={option.value} label={option.label} description={option.description} />
           ))}
+          {offersTransfer ? (
+            <ChoiceItem
+              value="bank_transfer"
+              label="Vorkasse per Überweisung"
+              description="Wartet zehn Tage auf das Geld; im Stellwerk als eingegangen buchen."
+            />
+          ) : null}
         </RadioGroup>
         <div role="alert" className="not-empty:mt-6">
           {declined ? (
@@ -312,12 +404,15 @@ function PaymentFrame({
   statusHref,
   badge,
   onSubmit,
+  byTransfer = false,
   children,
 }: {
   order: OrderOut;
   statusHref: Route;
   badge?: ReactNode;
   onSubmit?: () => void;
+  /** Paid in advance: the details are in the e-mail, there is nothing to come back for. */
+  byTransfer?: boolean;
   children: ReactNode;
 }) {
   const body = <div className="px-6 py-6 sm:px-8">{children}</div>;
@@ -352,11 +447,18 @@ function PaymentFrame({
         <div className={frame}>{sheet}</div>
       )}
       <p className="mt-6 text-hint text-ink-tertiary">
-        Du kannst auch später bezahlen
-        {order.payment_due_at
-          ? `, bis ${formatLongDate(new Date(order.payment_due_at))}, ${formatClock(new Date(order.payment_due_at))} Uhr`
-          : ""}
-        : Die E-Mail zu deiner Bestellung enthält den Link hierher. Zur{" "}
+        {byTransfer ? (
+          "Bankverbindung und GiroCode stehen auch in der E-Mail zu deiner Bestellung. "
+        ) : (
+          <>
+            Du kannst auch später bezahlen
+            {order.payment_due_at
+              ? `, bis ${formatLongDate(new Date(order.payment_due_at))}, ${formatClock(new Date(order.payment_due_at))} Uhr`
+              : ""}
+            : Die E-Mail zu deiner Bestellung enthält den Link hierher.{" "}
+          </>
+        )}
+        Zur{" "}
         <Link href={statusHref} className="underline underline-offset-4 hover:text-ink">
           Übersicht der Bestellung
         </Link>

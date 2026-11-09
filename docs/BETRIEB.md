@@ -137,6 +137,29 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
   - Bei `status=403` darf der API-Schlüssel womöglich keine Erstattungen auslösen; dann im
     SumUp-Konto die Rechte des Schlüssels prüfen.
 
+### Vorkasse per Überweisung
+
+Kunden können statt über SumUp auch per Überweisung bezahlen, sobald die Bankverbindung
+eingetragen ist (ADR 0022; Skript erneut starten, Stufe „Vorkasse“).
+
+- **Ablauf:** Der Kunde wählt Vorkasse auf der Bezahlseite und bekommt Bankverbindung,
+  Bestellnummer als Verwendungszweck und einen GiroCode, auch per Mail. Er hat zehn Tage
+  Zeit; danach storniert der Shop die Bestellung.
+- **Geld ist da:** Im Kontoauszug die Überweisung mit dem Verwendungszweck `MB-…` suchen,
+  im Stellwerk die Bestellung öffnen und „Überweisung eingegangen“ drücken. Der Kunde bekommt
+  die Bestätigung, die Bestellung geht in die Kommissionierung.
+  - Stimmt der Betrag nicht, erst mit dem Kunden klären und dann buchen.
+- **Geld zurück:** Bei Storno, Teilerstattung oder Widerruf einer Vorkasse-Bestellung kann
+  der Shop nicht selbst zurückzahlen.
+  - An `MB_IMPRINT_EMAIL` kommt eine Mail „Rücküberweisung: … für MB-…“.
+  - Den Betrag auf das Konto zurücküberweisen, von dem die Zahlung kam; IBAN und Name
+    stehen im Kontoauszug.
+- **Überweisung nach der Frist:** Gehört sie zu einer stornierten Bestellung, das Geld
+  zurücküberweisen; der Shop kennt diesen Eingang nicht.
+- **Ausschalten:** Skript erneut starten und bei „Vorkasse anbieten?“ mit `N` antworten.
+  Bestellungen, die schon auf eine Überweisung warten, behalten ihre Frist und lassen sich
+  weiter buchen; die Bankverbindung finden die Kunden dann nur noch in ihrer Mail.
+
 ### Widerrufe
 
 - Ein Widerruf über „Vertrag widerrufen“ kommt als E-Mail an `MB_IMPRINT_EMAIL` und steht

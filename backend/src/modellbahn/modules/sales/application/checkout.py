@@ -19,7 +19,7 @@ from modellbahn.modules.sales.application.common import (
     fingerprint,
     order_details,
 )
-from modellbahn.modules.sales.application.payments import settle
+from modellbahn.modules.sales.application.payments import close_page, settle
 from modellbahn.modules.sales.application.ports import (
     PaymentGateway,
     PaymentRequest,
@@ -39,11 +39,11 @@ from modellbahn.modules.sales.domain.errors import (
 )
 from modellbahn.modules.sales.domain.model import (
     ADDRESS_BOOK_MAX_SIZE,
+    BANK_TRANSFER,
     Cart,
     CustomerAddress,
     Order,
     OrderStatus,
-    PaymentStatus,
     PostalAddress,
     PricedItem,
     Totals,
@@ -119,11 +119,14 @@ class CheckoutService:
         clock: Clock,
         gateway: PaymentGateway,
         shop_url: str = "http://localhost:3000",
+        bank_transfer: bool = False,
     ) -> None:
         self._uow = uow_factory
         self._clock = clock
         self._gateway = gateway
         self._shop_url = shop_url.rstrip("/")
+        self._bank_transfer = bank_transfer
+        """Payment in advance is offered (the shop's bank account is configured)."""
 
     async def place_order(
         self,
@@ -174,11 +177,16 @@ class CheckoutService:
             return replay
 
     async def pay(self, *, public_token: str, method: str, idempotency_key: UUID) -> CheckoutResult:
-        """Pay for the order: the test payment answers at once, SumUp on its page.
+        """Pay for the order: the test payment answers at once, SumUp on its page, a bank
+        transfer within ten days (ADR 0022).
 
         A payment still open on the provider's page is asked about first; if it is still
-        open, the order comes back with the same page instead of a second one.
+        open, the order comes back with the same page instead of a second one. Choosing a
+        bank transfer closes that page first. An order waiting for a transfer keeps waiting
+        for it: it comes back as it is, whatever was asked.
         """
+        if method == BANK_TRANSFER and not self._bank_transfer:
+            raise InvalidFieldError("method", "unknown", "not a payment method")
         request_fingerprint = fingerprint({"order": public_token, "method": method})
         try:
             async with self._uow() as uow:
@@ -194,11 +202,17 @@ class CheckoutService:
                 # recorded; the order then refuses a payment it no longer needs.
                 waiting = order.pending_payment
                 if waiting is not None:
-                    await settle(uow, order, self._gateway, self._clock)
-                    # Still open: the same page again. Paid there meanwhile: nothing to pay.
-                    if (
-                        waiting.status is PaymentStatus.PENDING
-                        or order.status is not OrderStatus.PENDING_PAYMENT
+                    if waiting.by_transfer:
+                        pass  # Waits for the transfer: the same details again.
+                    elif method == BANK_TRANSFER:
+                        # Off the provider's page to pay by transfer: close the page, or
+                        # learn that the customer paid there after all.
+                        await close_page(uow, order, self._gateway, self._clock)
+                    else:
+                        await settle(uow, order, self._gateway, self._clock)
+                    # Still open: the same page or transfer again. Paid: nothing to pay.
+                    if order.pending_payment is not None or (
+                        order.status is not OrderStatus.PENDING_PAYMENT
                     ):
                         await uow.commit()
                         return CheckoutResult(
@@ -235,6 +249,16 @@ class CheckoutService:
         idempotency_key: UUID,
         request_fingerprint: str,
     ) -> None:
+        if method == BANK_TRANSFER:
+            uow.publish(
+                *order.choose_bank_transfer(
+                    payment_id=new_id(),
+                    idempotency_key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                    now=self._clock.now(),
+                )
+            )
+            return
         due = order.payment_due_at
         if order.status is not OrderStatus.PENDING_PAYMENT or due is None:
             # Paid meanwhile (perhaps on the provider's page just now), or given up.

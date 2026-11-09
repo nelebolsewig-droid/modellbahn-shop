@@ -39,6 +39,7 @@ from modellbahn.modules.sales.domain.withdrawals import (
     WITHDRAWAL_SCOPE_MAX_LENGTH,
     Withdrawal,
 )
+from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.config import PaymentProvider
 
 Cents = Annotated[int, Field(ge=0, examples=[8480])]
@@ -256,10 +257,12 @@ class CheckoutIn(_Request):
 
 
 class PaymentIn(_Request):
-    method: Literal["succeeds", "declined", "fails", "sumup"] = Field(
+    method: Literal["succeeds", "declined", "fails", "sumup", "bank_transfer"] = Field(
         description=(
             "``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment "
-            "takes the outcome the mock provider simulates. ``getPaymentProvider`` says which."
+            "takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. "
+            "``bank_transfer`` is payment in advance where offered: the order then carries "
+            "``bank_transfer`` with what to transfer, and waits ten days."
         )
     )
 
@@ -272,6 +275,10 @@ class PaymentProviderOut(BaseModel):
             "``sumup``: the customer pays on SumUp's page; ``mock``: the test payment, nothing "
             "is charged; ``off``: the shop takes no orders."
         )
+    )
+    bank_transfer: bool = Field(
+        default=False,
+        description="Payment in advance by bank transfer is offered as well (ADR 0022).",
     )
 
 
@@ -326,6 +333,36 @@ class PaymentOut(BaseModel):
         )
 
 
+class BankTransferOut(BaseModel):
+    """What to transfer for an order paid in advance (ADR 0022)."""
+
+    account_holder: str = Field(examples=["adp-Modelle"])
+    iban: str = Field(description="In groups of four.", examples=["DE89 3704 0044 0532 0130 00"])
+    bic: str = Field(examples=["COBADEFFXXX"], description="Empty if not configured.")
+    bank_name: str = Field(examples=["Sparkasse Mecklenburg-Strelitz"])
+    amount_cents: Cents
+    reference: str = Field(
+        examples=["MB-2026-00042"], description="The order number, as the only reference."
+    )
+    due_at: datetime = Field(description="Ten days after the order; afterwards it is cancelled.")
+
+    @classmethod
+    def of(cls, order: Order, bank: BankAccount | None) -> Self | None:
+        """The details while the order waits for a transfer, else None."""
+        due = order.payment_due_at
+        if bank is None or order.awaited_transfer is None or due is None:
+            return None
+        return cls(
+            account_holder=bank.holder,
+            iban=bank.iban_grouped,
+            bic=bank.bic,
+            bank_name=bank.bank_name,
+            amount_cents=order.total_cents,
+            reference=order.number,
+            due_at=due,
+        )
+
+
 class OrderOut(BaseModel):
     """An order as its customer sees it. ``public_token`` is the key of its status page."""
 
@@ -355,8 +392,14 @@ class OrderOut(BaseModel):
         examples=["https://checkout.sumup.com/pay/c-1a2b3c"],
     )
 
+    bank_transfer: BankTransferOut | None = Field(
+        default=None,
+        description="What to transfer while the order waits for payment in advance; its "
+        "GiroCode is at ``getOrderGirocode``.",
+    )
+
     @classmethod
-    def from_details(cls, details: OrderDetails) -> Self:
+    def from_details(cls, details: OrderDetails, *, bank: BankAccount | None = None) -> Self:
         order = details.order
         return cls(
             number=order.number,
@@ -376,6 +419,7 @@ class OrderOut(BaseModel):
             tracking_number=order.tracking_number,
             payment_due_at=order.payment_due_at,
             payment_url=pending.checkout_url if (pending := order.pending_payment) else None,
+            bank_transfer=BankTransferOut.of(order, bank),
         )
 
 
@@ -443,8 +487,9 @@ class AdminOrderOut(OrderOut):
     )
 
     @classmethod
-    def from_details(cls, details: OrderDetails) -> Self:
-        base = OrderOut.from_details(details).model_dump()
+    def from_details(cls, details: OrderDetails, *, bank: BankAccount | None = None) -> Self:
+        # The staff see the transfer's state in the payments; the account is for customers.
+        base = OrderOut.from_details(details, bank=bank).model_dump()
         order = details.order
         return cls(
             **base,

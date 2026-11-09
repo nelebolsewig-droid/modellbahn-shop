@@ -34,6 +34,7 @@ export * from './assetOut';
 export * from './assetStatus';
 export * from './availability';
 export * from './availabilityOut';
+export * from './bankTransferOut';
 export * from './blocker';
 export * from './bomIn';
 export * from './bomLineIn';

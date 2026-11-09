@@ -20,6 +20,7 @@ from modellbahn.modules.identity.contracts.events import AccountDeleted, EmailVe
 from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.domain.events import (
+    BankTransferChosen,
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
@@ -29,6 +30,7 @@ from modellbahn.modules.sales.domain.events import (
 )
 from modellbahn.modules.sales.domain.model import Order
 from modellbahn.modules.site.contracts.next_fair import NextFair
+from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
 from modellbahn.platform.mail import MailContent, Mailer, compose
@@ -48,6 +50,7 @@ class SalesHandlers:
         shop_name: str,
         sender: Sequence[str] = (),
         shop_email: str = "",
+        bank_account: BankAccount | None = None,
     ) -> None:
         self._uow = uow_factory
         self._mailer = mailer
@@ -56,6 +59,7 @@ class SalesHandlers:
         self._shop_name = shop_name
         self._sender = tuple(sender)
         self._shop_email = shop_email
+        self._bank = bank_account
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -63,6 +67,7 @@ class SalesHandlers:
         registry.register(AccountDeleted, self.remove_address_book)
         registry.register(OrderPlaced, self.send_receipt)
         registry.register(OrderPaid, self.send_confirmation)
+        registry.register(BankTransferChosen, self.send_transfer_details)
         registry.register(OrderShipped, self.send_shipped_notice)
         registry.register(OrderCancelled, self.send_cancellation_notice)
         registry.register(OrderRefunded, self.send_refund_notice)
@@ -104,8 +109,18 @@ class SalesHandlers:
                 base_url=self._base_url,
                 shop_name=self._shop_name,
                 next_fair=await self._next_fair(),
+                bank_transfer=self._bank is not None,
             )
             await self._send(event, order, content)
+
+    async def send_transfer_details(self, event: BankTransferChosen) -> None:
+        """The bank details for payment in advance, while the order waits for the money."""
+        order = await self._order(event)
+        if order is None or self._bank is None or order.awaited_transfer is None:
+            # Paid or cancelled before the mail went out, or no account any more.
+            return
+        content = mails.bank_transfer_mail(order, bank=self._bank, base_url=self._base_url)
+        await self._send(event, order, content)
 
     async def send_confirmation(self, event: OrderPaid) -> None:
         order = await self._order(event)
@@ -126,16 +141,43 @@ class SalesHandlers:
     async def send_cancellation_notice(self, event: OrderCancelled) -> None:
         order = await self._order(event)
         if order is not None:
-            content = mails.cancelled_mail(order, base_url=self._base_url, refunded=event.refunded)
+            content = mails.cancelled_mail(
+                order,
+                base_url=self._base_url,
+                refunded=event.refunded,
+                by_transfer=event.refund_by_transfer,
+            )
             await self._send(event, order, content)
+            if event.refunded and event.refund_by_transfer:
+                await self._ask_to_transfer_back(order, event.refund_cents or order.total_cents)
 
     async def send_refund_notice(self, event: OrderRefunded) -> None:
         order = await self._order(event)
         if order is not None:
             content = mails.refunded_mail(
-                order, amount_cents=event.amount_cents, base_url=self._base_url
+                order,
+                amount_cents=event.amount_cents,
+                base_url=self._base_url,
+                by_transfer=event.by_transfer,
             )
             await self._send(event, order, content)
+            if event.by_transfer:
+                await self._ask_to_transfer_back(order, event.amount_cents)
+
+    async def _ask_to_transfer_back(self, order: Order, amount_cents: int) -> None:
+        """Money paid in advance goes back by hand: the shop gets a to-do by e-mail."""
+        if not self._shop_email:
+            _logger.warning("sales.transfer_back.no_shop_email", order=order.number)
+            return
+        await self._mailer.send(
+            compose(
+                mails.transfer_back_mail(order, amount_cents=amount_cents, base_url=self._base_url),
+                to=self._shop_email,
+                shop_name=self._shop_name,
+                sender=self._sender,
+            )
+        )
+        _logger.info("sales.transfer_back.requested", order=order.number)
 
     async def confirm_withdrawal(self, event: WithdrawalReceived) -> None:
         """Confirm the receipt to the consumer at once, and tell the shop."""

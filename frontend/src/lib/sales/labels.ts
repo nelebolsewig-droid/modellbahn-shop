@@ -30,12 +30,25 @@ export const CANCEL_REASON_LABELS = {
 } as const satisfies Record<CancelReason, string>;
 
 /** "Bezahlt", or "Teilweise erstattet (49,90 €)" once part of a captured payment went back. */
-export function paymentLabel(payment: Pick<PaymentOut, "status" | "refunded_cents">): string {
+/** The provider of payment in advance (ADR 0022): no page, the staff book the transfer. */
+export const BANK_TRANSFER = "bank_transfer";
+
+export function paymentLabel(payment: Pick<PaymentOut, "status" | "refunded_cents" | "provider">): string {
   if (payment.status === "captured" && payment.refunded_cents > 0) {
     return `Teilweise erstattet (${formatPrice(payment.refunded_cents)})`;
   }
+  if (payment.provider === BANK_TRANSFER) {
+    return BANK_TRANSFER_STATUS_LABELS[payment.status];
+  }
   return PAYMENT_STATUS_LABELS[payment.status];
 }
+
+export const BANK_TRANSFER_STATUS_LABELS = {
+  pending: "Wartet auf Überweisung",
+  captured: "Überweisung eingegangen",
+  failed: "Überweisung nicht eingegangen",
+  refunded: "Zurücküberwiesen",
+} as const satisfies Record<PaymentStatus, string>;
 
 export const PAYMENT_STATUS_LABELS = {
   pending: "Offen bei SumUp",

@@ -17,6 +17,8 @@ import type { PaymentProvider } from './paymentProvider';
  * Who takes the shop's payments (ADR 0019).
  */
 export interface PaymentProviderOut {
+  /** Payment in advance by bank transfer is offered as well (ADR 0022). */
+  bank_transfer?: boolean;
   /** ``sumup``: the customer pays on SumUp's page; ``mock``: the test payment, nothing is charged; ``off``: the shop takes no orders. */
   provider: PaymentProvider;
 }

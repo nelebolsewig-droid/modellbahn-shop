@@ -180,6 +180,14 @@ EXPECTED_OPERATIONS = {
         "store-sales",
     ),
     ("GET", "/api/v1/store/payment-provider"): ("getPaymentProvider", "store-sales"),
+    ("GET", "/api/v1/store/orders/{public_token}/girocode.svg"): (
+        "getOrderGirocode",
+        "store-sales",
+    ),
+    ("POST", "/api/v1/admin/orders/{order_id}/bank-transfer"): (
+        "confirmBankTransfer",
+        "admin-sales",
+    ),
     ("POST", "/api/v1/store/withdrawals"): ("withdrawContract", "store-sales"),
     ("GET", "/api/v1/admin/withdrawals"): ("listWithdrawals", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/refunds"): ("refundOrder", "admin-sales"),

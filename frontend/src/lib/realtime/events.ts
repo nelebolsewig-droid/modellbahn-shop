@@ -19,6 +19,7 @@ export const STAFF_EVENT_LABELS = {
   "media.asset.failed": "Foto unbrauchbar",
   "sales.order.placed": "Neue Bestellung",
   "sales.order.paid": "Bestellung bezahlt",
+  "sales.order.bank_transfer_chosen": "Vorkasse gewählt",
   "sales.order.shipped": "Bestellung versendet",
   "sales.order.cancelled": "Bestellung storniert",
   "sales.order.refunded": "Erstattung veranlasst",
@@ -38,6 +39,7 @@ export const MEDIA_EVENT_TYPES = ["media.asset.ready", "media.asset.failed"] as 
 export const ORDER_EVENT_TYPES = [
   "sales.order.placed",
   "sales.order.paid",
+  "sales.order.bank_transfer_chosen",
   "sales.order.shipped",
   "sales.order.cancelled",
   "sales.order.refunded",

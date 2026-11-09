@@ -79,6 +79,7 @@ describe("parseFeedEntry", () => {
       "media.asset.failed",
       "sales.order.placed",
       "sales.order.paid",
+      "sales.order.bank_transfer_chosen",
       "sales.order.shipped",
       "sales.order.cancelled",
       "sales.order.refunded",

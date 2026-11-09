@@ -204,7 +204,11 @@ payments = Table(
     CheckConstraint("amount_cents >= 0", name="amount_non_negative"),
     CheckConstraint("request_fingerprint ~ '^[0-9a-f]{64}$'", name="request_fingerprint_format"),
     CheckConstraint("(status = 'failed') = (failure_code IS NOT NULL)", name="failure_code"),
-    CheckConstraint("(status = 'pending') = (checkout_url IS NOT NULL)", name="checkout_url"),
+    # A pending payment waits on the provider's page, or for a bank transfer (ADR 0022).
+    CheckConstraint(
+        "(status = 'pending' AND provider <> 'bank_transfer') = (checkout_url IS NOT NULL)",
+        name="checkout_url",
+    ),
     CheckConstraint(
         "refunded_cents >= 0 AND refunded_cents <= amount_cents", name="refunded_cents_range"
     ),

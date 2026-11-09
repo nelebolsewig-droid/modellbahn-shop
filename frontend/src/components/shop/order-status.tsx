@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 
+import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
 import { OrderLines, OrderTimeline, PostalAddress } from "@/components/shop/order-parts";
 import { OrderTotals } from "@/components/shop/order-totals";
 import { Alert } from "@/components/ui/alert";
@@ -16,6 +17,7 @@ import { formatPrice } from "@/lib/catalog/format";
 import { formatLongDate, formatClock } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
 import {
+  BANK_TRANSFER,
   CANCEL_REASON_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
@@ -68,7 +70,14 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
       <div className="mt-5 max-w-2xl space-y-3 text-body-lg text-ink-secondary">
         <StatusText order={order} />
       </div>
-      {order.status === "pending_payment" && payHref ? (
+      {order.bank_transfer ? (
+        <section aria-labelledby="ueberweisung" className="mt-10 max-w-3xl rounded-lg border border-line bg-surface p-6 sm:p-8">
+          <h2 id="ueberweisung" className="label-caps text-ink-tertiary">
+            Überweisung
+          </h2>
+          <BankTransferDetails transfer={order.bank_transfer} token={order.public_token} className="mt-5" />
+        </section>
+      ) : order.status === "pending_payment" && payHref ? (
         <Button asChild className="mt-8">
           <Link href={payHref}>Jetzt {formatPrice(order.totals.total_cents)} bezahlen</Link>
         </Button>
@@ -149,6 +158,14 @@ const HEADLINES = {
 function StatusText({ order }: { order: OrderOut }) {
   switch (order.status) {
     case "pending_payment":
+      if (order.bank_transfer) {
+        return (
+          <p>
+            Deine Bestellung ist angelegt und wartet auf deine Überweisung. Sobald das Geld da ist, bekommst du eine
+            E-Mail und wir machen dein Paket fertig.
+          </p>
+        );
+      }
       return (
         <p>
           Deine Bestellung ist angelegt und wartet auf die Zahlung.
@@ -187,7 +204,11 @@ function StatusText({ order }: { order: OrderOut }) {
         <>
           <p>{order.cancel_reason ? CANCEL_REASON_LABELS[order.cancel_reason] : "Die Bestellung ist storniert."}</p>
           {order.payments.some((payment) => payment.status === "refunded") ? (
-            <p>Den bezahlten Betrag erstatten wir auf dem Weg, auf dem du bezahlt hast.</p>
+            <p>
+              {order.payments.some((payment) => payment.provider === BANK_TRANSFER)
+                ? "Den bezahlten Betrag überweisen wir auf das Konto zurück, von dem deine Überweisung kam."
+                : "Den bezahlten Betrag erstatten wir auf dem Weg, auf dem du bezahlt hast."}
+            </p>
           ) : null}
         </>
       );
