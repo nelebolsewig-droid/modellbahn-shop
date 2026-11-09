@@ -52,6 +52,56 @@ afterEach(() => {
   reloadPaymentPage.mockReset();
 });
 
+const TRANSFER = {
+  account_holder: "adp-Modelle",
+  iban: "DE02 1203 0000 0000 2020 51",
+  bic: "BYLADEM1001",
+  bank_name: "Testbank",
+  amount_cents: 7990,
+  reference: "MB-2026-00042",
+  due_at: "2026-11-04T09:00:00Z",
+};
+
+describe("PaymentView with payment in advance", () => {
+  it("lets the customer choose a transfer and shows what to transfer", async () => {
+    const waiting = orderOut({
+      payment_due_at: TRANSFER.due_at,
+      payments: [{ ...PAYMENT, provider: "bank_transfer", status: "pending", failure_code: null }],
+      bank_transfer: TRANSFER,
+    });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(orderOut()),
+      [PROVIDER]: () => jsonResponse({ provider: "sumup", bank_transfer: true }),
+      [PAY]: () => jsonResponse(waiting),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<PaymentView token="status-token" />);
+
+    await user.click(await screen.findByRole("radio", { name: /Vorkasse per Überweisung/ }));
+    await user.click(screen.getByRole("button", { name: "Per Überweisung bezahlen" }));
+
+    expect(await screen.findByText("DE02 1203 0000 0000 2020 51")).toBeInTheDocument();
+    expect(screen.getByText("MB-2026-00042")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /GiroCode/ })).toHaveAttribute(
+      "src",
+      "/api/v1/store/orders/status-token/girocode.svg",
+    );
+    expect(requestsTo(fetchMock, PAY)[0]?.body).toEqual({ method: "bank_transfer" });
+    expect(openPaymentPage).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("offers no choice where the shop takes no transfers", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(orderOut()),
+      [PROVIDER]: provider("sumup"),
+    });
+    renderWithQueryClient(<PaymentView token="status-token" />);
+    expect(await screen.findByRole("button", { name: /^79,90\s€ bezahlen$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Vorkasse/ })).toBeNull();
+  });
+});
+
 describe("PaymentView", () => {
   it("tries again with a new key after a declined payment and then shows the order", async () => {
     const answers = [DECLINED, PAID];

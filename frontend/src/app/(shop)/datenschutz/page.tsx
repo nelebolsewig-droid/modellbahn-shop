@@ -120,6 +120,13 @@ export default async function PrivacyPage() {
               eingegangen ist; deine Kartendaten sehen wir nicht. Was SumUp mit deinen Daten tut, steht in den
               Datenschutzhinweisen von SumUp (Art. 6 Abs. 1 lit. b DSGVO).
             </p>
+            <LegalSubheading>Zahlung per Überweisung</LegalSubheading>
+            <p>
+              Bezahlst du per Vorkasse, sehen wir im Kontoauszug, was deine Bank mit der Überweisung übermittelt: deinen
+              Namen, deine IBAN, Betrag und Verwendungszweck. Damit ordnen wir die Zahlung deiner Bestellung zu und
+              überweisen, falls nötig, Geld auf dieses Konto zurück (Art. 6 Abs. 1 lit. b DSGVO). Aufbewahrt wird der
+              Kontoauszug so lange, wie Handels- und Steuerrecht es verlangen (Art. 6 Abs. 1 lit. c DSGVO).
+            </p>
             <LegalSubheading>Versand</LegalSubheading>
             <p>
               Für den Versand geben wir deinen Namen und deine Lieferadresse an das Versandunternehmen weiter, das dein

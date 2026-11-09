@@ -126,6 +126,64 @@ describe("OrderDesk", () => {
     expect(screen.getByText("Storniert – nicht verschicken.")).toBeInTheDocument();
   });
 
+  it("books a bank transfer once the money is in the account", async () => {
+    const transfer = {
+      status: "pending" as const,
+      amount_cents: 7990,
+      refunded_cents: 0,
+      provider: "bank_transfer",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const waiting = adminOrder({
+      status: "pending_payment",
+      paid_at: null,
+      payment_due_at: "2026-11-04T09:00:00Z",
+      payments: [transfer],
+    });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(waiting),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      "POST /api/v1/admin/orders/o1/bank-transfer": () =>
+        jsonResponse(adminOrder({ payments: [{ ...transfer, status: "captured" }] })),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    expect(await screen.findByText("Wartet auf Überweisung")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Überweisung eingegangen" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Zahlung buchen" }));
+
+    expect(await screen.findByText("Überweisung eingegangen")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Überweisung eingegangen" })).toBeNull();
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/bank-transfer")).toHaveLength(1);
+  });
+
+  it("offers packers no booking of transfers", async () => {
+    const waiting = adminOrder({
+      status: "pending_payment",
+      paid_at: null,
+      payments: [
+        {
+          status: "pending",
+          amount_cents: 7990,
+          refunded_cents: 0,
+          provider: "bank_transfer",
+          failure_code: null,
+          created_at: "2026-10-25T09:02:00Z",
+        },
+      ],
+    });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(waiting),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
+    expect(await screen.findByText("Wartet auf Überweisung")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Überweisung eingegangen" })).toBeNull();
+  });
+
   it("cancels as refunded by hand once SumUp refused the refund", async () => {
     routeFetch(fetchMock, {
       [ORDER]: () => jsonResponse(adminOrder()),

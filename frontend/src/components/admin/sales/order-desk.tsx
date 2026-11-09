@@ -11,6 +11,7 @@ import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { RefundPanel } from "@/components/admin/sales/refund-panel";
 import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
+import { TransferBooking, awaitedTransfer, paidByTransfer } from "@/components/admin/sales/transfer-booking";
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -176,6 +177,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
         </div>
 
         <div className="space-y-6">
+          {awaitedTransfer(data) && MAY_CANCEL.has(staffRole) ? (
+            <Panel title="Überweisung" code="VK 19">
+              <TransferBooking order={data} onBooked={store} />
+            </Panel>
+          ) : null}
           <Panel title="Versand" code="VK 13">
             <ParcelLabel order={data} />
             <div className="mt-5">
@@ -471,6 +477,7 @@ function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled
   // SumUp's answer when it refused the refund; then the staff may refund in SumUp by hand.
   const [refusal, setRefusal] = useState<string | null>(null);
   const paid = order.status === "paid";
+  const byTransfer = paidByTransfer(order);
   const { form, onSubmit, formError } = useApiForm({
     schema: cancelSchema,
     defaultValues: { note: "", refunded_by_hand: false },
@@ -498,9 +505,11 @@ function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled
   return (
     <>
       <p className="text-small text-ink-secondary">
-        {paid
-          ? `Die Zahlung über ${formatPrice(order.totals.total_cents)} wird dabei erstattet.`
-          : "Die Bestellung ist noch nicht bezahlt; es wird nichts erstattet."}{" "}
+        {paid && byTransfer
+          ? `Die ${formatPrice(order.totals.total_cents)} kamen per Überweisung: Ihr überweist sie zurück, eine Erinnerung kommt per E-Mail.`
+          : paid
+            ? `Die Zahlung über ${formatPrice(order.totals.total_cents)} wird dabei erstattet.`
+            : "Die Bestellung ist noch nicht bezahlt; es wird nichts erstattet."}{" "}
         Der Kunde bekommt eine E-Mail.
       </p>
       <Dialog

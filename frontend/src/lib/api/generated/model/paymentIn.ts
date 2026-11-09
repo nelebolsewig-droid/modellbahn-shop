@@ -14,6 +14,6 @@
 import type { PaymentInMethod } from './paymentInMethod';
 
 export interface PaymentIn {
-  /** ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. */
+  /** ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. ``bank_transfer`` is payment in advance where offered: the order then carries ``bank_transfer`` with what to transfer, and waits ten days. */
   method: PaymentInMethod;
 }

@@ -20,6 +20,7 @@ export function PaymentMethods({ className }: { className?: string }) {
     <p className={className}>
       Wir liefern nach Deutschland und in alle Länder der EU.
       {provider.data ? ` ${TEXTS[provider.data.provider]}` : null}
+      {provider.data?.bank_transfer ? " Oder per Vorkasse: Du überweist innerhalb von zehn Tagen, wir verschicken nach Zahlungseingang." : null}
     </p>
   );
 }

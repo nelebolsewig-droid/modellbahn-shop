@@ -90,9 +90,9 @@ export default async function TermsPage() {
               („Zahlung eingegangen“). Damit kommt der Kaufvertrag zustande.
             </p>
             <p>
-              (5) An dein Angebot bist du 24 Stunden gebunden. Geht deine Zahlung in dieser Zeit nicht ein, stornieren
-              wir die Bestellung und sagen dir per E-Mail Bescheid. Geht danach doch noch Geld ein, erstatten wir es
-              dir.
+              (5) An dein Angebot bist du 24 Stunden gebunden, bei Vorkasse per Überweisung zehn Tage. Geht deine
+              Zahlung in dieser Zeit nicht ein, stornieren wir die Bestellung und sagen dir per E-Mail Bescheid. Geht
+              danach doch noch Geld ein, erstatten wir es dir.
             </p>
             <p>
               (6) Wir speichern deine Bestellung mit Artikeln, Preisen und Lieferadresse und schicken sie dir per
@@ -127,9 +127,15 @@ export default async function TermsPage() {
             <p>
               (1) Du bezahlst direkt nach der Bestellung über unseren Zahlungsdienst SumUp, mit Kredit- oder Debitkarte,
               je nach Gerät auch mit Apple Pay oder Google Pay. Die Zahlungsdaten gibst du auf der Seite von SumUp ein;
-              wir erhalten sie nicht.
+              wir erhalten sie nicht. Bieten wir es auf der Bezahlseite an, kannst du stattdessen per Vorkasse bezahlen:
+              Du überweist den Betrag mit der Bestellnummer als Verwendungszweck auf unser Konto, das wir dir auf der
+              Bezahlseite und per E-Mail nennen.
             </p>
-            <p>(2) Der Kaufpreis ist mit der Bestellung fällig. Bezahlen kannst du bis 24 Stunden nach der Bestellung.</p>
+            <p>
+              (2) Der Kaufpreis ist mit der Bestellung fällig. Bezahlen kannst du bis 24 Stunden nach der Bestellung,
+              per Vorkasse bis zehn Tage danach. Bei Vorkasse verschicken wir die Ware, sobald das Geld auf unserem Konto
+              ist.
+            </p>
           </LegalSection>
 
           <LegalSection id="eigentumsvorbehalt" mark="§ 8" title="Eigentumsvorbehalt">

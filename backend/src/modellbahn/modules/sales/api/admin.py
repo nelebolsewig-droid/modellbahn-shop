@@ -113,9 +113,7 @@ async def cancel_order(
     operation_id="confirmBankTransfer",
     summary="The customer's bank transfer is in the account: the order is paid",
     description="Payment in advance (ADR 0022). The customer gets the usual confirmation.",
-    responses=problems(
-        {**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state"]}, validated=False
-    ),
+    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state"]}),
 )
 async def confirm_bank_transfer(
     order_id: UUID, _: OrderManager, service: OrderServiceDep

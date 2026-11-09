@@ -166,7 +166,7 @@ async def get_order(
     response_class=Response,
     responses={
         200: {"content": {"image/svg+xml": {}}, "description": "The GiroCode."},
-        **problems(ORDER_NOT_FOUND, unsafe=False, validated=False),
+        **problems(ORDER_NOT_FOUND, unsafe=False),
     },
 )
 async def get_order_girocode(

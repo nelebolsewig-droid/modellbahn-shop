@@ -13,7 +13,7 @@
  */
 
 /**
- * ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which.
+ * ``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. ``bank_transfer`` is payment in advance where offered: the order then carries ``bank_transfer`` with what to transfer, and waits ten days.
  */
 export type PaymentInMethod = typeof PaymentInMethod[keyof typeof PaymentInMethod];
 
@@ -23,4 +23,5 @@ export const PaymentInMethod = {
   declined: 'declined',
   fails: 'fails',
   sumup: 'sumup',
+  bank_transfer: 'bank_transfer',
 } as const;

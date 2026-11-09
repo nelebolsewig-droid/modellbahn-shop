@@ -218,6 +218,18 @@ real_value() {
   printf '%s' "$value"
 }
 
+# iban_ok IBAN: format and check digits (ISO 13616, modulo 97); the example account of
+# .env.example does not count, production refuses it.
+iban_ok() {
+  python3 - "$1" <<'PY'
+import re, sys
+iban = "".join(sys.argv[1].split()).upper()
+ok = re.fullmatch(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}", iban) is not None
+ok = ok and int("".join(str(int(c, 36)) for c in iban[4:] + iban[:4])) % 97 == 1
+sys.exit(0 if ok and iban != "DE89370400440532013000" else 1)
+PY
+}
+
 # ask_real KEY "Prompt" [default]: like ask, but a development placeholder in .env is not
 # offered as the current value; the default is, if given.
 ask_real() {
@@ -260,7 +272,7 @@ public_ipv6() {
 
 run_wizard() {
 
-TOTAL_STAGES=11
+TOTAL_STAGES=12
 
 if [[ $EUID -ne 0 ]]; then
   printf 'Bitte als root starten: sudo %s\n' "$0" >&2
@@ -418,7 +430,7 @@ say "Damit eBay die Produktions-Schlüssel freigibt, muss dieser Server eBays L�
 say "annehmen. Trag im eBay-Entwicklerkonto unter „Alerts & Notifications“ ein:"
 step "Endpunkt: ${BOLD}https://$SITE_ADDRESS/api/v1/webhooks/ebay/account-deletion${RESET}"
 step "Verification token: ${BOLD}$(_existing MB_EBAY_VERIFICATION_TOKEN)${RESET}"
-note "Das klappt erst, wenn der Shop läuft (Schritt 9); eBay prüft die Adresse beim Speichern."
+note "Das klappt erst, wenn der Shop läuft (Schritt 10); eBay prüft die Adresse beim Speichern."
 printf '\n'
 if confirm "Johanns eBay-Schlüssel jetzt eintragen?"; then
   open_url "https://developer.ebay.com/my/keys"
@@ -467,6 +479,34 @@ fi
 pause
 
 # ── 9 ─────────────────────────────────────────────────────────────────────
+stage "Vorkasse per Überweisung (kann später nachgeholt werden)"
+say "Kunden können statt über SumUp auch per Überweisung bezahlen. Der Shop zeigt ihnen dafür"
+say "die Bankverbindung, die Bestellnummer als Verwendungszweck und einen GiroCode für die"
+say "Banking-App. Ihr bucht den Zahlungseingang im Stellwerk mit einem Klick."
+note "Ohne Bankverbindung gibt es nur die Zahlung über SumUp."
+printf '\n'
+if confirm "Vorkasse anbieten (Bankverbindung eintragen)?"; then
+  ask_real MB_BANK_ACCOUNT_HOLDER "Kontoinhaber, wie er auf der Überweisung stehen soll:"
+  ask_real MB_BANK_IBAN "IBAN:"
+  until iban_ok "$MB_BANK_IBAN"; do
+    warn "Das ist keine gültige IBAN (Prüfziffer) oder nur das Beispielkonto."
+    ask MB_BANK_IBAN "IBAN:"
+  done
+  ask_real MB_BANK_BIC "BIC (leer lassen, wenn unbekannt):"
+  ask_real MB_BANK_NAME "Name der Bank (leer lassen, wenn egal):"
+  write_env MB_BANK_ACCOUNT_HOLDER "$MB_BANK_ACCOUNT_HOLDER"
+  write_env MB_BANK_IBAN "$(printf '%s' "$MB_BANK_IBAN" | tr -d ' ' | tr '[:lower:]' '[:upper:]')"
+  write_env MB_BANK_BIC "$(printf '%s' "$MB_BANK_BIC" | tr -d ' ' | tr '[:lower:]' '[:upper:]')"
+  write_env MB_BANK_NAME "$MB_BANK_NAME"
+else
+  for key in MB_BANK_ACCOUNT_HOLDER MB_BANK_IBAN MB_BANK_BIC MB_BANK_NAME; do
+    sed -i "/^${key}=/d" "$ENV_FILE"
+  done
+  SKIPPED+=("Vorkasse: Skript erneut starten und die Bankverbindung eintragen")
+fi
+pause
+
+# ── 10 ────────────────────────────────────────────────────────────────────
 stage "Shop bauen und starten"
 say "Der erste Bau dauert 10 bis 20 Minuten; danach startet der Shop mit HTTPS."
 if confirm "Jetzt bauen und starten?"; then
@@ -488,7 +528,7 @@ else
 fi
 pause
 
-# ── 10 ────────────────────────────────────────────────────────────────────
+# ── 11 ────────────────────────────────────────────────────────────────────
 stage "Konten für das Stellwerk"
 say "Das erste Konto bekommt die Rolle Inhaber. Das Passwort fragt das Programm gleich ab"
 say "(mindestens 12 Zeichen)."
@@ -506,7 +546,7 @@ fi
 step "Anmelden: ${BOLD}https://$SITE_ADDRESS/admin${RESET}"
 pause
 
-# ── 11 ────────────────────────────────────────────────────────────────────
+# ── 12 ────────────────────────────────────────────────────────────────────
 stage "Nächtliche Sicherung"
 say "Jede Nacht um 3:30 sichert der Server Datenbank und Bilder nach /var/backups/modellbahn"
 say "und hält 14 Tage vor."

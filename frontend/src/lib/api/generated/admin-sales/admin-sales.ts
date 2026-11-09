@@ -281,7 +281,81 @@ export function useGetOrder<TData = Awaited<ReturnType<typeof getOrder>>, TError
 
 
 
-export const getCancelOrderUrl = (orderId: string,) => {
+export const getConfirmBankTransferUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/bank-transfer`
+}
+
+/**
+ * Payment in advance (ADR 0022). The customer gets the usual confirmation.
+ * @summary The customer's bank transfer is in the account: the order is paid
+ */
+export const confirmBankTransfer = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
+
+  return apiFetch<AdminOrderOut>(getConfirmBankTransferUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmBankTransferMutationKey = () => ['confirmBankTransfer'] as const;
+
+export const getConfirmBankTransferMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBankTransfer>>, TError,ConfirmBankTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmBankTransfer>>, TError,ConfirmBankTransferMutationVariables, TContext> => {
+
+const mutationKey = getConfirmBankTransferMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmBankTransfer>>, ConfirmBankTransferMutationVariables> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  confirmBankTransfer(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmBankTransferMutationResult = NonNullable<Awaited<ReturnType<typeof confirmBankTransfer>>>
+
+    export type ConfirmBankTransferMutationError = ErrorType<Problem | ValidationProblem>
+    export type ConfirmBankTransferMutationVariables = {orderId: string}
+
+    /**
+ * @summary The customer's bank transfer is in the account: the order is paid
+ */
+export const useConfirmBankTransfer = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmBankTransfer>>, TError,ConfirmBankTransferMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmBankTransfer>>,
+        TError,
+        ConfirmBankTransferMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmBankTransferMutationOptions(options), queryClient);
+    }
+    export const getCancelOrderUrl = (orderId: string,) => {
 
 
 

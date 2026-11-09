@@ -431,6 +431,17 @@
       "AdminOrderOut": {
         "description": "An order in the admin area: also who ordered, where, and the cancellation note.",
         "properties": {
+          "bank_transfer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What to transfer while the order waits for payment in advance; its GiroCode is at ``getOrderGirocode``."
+          },
           "cancel_note": {
             "title": "Cancel Note",
             "type": "string"
@@ -1029,6 +1040,74 @@
           "items"
         ],
         "title": "AvailabilityOut",
+        "type": "object"
+      },
+      "BankTransferOut": {
+        "description": "What to transfer for an order paid in advance (ADR 0022).",
+        "properties": {
+          "account_holder": {
+            "examples": [
+              "adp-Modelle"
+            ],
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "amount_cents": {
+            "examples": [
+              8480
+            ],
+            "minimum": 0.0,
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "bank_name": {
+            "examples": [
+              "Sparkasse Mecklenburg-Strelitz"
+            ],
+            "title": "Bank Name",
+            "type": "string"
+          },
+          "bic": {
+            "description": "Empty if not configured.",
+            "examples": [
+              "COBADEFFXXX"
+            ],
+            "title": "Bic",
+            "type": "string"
+          },
+          "due_at": {
+            "description": "Ten days after the order; afterwards it is cancelled.",
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "iban": {
+            "description": "In groups of four.",
+            "examples": [
+              "DE89 3704 0044 0532 0130 00"
+            ],
+            "title": "Iban",
+            "type": "string"
+          },
+          "reference": {
+            "description": "The order number, as the only reference.",
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_holder",
+          "iban",
+          "bic",
+          "bank_name",
+          "amount_cents",
+          "reference",
+          "due_at"
+        ],
+        "title": "BankTransferOut",
         "type": "object"
       },
       "Blocker": {
@@ -4462,6 +4541,17 @@
       "OrderOut": {
         "description": "An order as its customer sees it. ``public_token`` is the key of its status page.",
         "properties": {
+          "bank_transfer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What to transfer while the order waits for payment in advance; its GiroCode is at ``getOrderGirocode``."
+          },
           "cancel_reason": {
             "anyOf": [
               {
@@ -5637,12 +5727,13 @@
         "additionalProperties": false,
         "properties": {
           "method": {
-            "description": "``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which.",
+            "description": "``sumup`` sends the customer to SumUp's page (``payment_url``); the test payment takes the outcome the mock provider simulates. ``getPaymentProvider`` says which. ``bank_transfer`` is payment in advance where offered: the order then carries ``bank_transfer`` with what to transfer, and waits ten days.",
             "enum": [
               "succeeds",
               "declined",
               "fails",
-              "sumup"
+              "sumup",
+              "bank_transfer"
             ],
             "title": "Method",
             "type": "string"
@@ -5727,6 +5818,12 @@
       "PaymentProviderOut": {
         "description": "Who takes the shop's payments (ADR 0019).",
         "properties": {
+          "bank_transfer": {
+            "default": false,
+            "description": "Payment in advance by bank transfer is offered as well (ADR 0022).",
+            "title": "Bank Transfer",
+            "type": "boolean"
+          },
           "provider": {
             "$ref": "#/components/schemas/PaymentProvider",
             "description": "``sumup``: the customer pays on SumUp's page; ``mock``: the test payment, nothing is charged; ``off``: the shop takes no orders."
@@ -19251,6 +19348,115 @@
         ]
       }
     },
+    "/api/v1/admin/orders/{order_id}/bank-transfer": {
+      "post": {
+        "description": "Payment in advance (ADR 0022). The customer gets the usual confirmation.",
+        "operationId": "confirmBankTransfer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_order_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The customer's bank transfer is in the account: the order is paid",
+        "tags": [
+          "admin-sales"
+        ]
+      }
+    },
     "/api/v1/admin/orders/{order_id}/cancel": {
       "post": {
         "description": "An order from eBay is cancelled on eBay; the shop follows by itself.",
@@ -24242,9 +24448,68 @@
         ]
       }
     },
+    "/api/v1/store/orders/{public_token}/girocode.svg": {
+      "get": {
+        "description": "Only while the order waits for a transfer; afterwards (or without a bank account) 404.",
+        "operationId": "getOrderGirocode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_token",
+            "required": true,
+            "schema": {
+              "title": "Public Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/svg+xml": {}
+            },
+            "description": "The GiroCode."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `order_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "The GiroCode of an order waiting for a bank transfer (SVG for banking apps)",
+        "tags": [
+          "store-sales"
+        ]
+      }
+    },
     "/api/v1/store/orders/{public_token}/payments": {
       "post": {
-        "description": "With SumUp the order comes back with ``payment_url``, the page the customer pays on;\na page still open is reused. The test payment answers at once: a declined payment is\nrecorded, and the order still waits for its payment. A provider failure (503) records\nnothing. Repeating the request with the same ``Idempotency-Key`` never charges twice.",
+        "description": "With SumUp the order comes back with ``payment_url``, the page the customer pays on;\na page still open is reused. The test payment answers at once: a declined payment is\nrecorded, and the order still waits for its payment. A provider failure (503) records\nnothing. A bank transfer (``bank_transfer``, where offered) leaves the order waiting\nten days, with ``bank_transfer`` saying what to transfer; it closes a SumUp page first.\nRepeating the request with the same ``Idempotency-Key`` never charges twice.",
         "operationId": "payOrder",
         "parameters": [
           {
@@ -24361,7 +24626,7 @@
             "description": "Service Unavailable. Problem codes: `database_unavailable`, `payment_unavailable`."
           }
         },
-        "summary": "Pay for an order: begin on SumUp's page, or the test payment's chosen outcome",
+        "summary": "Pay for an order: on SumUp's page, by bank transfer, or the test payment",
         "tags": [
           "store-sales"
         ]

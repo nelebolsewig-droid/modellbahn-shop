@@ -519,6 +519,107 @@ export function useGetOrderByToken<TData = Awaited<ReturnType<typeof getOrderByT
 
 
 
+export const getGetOrderGirocodeUrl = (publicToken: string,) => {
+
+
+
+
+  return `/api/v1/store/orders/${publicToken}/girocode.svg`
+}
+
+/**
+ * Only while the order waits for a transfer; afterwards (or without a bank account) 404.
+ * @summary The GiroCode of an order waiting for a bank transfer (SVG for banking apps)
+ */
+export const getOrderGirocode = async (publicToken: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetOrderGirocodeUrl(publicToken),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrderGirocodeQueryKey = (publicToken: string,) => {
+    return [
+    `/api/v1/store/orders/${publicToken}/girocode.svg`
+    ] as const;
+    }
+
+
+export const getGetOrderGirocodeQueryOptions = <TData = Awaited<ReturnType<typeof getOrderGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(publicToken: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrderGirocodeQueryKey(publicToken);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrderGirocode>>> = ({ signal }) => getOrderGirocode(publicToken, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: publicToken !== null && publicToken !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOrderGirocodeQueryResult = NonNullable<Awaited<ReturnType<typeof getOrderGirocode>>>
+export type GetOrderGirocodeQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetOrderGirocode<TData = Awaited<ReturnType<typeof getOrderGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ publicToken: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrderGirocode>>,
+          TError,
+          Awaited<ReturnType<typeof getOrderGirocode>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOrderGirocode<TData = Awaited<ReturnType<typeof getOrderGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ publicToken: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOrderGirocode>>,
+          TError,
+          Awaited<ReturnType<typeof getOrderGirocode>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOrderGirocode<TData = Awaited<ReturnType<typeof getOrderGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ publicToken: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The GiroCode of an order waiting for a bank transfer (SVG for banking apps)
+ */
+
+export function useGetOrderGirocode<TData = Awaited<ReturnType<typeof getOrderGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ publicToken: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrderGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOrderGirocodeQueryOptions(publicToken,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 export const getPayOrderUrl = (publicToken: string,) => {
 
 
@@ -531,8 +632,10 @@ export const getPayOrderUrl = (publicToken: string,) => {
  * With SumUp the order comes back with ``payment_url``, the page the customer pays on;
  * a page still open is reused. The test payment answers at once: a declined payment is
  * recorded, and the order still waits for its payment. A provider failure (503) records
- * nothing. Repeating the request with the same ``Idempotency-Key`` never charges twice.
- * @summary Pay for an order: begin on SumUp's page, or the test payment's chosen outcome
+ * nothing. A bank transfer (``bank_transfer``, where offered) leaves the order waiting
+ * ten days, with ``bank_transfer`` saying what to transfer; it closes a SumUp page first.
+ * Repeating the request with the same ``Idempotency-Key`` never charges twice.
+ * @summary Pay for an order: on SumUp's page, by bank transfer, or the test payment
  */
 export const payOrder = async (publicToken: string,
     paymentIn: PaymentIn, options?: Parameters<typeof apiFetch>[1]): Promise<OrderOut> => {
@@ -599,7 +702,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type PayOrderMutationVariables = {publicToken: string;data: PaymentIn}
 
     /**
- * @summary Pay for an order: begin on SumUp's page, or the test payment's chosen outcome
+ * @summary Pay for an order: on SumUp's page, by bank transfer, or the test payment
  */
 export const usePayOrder = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payOrder>>, TError,PayOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
