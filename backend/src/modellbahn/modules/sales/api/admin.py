@@ -95,7 +95,7 @@ async def ship_order(
         {
             **STAFF_ACCESS,
             **ORDER_NOT_FOUND,
-            409: ["invalid_order_state", "marketplace_order"],
+            409: ["invalid_order_state", "marketplace_order", "refund_rejected"],
             503: ["payment_unavailable"],
         }
     ),
@@ -103,7 +103,9 @@ async def ship_order(
 async def cancel_order(
     order_id: UUID, body: CancelIn, _: OrderManager, service: OrderServiceDep
 ) -> AdminOrderOut:
-    return AdminOrderOut.from_details(await service.cancel(order_id, note=body.note))
+    return AdminOrderOut.from_details(
+        await service.cancel(order_id, note=body.note, refunded_by_hand=body.refunded_by_hand)
+    )
 
 
 @router.post(
@@ -114,7 +116,7 @@ async def cancel_order(
         {
             **STAFF_ACCESS,
             **ORDER_NOT_FOUND,
-            409: ["refund_not_possible", "marketplace_order"],
+            409: ["refund_not_possible", "marketplace_order", "refund_rejected"],
             503: ["payment_unavailable"],
         }
     ),
@@ -125,7 +127,9 @@ async def refund_order(
     """The payment provider refunds at once; at most what is left of the payment. A whole
     order that has not been shipped is cancelled instead (``cancelOrder``)."""
     return AdminOrderOut.from_details(
-        await service.refund(order_id, amount_cents=body.amount_cents)
+        await service.refund(
+            order_id, amount_cents=body.amount_cents, refunded_by_hand=body.refunded_by_hand
+        )
     )
 
 

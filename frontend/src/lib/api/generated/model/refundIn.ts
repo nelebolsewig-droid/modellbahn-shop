@@ -21,4 +21,6 @@ export interface RefundIn {
      * @exclusiveMinimum 0
      */
   amount_cents: number;
+  /** Refunded in the payment provider's account already; only recorded here. */
+  refunded_by_hand?: boolean;
 }

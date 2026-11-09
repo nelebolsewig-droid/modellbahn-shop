@@ -95,6 +95,17 @@ class PaymentUnavailableError(SalesError):
     """The payment provider could not be reached or failed; nothing was charged."""
 
 
+class RefundRejectedError(SalesError):
+    """The payment provider answered and refused the refund; nothing went back.
+
+    ``reason`` is the provider's own words (status and message), for the staff to read.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"the payment provider refused the refund: {reason}")
+        self.reason = reason
+
+
 class RefundNotPossibleError(SalesError):
     """Nothing (or less than asked) is left to refund, or the order was never paid."""
 

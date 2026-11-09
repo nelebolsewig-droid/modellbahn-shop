@@ -9,6 +9,7 @@ Each provider's model of payments and errors stays in this file and never reache
 domain (KONZEPT §2.6).
 """
 
+from collections.abc import Callable
 from datetime import UTC
 from decimal import Decimal
 from enum import StrEnum
@@ -22,6 +23,7 @@ from modellbahn.modules.sales.domain.errors import (
     CheckoutClosedError,
     InvalidFieldError,
     PaymentUnavailableError,
+    RefundRejectedError,
 )
 from modellbahn.modules.sales.domain.model import (
     ChargeResult,
@@ -224,14 +226,24 @@ class SumUpPaymentGateway:
 
     async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
         # Always with the amount: all of it for a cancellation, a part after a partial return.
+        # SumUp's refusal (4xx) says why, e.g. a payment it does not refund yet; the staff
+        # read it instead of "not reachable" and may refund in the SumUp account by hand.
         await self._call(
             "POST",
             f"/v1.0/merchants/{self._merchant_code}/payments/{refund_ref}/refunds",
             json={"amount": _amount(amount_cents)},
+            refusal=lambda response: RefundRejectedError(_refusal(response)),
         )
         _logger.info("sales.sumup.refund", transaction=refund_ref, amount_cents=amount_cents)
 
-    async def _call(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+    async def _call(
+        self,
+        method: str,
+        path: str,
+        *,
+        refusal: Callable[[httpx.Response], Exception] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         try:
             response = await self._client.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
@@ -243,7 +255,10 @@ class SumUpPaymentGateway:
                 path=path,
                 status=response.status_code,
                 code=_error_code(response),
+                message=_error_message(response),
             )
+            if refusal is not None and response.status_code < 500:  # noqa: PLR2004
+                raise refusal(response)
             raise PaymentUnavailableError
         if not response.content:
             return {}
@@ -259,6 +274,32 @@ def _error_code(response: httpx.Response) -> str:
     if isinstance(body, dict):
         return str(body.get("error_code") or body.get("code") or "")
     return ""
+
+
+_MESSAGE_MAX: Final = 300
+
+
+def _error_message(response: httpx.Response) -> str:
+    """SumUp's explanation: ``detail``/``title`` of a problem, or ``message`` of older APIs."""
+    try:
+        body = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(body, dict):
+        return ""
+    for key in ("detail", "message", "title"):
+        value = body.get(key)
+        if isinstance(value, str) and value.strip():
+            return " ".join(value.split())[:_MESSAGE_MAX]
+    return ""
+
+
+def _refusal(response: httpx.Response) -> str:
+    """Status, code and message of a refusal, as the staff read it: ``409 NOT_ALLOWED: …``."""
+    code = _error_code(response)
+    message = _error_message(response)
+    head = f"{response.status_code} {code}".strip()
+    return f"{head}: {message}" if message else head
 
 
 def build_payment_gateway(settings: Settings) -> PaymentGateway:

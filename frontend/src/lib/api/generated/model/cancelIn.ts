@@ -15,4 +15,6 @@
 export interface CancelIn {
   /** @maxLength 300 */
   note?: string;
+  /** The money went back in the payment provider's account already; the shop records the refund without asking the provider again. */
+  refunded_by_hand?: boolean;
 }

@@ -463,6 +463,11 @@ class ShipIn(_Request):
 
 class CancelIn(_Request):
     note: str = Field(default="", max_length=CANCEL_NOTE_MAX_LENGTH)
+    refunded_by_hand: bool = Field(
+        default=False,
+        description="The money went back in the payment provider's account already; "
+        "the shop records the refund without asking the provider again.",
+    )
 
 
 # --- Address book ---------------------------------------------------------------------
@@ -574,6 +579,10 @@ class RefundIn(_Request):
     """What goes back after a return: all that is left, or the articles that came back."""
 
     amount_cents: int = Field(gt=0, description="At most what is left of the payment.")
+    refunded_by_hand: bool = Field(
+        default=False,
+        description="Refunded in the payment provider's account already; only recorded here.",
+    )
 
 
 class WithdrawalListOut(BaseModel):

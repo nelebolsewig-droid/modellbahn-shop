@@ -49,6 +49,15 @@ function pickList(...states: PickItemOut["state"][]): PickListOut {
   };
 }
 
+/** SumUp refused the refund: the backend passes its words on as the problem's detail. */
+function refusal(reason: string): Response {
+  return jsonResponse(
+    { type: "/problems/refund-rejected", title: "Conflict", status: 409, detail: reason, code: "refund_rejected" },
+    409,
+    "application/problem+json",
+  );
+}
+
 function adminOrder(overrides: Partial<AdminOrderOut> = {}): AdminOrderOut {
   return {
     ...orderOut({ status: "paid", paid_at: "2026-10-25T09:02:00Z", payment_due_at: null }),
@@ -115,6 +124,35 @@ describe("OrderDesk", () => {
     expect(await screen.findByText("„Nicht lieferbar“")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByText("Storniert – nicht verschicken.")).toBeInTheDocument();
+  });
+
+  it("cancels as refunded by hand once SumUp refused the refund", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder()),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      "POST /api/v1/admin/orders/o1/cancel": (request) =>
+        (request.body as { refunded_by_hand: boolean }).refunded_by_hand
+          ? jsonResponse(adminOrder({ status: "cancelled", cancelled_at: "2026-10-25T10:00:00Z", cancel_reason: "by_shop" }))
+          : refusal("409 NOT_ALLOWED: The transaction is not eligible for a refund."),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Bestellung stornieren …" }));
+    const dialog = screen.getByRole("dialog", { name: "MB-2026-00042 stornieren?" });
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Stornieren" }));
+
+    expect(await within(dialog).findByText(/SumUp hat die Erstattung abgelehnt/)).toBeInTheDocument();
+    expect(within(dialog).getByText("409 NOT_ALLOWED: The transaction is not eligible for a refund.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: /im SumUp-Konto selbst erstattet/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Stornieren (schon erstattet)" }));
+
+    expect(await screen.findByText("Storniert – nicht verschicken.")).toBeInTheDocument();
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/cancel").map((r) => r.body)).toEqual([
+      { note: "", refunded_by_hand: false },
+      { note: "", refunded_by_hand: true },
+    ]);
   });
 
   it("ships only once every piece is picked, and offers the scanner until then", async () => {
@@ -229,7 +267,49 @@ describe("OrderDesk", () => {
     await user.click(within(dialog).getByRole("button", { name: "Erstatten" }));
 
     expect(await screen.findByText("Erstattet: 79,90 €. Es ist nichts mehr offen.")).toBeInTheDocument();
-    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/refunds")[0]?.body).toEqual({ amount_cents: 7990 });
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/refunds")[0]?.body).toEqual({
+      amount_cents: 7990,
+      refunded_by_hand: false,
+    });
+  });
+
+  it("records a refund made in SumUp by hand after SumUp refused it", async () => {
+    const payment = {
+      status: "captured" as const,
+      amount_cents: 7990,
+      refunded_cents: 0,
+      provider: "sumup",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const shipped = adminOrder({ status: "shipped", shipped_at: "2026-10-26T09:00:00Z", payments: [payment] });
+    let calls = 0;
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(shipped),
+      [PICK_LIST]: () => jsonResponse(pickList("picked")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+      "POST /api/v1/admin/orders/o1/refunds": () =>
+        ++calls === 1
+          ? refusal("422 : The refund could not be processed.")
+          : jsonResponse({ ...shipped, payments: [{ ...payment, status: "refunded", refunded_cents: 7990 }] }),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: /nur vermerken/ })).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Erstatten" }));
+
+    expect(await within(dialog).findByText(/SumUp hat die Erstattung abgelehnt/)).toBeInTheDocument();
+    expect(within(dialog).getByText("422 : The refund could not be processed.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Im SumUp-Konto erstattet, nur vermerken" }));
+
+    expect(await screen.findByText("Erstattet: 79,90 €. Es ist nichts mehr offen.")).toBeInTheDocument();
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/refunds")[1]?.body).toEqual({
+      amount_cents: 7990,
+      refunded_by_hand: true,
+    });
   });
 
   it("refunds only the articles that came back", async () => {

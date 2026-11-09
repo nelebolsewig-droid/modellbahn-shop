@@ -137,3 +137,25 @@ class TestSumUpOverHttp:
             assert too_big.status_code == 413
         status = (await client.get(f"{SHOP}/orders/{order['public_token']}")).json()
         assert status["status"] == "paid"
+
+
+class TestRefusedRefunds:
+    async def test_the_staff_read_sumups_refusal_and_cancel_after_refunding_by_hand(
+        self, client: AsyncClient, staff_client: AsyncClient, sumup: FakeSumUp, painted: UUID
+    ) -> None:
+        order = await on_the_page(client, painted)
+        sumup.pay("chk_1")
+        await client.post(f"{SHOP}/orders/{order['public_token']}/payments/sync")
+        sumup.refund_refusal = "409 NOT_ALLOWED: The transaction is not eligible for a refund."
+        (listed,) = (await staff_client.get("/api/v1/admin/orders")).json()["items"]
+        assert listed["number"] == order["number"]
+        cancel = f"/api/v1/admin/orders/{listed['id']}/cancel"
+
+        refused = assert_problem(await staff_client.post(cancel, json={}), 409, "refund_rejected")
+        assert "not eligible for a refund" in refused["detail"]
+
+        response = await staff_client.post(cancel, json={"refunded_by_hand": True})
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert (body["status"], body["payments"][0]["status"]) == ("cancelled", "refunded")
+        assert sumup.refunds == []

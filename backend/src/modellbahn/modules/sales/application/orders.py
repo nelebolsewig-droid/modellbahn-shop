@@ -108,8 +108,14 @@ class OrderService:
             await uow.commit()
             return await order_details(uow, order)
 
-    async def cancel(self, order_id: UUID, *, note: str) -> OrderDetails:
+    async def cancel(
+        self, order_id: UUID, *, note: str, refunded_by_hand: bool = False
+    ) -> OrderDetails:
         """Cancel an order that has not been shipped; a payment that came in is refunded.
+
+        ``refunded_by_hand`` says the staff gave the money back in the provider's own
+        account already (say, after the provider refused the refund here): the shop then
+        records the refund without asking the provider a second time.
 
         A marketplace order is cancelled on the marketplace, which refunds the buyer; the
         shop follows when it reads the cancellation from there.
@@ -121,16 +127,21 @@ class OrderService:
             # The customer may be on the provider's page right now. Money that comes in
             # there makes the order paid, and the cancellation below refunds it.
             await close_page(uow, order, self._gateway, self._clock)
-            await self._cancel(uow, order, CancelReason.BY_SHOP, note)
+            await self._cancel(
+                uow, order, CancelReason.BY_SHOP, note, refunded_by_hand=refunded_by_hand
+            )
             await uow.commit()
             return await order_details(uow, order)
 
-    async def refund(self, order_id: UUID, *, amount_cents: int) -> OrderDetails:
+    async def refund(
+        self, order_id: UUID, *, amount_cents: int, refunded_by_hand: bool = False
+    ) -> OrderDetails:
         """Give money back for a paid or shipped order, e.g. once a return has arrived.
 
-        The provider refunds first; if it fails, nothing is recorded. The customer gets an
-        e-mail (``sales.order.refunded``). A whole cancellation before dispatch is
-        :meth:`cancel`.
+        The provider refunds first; if it fails, nothing is recorded. With
+        ``refunded_by_hand`` the staff refunded in the provider's account themselves and
+        the shop only records it. The customer gets an e-mail (``sales.order.refunded``).
+        A whole cancellation before dispatch is :meth:`cancel`.
         """
         async with self._uow() as uow:
             order = await self._locked(uow, order_id)
@@ -139,10 +150,16 @@ class OrderService:
             payment = order.captured_payment
             if payment is None or not 0 < amount_cents <= order.refundable_cents:
                 raise RefundNotPossibleError(order.refundable_cents)
-            await self._gateway.refund(refund_ref=payment.refund_ref, amount_cents=amount_cents)
+            if not refunded_by_hand:
+                await self._gateway.refund(refund_ref=payment.refund_ref, amount_cents=amount_cents)
             uow.publish(order.refund(amount_cents, self._clock.now()))
             await uow.commit()
-            _logger.info("sales.order.refunded", order=order.number, amount_cents=amount_cents)
+            _logger.info(
+                "sales.order.refunded",
+                order=order.number,
+                amount_cents=amount_cents,
+                by_hand=refunded_by_hand,
+            )
             return await order_details(uow, order)
 
     async def settle_withdrawal(self, withdrawal_id: UUID) -> str:
@@ -199,15 +216,28 @@ class OrderService:
         return cancelled
 
     async def _cancel(
-        self, uow: SalesUnitOfWork, order: Order, reason: CancelReason, note: str
+        self,
+        uow: SalesUnitOfWork,
+        order: Order,
+        reason: CancelReason,
+        note: str,
+        *,
+        refunded_by_hand: bool = False,
     ) -> None:
         payment = order.captured_payment
         if payment is not None and order.status is OrderStatus.PAID and not order.from_marketplace:
-            # Refund first: if the provider fails, the order stays as it is. What went back
-            # already (part of a withdrawal) is not refunded twice.
-            await self._gateway.refund(
-                refund_ref=payment.refund_ref, amount_cents=payment.refundable_cents
-            )
+            if refunded_by_hand:
+                _logger.info(
+                    "sales.order.refunded_by_hand",
+                    order=order.number,
+                    amount_cents=payment.refundable_cents,
+                )
+            else:
+                # Refund first: if the provider fails, the order stays as it is. What went
+                # back already (part of a withdrawal) is not refunded twice.
+                await self._gateway.refund(
+                    refund_ref=payment.refund_ref, amount_cents=payment.refundable_cents
+                )
         uow.publish(order.cancel(reason=reason, note=note, now=self._clock.now()))
 
     async def _locked(self, uow: SalesUnitOfWork, order_id: UUID) -> Order:

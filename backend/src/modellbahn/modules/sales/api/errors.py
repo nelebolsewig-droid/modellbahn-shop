@@ -23,6 +23,7 @@ from modellbahn.modules.sales.domain.errors import (
     PaymentUnavailableError,
     PriceChangedError,
     RefundNotPossibleError,
+    RefundRejectedError,
     VariantUnavailableError,
 )
 from modellbahn.platform.errors import (
@@ -66,6 +67,8 @@ def _refund_not_possible(error: RefundNotPossibleError) -> AppError:
 
 _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     RefundNotPossibleError: _refund_not_possible,
+    # The detail is the provider's own answer: the Stellwerk shows it to the staff.
+    RefundRejectedError: lambda error: ConflictError(error.reason, code="refund_rejected"),
     InvalidFieldError: _invalid_field,
     PriceChangedError: _price_changed,
     VariantUnavailableError: lambda _: ConflictError(

@@ -14,6 +14,7 @@ from modellbahn.modules.sales.domain.errors import (
     CheckoutClosedError,
     InvalidFieldError,
     PaymentUnavailableError,
+    RefundRejectedError,
 )
 from modellbahn.modules.sales.domain.model import PaymentProgress
 from modellbahn.modules.sales.infrastructure.payments import (
@@ -200,6 +201,24 @@ class TestAbandonAndRefund:
     async def test_a_failed_refund_raises(self) -> None:
         with pytest.raises(PaymentUnavailableError):
             await gateway(answer("not json", 500)).refund(refund_ref="txn_ok", amount_cents=1)
+
+    async def test_a_refused_refund_says_why(self) -> None:
+        # SumUp answers refunds with problem details (RFC 9457).
+        problem = {
+            "type": "https://developer.sumup.com/problem/not-allowed",
+            "title": "Conflict",
+            "status": 409,
+            "detail": "The transaction is not eligible for a refund.",
+        }
+        with pytest.raises(RefundRejectedError) as refused:
+            await gateway(answer(problem, 409)).refund(refund_ref="txn_ok", amount_cents=1)
+        assert refused.value.reason == "409: The transaction is not eligible for a refund."
+
+    async def test_an_older_error_body_is_read_too(self) -> None:
+        body = {"error_code": "NOT_AUTHORIZED", "message": "Insufficient   scopes"}
+        with pytest.raises(RefundRejectedError) as refused:
+            await gateway(answer(body, 403)).refund(refund_ref="txn_ok", amount_cents=1)
+        assert refused.value.reason == "403 NOT_AUTHORIZED: Insufficient scopes"
 
 
 class TestOtherProviders:
