@@ -184,6 +184,7 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
   Gewichtsfeld. Paket wiegen, Gewicht in Gramm eintragen, „DHL-Label buchen“.
   - „Label drucken“ öffnet das PDF. Im Druckdialog den Etikettendrucker wählen, Papier
     100 × 150 mm, „Tatsächliche Größe“.
+  - Druckt die App des Druckers nur Bilder (Brother iPrint&Label), „Als Bild“ nehmen.
   - „Als versendet melden“ übernimmt die Sendungsnummer; der Kunde bekommt sie mit
     Verfolgungslink.
 - **Falsches Label:** „Label stornieren“, dann neu buchen. Nach dem Versand geht das nicht
@@ -194,6 +195,15 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
 - **Einschalten, Ausschalten:** `./scripts/einrichten.sh dhl` und bei „Labels im Stellwerk
   jetzt echt buchen lassen?“ mit `y` bzw. `N` antworten. Ausgeschaltet wird die Nummer
   wieder von Hand eingetragen.
+
+### Etiketten der Modelle
+
+- **Neue Stücke erfassen:** Lager → „Einheiten erfassen“, Artikel suchen, Anzahl „Stück“
+  und Platz eintragen, „Erfassen und Etiketten drucken“. Unterwegs geht es mit dem Handy
+  unter „Erfassen“ (neues Modell mit „Stück mit Etikett“).
+- **Drucken:** A4-Bogen oder Brother-Rolle 62 mm wählen. Für die Brother-App „Als Bilder
+  für die Brother-App“: jedes Etikett als Bild, einzeln oder als ZIP.
+- Auf jedem Etikett stehen Hersteller, Anschrift und E-Mail aus dem Impressum.
 
 ### Widerrufe
 

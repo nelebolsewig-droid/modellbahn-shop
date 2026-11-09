@@ -114,6 +114,10 @@ describe("shipping label at the order desk", () => {
       "href",
       "/api/v1/admin/orders/o1/shipping-label.pdf",
     );
+    expect(screen.getByRole("link", { name: "Als Bild" })).toHaveAttribute(
+      "href",
+      "/api/v1/admin/orders/o1/shipping-label.png",
+    );
     const dispatch = screen.getByRole("form", { name: "Versand melden" });
     expect(within(dispatch).getByLabelText("Sendungsnummer")).toHaveValue(
       "00340434161094042557",

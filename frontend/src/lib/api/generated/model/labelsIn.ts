@@ -11,9 +11,12 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { LabelFormat } from './labelFormat';
 import type { LabelSheet } from './labelSheet';
 
 export interface LabelsIn {
+  /** `png` only for the QL roll: one picture per label; several come as ZIP. */
+  format?: LabelFormat;
   /**
      * @maxItems 240
      * @items.maxLength 44

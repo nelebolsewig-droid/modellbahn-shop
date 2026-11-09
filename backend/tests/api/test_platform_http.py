@@ -218,6 +218,10 @@ EXPECTED_OPERATIONS = {
         "getShippingLabelDocument",
         "admin-sales",
     ),
+    ("GET", "/api/v1/admin/orders/{order_id}/shipping-label.png"): (
+        "getShippingLabelImage",
+        "admin-sales",
+    ),
     ("GET", "/api/v1/admin/inventory/locations"): ("listLocations", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/locations"): ("createLocation", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/locations/{code}"): ("getLocation", "admin-inventory"),

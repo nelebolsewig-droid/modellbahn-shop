@@ -1,10 +1,11 @@
 """Request and response bodies of the inventory API (snake_case JSON)."""
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.application.allocation import PickItem, PickList, PieceState
@@ -727,6 +728,13 @@ class PickListOut(BaseModel):
 # --- Labels ---------------------------------------------------------------------------
 
 
+class LabelFormat(StrEnum):
+    PDF = "pdf"
+    """For printing from the browser or a PDF viewer."""
+    PNG = "png"
+    """Pictures at 300 dpi, for the Brother apps (iPrint&Label, P-touch Editor)."""
+
+
 class LabelsIn(_Request):
     unit_codes: list[Annotated[str, Field(max_length=20)]] = Field(
         default_factory=list, max_length=LABELS_PER_PRINT_MAX
@@ -746,6 +754,17 @@ class LabelsIn(_Request):
         lt=A4_LABELS_PER_SHEET,
         description="Labels of a started A4 sheet to leave empty.",
     )
+    format: LabelFormat = Field(
+        default=LabelFormat.PDF,
+        description="`png` only for the QL roll: one picture per label; several come as ZIP.",
+    )
+
+    @model_validator(mode="after")
+    def _png_only_on_the_roll(self) -> Self:
+        if self.format is LabelFormat.PNG and self.sheet is not LabelSheet.QL_62X29:
+            msg = "pictures exist for the QL roll only, not for A4 sheets"
+            raise ValueError(msg)
+        return self
 
 
 # --- Assembly -------------------------------------------------------------------------

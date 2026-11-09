@@ -194,3 +194,14 @@ Verpackung.
   nicht, bricht die Zeile um und wird kleiner, höchstens auf 75 %. Weggelassen wird nichts.
 - **Ohne vollständiges Impressum** (Entwicklung) bleibt der Platz leer.
 - Lager- und Teileetiketten bleiben ohne Hersteller; sie verlassen die Werkstatt nicht.
+
+## Nachtrag 09.11.2026: Tiefschwarz und als Bild für die Brother-App
+
+- **Schwarz:** Alle Texte der Etiketten sind tiefschwarz, auch Überschrift, Ausführung und
+  Artikelnummer. Thermodrucker kennen nur Schwarz; Grau käme als Punktmuster heraus.
+- **Als Bild:** Brothers Apps (iPrint&Label, P-touch Editor) drucken Bilder, keine PDFs.
+  Für die QL-Rolle gibt `printLabels` mit `format: png` jedes Etikett als PNG aus, mit
+  300 dpi in reinem Schwarzweiß; bei mehreren als ZIP.
+  - Das Stellwerk zeigt die Bilder einzeln zum Speichern und alle zusammen als ZIP.
+  - Gerendert wird das PDF mit PDFium (`pypdfium2`), damit Bild und PDF gleich aussehen.
+- **DHL-Label als Bild:** `…/shipping-label.png` liefert das DHL-Label ebenso als PNG.

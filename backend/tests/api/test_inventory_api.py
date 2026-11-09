@@ -2,11 +2,14 @@
 
 import csv
 import io
+from io import BytesIO
 from typing import Any
 from uuid import UUID, uuid4
+from zipfile import ZipFile
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.media.application.services import MediaService
@@ -267,6 +270,43 @@ class TestLabels:
         assert response.headers["content-type"] == "application/pdf"
         assert response.content.startswith(b"%PDF")
         assert response.headers["cache-control"] == "no-store"
+
+    async def test_pictures_for_the_brother_apps(
+        self, staff_client: AsyncClient, painted: UUID
+    ) -> None:
+        await build_store(staff_client)
+        created = await staff_client.post(
+            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": 2}
+        )
+        codes = [unit["code"] for unit in created.json()["items"]]
+        one = await staff_client.post(
+            f"{INVENTORY}/labels",
+            json={"unit_codes": codes[:1], "sheet": "ql_62x29", "format": "png"},
+        )
+        assert one.status_code == 200, one.text
+        assert one.headers["content-type"] == "image/png"
+        assert 'filename="etikett.png"' in one.headers["content-disposition"]
+        picture = Image.open(BytesIO(one.content))
+        # 62 x 29 mm at 300 dpi, black and white as the thermal printer prints.
+        assert picture.size == (733, 343)
+        assert picture.mode == "1"
+        several = await staff_client.post(
+            f"{INVENTORY}/labels",
+            json={
+                "unit_codes": codes,
+                "location_codes": ["R01-F01"],
+                "sheet": "ql_62x29",
+                "format": "png",
+            },
+        )
+        assert several.headers["content-type"] == "application/zip"
+        with ZipFile(BytesIO(several.content)) as archive:
+            assert archive.namelist() == ["etikett-01.png", "etikett-02.png", "etikett-03.png"]
+        sheet = await staff_client.post(
+            f"{INVENTORY}/labels",
+            json={"unit_codes": codes, "sheet": "a4_70x37", "format": "png"},
+        )
+        assert_problem(sheet, 422, "validation_failed")
 
     async def test_unknown_codes_and_empty_requests_are_refused(
         self, staff_client: AsyncClient

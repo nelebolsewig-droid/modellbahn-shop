@@ -987,6 +987,106 @@ export function useGetShippingLabelDocument<TData = Awaited<ReturnType<typeof ge
 
 
 
+export const getGetShippingLabelImageUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/shipping-label.png`
+}
+
+/**
+ * @summary The label as a picture at 300 dpi, for label printers whose apps print images
+ */
+export const getShippingLabelImage = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetShippingLabelImageUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShippingLabelImageQueryKey = (orderId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/shipping-label.png`
+    ] as const;
+    }
+
+
+export const getGetShippingLabelImageQueryOptions = <TData = Awaited<ReturnType<typeof getShippingLabelImage>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShippingLabelImageQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShippingLabelImage>>> = ({ signal }) => getShippingLabelImage(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetShippingLabelImageQueryResult = NonNullable<Awaited<ReturnType<typeof getShippingLabelImage>>>
+export type GetShippingLabelImageQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getShippingLabelImage>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabelImage>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabelImage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getShippingLabelImage>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabelImage>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabelImage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getShippingLabelImage>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The label as a picture at 300 dpi, for label printers whose apps print images
+ */
+
+export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getShippingLabelImage>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelImage>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetShippingLabelImageQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 export const getGetShippingSetupUrl = () => {
 
 

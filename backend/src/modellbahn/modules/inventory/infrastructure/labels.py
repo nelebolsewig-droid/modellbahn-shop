@@ -1,5 +1,8 @@
 """Labels as PDF with reportlab: barcodes as vector graphics, text set in Geist like the shop.
 
+Everything is deep black: thermal printers print black or nothing, and grey would come out
+as a pattern of dots.
+
 Johann's till (SumUp) reads barcodes, not QR codes:
 
 * **Unit:** the variant's EAN-13 at the top left (the till rings up the article by
@@ -31,7 +34,7 @@ from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode.code128 import Code128
 from reportlab.graphics.barcode.eanbc import Ean13BarcodeWidget
 from reportlab.graphics.shapes import Drawing
-from reportlab.lib.colors import Color, black
+from reportlab.lib.colors import black
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import simpleSplit
@@ -49,7 +52,6 @@ _FONT_FILES: Final = {
     _SANS_MEDIUM: "Geist-Medium.ttf",
     _MONO: "GeistMono-Medium.ttf",
 }
-_GREY: Final = Color(0.42, 0.44, 0.47)
 _ELLIPSIS: Final = "…"
 # EAN-13 is 95 modules wide, plus 11 and 7 modules of quiet zone.
 _EAN_MODULES: Final = 113
@@ -218,7 +220,7 @@ def _draw_unit(
     for line in _lines(label.title, _SANS_MEDIUM, title_size, width, 2):
         canvas.drawString(text_left, cursor, line)
         cursor -= title_size * 1.2
-    canvas.setFillColor(_GREY)
+    canvas.setFillColor(black)
     canvas.setFont(_SANS, layout.detail_size)
     canvas.drawString(
         text_left, cursor - 0.2 * mm, _truncated(label.detail, _SANS, layout.detail_size, width)
@@ -266,7 +268,7 @@ def _draw_location(canvas: Canvas, label: Label, x: float, y: float, layout: _La
 
     cursor = top - layout.caption_size
     _caption(canvas, label.caption, left, cursor, layout.caption_size)
-    canvas.setFillColor(_GREY)
+    canvas.setFillColor(black)
     canvas.setFont(_MONO, layout.detail_size)
     reference = _truncated(label.reference, _MONO, layout.detail_size, width * 0.55)
     canvas.drawRightString(right, cursor, reference)
@@ -297,7 +299,7 @@ def _caption(canvas: Canvas, text: str, x: float, y: float, size: float) -> None
     # Character spacing belongs to the PDF's text state and would outlive the text
     # object, so the state is saved around it.
     canvas.saveState()
-    canvas.setFillColor(_GREY)
+    canvas.setFillColor(black)
     caption = canvas.beginText(x, y)
     caption.setFont(_SANS_MEDIUM, size)
     caption.setCharSpace(0.08 * size)
