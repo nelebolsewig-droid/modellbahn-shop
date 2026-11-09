@@ -79,6 +79,14 @@ describe("apiFetch response", () => {
     await expect(apiFetch<string>("/articles.csv")).resolves.toBe("Name;EAN");
   });
 
+  it("hands over pictures and ZIPs as blobs", async () => {
+    for (const type of ["image/png", "application/zip"]) {
+      fetchMock.mockResolvedValueOnce(new Response("bytes", { status: 200, headers: { "Content-Type": type } }));
+      const blob = await apiFetch<Blob>("/labels", { method: "POST" });
+      expect(blob.type).toBe(type);
+    }
+  });
+
   it("returns undefined for an empty body (204)", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(apiFetch("/x", { method: "DELETE" })).resolves.toBeUndefined();

@@ -286,6 +286,7 @@ export const getPrintLabelsUrl = () => {
 }
 
 /**
+ * With `format: png` (QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.
  * @summary Labels for units and locations as PDF, for A4 sheets or the Brother QL
  */
 export const printLabels = async (labelsIn: LabelsIn, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { LabelPictures } from "@/components/admin/inventory/label-pictures";
 import { Button } from "@/components/ui/button";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { printLabels } from "@/lib/api/generated/admin-inventory/admin-inventory";
@@ -125,7 +126,10 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers =
               Angebrochener Bogen? Auf das erste freie Feld tippen. {skip > 0 ? `Gedruckt wird ab Feld ${skip + 1}.` : ""}
             </p>
           ) : (
-            <p className="text-ink-secondary">Im Druckdialog die Rolle 62 mm wählen und „Tatsächliche Größe“ einstellen.</p>
+            <p className="text-ink-secondary">
+              Im Druckdialog die Rolle 62 mm wählen und „Tatsächliche Größe“ einstellen. Druckt ihr mit der Brother-App,
+              nehmt die Bilder.
+            </p>
           )}
           {pdf ? (
             <div className="flex flex-wrap gap-2">
@@ -148,6 +152,14 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers =
           <p role="alert" className="text-hint font-medium text-danger">
             {problem}
           </p>
+          {sheet === LabelSheet.ql_62x29 ? (
+            <LabelPictures
+              key={[...unitCodes, ...locationCodes, ...partNumbers].join(" ")}
+              unitCodes={unitCodes}
+              locationCodes={locationCodes}
+              partNumbers={partNumbers}
+            />
+          ) : null}
         </div>
       </div>
     </div>

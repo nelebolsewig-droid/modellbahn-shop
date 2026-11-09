@@ -4,6 +4,7 @@ The app runs with the test carrier, which draws its labels itself.
 """
 
 from collections.abc import AsyncIterator
+from io import BytesIO
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -11,6 +12,7 @@ import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import AsyncClient
+from PIL import Image
 
 from modellbahn.main import create_app
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
@@ -92,10 +94,19 @@ class TestLabels:
         assert label["shipment_number"] in pdf.headers["content-disposition"]
         assert pdf.content.startswith(b"%PDF")
 
+        picture = await packer_client.get(f"{label_url}.png")
+        assert picture.status_code == 200
+        assert picture.headers["content-type"] == "image/png"
+        assert label["shipment_number"] in picture.headers["content-disposition"]
+        # The test label is 100 x 150 mm: at 300 dpi about 1181 x 1772 dots.
+        width, height = Image.open(BytesIO(picture.content)).size
+        assert (abs(width - 1181), abs(height - 1772)) <= (1, 1)
+
         cancelled = await packer_client.delete(label_url)
         assert cancelled.status_code == 204
         assert_problem(await packer_client.get(label_url), 404, "label_not_found")
         assert_problem(await packer_client.get(f"{label_url}.pdf"), 404, "label_not_found")
+        assert_problem(await packer_client.get(f"{label_url}.png"), 404, "label_not_found")
         assert_problem(await packer_client.delete(label_url), 404, "label_not_found")
 
         again = await packer_client.post(label_url, json={})

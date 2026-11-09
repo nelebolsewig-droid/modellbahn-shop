@@ -19,6 +19,7 @@ import {
   bookShippingLabel,
   cancelShippingLabel,
   getGetShippingLabelDocumentUrl,
+  getGetShippingLabelImageUrl,
   getGetShippingLabelQueryKey,
   getShippingLabel,
 } from "@/lib/api/generated/admin-sales/admin-sales";
@@ -246,11 +247,20 @@ function LabelCard({
             Herunterladen
           </a>
         </Button>
+        <Button asChild size="sm" variant="secondary">
+          <a
+            href={getGetShippingLabelImageUrl(order.id)}
+            download={`${label.carrier}-${label.shipment_number}.png`}
+          >
+            Als Bild
+          </a>
+        </Button>
       </div>
       <p className="mt-3 text-hint text-ink-tertiary">
         Im Druckdialog den Etikettendrucker wählen, Papier{" "}
         <span className="whitespace-nowrap">100 × 150 mm</span>, „Tatsächliche
-        Größe“.
+        Größe“. Druckt die App des Druckers nur Bilder (etwa Brother), „Als
+        Bild“ nehmen.
       </p>
       {order.status === "paid" ? (
         <CancelLabel order={order} label={label} />

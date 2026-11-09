@@ -86,6 +86,7 @@ export * from './imageFactsOut';
 export * from './imageOut';
 export * from './imageRenditionOut';
 export * from './imprintOut';
+export * from './labelFormat';
 export * from './labelIn';
 export * from './labelSheet';
 export * from './labelsIn';

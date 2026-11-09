@@ -1,9 +1,12 @@
 """The workshop's stock in the admin area (``/api/v1/admin/inventory``)."""
 
+from io import BytesIO
 from typing import Annotated, Final
 from uuid import UUID
+from zipfile import ZIP_STORED, ZipFile
 
 from fastapi import APIRouter, Query, Response, status
+from starlette.concurrency import run_in_threadpool
 
 from modellbahn.modules.inventory.api.deps import (
     AllocationServiceDep,
@@ -21,6 +24,7 @@ from modellbahn.modules.inventory.api.schemas import (
     AssemblyIn,
     AssemblyOut,
     AssemblyPlanOut,
+    LabelFormat,
     LabelsIn,
     LocationContentsOut,
     LocationCreateIn,
@@ -50,6 +54,7 @@ from modellbahn.modules.inventory.application.labels import LabelRequest
 from modellbahn.modules.inventory.application.scanning import ScanRequest
 from modellbahn.modules.inventory.domain.parts import KITS_PER_ASSEMBLY_MAX
 from modellbahn.platform.errors import problems
+from modellbahn.platform.pdf_images import pdf_to_pngs
 
 router = APIRouter(prefix="/admin/inventory", tags=["admin-inventory"])
 
@@ -58,6 +63,8 @@ _UNIT_NOT_FOUND: Final = {404: ["unit_not_found"]}
 _ORDER_NOT_FOUND: Final = {404: ["order_not_found"]}
 _PART_NOT_FOUND: Final = {404: ["part_not_found"]}
 _PDF: Final = "application/pdf"
+_PNG: Final = "image/png"
+_ZIP: Final = "application/zip"
 
 
 # --- Locations ------------------------------------------------------------------------
@@ -384,11 +391,17 @@ async def allocate_order(
     "/labels",
     operation_id="printLabels",
     summary="Labels for units and locations as PDF, for A4 sheets or the Brother QL",
+    description="With `format: png` (QL roll only) one picture per label at 300 dpi, for "
+    "Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.",
     response_class=Response,
     responses={
         200: {
-            "description": "The labels as PDF.",
-            "content": {_PDF: {"schema": {"type": "string", "format": "binary"}}},
+            "description": "The labels as PDF, PNG or ZIP of PNGs.",
+            "content": {
+                _PDF: {"schema": {"type": "string", "format": "binary"}},
+                _PNG: {"schema": {"type": "string", "format": "binary"}},
+                _ZIP: {"schema": {"type": "string", "format": "binary"}},
+            },
         },
         **problems(STAFF_ACCESS),
     },
@@ -403,11 +416,29 @@ async def print_labels(body: LabelsIn, _: StockWorker, service: LabelServiceDep)
             skip=body.skip,
         )
     )
+    if body.format is LabelFormat.PDF:
+        return _download(pdf, _PDF, "etiketten.pdf")
+    pictures = await run_in_threadpool(pdf_to_pngs, pdf)
+    if len(pictures) == 1:
+        return _download(pictures[0], _PNG, "etikett.png")
+    return _download(_zipped(pictures), _ZIP, "etiketten.zip")
+
+
+def _download(content: bytes, media_type: str, filename: str) -> Response:
     return Response(
-        content=pdf,
-        media_type=_PDF,
+        content=content,
+        media_type=media_type,
         headers={
-            "Content-Disposition": 'inline; filename="etiketten.pdf"',
+            "Content-Disposition": f'inline; filename="{filename}"',
             "Cache-Control": "no-store",
         },
     )
+
+
+def _zipped(pictures: list[bytes]) -> bytes:
+    """``etikett-01.png``, ``etikett-02.png`` … in print order."""
+    buffer = BytesIO()
+    with ZipFile(buffer, "w", ZIP_STORED) as archive:
+        for number, picture in enumerate(pictures, start=1):
+            archive.writestr(f"etikett-{number:02d}.png", picture)
+    return buffer.getvalue()

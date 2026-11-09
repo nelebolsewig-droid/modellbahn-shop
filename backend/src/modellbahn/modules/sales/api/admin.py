@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
+from starlette.concurrency import run_in_threadpool
 
 from modellbahn.modules.sales.api.deps import (
     LabelServiceDep,
@@ -28,6 +29,7 @@ from modellbahn.modules.sales.api.schemas import (
 )
 from modellbahn.modules.sales.domain.model import OrderStatus
 from modellbahn.platform.errors import problems
+from modellbahn.platform.pdf_images import pdf_to_pngs
 
 router = APIRouter(prefix="/admin/orders", tags=["admin-sales"])
 
@@ -222,6 +224,31 @@ async def get_shipping_label_document(
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'inline; filename="DHL-{label.shipment_number}.pdf"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.get(
+    "/{order_id}/shipping-label.png",
+    operation_id="getShippingLabelImage",
+    summary="The label as a picture at 300 dpi, for label printers whose apps print images",
+    response_class=Response,
+    responses={
+        200: {"content": {"image/png": {}}, "description": "The label."},
+        **problems({**STAFF_ACCESS, **_LABEL_NOT_FOUND}, unsafe=False),
+    },
+)
+async def get_shipping_label_image(
+    order_id: UUID, _: OrderViewer, labels: LabelServiceDep
+) -> Response:
+    label = await labels.active(order_id)
+    pictures = await run_in_threadpool(pdf_to_pngs, label.document)
+    return Response(
+        content=pictures[0],
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'inline; filename="DHL-{label.shipment_number}.png"',
             "Cache-Control": "no-store",
         },
     )

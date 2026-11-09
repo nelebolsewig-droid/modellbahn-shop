@@ -54,9 +54,10 @@ export async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<
 }
 
 async function readBody<T>(response: Response): Promise<T> {
-  // Labels come as PDF, the article list as CSV: those are handed over as they are.
+  // Labels come as PDF, pictures or a ZIP of pictures, the article list as CSV: those are
+  // handed over as they are.
   const type = response.headers.get("Content-Type") ?? "";
-  if (type.startsWith("application/pdf")) {
+  if (type.startsWith("application/pdf") || type.startsWith("image/") || type.startsWith("application/zip")) {
     return (await response.blob()) as T;
   }
   if (type.startsWith("text/csv")) {
