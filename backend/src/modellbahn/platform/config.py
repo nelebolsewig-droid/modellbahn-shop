@@ -3,6 +3,7 @@
 import base64
 import binascii
 import re
+from decimal import Decimal
 from email.utils import parseaddr
 from enum import StrEnum
 from typing import Literal, Self
@@ -60,6 +61,20 @@ class PaymentProvider(StrEnum):
     """SumUp Online: the customer pays on SumUp's page (card, Apple Pay, Google Pay)."""
     OFF = "off"
     """No provider: the shop takes no orders."""
+
+
+class AiProvider(StrEnum):
+    """Who writes the product text drafts (ADR 0021)."""
+
+    OFF = "off"
+    """No drafts: the Stellwerk hides the button."""
+    FAKE = "fake"
+    """A canned draft from the facts, for development and tests; nothing leaves the server."""
+    ANTHROPIC = "anthropic"
+    """Claude through Anthropic's API, paid per token."""
+
+
+type AiEffort = Literal["low", "medium", "high", "xhigh", "max"]
 
 
 class Settings(BaseSettings):
@@ -154,6 +169,16 @@ class Settings(BaseSettings):
     sumup_api_key: SecretStr = SecretStr("")
     sumup_merchant_code: str = ""
     sumup_api_url: str = "https://api.sumup.com"
+
+    # Product text drafts (ADR 0021). Anthropic needs an API key of the shop's account
+    # (sk-ant-...); the budget stops new calls for the rest of the month once it is spent.
+    # The API address only changes in tests.
+    ai_provider: AiProvider = AiProvider.OFF
+    anthropic_api_key: SecretStr = SecretStr("")
+    ai_model: str = "claude-opus-5-5"
+    ai_effort: AiEffort = "medium"
+    ai_monthly_budget_usd: Decimal = Field(default=Decimal(20), ge=0, le=10_000)
+    anthropic_api_url: str = "https://api.anthropic.com"
 
     @field_validator("database_url")
     @classmethod
@@ -266,6 +291,15 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _require_anthropic_key(self) -> Self:
+        if self.ai_provider is AiProvider.ANTHROPIC and not (
+            self.anthropic_api_key.get_secret_value().strip()
+        ):
+            msg = "MB_AI_PROVIDER=anthropic needs MB_ANTHROPIC_API_KEY"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
     def _refuse_insecure_production(self) -> Self:
         if self.environment is not Environment.PRODUCTION:
             return self
@@ -295,7 +329,16 @@ class Settings(BaseSettings):
             # Orders would count as paid without any money.
             msg = "MB_PAYMENT_PROVIDER=mock is not allowed in production (sumup or off)"
             raise ValueError(msg)
+        if self.ai_provider is AiProvider.FAKE:
+            # Canned texts would end up in the shop as if somebody had written them.
+            msg = "MB_AI_PROVIDER=fake is not allowed in production (anthropic or off)"
+            raise ValueError(msg)
         return self
+
+    @property
+    def ai_monthly_budget_micro_usd(self) -> int:
+        """The month's budget in millionths of a dollar, as the runs count their cost."""
+        return int(self.ai_monthly_budget_usd * 1_000_000)
 
     @property
     def is_production(self) -> bool:

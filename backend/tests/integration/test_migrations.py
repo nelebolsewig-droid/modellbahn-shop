@@ -11,6 +11,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import Connection, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from modellbahn.modules.ai.infrastructure import tables as ai_tables
 from modellbahn.modules.catalog.infrastructure import tables as catalog_tables
 from modellbahn.modules.identity.infrastructure import tables as identity_tables
 from modellbahn.modules.inventory.infrastructure import tables as inventory_tables
@@ -32,6 +33,7 @@ SCHEMAS = (
     "site",
     "marketplace",
     "manufacturing",
+    "ai",
 )
 
 
@@ -112,6 +114,7 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "manufacturing.bom_lines",
         "manufacturing.print_jobs",
         "manufacturing.print_job_lines",
+        "ai.runs",
     }
     migrate(scratch_database_url)
     assert asyncio.run(_tables(scratch_database_url)) == expected
@@ -144,6 +147,7 @@ async def test_tables_match_the_migration(engine: AsyncEngine) -> None:
     assert inventory_tables.units.metadata is metadata
     assert marketplace_tables.listings.metadata is metadata
     assert manufacturing_tables.print_jobs.metadata is metadata
+    assert ai_tables.runs.metadata is metadata
     async with engine.connect() as connection:
         assert await connection.run_sync(_differences) == []
 
@@ -198,6 +202,10 @@ async def test_constraint_names_follow_the_convention(engine: AsyncEngine) -> No
         "fk_print_jobs_printer_id_technology_printers",
         "fk_print_job_lines_part_id_technology_parts",
         "ck_print_job_lines_counts_within_quantity",
+        "fk_runs_product_id_products",
+        "fk_runs_requested_by_accounts",
+        "ck_runs_failure_when_failed",
+        "ck_runs_output_when_done",
         "ck_print_jobs_started_at",
     } <= names
 

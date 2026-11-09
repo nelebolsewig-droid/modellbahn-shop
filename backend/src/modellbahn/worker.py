@@ -10,6 +10,10 @@ import structlog
 
 # Modules whose events the worker only forwards (no handler here) are imported for their
 # event classes: the dispatcher must deserialize every event type in the outbox.
+from modellbahn.modules.ai.application.copy import CopyWorker
+from modellbahn.modules.ai.application.ports import CopyWriter
+from modellbahn.modules.ai.infrastructure.repositories import ai_uow_factory
+from modellbahn.modules.ai.infrastructure.setup import build_copy_writer
 from modellbahn.modules.catalog.contracts import events as catalog_events
 from modellbahn.modules.identity.application.handlers import IdentityMailHandlers
 from modellbahn.modules.identity.infrastructure.mapping import (
@@ -63,6 +67,8 @@ EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
 EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
+# A requested text draft should be ready while somebody waits in the product editor.
+COPY_DRAFT_INTERVAL: Final = timedelta(seconds=5)
 # The marketplace's events stay readable with MB_EBAY_MODE=off (the setting may change).
 FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events, manufacturing_events)
 
@@ -74,6 +80,7 @@ async def run_worker(
     mailer: Mailer | None = None,
     media_storage: MediaStorage | None = None,
     image_processor: ImageProcessor | None = None,
+    copy_writer: CopyWriter | None = None,
 ) -> None:
     """Wire the handlers and jobs of all modules and run them until ``stop`` is set."""
     engine = create_engine(settings.database_url)
@@ -147,6 +154,17 @@ async def run_worker(
         sender=settings.imprint.mail_footer(),
     )
     cart_service = CartService(uow_factory=sales_uow, clock=clock)
+    writer = copy_writer or build_copy_writer(settings)
+    copy_worker = CopyWorker(
+        uow_factory=ai_uow_factory(
+            session_factory,
+            site_url=settings.public_base_url,
+            media_base_url=settings.media_public_base_url,
+        ),
+        writer=writer,
+        clock=clock,
+        monthly_budget_micro_usd=settings.ai_monthly_budget_micro_usd,
+    )
     jobs = [
         PeriodicJob(
             name="media.purge_stale_uploads",
@@ -178,6 +196,9 @@ async def run_worker(
             interval=PENDING_SUBSCRIPTION_SWEEP_INTERVAL,
             run=SubscriptionService(uow_factory=site_uow, clock=clock).purge_pending,
         ),
+        # Runs even without a model: queued drafts then fail as "disabled" instead of
+        # waiting for ever.
+        PeriodicJob(name="ai.write_copy", interval=COPY_DRAFT_INTERVAL, run=copy_worker.work),
     ]
     if marketplace is not None:
         jobs += [
@@ -210,6 +231,8 @@ async def run_worker(
         if marketplace is not None:
             await marketplace.aclose()
         await payment_gateway.aclose()
+        if writer is not None:
+            await writer.aclose()
         await engine.dispose()
 
 

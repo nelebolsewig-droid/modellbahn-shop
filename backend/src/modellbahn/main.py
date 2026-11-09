@@ -9,6 +9,13 @@ from fastapi import APIRouter, Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn import __version__
+from modellbahn.modules.ai.api import admin as ai_admin
+from modellbahn.modules.ai.api.errors import (
+    install_error_translations as install_ai_error_translations,
+)
+from modellbahn.modules.ai.application.copy import CopyService
+from modellbahn.modules.ai.infrastructure.repositories import ai_uow_factory
+from modellbahn.modules.ai.infrastructure.setup import model_label
 from modellbahn.modules.catalog.api import admin as catalog_admin
 from modellbahn.modules.catalog.api import store as catalog_store
 from modellbahn.modules.catalog.api.errors import (
@@ -128,7 +135,7 @@ from modellbahn.modules.site.infrastructure.mapping import start_mappers as star
 from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform import http
 from modellbahn.platform.clock import SystemClock
-from modellbahn.platform.config import Settings
+from modellbahn.platform.config import AiProvider, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
 from modellbahn.platform.errors import (
     add_problem_schemas,
@@ -179,6 +186,7 @@ _TAGS: Final = [
         "name": "admin-marketplace",
         "description": "eBay: the connection, offers kept in step with the shop, its orders.",
     },
+    {"name": "admin-ai", "description": "Text drafts of products from a language model."},
     {"name": "admin-realtime", "description": "Live events for the admin area (SSE)."},
     {"name": "system", "description": "Health probes."},
 ]
@@ -268,6 +276,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
     app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
     app.state.imprint = settings.imprint
+    # The API only queues drafts; the worker calls the model (ADR 0021).
+    app.state.copy_service = CopyService(
+        uow_factory=ai_uow_factory(
+            session_factory,
+            site_url=settings.public_base_url,
+            media_base_url=settings.media_public_base_url,
+        ),
+        clock=clock,
+        enabled=settings.ai_provider is not AiProvider.OFF,
+        model=model_label(settings),
+        monthly_budget_micro_usd=settings.ai_monthly_budget_micro_usd,
+    )
     setattr(app.state, MARKETPLACE_STATE, marketplace)
     setattr(
         app.state,
@@ -288,6 +308,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         install_site_error_translations,
         install_marketplace_error_translations,
         install_manufacturing_error_translations,
+        install_ai_error_translations,
     ):
         install_error_translations(app)
 
@@ -326,6 +347,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
     api.include_router(marketplace_admin.router)
+    api.include_router(ai_admin.router)
     api.include_router(marketplace_webhooks.router)
     api.include_router(sales_webhooks.router)
     api.include_router(

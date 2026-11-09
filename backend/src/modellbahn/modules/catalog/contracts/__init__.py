@@ -9,6 +9,8 @@
   offer elsewhere shows it.
 * :mod:`.product_scales` - a read-only facade for manufacturing: the scales, and a
   product in one scale with the key its bill of materials refers to.
+* :mod:`.copy_facts` - a read-only facade for product texts: the facts a writer may
+  rely on (no prices), and the products still in draft.
 
 This package itself imports nothing, so importing it loads no submodule.
 """
