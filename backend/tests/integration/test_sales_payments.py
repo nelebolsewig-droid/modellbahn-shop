@@ -23,6 +23,7 @@ from modellbahn.modules.sales.domain.errors import (
     OrderNotFoundError,
     OrderNotPayableError,
     PaymentUnavailableError,
+    RefundRejectedError,
 )
 from modellbahn.modules.sales.domain.model import (
     PAYMENT_TIMEOUT,
@@ -327,6 +328,67 @@ class TestGivingUp:
         assert given_up.payments[0].failure_code == "cancelled"
         clock.advance(timedelta(hours=1))
         assert await orders.cancel_overdue() == 0
+
+
+class TestRefundsByHand:
+    """SumUp may refuse a refund; the staff then refund in SumUp and the shop records it."""
+
+    async def test_a_refused_refund_keeps_the_order_until_it_is_refunded_by_hand(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        payments: PaymentService,
+        sumup: FakeSumUp,
+        engine: AsyncEngine,
+        painted: UUID,
+    ) -> None:
+        order, reference = await on_the_page(carts, checkout, painted)
+        sumup.pay(reference)
+        await payments.sync(order.public_token)
+        sumup.refund_refusal = "409 NOT_ALLOWED: The transaction cannot be refunded yet."
+
+        with pytest.raises(RefundRejectedError) as refused:
+            await orders.cancel(order.id, note="Testbestellung")
+        assert "cannot be refunded yet" in refused.value.reason
+        assert (await orders.get(order.id)).order.status is OrderStatus.PAID
+
+        cancelled = (
+            await orders.cancel(order.id, note="Testbestellung", refunded_by_hand=True)
+        ).order
+        assert (cancelled.status, cancelled.cancel_reason) == (
+            OrderStatus.CANCELLED,
+            CancelReason.BY_SHOP,
+        )
+        assert cancelled.payments[0].status is PaymentStatus.REFUNDED
+        assert cancelled.refunded_cents == order.total_cents
+        assert sumup.refunds == []
+        assert await event_types(engine) == [
+            "sales.order.placed",
+            "sales.order.paid",
+            "sales.order.cancelled",
+        ]
+
+    async def test_a_part_refunded_by_hand_is_only_recorded(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        payments: PaymentService,
+        sumup: FakeSumUp,
+        painted: UUID,
+    ) -> None:
+        order, reference = await on_the_page(carts, checkout, painted)
+        sumup.pay(reference)
+        await payments.sync(order.public_token)
+        sumup.refund_refusal = "422 : The refund could not be processed."
+        with pytest.raises(RefundRejectedError):
+            await orders.refund(order.id, amount_cents=500)
+
+        refunded = (await orders.refund(order.id, amount_cents=500, refunded_by_hand=True)).order
+        assert refunded.refunded_cents == 500
+        assert refunded.refundable_cents == order.total_cents - 500
+        assert sumup.refunds == []
 
 
 class TestClosedShop:

@@ -125,6 +125,17 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
   starten und den Schlüssel neu eintragen).
 - **Zum Ausprobieren** vor dem Start eine Bestellung über ein paar Euro mit echter Karte
   bezahlen und im Stellwerk stornieren: Das prüft Zahlung und Erstattung in einem.
+- **SumUp lehnt eine Erstattung ab:** Das Stellwerk zeigt „SumUp hat die Erstattung
+  abgelehnt“ und darunter SumUps eigene Antwort (im Log: `sales.sumup.error` mit `status`
+  und `message`). Storno bzw. Erstattung sind dann nicht gespeichert, es ging nichts zurück.
+  - Den Betrag im SumUp-Konto selbst erstatten: unter den Transaktionen die Zahlung öffnen
+    und dort erstatten.
+  - Danach im Stellwerk dieselbe Aktion noch einmal: Beim Stornieren erscheint der Haken
+    „im SumUp-Konto selbst erstattet“, bei der Erstattung der Knopf „Im SumUp-Konto
+    erstattet, nur vermerken“. Der Shop vermerkt die Erstattung dann, ohne SumUp noch
+    einmal zu fragen; der Kunde bekommt seine Mail wie sonst auch.
+  - Bei `status=403` darf der API-Schlüssel womöglich keine Erstattungen auslösen; dann im
+    SumUp-Konto die Rechte des Schlüssels prüfen.
 
 ### Widerrufe
 

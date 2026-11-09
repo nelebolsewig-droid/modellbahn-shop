@@ -10,6 +10,7 @@ import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { RefundPanel } from "@/components/admin/sales/refund-panel";
+import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -467,20 +468,32 @@ function ShipForm({ order, onShipped }: { order: AdminOrderOut; onShipped: (orde
 
 function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled: (order: AdminOrderOut) => void }) {
   const [open, setOpen] = useState(false);
+  // SumUp's answer when it refused the refund; then the staff may refund in SumUp by hand.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const paid = order.status === "paid";
   const { form, onSubmit, formError } = useApiForm({
     schema: cancelSchema,
-    defaultValues: { note: "" },
+    defaultValues: { note: "", refunded_by_hand: false },
     async submit(values) {
-      const cancelled = await cancelOrder(order.id, values);
-      setOpen(false);
-      onCancelled(cancelled);
+      try {
+        const cancelled = await cancelOrder(order.id, values);
+        setOpen(false);
+        onCancelled(cancelled);
+      } catch (error) {
+        const reason = refusalOf(error);
+        if (reason) {
+          setRefusal(reason);
+        }
+        throw error;
+      }
     },
   });
   const {
     register,
+    watch,
     formState: { errors, isSubmitting },
   } = form;
+  const byHand = watch("refunded_by_hand");
 
   return (
     <>
@@ -496,6 +509,7 @@ function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled
           setOpen(next);
           if (!next) {
             form.reset();
+            setRefusal(null);
           }
         }}
       >
@@ -512,9 +526,23 @@ function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled
           </DialogDescription>
           <form noValidate onSubmit={onSubmit} className="mt-6">
             <FormError message={formError?.message} />
+            {refusal ? <RefundRefusal reason={refusal} /> : null}
             <FormField label="Hinweis an den Kunden" hint="Optional; steht in der Stornomail, z. B. der Grund." error={errors.note?.message}>
               {(control) => <Textarea {...control} {...register("note")} maxLength={300} className="min-h-24" />}
             </FormField>
+            {paid && refusal ? (
+              <label className="mt-4 flex items-start gap-3 text-small">
+                <input
+                  type="checkbox"
+                  {...register("refunded_by_hand")}
+                  className="mt-1 size-4 shrink-0 accent-[var(--selected)]"
+                />
+                <span>
+                  Ich habe {formatPrice(order.totals.total_cents)} im SumUp-Konto selbst erstattet. Der Shop vermerkt
+                  die Erstattung nur und fragt SumUp nicht noch einmal.
+                </span>
+              </label>
+            ) : null}
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <DialogClose asChild>
                 <Button type="button" variant="secondary">
@@ -522,7 +550,7 @@ function CancelOrder({ order, onCancelled }: { order: AdminOrderOut; onCancelled
                 </Button>
               </DialogClose>
               <SubmitButton variant="danger" pending={isSubmitting} pendingLabel="Wird storniert …">
-                Stornieren
+                {byHand ? "Stornieren (schon erstattet)" : "Stornieren"}
               </SubmitButton>
             </div>
           </form>

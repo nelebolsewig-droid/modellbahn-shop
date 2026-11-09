@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
 import { FormError } from "@/components/forms/form-error";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,14 +43,18 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
   const [open, setOpen] = useState(false);
   const linesCents = order.lines.reduce((sum, line, index) => sum + (lines.has(index) ? line.line_total_cents : 0), 0);
   const amount = Math.min(mode === "whole" ? refundable : linesCents, refundable);
-  const refund = useMutation<AdminOrderOut, ApiProblem, number>({
-    mutationFn: (cents) => refundOrder(order.id, { amount_cents: cents }),
+  const refund = useMutation<AdminOrderOut, ApiProblem, { cents: number; byHand: boolean }>({
+    mutationFn: ({ cents, byHand }) =>
+      refundOrder(order.id, { amount_cents: cents, refunded_by_hand: byHand }),
     onSuccess(updated) {
       setOpen(false);
       setLines(new Set());
       onRefunded(updated);
     },
   });
+
+  // SumUp's answer when it refused; the staff may then refund in SumUp and only record it.
+  const refusal = refusalOf(refund.error);
 
   if (refundable === 0) {
     return (
@@ -152,15 +157,26 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
             sich nicht rückgängig machen.
           </DialogDescription>
           <FormError message={refund.isError ? errorMessage(refund.error) : undefined} className="mt-4" />
+          {refusal ? <RefundRefusal reason={refusal} /> : null}
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <DialogClose asChild>
               <Button type="button" variant="secondary">
                 Abbrechen
               </Button>
             </DialogClose>
+            {refusal ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => refund.mutate({ cents: amount, byHand: true })}
+                disabled={refund.isPending}
+              >
+                Im SumUp-Konto erstattet, nur vermerken
+              </Button>
+            ) : null}
             <Button
               type="button"
-              onClick={() => refund.mutate(amount)}
+              onClick={() => refund.mutate({ cents: amount, byHand: false })}
               disabled={refund.isPending}
               aria-busy={refund.isPending || undefined}
             >

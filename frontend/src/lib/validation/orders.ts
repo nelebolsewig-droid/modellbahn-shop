@@ -16,5 +16,7 @@ export type ShipValues = z.input<typeof shipSchema>;
 
 export const cancelSchema = z.object({
   note: optionalText(300),
+  /** Refunded in the SumUp account already: the shop records it and asks SumUp no more. */
+  refunded_by_hand: z.boolean(),
 });
 export type CancelValues = z.input<typeof cancelSchema>;

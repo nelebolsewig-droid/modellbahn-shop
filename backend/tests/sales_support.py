@@ -17,7 +17,7 @@ from modellbahn.modules.sales.application.checkout import (
     CheckoutService,
 )
 from modellbahn.modules.sales.application.ports import PaymentRequest
-from modellbahn.modules.sales.domain.errors import PaymentUnavailableError
+from modellbahn.modules.sales.domain.errors import PaymentUnavailableError, RefundRejectedError
 from modellbahn.modules.sales.domain.model import PaymentOutcome, PaymentProgress, PaymentStart
 from tests.conftest import Deliver
 from tests.media_support import InMemoryMediaStorage, photo, ready_image
@@ -133,6 +133,8 @@ class FakeSumUp:
         self.refunds: list[tuple[str, int]] = []
         self.reachable = True
         self.refuses_to_close = False
+        self.refund_refusal: str | None = None
+        """SumUp's words when it refuses refunds, e.g. for a payment it cannot refund."""
 
     # What the customer does on the page.
 
@@ -176,6 +178,8 @@ class FakeSumUp:
 
     async def refund(self, *, refund_ref: str, amount_cents: int) -> None:
         self._answer()
+        if self.refund_refusal is not None:
+            raise RefundRejectedError(self.refund_refusal)
         self.refunds.append((refund_ref, amount_cents))
 
     async def aclose(self) -> None:

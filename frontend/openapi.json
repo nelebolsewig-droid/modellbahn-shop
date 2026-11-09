@@ -1189,6 +1189,12 @@
             "maxLength": 300,
             "title": "Note",
             "type": "string"
+          },
+          "refunded_by_hand": {
+            "default": false,
+            "description": "The money went back in the payment provider's account already; the shop records the refund without asking the provider again.",
+            "title": "Refunded By Hand",
+            "type": "boolean"
           }
         },
         "title": "CancelIn",
@@ -7975,6 +7981,12 @@
             "exclusiveMinimum": 0.0,
             "title": "Amount Cents",
             "type": "integer"
+          },
+          "refunded_by_hand": {
+            "default": false,
+            "description": "Refunded in the payment provider's account already; only recorded here.",
+            "title": "Refunded By Hand",
+            "type": "boolean"
           }
         },
         "required": [
@@ -19314,7 +19326,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `invalid_order_state`, `marketplace_order`."
+            "description": "Conflict. Problem codes: `invalid_order_state`, `marketplace_order`, `refund_rejected`."
           },
           "415": {
             "content": {
@@ -19433,7 +19445,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `marketplace_order`, `refund_not_possible`."
+            "description": "Conflict. Problem codes: `marketplace_order`, `refund_not_possible`, `refund_rejected`."
           },
           "415": {
             "content": {
