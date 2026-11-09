@@ -132,6 +132,19 @@ class OrderService:
             await uow.commit()
             return await order_details(uow, order)
 
+    async def confirm_bank_transfer(self, order_id: UUID) -> OrderDetails:
+        """The customer's transfer is in the shop's account: the order is paid (ADR 0022).
+
+        The staff book it by hand after looking at the account; the customer gets the
+        usual confirmation, and picking starts as after any payment.
+        """
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            uow.publish(*order.confirm_bank_transfer(self._clock.now()))
+            await uow.commit()
+            _logger.info("sales.order.transfer_received", order=order.number)
+            return await order_details(uow, order)
+
     async def refund(
         self, order_id: UUID, *, amount_cents: int, refunded_by_hand: bool = False
     ) -> OrderDetails:
@@ -149,7 +162,9 @@ class OrderService:
             payment = order.captured_payment
             if payment is None or not 0 < amount_cents <= order.refundable_cents:
                 raise RefundNotPossibleError(order.refundable_cents)
-            if not refunded_by_hand:
+            # A bank transfer has no provider to refund it: the money goes back by hand.
+            by_hand = refunded_by_hand or payment.by_transfer
+            if not by_hand:
                 await self._gateway.refund(refund_ref=payment.refund_ref, amount_cents=amount_cents)
             uow.publish(order.refund(amount_cents, self._clock.now()))
             await uow.commit()
@@ -157,7 +172,7 @@ class OrderService:
                 "sales.order.refunded",
                 order=order.number,
                 amount_cents=amount_cents,
-                by_hand=refunded_by_hand,
+                by_hand=by_hand,
             )
             return await order_details(uow, order)
 
@@ -225,11 +240,13 @@ class OrderService:
     ) -> None:
         payment = order.captured_payment
         if payment is not None and order.status is OrderStatus.PAID and not order.from_marketplace:
-            if refunded_by_hand:
+            if refunded_by_hand or payment.by_transfer:
+                # In the provider's account by the staff, or back by bank transfer.
                 _logger.info(
                     "sales.order.refunded_by_hand",
                     order=order.number,
                     amount_cents=payment.refundable_cents,
+                    by_transfer=payment.by_transfer,
                 )
             else:
                 # Refund first: if the provider fails, the order stays as it is. What went

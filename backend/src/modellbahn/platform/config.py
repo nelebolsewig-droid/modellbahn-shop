@@ -16,6 +16,9 @@ from modellbahn.platform.imprint import Imprint
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
+# The textbook example account of .env.example: customers would pay a stranger.
+_EXAMPLE_IBAN = "DE89370400440532013000"
+
 _ASYNC_DRIVER_PREFIX = "postgresql+asyncpg://"
 _DEFAULT_SHOP_NAME = "Modellbahn-Shop"
 # German VAT identification number: DE and nine digits (§ 27a UStG).
@@ -323,6 +326,9 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if self.ebay_verification_token.get_secret_value() == _DEVELOPMENT_EBAY_VERIFICATION_TOKEN:
             msg = "the development MB_EBAY_VERIFICATION_TOKEN is not allowed in production"
+            raise ValueError(msg)
+        if self.bank_iban == _EXAMPLE_IBAN:
+            msg = "the example account of .env.example is not allowed in production (MB_BANK_IBAN)"
             raise ValueError(msg)
         if self.payment_provider is PaymentProvider.MOCK:
             # Orders would count as paid without any money.

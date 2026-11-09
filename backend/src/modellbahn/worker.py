@@ -104,6 +104,7 @@ async def run_worker(
         shop_name=settings.shop_name,
         sender=settings.imprint.mail_footer(),
         shop_email=settings.imprint.email,
+        bank_account=settings.bank_account,
     ).register(handlers)
     site_uow = site_uow_factory(session_factory)
     SiteHandlers(

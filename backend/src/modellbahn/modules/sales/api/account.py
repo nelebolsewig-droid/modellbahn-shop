@@ -10,6 +10,7 @@ from modellbahn.modules.sales.api.deps import (
     AddressServiceDep,
     CurrentCustomer,
     OrderServiceDep,
+    SettingsDep,
 )
 from modellbahn.modules.sales.api.errors import CUSTOMER_ACCESS, ORDER_NOT_FOUND
 from modellbahn.modules.sales.api.schemas import (
@@ -57,10 +58,15 @@ async def list_my_orders(
     responses=problems({**CUSTOMER_ACCESS, **ORDER_NOT_FOUND}, unsafe=False),
 )
 async def get_my_order(
-    number: str, customer: CurrentCustomer, service: OrderServiceDep, response: Response
+    number: str,
+    customer: CurrentCustomer,
+    service: OrderServiceDep,
+    settings: SettingsDep,
+    response: Response,
 ) -> OrderOut:
     response.headers["Cache-Control"] = PRIVATE_CACHE_CONTROL
-    return OrderOut.from_details(await service.customer_order(customer.id, number))
+    details = await service.customer_order(customer.id, number)
+    return OrderOut.from_details(details, bank=settings.bank_account)
 
 
 @router.get(

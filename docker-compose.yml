@@ -67,6 +67,11 @@ x-backend-env: &backend-env
   MB_PAYMENT_PROVIDER:
   MB_SUMUP_API_KEY:
   MB_SUMUP_MERCHANT_CODE:
+  # Payment in advance by bank transfer, offered once holder and IBAN are set (ADR 0022).
+  MB_BANK_ACCOUNT_HOLDER:
+  MB_BANK_IBAN:
+  MB_BANK_BIC:
+  MB_BANK_NAME:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

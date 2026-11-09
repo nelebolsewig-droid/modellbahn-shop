@@ -16,6 +16,7 @@ from modellbahn.modules.sales.domain.errors import (
     OrderNotPayableError,
 )
 from modellbahn.modules.sales.domain.events import (
+    BankTransferChosen,
     OrderCancelled,
     OrderPaid,
     OrderPlaced,
@@ -23,6 +24,8 @@ from modellbahn.modules.sales.domain.events import (
 )
 from modellbahn.modules.sales.domain.model import (
     ADDRESS_BOOK_MAX_SIZE,
+    BANK_TRANSFER,
+    BANK_TRANSFER_TIMEOUT,
     CART_LIFETIME,
     CART_MAX_LINES,
     DOMESTIC_RATE_CENTS,
@@ -507,6 +510,75 @@ class TestPaymentOnTheProvidersPage:
         assert stray(order) is payment
         payment.refund(NOW)
         assert stray(order) is None
+
+
+def by_transfer(order: Order) -> list[object]:
+    return list(
+        order.choose_bank_transfer(
+            payment_id=uuid4(), idempotency_key=uuid4(), request_fingerprint="f", now=NOW
+        )
+    )
+
+
+class TestPaymentInAdvance:
+    def test_choosing_a_transfer_gives_ten_days(self) -> None:
+        order, _ = placed()
+        (event,) = by_transfer(order)
+        assert isinstance(event, BankTransferChosen)
+        (payment,) = order.payments
+        assert (payment.provider, payment.provider_ref, payment.status) == (
+            BANK_TRANSFER,
+            order.number,
+            PaymentStatus.PENDING,
+        )
+        assert payment.checkout_url is None
+        assert order.awaited_transfer is payment
+        assert order.payment_due_at == NOW + BANK_TRANSFER_TIMEOUT
+        assert not order.is_overdue(NOW + PAYMENT_TIMEOUT)
+        assert order.is_overdue(NOW + BANK_TRANSFER_TIMEOUT)
+        with pytest.raises(OrderNotPayableError):
+            by_transfer(order)
+
+    def test_the_staff_book_the_transfer(self) -> None:
+        order, _ = placed()
+        with pytest.raises(InvalidOrderStateError):
+            order.confirm_bank_transfer(NOW)
+        by_transfer(order)
+        (paid,) = order.confirm_bank_transfer(NOW + timedelta(days=2))
+        assert isinstance(paid, OrderPaid)
+        assert order.status is OrderStatus.PAID
+        assert order.payments[0].status is PaymentStatus.CAPTURED
+        assert order.awaited_transfer is None
+        with pytest.raises(InvalidOrderStateError):
+            order.confirm_bank_transfer(NOW)
+
+    def test_cancelling_stops_waiting_for_the_transfer(self) -> None:
+        order, _ = placed()
+        by_transfer(order)
+        event = order.cancel(reason=CancelReason.PAYMENT_TIMEOUT, note="", now=NOW)
+        assert (event.refunded, event.refund_by_transfer, event.refund_cents) == (False, False, 0)
+        assert (order.payments[0].status, order.payments[0].failure_code) == (
+            PaymentStatus.FAILED,
+            "cancelled",
+        )
+        assert order.pays_by_transfer
+
+    def test_money_paid_by_transfer_goes_back_by_hand(self) -> None:
+        order, _ = placed(item(price=4990, quantity=2))
+        by_transfer(order)
+        order.confirm_bank_transfer(NOW)
+        refunded = order.refund(1000, NOW)
+        assert (refunded.amount_cents, refunded.by_transfer) == (1000, True)
+        event = order.cancel(reason=CancelReason.BY_SHOP, note="", now=NOW)
+        assert (event.refunded, event.refund_by_transfer) == (True, True)
+        assert event.refund_cents == order.total_cents - 1000
+
+    def test_a_card_payment_is_not_a_transfer(self) -> None:
+        order, _ = placed()
+        order.record_payment(captured(), idempotency_key=uuid4(), request_fingerprint="f", now=NOW)
+        event = order.cancel(reason=CancelReason.BY_SHOP, note="", now=NOW)
+        assert (event.refund_by_transfer, event.refund_cents) == (False, order.total_cents)
+        assert not order.pays_by_transfer
 
 
 class TestAddressBook:

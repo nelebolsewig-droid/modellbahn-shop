@@ -74,7 +74,7 @@ class TestSumUpOverHttp:
     async def test_the_shop_names_its_provider(self, client: AsyncClient) -> None:
         response = await client.get(f"{SHOP}/payment-provider")
         assert response.status_code == 200
-        assert response.json() == {"provider": "sumup"}
+        assert response.json() == {"provider": "sumup", "bank_transfer": False}
 
     async def test_pay_on_the_page_and_come_back(
         self, client: AsyncClient, sumup: FakeSumUp, painted: UUID

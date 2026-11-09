@@ -109,6 +109,21 @@ async def cancel_order(
 
 
 @router.post(
+    "/{order_id}/bank-transfer",
+    operation_id="confirmBankTransfer",
+    summary="The customer's bank transfer is in the account: the order is paid",
+    description="Payment in advance (ADR 0022). The customer gets the usual confirmation.",
+    responses=problems(
+        {**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state"]}, validated=False
+    ),
+)
+async def confirm_bank_transfer(
+    order_id: UUID, _: OrderManager, service: OrderServiceDep
+) -> AdminOrderOut:
+    return AdminOrderOut.from_details(await service.confirm_bank_transfer(order_id))
+
+
+@router.post(
     "/{order_id}/refunds",
     operation_id="refundOrder",
     summary="Give money back after a return (the customer gets an e-mail)",

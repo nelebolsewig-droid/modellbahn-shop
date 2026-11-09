@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from modellbahn.modules.sales.domain.model import CancelReason, Order
 from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
+from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.mail import MailAction, MailContent, MailRow
 
 ORDER_STATUS_PATH: Final = "/bestellung"
@@ -61,7 +62,12 @@ def fair_hint(fair: NextFair | None, *, base_url: str) -> tuple[str, ...]:
 
 
 def received_mail(
-    order: Order, *, base_url: str, shop_name: str, next_fair: NextFair | None = None
+    order: Order,
+    *,
+    base_url: str,
+    shop_name: str,
+    next_fair: NextFair | None = None,
+    bank_transfer: bool = False,
 ) -> MailContent:
     """The confirmation of receipt (§ 312i BGB), with the way to pay."""
     due = order.payment_due_at
@@ -70,6 +76,8 @@ def received_mail(
         if due is not None
         else ""
     )
+    if due is not None and bank_transfer and not order.pays_by_transfer:
+        deadline += " Mit Vorkasse per Überweisung hast du dafür zehn Tage Zeit."
     return MailContent(
         subject=f"Bestellung {order.number} eingegangen",
         greeting=_greeting(order),
@@ -128,8 +136,16 @@ def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = No
     )
 
 
-def cancelled_mail(order: Order, *, base_url: str, refunded: bool) -> MailContent:
-    if order.cancel_reason is CancelReason.PAYMENT_TIMEOUT:
+def cancelled_mail(
+    order: Order, *, base_url: str, refunded: bool, by_transfer: bool = False
+) -> MailContent:
+    if order.cancel_reason is CancelReason.PAYMENT_TIMEOUT and order.pays_by_transfer:
+        why = (
+            f"deine Bestellung {order.number} haben wir storniert, weil deine Überweisung "
+            "nicht innerhalb von zehn Tagen eingegangen ist. Ist sie doch noch unterwegs, "
+            "überweisen wir dir das Geld zurück."
+        )
+    elif order.cancel_reason is CancelReason.PAYMENT_TIMEOUT:
         why = (
             f"deine Bestellung {order.number} haben wir storniert, weil die Zahlung nicht "
             "innerhalb von 24 Stunden eingegangen ist."
@@ -144,7 +160,12 @@ def cancelled_mail(order: Order, *, base_url: str, refunded: bool) -> MailConten
     paragraphs = [why]
     if order.cancel_note:
         paragraphs.append(f"Hinweis: {order.cancel_note}")
-    if refunded:
+    if refunded and by_transfer:
+        paragraphs.append(
+            f"Den bezahlten Betrag von {format_euro(order.total_cents)} überweisen wir dir "
+            "auf das Konto zurück, von dem deine Überweisung kam."
+        )
+    elif refunded:
         paragraphs.append(
             f"Den bezahlten Betrag von {format_euro(order.total_cents)} erstatten wir dir "
             "auf dem Weg, auf dem du bezahlt hast."
@@ -233,16 +254,23 @@ def withdrawal_notice_mail(withdrawal: Withdrawal, *, base_url: str) -> MailCont
     )
 
 
-def refunded_mail(order: Order, *, amount_cents: int, base_url: str) -> MailContent:
+def refunded_mail(
+    order: Order, *, amount_cents: int, base_url: str, by_transfer: bool = False
+) -> MailContent:
     """Money went back after a return (ADR 0020)."""
     whole = order.refunded_cents >= order.total_cents
+    how = (
+        f"wir überweisen dir {format_euro(amount_cents)} für deine Bestellung {order.number} "
+        "zurück, auf das Konto, von dem deine Überweisung kam."
+        if by_transfer
+        else f"wir haben dir {format_euro(amount_cents)} für deine Bestellung {order.number} "
+        "erstattet, auf dem Weg, auf dem du bezahlt hast."
+    )
     return MailContent(
         subject=f"Erstattung für deine Bestellung {order.number}",
         greeting=_greeting(order),
         paragraphs=(
-            f"wir haben dir {format_euro(amount_cents)} für deine Bestellung {order.number} "
-            "erstattet, auf dem Weg, auf dem du bezahlt hast. Bis das Geld auf deinem Konto "
-            "ist, kann es je nach Bank ein paar Tage dauern.",
+            f"{how} Bis das Geld auf deinem Konto ist, kann es je nach Bank ein paar Tage dauern.",
             *(() if whole else (f"Insgesamt erstattet: {format_euro(order.refunded_cents)}.",)),
         ),
         action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
@@ -279,5 +307,58 @@ def refund_reminder_mail(
             "Ist die Ware da: Bestellung öffnen, „Rücksendung erhalten – erstatten“. SumUp "  # noqa: RUF001
             "zahlt zurück, der Kunde bekommt eine E-Mail. Diese Erinnerung kommt täglich, "
             "bis alles erstattet ist.",
+        ),
+    )
+
+
+def bank_transfer_mail(order: Order, *, bank: BankAccount, base_url: str) -> MailContent:
+    """How to pay in advance: account, amount, reference and deadline (ADR 0022)."""
+    due = order.payment_due_at
+    deadline = f" bis {_local_time(due)}" if due is not None else ""
+    rows = [
+        MailRow("Empfänger", bank.holder),
+        MailRow("IBAN", bank.iban_grouped),
+        *([MailRow("BIC", bank.bic)] if bank.bic else []),
+        *([MailRow("Bank", bank.bank_name)] if bank.bank_name else []),
+        MailRow("Betrag", format_euro(order.total_cents), strong=True),
+        MailRow("Verwendungszweck", order.number, strong=True),
+    ]
+    return MailContent(
+        subject=f"So bezahlst du deine Bestellung {order.number} per Überweisung",
+        greeting=_greeting(order),
+        paragraphs=(
+            f"du bezahlst deine Bestellung {order.number} per Vorkasse. Bitte überweise den "
+            f"Betrag{deadline} auf unser Konto und gib als Verwendungszweck nur die "
+            "Bestellnummer an; so ordnen wir deine Zahlung sicher zu.",
+        ),
+        rows=rows,
+        action=MailAction(
+            label="Überweisung mit GiroCode", url=f"{status_link(base_url, order)}/bezahlen"
+        ),
+        closing=(
+            "Auf der Seite hinter dem Knopf steht ein GiroCode, den deine Banking-App scannen "
+            "kann; dann sind alle Angaben schon ausgefüllt.",
+            "Sobald das Geld da ist, bekommst du eine E-Mail und wir machen dein Paket "
+            "fertig. Kommt bis zum Ende der Frist nichts an, stornieren wir die Bestellung.",
+        ),
+    )
+
+
+def transfer_back_mail(order: Order, *, amount_cents: int, base_url: str) -> MailContent:
+    """The shop's to-do: money paid by transfer goes back by hand (ADR 0022)."""
+    return MailContent(
+        subject=f"Rücküberweisung: {format_euro(amount_cents)} für {order.number}",
+        greeting="Hallo,",
+        paragraphs=(
+            f"für die Bestellung {order.number} von {order.shipping_address.recipient} gehen "
+            f"{format_euro(amount_cents)} zurück. Bezahlt wurde per Vorkasse, deshalb kann "
+            "der Shop das Geld nicht selbst erstatten.",
+            "Bitte überweise den Betrag auf das Konto, von dem die Zahlung kam; es steht im "
+            f"Kontoauszug bei der Überweisung mit dem Verwendungszweck {order.number}. Der "
+            "Kunde hat schon eine E-Mail, dass das Geld zurückkommt.",
+        ),
+        action=MailAction(
+            label="Bestellung im Stellwerk",
+            url=f"{base_url}{ADMIN_ORDERS_PATH}/{order.id}",
         ),
     )

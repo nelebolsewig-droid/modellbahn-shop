@@ -30,7 +30,9 @@ from modellbahn.modules.sales.api.schemas import (
     WithdrawalReceiptOut,
 )
 from modellbahn.modules.sales.application.checkout import Buyer, CheckoutRequest, CheckoutResult
-from modellbahn.platform.config import PaymentProvider
+from modellbahn.modules.sales.domain.errors import OrderNotFoundError
+from modellbahn.platform.bank import girocode_svg
+from modellbahn.platform.config import PaymentProvider, Settings
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/store", tags=["store-sales"])
@@ -42,11 +44,11 @@ def _private(response: Response) -> None:
     response.headers["Cache-Control"] = PRIVATE_CACHE_CONTROL
 
 
-def _answer(result: CheckoutResult, response: Response) -> OrderOut:
+def _answer(result: CheckoutResult, response: Response, settings: Settings) -> OrderOut:
     _private(response)
     if result.replayed:
         response.headers[REPLAY_HEADER] = "true"
-    return OrderOut.from_details(result.details)
+    return OrderOut.from_details(result.details, bank=settings.bank_account)
 
 
 @router.get(
@@ -123,6 +125,7 @@ async def place_order(
     cart: CartId,
     customer: OptionalCustomer,
     service: CheckoutServiceDep,
+    settings: SettingsDep,
     response: Response,
 ) -> OrderOut:
     """Prices are taken from the catalogue now, not from what the browser shows; a total
@@ -140,7 +143,7 @@ async def place_order(
     result = await service.place_order(
         cart_id=cart, request=request, buyer=buyer, idempotency_key=idempotency_key
     )
-    return _answer(result, response)
+    return _answer(result, response, settings)
 
 
 @router.get(
@@ -149,9 +152,35 @@ async def place_order(
     summary="An order's status page (the link from the order e-mails)",
     responses=problems(ORDER_NOT_FOUND, unsafe=False),
 )
-async def get_order(public_token: str, service: OrderServiceDep, response: Response) -> OrderOut:
+async def get_order(
+    public_token: str, service: OrderServiceDep, settings: SettingsDep, response: Response
+) -> OrderOut:
     _private(response)
-    return OrderOut.from_details(await service.by_token(public_token))
+    return OrderOut.from_details(await service.by_token(public_token), bank=settings.bank_account)
+
+
+@router.get(
+    "/orders/{public_token}/girocode.svg",
+    operation_id="getOrderGirocode",
+    summary="The GiroCode of an order waiting for a bank transfer (SVG for banking apps)",
+    response_class=Response,
+    responses={
+        200: {"content": {"image/svg+xml": {}}, "description": "The GiroCode."},
+        **problems(ORDER_NOT_FOUND, unsafe=False, validated=False),
+    },
+)
+async def get_order_girocode(
+    public_token: str, service: OrderServiceDep, settings: SettingsDep
+) -> Response:
+    """Only while the order waits for a transfer; afterwards (or without a bank account) 404."""
+    order = (await service.by_token(public_token)).order
+    bank = settings.bank_account
+    if bank is None or order.awaited_transfer is None:
+        raise OrderNotFoundError
+    svg = girocode_svg(bank.epc_payload(amount_cents=order.total_cents, reference=order.number))
+    return Response(
+        content=svg, media_type="image/svg+xml", headers={"Cache-Control": PRIVATE_CACHE_CONTROL}
+    )
 
 
 @router.get(
@@ -160,14 +189,21 @@ async def get_order(public_token: str, service: OrderServiceDep, response: Respo
     summary="Who takes the shop's payments: SumUp, the test payment, or nobody",
     responses=problems({}, unsafe=False),
 )
-async def get_payment_provider(service: PaymentServiceDep) -> PaymentProviderOut:
-    return PaymentProviderOut(provider=PaymentProvider(service.provider))
+async def get_payment_provider(
+    service: PaymentServiceDep, settings: SettingsDep
+) -> PaymentProviderOut:
+    provider = PaymentProvider(service.provider)
+    return PaymentProviderOut(
+        provider=provider,
+        # Without a provider the shop takes no orders at all, transfers included.
+        bank_transfer=settings.bank_account is not None and provider is not PaymentProvider.OFF,
+    )
 
 
 @router.post(
     "/orders/{public_token}/payments",
     operation_id="payOrder",
-    summary="Pay for an order: begin on SumUp's page, or the test payment's chosen outcome",
+    summary="Pay for an order: on SumUp's page, by bank transfer, or the test payment",
     responses=problems(
         {
             **ORDER_NOT_FOUND,
@@ -182,17 +218,21 @@ async def pay_order(
     public_token: str,
     body: PaymentIn,
     idempotency_key: IdempotencyKey,
+    *,
     service: CheckoutServiceDep,
+    settings: SettingsDep,
     response: Response,
 ) -> OrderOut:
     """With SumUp the order comes back with ``payment_url``, the page the customer pays on;
     a page still open is reused. The test payment answers at once: a declined payment is
     recorded, and the order still waits for its payment. A provider failure (503) records
-    nothing. Repeating the request with the same ``Idempotency-Key`` never charges twice."""
+    nothing. A bank transfer (``bank_transfer``, where offered) leaves the order waiting
+    ten days, with ``bank_transfer`` saying what to transfer; it closes a SumUp page first.
+    Repeating the request with the same ``Idempotency-Key`` never charges twice."""
     result = await service.pay(
         public_token=public_token, method=body.method, idempotency_key=idempotency_key
     )
-    return _answer(result, response)
+    return _answer(result, response, settings)
 
 
 @router.post(
@@ -203,12 +243,12 @@ async def pay_order(
     dependencies=[Depends(limit_checkouts)],
 )
 async def sync_payment(
-    public_token: str, service: PaymentServiceDep, response: Response
+    public_token: str, service: PaymentServiceDep, settings: SettingsDep, response: Response
 ) -> OrderOut:
     """The shop asks the provider itself; what the browser was told on the way back counts
     for nothing. A payment that is still open keeps its ``payment_url``."""
     _private(response)
-    return OrderOut.from_details(await service.sync(public_token))
+    return OrderOut.from_details(await service.sync(public_token), bank=settings.bank_account)
 
 
 @router.post(

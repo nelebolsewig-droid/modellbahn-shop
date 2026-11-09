@@ -842,9 +842,7 @@ class Order:
         if payment is None or self.status is not OrderStatus.PENDING_PAYMENT:
             msg = "the order does not wait for a bank transfer"
             raise InvalidOrderStateError(msg)
-        return self.settle_payment(
-            payment, PaymentOutcome(progress=PaymentProgress.CAPTURED), now
-        )
+        return self.settle_payment(payment, PaymentOutcome(progress=PaymentProgress.CAPTURED), now)
 
     def start_payment(
         self,
@@ -984,6 +982,7 @@ class Order:
             msg = f"an order that is {self.status} cannot be cancelled"
             raise InvalidOrderStateError(msg)
         payment = self.captured_payment
+        refund_cents = payment.refundable_cents if payment is not None else 0
         if payment is not None:
             payment.refund(now)
         # Nobody waits for a transfer to a cancelled order any more.
@@ -1004,6 +1003,7 @@ class Order:
             total_cents=self.total_cents,
             refunded=payment is not None,
             refund_by_transfer=payment is not None and payment.by_transfer,
+            refund_cents=refund_cents,
         )
 
     def adopt(self, account_id: UUID, now: datetime) -> bool:

@@ -259,6 +259,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clock=clock,
         gateway=payment_gateway,
         shop_url=settings.public_base_url,
+        bank_transfer=settings.bank_account is not None,
     )
     _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
     _attach_manufacturing_services(
@@ -385,10 +386,15 @@ def _attach_sales_services(
     clock: SystemClock,
     gateway: PaymentGateway,
     shop_url: str,
+    bank_transfer: bool,
 ) -> None:
     app.state.cart_service = CartService(uow_factory=uow_factory, clock=clock)
     app.state.checkout_service = CheckoutService(
-        uow_factory=uow_factory, clock=clock, gateway=gateway, shop_url=shop_url
+        uow_factory=uow_factory,
+        clock=clock,
+        gateway=gateway,
+        shop_url=shop_url,
+        bank_transfer=bank_transfer,
     )
     app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
     app.state.payment_service = PaymentService(

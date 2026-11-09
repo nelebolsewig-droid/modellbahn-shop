@@ -4,9 +4,12 @@ Customers who pay by bank transfer see it on the payment page, in an e-mail and 
 GiroCode (the EPC QR code that banking apps read).
 """
 
+import io
 import re
 from dataclasses import dataclass
 from typing import Final
+
+import segno
 
 _IBAN: Final = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}")
 _BIC: Final = re.compile(r"[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?")
@@ -69,3 +72,23 @@ class BankAccount:
                 reference[:_EPC_TEXT_MAX],
             )
         )
+
+
+def girocode_svg(payload: str) -> bytes:
+    """The GiroCode as a standalone SVG: black on white, error correction M as EPC asks."""
+    code = segno.make(payload, error="m", micro=False, boost_error=False)
+    buffer = io.BytesIO()
+    code.save(
+        buffer,
+        kind="svg",
+        scale=4,
+        border=4,
+        dark="#000",
+        light="#fff",
+        xmldecl=False,
+        omitsize=True,
+        svgclass=None,
+        lineclass=None,
+        title="GiroCode",
+    )
+    return buffer.getvalue()

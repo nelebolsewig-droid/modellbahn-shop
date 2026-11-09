@@ -85,6 +85,7 @@ from modellbahn.modules.site.application.handlers import SiteHandlers
 from modellbahn.modules.site.application.ports import UnitOfWorkFactory as SiteUnitOfWorkFactory
 from modellbahn.modules.site.application.subscriptions import SubscriptionService
 from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
+from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.config import Environment, MarketplaceMode, Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
@@ -101,6 +102,10 @@ SHOP_NAME = "Modellbahn-Shop"
 MEDIA_BASE_URL = "/medien"
 # Where the shop's own notices go (withdrawals).
 SHOP_EMAIL = "werkstatt@shop.test"
+# The textbook example account: payment in advance is offered in the tests.
+TEST_BANK = BankAccount(
+    holder="Modellbahn-Shop Testkonto", iban="DE89370400440532013000", bank_name="Musterbank"
+)
 
 # The sender lines the settings below produce (MB_IMPRINT_*).
 IMPRINT_FOOTER = (
@@ -364,7 +369,11 @@ def checkout(
     sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, payment_gateway: PaymentGateway
 ) -> CheckoutService:
     return CheckoutService(
-        uow_factory=sales_uow, clock=clock, gateway=payment_gateway, shop_url=PUBLIC_BASE_URL
+        uow_factory=sales_uow,
+        clock=clock,
+        gateway=payment_gateway,
+        shop_url=PUBLIC_BASE_URL,
+        bank_transfer=True,
     )
 
 
@@ -403,6 +412,7 @@ def sales_handlers(
         public_base_url=PUBLIC_BASE_URL,
         shop_name=SHOP_NAME,
         shop_email=SHOP_EMAIL,
+        bank_account=TEST_BANK,
     )
 
 

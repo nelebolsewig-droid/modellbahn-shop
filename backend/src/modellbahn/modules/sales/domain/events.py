@@ -69,6 +69,8 @@ class OrderCancelled(_OrderEvent):
     refunded: bool
     refund_by_transfer: bool = False
     """The money came by bank transfer: the shop transfers it back by hand (ADR 0022)."""
+    refund_cents: int = 0
+    """What goes back with the cancellation (less than the total after a partial refund)."""
 
 
 @domain_event
