@@ -205,3 +205,14 @@ Verpackung.
   - Das Stellwerk zeigt die Bilder einzeln zum Speichern und alle zusammen als ZIP.
   - Gerendert wird das PDF mit PDFium (`pypdfium2`), damit Bild und PDF gleich aussehen.
 - **DHL-Label als Bild:** `…/shipping-label.png` liefert das DHL-Label ebenso als PNG.
+
+## Nachtrag 09.11.2026: Preis auf dem Etikett
+
+- **Preis:** Das Etikett einer Einheit nennt den Preis der Ausführung groß oben rechts,
+  auf Höhe von „EINHEIT“, wie ein Preisschild (`79,90 €`). Es ist der Preis, den auch die
+  Kasse per EAN berechnet, inklusive Mehrwertsteuer.
+- **Stand des Drucks:** Ändert sich der Preis im Katalog, gilt das gedruckte Etikett nicht
+  mehr; neue Etiketten druckt man auf der Seite der Einheit oder im Lager nach.
+- Ohne Preis (z. B. ein Entwurf) bleibt die Stelle leer.
+- **Lange Namen:** Auf der QL-Rolle passt eine zweite Zeile des Namens nur, wenn sie
+  Ausführung und Artikelnummer nicht berührt; sonst wird der Name auf eine Zeile gekürzt.

@@ -6,10 +6,10 @@ as a pattern of dots.
 Johann's till (SumUp) reads barcodes, not QR codes:
 
 * **Unit:** the variant's EAN-13 at the top left (the till rings up the article by
-  it), product and article number beside it, and across the bottom a Code 128 with the
-  unit's own code for the workshop's scanner. Right of that the manufacturer with its
-  postal and e-mail address, which the EU's product safety regulation (GPSR) asks for on
-  the product or its packaging.
+  it), product and article number beside it with the price large at the top right, and
+  across the bottom a Code 128 with the unit's own code for the workshop's scanner.
+  Right of that the manufacturer with its postal and e-mail address, which the EU's
+  product safety regulation (GPSR) asks for on the product or its packaging.
 * **Location:** the code in large type and a wide Code 128 with it.
 
 Two stocks:
@@ -77,6 +77,7 @@ class _Layout:
     location_code_size: float
     maker_size: float
     """Largest size of the manufacturer's lines; smaller (to 75 %) where they need it."""
+    price_size: float
 
 
 _A4_LAYOUT: Final = _Layout(
@@ -95,6 +96,7 @@ _A4_LAYOUT: Final = _Layout(
     code_size=7,
     location_code_size=17,
     maker_size=5,
+    price_size=9.5,
 )
 _QL_LAYOUT: Final = _Layout(
     width=62 * mm,
@@ -112,6 +114,7 @@ _QL_LAYOUT: Final = _Layout(
     code_size=6.5,
     location_code_size=15,
     maker_size=4.6,
+    price_size=8.5,
 )
 _A4_COLUMNS: Final = 3
 _A4_ROWS: Final = 8
@@ -212,15 +215,23 @@ def _draw_unit(
     width = right - text_left
     cursor = top - layout.caption_size
     _caption(canvas, label.caption, text_left, cursor, layout.caption_size)
+    # The price like on a price tag: large, at the top right, level with the caption.
+    if label.price:
+        canvas.setFillColor(black)
+        canvas.setFont(_SANS_MEDIUM, layout.price_size)
+        canvas.drawRightString(right, cursor, label.price)
     longest = max(label.title.split(), key=len, default="")
     title_size = _fitting_size(longest, _SANS_MEDIUM, layout.title_size, width, floor=0.8)
     cursor -= title_size * 1.55
+    reference_y = top - layout.ean_height + 0.4 * mm
+    # A second line of the name only where the variant still fits above the article number.
+    two_lines_end = cursor - 2 * title_size * 1.2 - 0.2 * mm
+    room = two_lines_end - layout.detail_size * 0.25 >= reference_y + layout.detail_size
     canvas.setFillColor(black)
     canvas.setFont(_SANS_MEDIUM, title_size)
-    for line in _lines(label.title, _SANS_MEDIUM, title_size, width, 2):
+    for line in _lines(label.title, _SANS_MEDIUM, title_size, width, 2 if room else 1):
         canvas.drawString(text_left, cursor, line)
         cursor -= title_size * 1.2
-    canvas.setFillColor(black)
     canvas.setFont(_SANS, layout.detail_size)
     canvas.drawString(
         text_left, cursor - 0.2 * mm, _truncated(label.detail, _SANS, layout.detail_size, width)
@@ -228,9 +239,7 @@ def _draw_unit(
     reference_size = _fitting_size(label.reference, _MONO, layout.detail_size, width)
     canvas.setFont(_MONO, reference_size)
     canvas.drawString(
-        text_left,
-        top - layout.ean_height + 0.4 * mm,
-        _truncated(label.reference, _MONO, reference_size, width),
+        text_left, reference_y, _truncated(label.reference, _MONO, reference_size, width)
     )
 
     # Across the bottom: the unit's own code for the workshop's scanner.

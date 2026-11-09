@@ -333,6 +333,8 @@ class Label:
     """A line in monospace: the article number, or the location's path."""
     ean13: str | None = None
     """The variant's EAN-13 (units only)."""
+    price: str = ""
+    """What the piece costs, as the till charges it (``79,90 €``); empty if not for sale."""
 
 
 class LabelRenderer(Protocol):

@@ -1,5 +1,6 @@
 """The inventory use cases against a real PostgreSQL: locations, units, allocation, scans."""
 
+from collections.abc import Sequence
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -12,7 +13,12 @@ from modellbahn.modules.catalog.domain.errors import VariantHasUnitsError
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.inventory.application.allocation import AllocationService, PieceState
 from modellbahn.modules.inventory.application.availability import AvailabilityService
+from modellbahn.modules.inventory.application.common import (
+    UnitOfWorkFactory as InventoryUnitOfWorkFactory,
+)
+from modellbahn.modules.inventory.application.labels import LabelRequest, LabelService
 from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.ports import Label, LabelSheet
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.domain.availability import Availability
@@ -45,6 +51,7 @@ from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.domain.errors import InsufficientStockError
 from modellbahn.platform.clock import FixedClock
+from modellbahn.platform.money import format_euro
 from modellbahn.platform.outbox import outbox_table
 from tests.conftest import Deliver
 from tests.inventory_support import (
@@ -59,6 +66,17 @@ from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import filled_cart, place, shop_product, variant_id
 
 pytestmark = pytest.mark.usefixtures("clean_database")
+
+
+class CapturingRenderer:
+    """Keeps what the labels would show instead of drawing them."""
+
+    def __init__(self) -> None:
+        self.labels: list[Label] = []
+
+    def render(self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int) -> bytes:
+        self.labels = list(labels)
+        return b"%PDF"
 
 
 @pytest.fixture
@@ -196,6 +214,35 @@ class TestUnits:
         )
         # Labelling and putting away are both booked.
         assert await journal_size(engine) == 4
+
+    async def test_a_units_label_carries_its_price(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        inventory_uow: InventoryUnitOfWorkFactory,
+        product: ProductDetails,
+        painted: UUID,
+    ) -> None:
+        unit = (
+            await units.label_units(
+                variant_id=painted, quantity=1, location_code=None, staff_id=None
+            )
+        )[0].unit
+        renderer = CapturingRenderer()
+        await LabelService(uow_factory=inventory_uow, renderer=renderer).render(
+            LabelRequest(
+                unit_codes=[unit.code],
+                location_codes=[await store(locations)],
+                sheet=LabelSheet.QL_62X29,
+            )
+        )
+        cents = next(
+            v.price_cents for s in product.product.scales for v in s.variants if v.id == painted
+        )
+        assert renderer.labels[0].price == format_euro(cents)
+        assert renderer.labels[0].price.endswith("\u00a0€")
+        # A location costs nothing: no price on its label.
+        assert renderer.labels[1].price == ""
 
     async def test_refusals(
         self, locations: LocationService, units: UnitService, painted: UUID

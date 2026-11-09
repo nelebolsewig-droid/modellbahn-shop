@@ -77,6 +77,13 @@ class TestMakerBlock:
 
 
 class TestRenderer:
+    def test_the_price_is_printed_where_there_is_one(self) -> None:
+        renderer = ReportLabLabelRenderer()
+        for sheet in LabelSheet:
+            without = renderer.render([UNIT], sheet=sheet, skip=0)
+            with_price = renderer.render([replace(UNIT, price="79,90\u00a0€")], sheet=sheet, skip=0)
+            assert len(with_price) > len(without)
+
     def test_only_units_carry_the_manufacturer(self) -> None:
         plain = ReportLabLabelRenderer()
         with_maker = ReportLabLabelRenderer(maker=IMPRINT.maker_lines())
