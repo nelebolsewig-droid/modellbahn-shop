@@ -265,7 +265,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         carrier=carrier,
         settings=settings,
     )
-    _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
+    _attach_inventory_services(
+        app,
+        uow_factory=inventory_uow_factory(session_factory),
+        clock=clock,
+        maker=settings.imprint.maker_lines(),
+    )
     _attach_manufacturing_services(
         app, uow_factory=manufacturing_uow_factory(session_factory), clock=clock
     )
@@ -417,14 +422,19 @@ def _attach_sales_services(
 
 
 def _attach_inventory_services(
-    app: FastAPI, *, uow_factory: InventoryUnitOfWorkFactory, clock: SystemClock
+    app: FastAPI,
+    *,
+    uow_factory: InventoryUnitOfWorkFactory,
+    clock: SystemClock,
+    maker: tuple[str, ...],
 ) -> None:
     app.state.location_service = LocationService(uow_factory=uow_factory, clock=clock)
     app.state.unit_service = UnitService(uow_factory=uow_factory, clock=clock)
     app.state.scan_service = ScanService(uow_factory=uow_factory, clock=clock)
     app.state.allocation_service = AllocationService(uow_factory=uow_factory, clock=clock)
     app.state.label_service = LabelService(
-        uow_factory=uow_factory, renderer=ReportLabLabelRenderer()
+        uow_factory=uow_factory,
+        renderer=ReportLabLabelRenderer(maker=maker),
     )
     app.state.availability_service = AvailabilityService(uow_factory=uow_factory)
     app.state.part_store_service = PartStoreService(uow_factory=uow_factory, clock=clock)

@@ -178,3 +178,19 @@ ohne Blick ins Lager.
   Versand, und ein bemaltes Modell, das in die Fertigung geht.
 - **Altbestand:** Migration 0005 setzt bestehende Varianten mit Rückstand auf 4 bis
   6 Wochen. Alle anderen sind ab jetzt erst nach dem Einlagern kaufbar.
+
+## Nachtrag 09.11.2026: Hersteller auf dem Etikett
+
+Die EU-Produktsicherheitsverordnung (GPSR, Art. 9 Abs. 6) verlangt Name, Postanschrift
+und elektronische Kontaktmöglichkeit des Herstellers auf dem Produkt oder seiner
+Verpackung.
+
+- **Wo:** Das Etikett jeder Einheit trägt den Hersteller rechts neben dem Code 128, hinter
+  dessen Ruhezone. Kassen- und Lagerstrichcode bleiben unverändert.
+- **Was:** Firma, Inhaber, Straße, Postleitzahl und Ort (bei Deutschland als `DE-17235`)
+  und E-Mail, alles aus dem Impressum (`MB_IMPRINT_*`). Es gibt keine zweite Einstellung,
+  und im Code steht keine Anschrift.
+- **Wie groß:** bis 5 pt auf dem A4-Bogen und 4,6 pt auf der QL-Rolle. Reicht der Platz
+  nicht, bricht die Zeile um und wird kleiner, höchstens auf 75 %. Weggelassen wird nichts.
+- **Ohne vollständiges Impressum** (Entwicklung) bleibt der Platz leer.
+- Lager- und Teileetiketten bleiben ohne Hersteller; sie verlassen die Werkstatt nicht.

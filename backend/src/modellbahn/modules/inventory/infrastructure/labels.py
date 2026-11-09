@@ -4,7 +4,9 @@ Johann's till (SumUp) reads barcodes, not QR codes:
 
 * **Unit:** the variant's EAN-13 at the top left (the till rings up the article by
   it), product and article number beside it, and across the bottom a Code 128 with the
-  unit's own code for the workshop's scanner.
+  unit's own code for the workshop's scanner. Right of that the manufacturer with its
+  postal and e-mail address, which the EU's product safety regulation (GPSR) asks for on
+  the product or its packaging.
 * **Location:** the code in large type and a wide Code 128 with it.
 
 Two stocks:
@@ -51,6 +53,7 @@ _GREY: Final = Color(0.42, 0.44, 0.47)
 _ELLIPSIS: Final = "…"
 # EAN-13 is 95 modules wide, plus 11 and 7 modules of quiet zone.
 _EAN_MODULES: Final = 113
+_MAKER_LEADING: Final = 1.18
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +73,8 @@ class _Layout:
     detail_size: float
     code_size: float
     location_code_size: float
+    maker_size: float
+    """Largest size of the manufacturer's lines; smaller (to 75 %) where they need it."""
 
 
 _A4_LAYOUT: Final = _Layout(
@@ -87,6 +92,7 @@ _A4_LAYOUT: Final = _Layout(
     detail_size=6,
     code_size=7,
     location_code_size=17,
+    maker_size=5,
 )
 _QL_LAYOUT: Final = _Layout(
     width=62 * mm,
@@ -103,6 +109,7 @@ _QL_LAYOUT: Final = _Layout(
     detail_size=5.5,
     code_size=6.5,
     location_code_size=15,
+    maker_size=4.6,
 )
 _A4_COLUMNS: Final = 3
 _A4_ROWS: Final = 8
@@ -124,7 +131,14 @@ def _register_fonts() -> None:
 
 
 class ReportLabLabelRenderer:
-    """The :class:`~modellbahn.modules.inventory.application.ports.LabelRenderer` for PDF."""
+    """The :class:`~modellbahn.modules.inventory.application.ports.LabelRenderer` for PDF.
+
+    ``maker`` are the manufacturer's lines (name, address, e-mail) for the labels of units;
+    without them those labels carry no manufacturer.
+    """
+
+    def __init__(self, *, maker: Sequence[str] = ()) -> None:
+        self._maker = tuple(maker)
 
     def render(self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int) -> bytes:
         _register_fonts()
@@ -139,14 +153,14 @@ class ReportLabLabelRenderer:
                 row, column = divmod(index % per_sheet, _A4_COLUMNS)
                 x = column * _A4_LAYOUT.width
                 y = A4[1] - _A4_TOP_MARGIN - (row + 1) * _A4_LAYOUT.height
-                _draw(canvas, label, x, y, _A4_LAYOUT)
+                _draw(canvas, label, (x, y), _A4_LAYOUT, self._maker)
         else:
             canvas = Canvas(buffer, pagesize=(_QL_LAYOUT.width, _QL_LAYOUT.height))
             _start(canvas, len(labels))
             for index, label in enumerate(labels):
                 if index:
                     canvas.showPage()
-                _draw(canvas, label, 0, 0, _QL_LAYOUT)
+                _draw(canvas, label, (0, 0), _QL_LAYOUT, self._maker)
         canvas.showPage()
         canvas.save()
         return buffer.getvalue()
@@ -157,15 +171,27 @@ def _start(canvas: Canvas, count: int) -> None:
     canvas.setCreator("Modellbahn-Shop · Stellwerk")
 
 
-def _draw(canvas: Canvas, label: Label, x: float, y: float, layout: _Layout) -> None:
+def _draw(
+    canvas: Canvas,
+    label: Label,
+    origin: tuple[float, float],
+    layout: _Layout,
+    maker: Sequence[str],
+) -> None:
     if label.ean13 is not None:
-        _draw_unit(canvas, label, label.ean13, (x, y), layout)
+        _draw_unit(canvas, label, label.ean13, origin, layout=layout, maker=maker)
     else:
-        _draw_location(canvas, label, x, y, layout)
+        _draw_location(canvas, label, *origin, layout)
 
 
 def _draw_unit(
-    canvas: Canvas, label: Label, ean13: str, origin: tuple[float, float], layout: _Layout
+    canvas: Canvas,
+    label: Label,
+    ean13: str,
+    origin: tuple[float, float],
+    *,
+    layout: _Layout,
+    maker: Sequence[str],
 ) -> None:
     x, y = origin
     left = x + layout.padding
@@ -210,9 +236,25 @@ def _draw_unit(
     canvas.setFont(_MONO, layout.code_size)
     canvas.drawString(left, bottom, label.code_text)
     code128_y = bottom + layout.code_size + 0.6 * mm
-    _draw_code128(
+    code128_width = _draw_code128(
         canvas, label.code128, (left, code128_y), layout.code128_module, layout.code128_height
     )
+
+    # Right of it, behind its quiet zone and below the article number: the manufacturer.
+    if maker:
+        maker_left = left + code128_width
+        size, lines = maker_block(
+            maker,
+            width=right - maker_left,
+            height=top - layout.ean_height - 0.6 * mm - bottom,
+            size=layout.maker_size,
+        )
+        canvas.setFillColor(black)
+        baseline = bottom + (len(lines) - 1) * size * _MAKER_LEADING
+        for index, line in enumerate(lines):
+            canvas.setFont(_SANS_MEDIUM if index == 0 else _SANS, size)
+            canvas.drawString(maker_left, baseline, line)
+            baseline -= size * _MAKER_LEADING
 
 
 def _draw_location(canvas: Canvas, label: Label, x: float, y: float, layout: _Layout) -> None:
@@ -286,11 +328,33 @@ def _code128_modules(data: str, *, quiet: bool) -> float:
 
 def _draw_code128(
     canvas: Canvas, data: str, origin: tuple[float, float], module: float, height: float
-) -> None:
+) -> float:
+    """Draw the barcode; its width with the quiet zone on the right."""
     # The quiet zone lies to the right; the label's padding is the one on the left.
     barcode = Code128(data, barWidth=module, barHeight=height, lquiet=0, rquiet=10 * module)
     canvas.setFillColor(black)
     barcode.drawOn(canvas, *origin)
+    return float(barcode.width)
+
+
+def maker_block(
+    lines: Sequence[str], *, width: float, height: float, size: float
+) -> tuple[float, list[str]]:
+    """The manufacturer's lines wrapped to ``width``, at the largest size that fits ``height``.
+
+    The size goes down to 75 % of ``size``; a word still too wide ends in an ellipsis. Nothing
+    is dropped: the law wants all of it on the label.
+    """
+    _register_fonts()
+    smallest = size * 0.75
+    while True:
+        wrapped = [
+            piece for line in lines for piece in simpleSplit(line, _SANS_MEDIUM, size, width)
+        ]
+        if len(wrapped) * size * _MAKER_LEADING <= height or size <= smallest:
+            break
+        size = max(smallest, size - 0.2)
+    return size, [_truncated(line, _SANS_MEDIUM, size, width) for line in wrapped]
 
 
 def _fitting_size(text: str, font: str, size: float, width: float, *, floor: float = 0.6) -> float:

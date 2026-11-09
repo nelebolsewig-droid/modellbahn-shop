@@ -31,6 +31,20 @@ class Imprint:
         place = " ".join(part for part in (self.postal_code, self.city) if part)
         return ", ".join(part for part in (self.street, place) if part)
 
+    def maker_lines(self) -> tuple[str, ...]:
+        """The manufacturer as the label on a model names it (EU GPSR, Art. 9 (6)).
+
+        Name, postal address and e-mail, one per line; the country as the postal prefix
+        (``DE-17235 Neustrelitz``). Empty while the imprint is incomplete.
+        """
+        if not self.is_complete:
+            return ()
+        country = self.country.strip()
+        german = country in {"", "Deutschland"}
+        place = f"{'DE-' if german else ''}{self.postal_code} {self.city}"
+        lines = (self.company, self.owner, self.street, place, "" if german else country)
+        return tuple(line for line in (*lines, self.email) if line)
+
     def mail_footer(self) -> tuple[str, ...]:
         """The sender as it closes each e-mail: who, where, how to reach them."""
         who = " · ".join(part for part in (self.company, self.owner) if part)
