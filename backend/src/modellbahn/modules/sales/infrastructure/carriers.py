@@ -45,6 +45,9 @@ SANDBOX_PARTICIPATION: Final = "01"
 PROFILE: Final = "STANDARD_GRUPPENPROFIL"
 # The procedure of each product: digits 11 and 12 of the billing number.
 PROCEDURES: Final = {ShippingProduct.PARCEL: "01", ShippingProduct.PARCEL_INTERNATIONAL: "53"}
+# What happens to a parcel abroad that cannot be delivered: it comes back to the shop.
+# DHL insists on it for DHL Paket International and refuses the shipment without it.
+ENDORSEMENT_RETURN: Final = "RETURN"
 _REASON_MAX: Final = 400
 _TEST_LABEL_SIZE: Final = (100 * mm, 150 * mm)
 
@@ -226,7 +229,7 @@ class DhlCarrier:
         return f"{self._ekp}{PROCEDURES[product]}{self._participations[product]}"
 
     def _order(self, request: LabelRequest) -> dict[str, Any]:
-        shipment = {
+        shipment: dict[str, Any] = {
             "product": request.product.value,
             "billingNumber": self.billing_number(request.product),
             "refNo": request.reference[:35],
@@ -234,6 +237,8 @@ class DhlCarrier:
             "consignee": _party(request.consignee),
             "details": {"weight": {"uom": "g", "value": request.weight_g}},
         }
+        if request.product is ShippingProduct.PARCEL_INTERNATIONAL:
+            shipment["services"] = {"endorsement": ENDORSEMENT_RETURN}
         return {"profile": PROFILE, "shipments": [shipment]}
 
     async def validate(self, request: LabelRequest) -> DhlAnswer:

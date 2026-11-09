@@ -228,6 +228,7 @@ class TestDhlBooking:
         assert shipment["billingNumber"] == f"{EKP}0101"
         assert shipment["refNo"] == "MB-2026-00042"
         assert shipment["details"] == {"weight": {"uom": "g", "value": 850}}
+        assert "services" not in shipment
         assert shipment["consignee"] == {
             "name1": "Erika Mustermann",
             "addressStreet": "Bahnhofstraße",
@@ -319,7 +320,10 @@ class TestDhlBooking:
         accepted = await dhl.validate(request(ShippingProduct.PARCEL_INTERNATIONAL))
         assert accepted.accepted
         assert dict(seen[0].url.params) == {"validate": "true"}
-        assert json.loads(seen[0].content)["shipments"][0]["billingNumber"] == f"{EKP}5302"
+        international = json.loads(seen[0].content)["shipments"][0]
+        assert international["billingNumber"] == f"{EKP}5302"
+        # Abroad DHL wants to know what happens to an undeliverable parcel: it comes back.
+        assert international["services"] == {"endorsement": "RETURN"}
         refused = await carrier(answer(REFUSAL, 400)).validate(request())
         assert not refused.accepted
         assert "Postleitzahl" in refused.reason

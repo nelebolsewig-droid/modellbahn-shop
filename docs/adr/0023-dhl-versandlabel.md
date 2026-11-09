@@ -76,6 +76,8 @@ DHL bietet dafür die „Parcel DE Shipping API“ (Version 2) an:
 - **Adresse:** DHL will Straße und Hausnummer getrennt und das Land als ISO-Alpha-3.
   `split_street` trennt die Hausnummer am Ende ab („Bahnhofstraße 12a“, „Am Hang 3-5“);
   ohne erkennbare Nummer bleibt alles in der Straße.
+- **Unzustellbar im Ausland:** DHL Paket International verlangt eine Vorausverfügung; der
+  Shop gibt „Rücksendung an den Absender“ mit (`services.endorsement: RETURN`).
 - **`GET /admin/shipping/setup`** sagt dem Stellwerk, ob es Labels bucht, mit welchem
   Versanddienst und welchem Vorschlagsgewicht.
 
