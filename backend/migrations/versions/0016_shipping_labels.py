@@ -48,9 +48,7 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "shipment_number <> ''", name="ck_shipping_labels_shipment_number_not_empty"
         ),
-        sa.CheckConstraint(
-            "weight_g BETWEEN 10 AND 31500", name="ck_shipping_labels_weight_range"
-        ),
+        sa.CheckConstraint("weight_g BETWEEN 10 AND 31500", name="ck_shipping_labels_weight_range"),
         sa.CheckConstraint(
             "(status = 'cancelled') = (cancelled_at IS NOT NULL)",
             name="ck_shipping_labels_cancelled_at",
