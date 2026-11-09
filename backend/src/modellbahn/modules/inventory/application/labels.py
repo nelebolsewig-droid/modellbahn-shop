@@ -18,6 +18,7 @@ from modellbahn.modules.inventory.domain.codes import format_unit_code, normaliz
 from modellbahn.modules.inventory.domain.errors import InvalidFieldError
 from modellbahn.modules.inventory.domain.model import LocationKind
 from modellbahn.modules.manufacturing.contracts.parts import Technology
+from modellbahn.platform.money import format_euro
 
 LABELS_PER_PRINT_MAX: Final = 240
 A4_LABELS_PER_SHEET: Final = 24
@@ -74,6 +75,9 @@ class LabelService:
                         title=variant.product_name if variant else "",
                         detail=variant.variant_name if variant else "",
                         reference=variant.sku if variant else "",
+                        price=format_euro(variant.price_cents)
+                        if variant and variant.price_cents > 0
+                        else "",
                     )
                 )
             for index, raw in enumerate(request.location_codes):

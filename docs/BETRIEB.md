@@ -203,7 +203,10 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
   unter „Erfassen“ (neues Modell mit „Stück mit Etikett“).
 - **Drucken:** A4-Bogen oder Brother-Rolle 62 mm wählen. Für die Brother-App „Als Bilder
   für die Brother-App“: jedes Etikett als Bild, einzeln oder als ZIP.
-- Auf jedem Etikett stehen Hersteller, Anschrift und E-Mail aus dem Impressum.
+- Auf jedem Etikett stehen der Preis (oben rechts) sowie Hersteller, Anschrift und E-Mail
+  aus dem Impressum.
+- **Preis geändert?** Die gedruckten Etiketten zeigen den alten Preis: auf der Seite der
+  Einheit (Code scannen oder im Lager öffnen) das Etikett neu drucken.
 
 ### Widerrufe
 

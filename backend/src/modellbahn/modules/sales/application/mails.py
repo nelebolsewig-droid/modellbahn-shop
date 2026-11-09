@@ -9,17 +9,12 @@ from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.mail import MailAction, MailContent, MailRow
+from modellbahn.platform.money import format_euro
 
 ORDER_STATUS_PATH: Final = "/bestellung"
 FAIRS_PATH: Final = "/termine"
 ADMIN_ORDERS_PATH: Final = "/admin/bestellungen"
 SHOP_TIME_ZONE: Final = ZoneInfo("Europe/Berlin")
-
-
-def format_euro(cents: int) -> str:
-    """German notation, e.g. ``1.234,50 €`` (with a no-break space before the sign)."""
-    euros, rest = divmod(cents, 100)
-    return f"{euros:,}".replace(",", ".") + f",{rest:02d}\u00a0€"
 
 
 def _local_time(moment: datetime) -> str:
