@@ -33,12 +33,15 @@ import type {
 import type {
   AdminOrderOut,
   CancelIn,
+  LabelIn,
   ListOrdersParams,
   ListWithdrawalsParams,
   OrderPageOut,
   Problem,
   RefundIn,
   ShipIn,
+  ShippingLabelOut,
+  ShippingSetupOut,
   ValidationProblem,
   WithdrawalListOut
 } from '../model';
@@ -622,7 +625,469 @@ export const useShipOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getShipOrderMutationOptions(options), queryClient);
     }
-    export const getListWithdrawalsUrl = (params?: ListWithdrawalsParams,) => {
+    export const getCancelShippingLabelUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/shipping-label`
+}
+
+/**
+ * @summary Cancel the label at the carrier, e.g. after a wrong weight
+ */
+export const cancelShippingLabel = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getCancelShippingLabelUrl(orderId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelShippingLabelMutationKey = () => ['cancelShippingLabel'] as const;
+
+export const getCancelShippingLabelMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelShippingLabel>>, TError,CancelShippingLabelMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelShippingLabel>>, TError,CancelShippingLabelMutationVariables, TContext> => {
+
+const mutationKey = getCancelShippingLabelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelShippingLabel>>, CancelShippingLabelMutationVariables> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  cancelShippingLabel(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelShippingLabelMutationResult = NonNullable<Awaited<ReturnType<typeof cancelShippingLabel>>>
+
+    export type CancelShippingLabelMutationError = ErrorType<Problem | ValidationProblem>
+    export type CancelShippingLabelMutationVariables = {orderId: string}
+
+    /**
+ * @summary Cancel the label at the carrier, e.g. after a wrong weight
+ */
+export const useCancelShippingLabel = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelShippingLabel>>, TError,CancelShippingLabelMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelShippingLabel>>,
+        TError,
+        CancelShippingLabelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCancelShippingLabelMutationOptions(options), queryClient);
+    }
+    export const getGetShippingLabelUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/shipping-label`
+}
+
+/**
+ * @summary The order's shipping label in force
+ */
+export const getShippingLabel = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ShippingLabelOut> => {
+
+  return apiFetch<ShippingLabelOut>(getGetShippingLabelUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShippingLabelQueryKey = (orderId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/shipping-label`
+    ] as const;
+    }
+
+
+export const getGetShippingLabelQueryOptions = <TData = Awaited<ReturnType<typeof getShippingLabel>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShippingLabelQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShippingLabel>>> = ({ signal }) => getShippingLabel(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetShippingLabelQueryResult = NonNullable<Awaited<ReturnType<typeof getShippingLabel>>>
+export type GetShippingLabelQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetShippingLabel<TData = Awaited<ReturnType<typeof getShippingLabel>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabel>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabel<TData = Awaited<ReturnType<typeof getShippingLabel>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabel>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabel>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabel<TData = Awaited<ReturnType<typeof getShippingLabel>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The order's shipping label in force
+ */
+
+export function useGetShippingLabel<TData = Awaited<ReturnType<typeof getShippingLabel>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabel>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetShippingLabelQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getBookShippingLabelUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/shipping-label`
+}
+
+/**
+ * Packers too: whoever packs the parcel prints its label.
+ * @summary Book the parcel's label with the carrier (ADR 0023)
+ */
+export const bookShippingLabel = async (orderId: string,
+    labelIn: LabelIn, options?: Parameters<typeof apiFetch>[1]): Promise<ShippingLabelOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ShippingLabelOut>(getBookShippingLabelUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(labelIn)
+  }
+);}
+
+
+
+
+
+export const getBookShippingLabelMutationKey = () => ['bookShippingLabel'] as const;
+
+export const getBookShippingLabelMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookShippingLabel>>, TError,BookShippingLabelMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bookShippingLabel>>, TError,BookShippingLabelMutationVariables, TContext> => {
+
+const mutationKey = getBookShippingLabelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bookShippingLabel>>, BookShippingLabelMutationVariables> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  bookShippingLabel(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BookShippingLabelMutationResult = NonNullable<Awaited<ReturnType<typeof bookShippingLabel>>>
+    export type BookShippingLabelMutationBody = LabelIn
+    export type BookShippingLabelMutationError = ErrorType<Problem | ValidationProblem>
+    export type BookShippingLabelMutationVariables = {orderId: string;data: LabelIn}
+
+    /**
+ * @summary Book the parcel's label with the carrier (ADR 0023)
+ */
+export const useBookShippingLabel = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookShippingLabel>>, TError,BookShippingLabelMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bookShippingLabel>>,
+        TError,
+        BookShippingLabelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBookShippingLabelMutationOptions(options), queryClient);
+    }
+    export const getGetShippingLabelDocumentUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/shipping-label.pdf`
+}
+
+/**
+ * @summary The label as a PDF, to print on the label printer
+ */
+export const getShippingLabelDocument = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetShippingLabelDocumentUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShippingLabelDocumentQueryKey = (orderId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/shipping-label.pdf`
+    ] as const;
+    }
+
+
+export const getGetShippingLabelDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getShippingLabelDocument>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShippingLabelDocumentQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShippingLabelDocument>>> = ({ signal }) => getShippingLabelDocument(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetShippingLabelDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getShippingLabelDocument>>>
+export type GetShippingLabelDocumentQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetShippingLabelDocument<TData = Awaited<ReturnType<typeof getShippingLabelDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabelDocument>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabelDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabelDocument<TData = Awaited<ReturnType<typeof getShippingLabelDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingLabelDocument>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingLabelDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingLabelDocument<TData = Awaited<ReturnType<typeof getShippingLabelDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The label as a PDF, to print on the label printer
+ */
+
+export function useGetShippingLabelDocument<TData = Awaited<ReturnType<typeof getShippingLabelDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingLabelDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetShippingLabelDocumentQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetShippingSetupUrl = () => {
+
+
+
+
+  return `/api/v1/admin/shipping/setup`
+}
+
+/**
+ * @summary Whether the Stellwerk books shipping labels, and the default weight
+ */
+export const getShippingSetup = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ShippingSetupOut> => {
+
+  return apiFetch<ShippingSetupOut>(getGetShippingSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetShippingSetupQueryKey = () => {
+    return [
+    `/api/v1/admin/shipping/setup`
+    ] as const;
+    }
+
+
+export const getGetShippingSetupQueryOptions = <TData = Awaited<ReturnType<typeof getShippingSetup>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetShippingSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getShippingSetup>>> = ({ signal }) => getShippingSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetShippingSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getShippingSetup>>>
+export type GetShippingSetupQueryError = ErrorType<Problem>
+
+
+export function useGetShippingSetup<TData = Awaited<ReturnType<typeof getShippingSetup>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingSetup>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingSetup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingSetup<TData = Awaited<ReturnType<typeof getShippingSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getShippingSetup>>,
+          TError,
+          Awaited<ReturnType<typeof getShippingSetup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetShippingSetup<TData = Awaited<ReturnType<typeof getShippingSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Whether the Stellwerk books shipping labels, and the default weight
+ */
+
+export function useGetShippingSetup<TData = Awaited<ReturnType<typeof getShippingSetup>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getShippingSetup>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetShippingSetupQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getListWithdrawalsUrl = (params?: ListWithdrawalsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

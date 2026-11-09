@@ -201,6 +201,23 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/admin/orders/{order_id}"): ("getOrder", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/ship"): ("shipOrder", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/cancel"): ("cancelOrder", "admin-sales"),
+    ("GET", "/api/v1/admin/shipping/setup"): ("getShippingSetup", "admin-sales"),
+    ("POST", "/api/v1/admin/orders/{order_id}/shipping-label"): (
+        "bookShippingLabel",
+        "admin-sales",
+    ),
+    ("GET", "/api/v1/admin/orders/{order_id}/shipping-label"): (
+        "getShippingLabel",
+        "admin-sales",
+    ),
+    ("DELETE", "/api/v1/admin/orders/{order_id}/shipping-label"): (
+        "cancelShippingLabel",
+        "admin-sales",
+    ),
+    ("GET", "/api/v1/admin/orders/{order_id}/shipping-label.pdf"): (
+        "getShippingLabelDocument",
+        "admin-sales",
+    ),
     ("GET", "/api/v1/admin/inventory/locations"): ("listLocations", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/locations"): ("createLocation", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/locations/{code}"): ("getLocation", "admin-inventory"),

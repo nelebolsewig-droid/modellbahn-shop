@@ -185,8 +185,9 @@ class Settings(BaseSettings):
     # Participation numbers of the contract: the last two digits of each billing number.
     dhl_participation_national: str = "01"
     dhl_participation_international: str = "01"
-    # 910-300-300 is the 100 x 150 mm label of DHL's thermal label printers.
-    dhl_print_format: str = "910-300-300"
+    # DHL's thermal label of 103 x 150 mm, the nearest to the packing desk's 100 x 150 mm
+    # (4 x 6 inch) rolls; ``cli dhl-check --sandbox --buchen`` measures what DHL sends.
+    dhl_print_format: str = "910-300-400"
     dhl_default_weight_g: int = Field(default=1000, ge=10, le=31_500)
     dhl_api_url: str = ""
 

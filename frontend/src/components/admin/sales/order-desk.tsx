@@ -11,6 +11,7 @@ import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { RefundPanel } from "@/components/admin/sales/refund-panel";
 import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
+import { LabelReprint, ShippingLabelDesk, useActiveLabel } from "@/components/admin/sales/shipping-label";
 import { TransferBooking, awaitedTransfer, paidByTransfer } from "@/components/admin/sales/transfer-booking";
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
@@ -43,9 +44,10 @@ import {
   getListOrdersQueryKey,
   getListWithdrawalsQueryKey,
   shipOrder,
+  useGetShippingSetup,
   useGetOrder,
 } from "@/lib/api/generated/admin-sales/admin-sales";
-import type { AdminOrderOut, PickListOut, StaffRole } from "@/lib/api/generated/model";
+import type { AdminOrderOut, PickListOut, ShippingLabelOut, StaffRole } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { SHOP_NAME } from "@/lib/config";
 import { useApiForm } from "@/lib/forms/use-api-form";
@@ -337,18 +339,7 @@ function Dispatch({
   onShipped: (order: AdminOrderOut) => void;
 }) {
   if (order.status === "shipped" && order.shipped_at) {
-    return (
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-small">
-        <dt className="text-ink-secondary">Versendet</dt>
-        <dd>
-          {formatLongDate(new Date(order.shipped_at))}, {formatClock(new Date(order.shipped_at))} Uhr
-        </dd>
-        <dt className="text-ink-secondary">Versand mit</dt>
-        <dd>{order.carrier || "—"}</dd>
-        <dt className="text-ink-secondary">Sendung</dt>
-        <dd className="font-mono break-all">{order.tracking_number || "—"}</dd>
-      </dl>
-    );
+    return <Shipped order={order} />;
   }
   if (order.status === "pending_payment") {
     return <p className="text-small text-ink-secondary">Verschickt wird erst, wenn die Zahlung eingegangen ist.</p>;
@@ -366,7 +357,58 @@ function Dispatch({
       </p>
     );
   }
-  return <ShipForm order={order} onShipped={onShipped} />;
+  return <ReadyToShip order={order} onShipped={onShipped} />;
+}
+
+/** Packed: book the label (when a carrier is connected), then report the dispatch. */
+function ReadyToShip({ order, onShipped }: { order: AdminOrderOut; onShipped: (order: AdminOrderOut) => void }) {
+  const setup = useGetShippingSetup();
+  const booksLabels = setup.data?.books_labels === true;
+  const label = useActiveLabel(order.id, booksLabels);
+  if (setup.isPending || (booksLabels && label.isPending)) {
+    return <PendingNotice>Versand wird vorbereitet …</PendingNotice>;
+  }
+  const active = label.data ?? null;
+  return (
+    <div className="space-y-6">
+      {booksLabels && setup.data ? (
+        label.isError ? (
+          <p className="text-small text-danger">{errorMessage(label.error)}</p>
+        ) : (
+          <ShippingLabelDesk order={order} setup={setup.data} label={active} />
+        )
+      ) : null}
+      <div className={booksLabels ? "border-t border-line pt-6" : undefined}>
+        {/* Keyed by the label: a new or cancelled label fills the form anew. */}
+        <ShipForm key={active?.shipment_number ?? "ohne-label"} order={order} label={active} onShipped={onShipped} />
+      </div>
+    </div>
+  );
+}
+
+function Shipped({ order }: { order: AdminOrderOut }) {
+  const setup = useGetShippingSetup();
+  const label = useActiveLabel(order.id, setup.data?.books_labels === true);
+  const shippedAt = new Date(order.shipped_at ?? order.placed_at);
+  return (
+    <>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-small">
+        <dt className="text-ink-secondary">Versendet</dt>
+        <dd>
+          {formatLongDate(shippedAt)}, {formatClock(shippedAt)} Uhr
+        </dd>
+        <dt className="text-ink-secondary">Versand mit</dt>
+        <dd>{order.carrier || "—"}</dd>
+        <dt className="text-ink-secondary">Sendung</dt>
+        <dd className="font-mono break-all">{order.tracking_number || "—"}</dd>
+      </dl>
+      {label.data ? (
+        <p className="mt-4">
+          <LabelReprint order={order} label={label.data} />
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 /** The pieces of a paid order: where they lie, what is picked, what is still being made. */
@@ -435,10 +477,18 @@ function Picking({
   );
 }
 
-function ShipForm({ order, onShipped }: { order: AdminOrderOut; onShipped: (order: AdminOrderOut) => void }) {
+function ShipForm({
+  order,
+  label,
+  onShipped,
+}: {
+  order: AdminOrderOut;
+  label: ShippingLabelOut | null;
+  onShipped: (order: AdminOrderOut) => void;
+}) {
   const { form, onSubmit, formError } = useApiForm({
     schema: shipSchema,
-    defaultValues: { carrier: "DHL", tracking_number: "" },
+    defaultValues: { carrier: label?.carrier ?? "DHL", tracking_number: label?.shipment_number ?? "" },
     async submit(values) {
       onShipped(await shipOrder(order.id, values));
     },
@@ -460,7 +510,11 @@ function ShipForm({ order, onShipped }: { order: AdminOrderOut; onShipped: (orde
             <option key={carrier} value={carrier} />
           ))}
         </datalist>
-        <FormField label="Sendungsnummer" hint="Optional; steht dann in der Versandmail." error={errors.tracking_number?.message}>
+        <FormField
+          label="Sendungsnummer"
+          hint={label ? "Vom Label übernommen; steht mit Verfolgungslink in der Versandmail." : "Optional; steht dann in der Versandmail."}
+          error={errors.tracking_number?.message}
+        >
           {(control) => <Input {...control} {...register("tracking_number")} maxLength={40} className="font-mono" />}
         </FormField>
       </div>

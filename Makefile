@@ -26,7 +26,7 @@ SERVICE ?=
 ROLE ?= owner
 
 .PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff staff-list staff-delete \
-	catalog-import smoke check \
+	catalog-import dhl-check smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -79,6 +79,11 @@ staff-delete: export STAFF_EMAIL = $(EMAIL)
 staff-delete: .env ## Mitarbeiterkonto löschen: make staff-delete EMAIL=...
 	$(if $(EMAIL),,$(error Aufruf: make staff-delete EMAIL=adresse@example.de))
 	$(COMPOSE) run --rm api python -m modellbahn.cli delete-staff --email "$$STAFF_EMAIL"
+
+# make dhl-check [SANDBOX=1]: DHL checks two sample parcels and books nothing (ADR 0023);
+# SANDBOX=1 tries DHL's sandbox and books and cancels one test label there.
+dhl-check: .env ## DHL-Zugang prüfen, ohne Label: make dhl-check [SANDBOX=1]
+	$(COMPOSE) run --rm api python -m modellbahn.cli dhl-check $(if $(SANDBOX),--sandbox --buchen)
 
 catalog-import: .env ## Startbestand des Katalogs einspielen (wiederholbar, legt nur Entwürfe an)
 	$(COMPOSE) run --rm api python -m modellbahn.cli import-catalog seed/startbestand.json

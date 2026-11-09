@@ -11,6 +11,7 @@ DHL's model of shipments and errors stays in this file and never reaches the dom
 import base64
 import binascii
 import secrets
+from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, Final
 
@@ -40,6 +41,7 @@ DHL_PRODUCTION_URL: Final = "https://api-eu.dhl.com/parcel/de/shipping/v2"
 SANDBOX_USER: Final = "user-valid"
 SANDBOX_PASSWORD: Final = "SandboxPasswort2023!"  # noqa: S105 - DHL publishes it for everyone
 SANDBOX_EKP: Final = "3333333333"
+SANDBOX_PARTICIPATION: Final = "01"
 PROFILE: Final = "STANDARD_GRUPPENPROFIL"
 # The procedure of each product: digits 11 and 12 of the billing number.
 PROCEDURES: Final = {ShippingProduct.PARCEL: "01", ShippingProduct.PARCEL_INTERNATIONAL: "53"}
@@ -72,6 +74,8 @@ class NoCarrier:
 
 class TestCarrier:
     """A label drawn by the shop, clearly marked as a test; nothing leaves the server."""
+
+    __test__ = False  # a carrier, not a pytest class
 
     def __init__(self, *, print_format: str = "100x150mm") -> None:
         self._print_format = print_format
@@ -159,6 +163,19 @@ def _party(address: LabelAddress) -> dict[str, str]:
     return party
 
 
+@dataclass(frozen=True, slots=True)
+class DhlAnswer:
+    """DHL's answer to a check: the HTTP status, the body, its messages in one line."""
+
+    status: int
+    body: dict[str, Any]
+    reason: str
+
+    @property
+    def accepted(self) -> bool:
+        return self.status < 400  # noqa: PLR2004
+
+
 class DhlCarrier:
     """DHL Parcel DE Shipping API v2: one shipment per label, the label as a PDF."""
 
@@ -197,6 +214,10 @@ class DhlCarrier:
     def books_labels(self) -> bool:
         return True
 
+    @property
+    def base_url(self) -> str:
+        return str(self._client.base_url)
+
     async def aclose(self) -> None:
         await self._client.aclose()
 
@@ -204,7 +225,7 @@ class DhlCarrier:
         """EKP, procedure of the product, participation: 14 digits."""
         return f"{self._ekp}{PROCEDURES[product]}{self._participations[product]}"
 
-    async def book(self, request: LabelRequest) -> BookedLabel:
+    def _order(self, request: LabelRequest) -> dict[str, Any]:
         shipment = {
             "product": request.product.value,
             "billingNumber": self.billing_number(request.product),
@@ -213,6 +234,27 @@ class DhlCarrier:
             "consignee": _party(request.consignee),
             "details": {"weight": {"uom": "g", "value": request.weight_g}},
         }
+        return {"profile": PROFILE, "shipments": [shipment]}
+
+    async def validate(self, request: LabelRequest) -> DhlAnswer:
+        """Let DHL check a shipment without booking it: for ``cli dhl-check``.
+
+        Any answer comes back as it is, refusals included; only an unreachable DHL raises.
+        """
+        try:
+            response = await self._client.post(
+                "/orders", params={"validate": "true"}, json=self._order(request)
+            )
+        except httpx.HTTPError as exc:
+            raise CarrierUnavailableError from exc
+        try:
+            body = response.json()
+        except ValueError:
+            body = {"text": response.text[:_REASON_MAX]}
+        data: dict[str, Any] = body if isinstance(body, dict) else {"body": body}
+        return DhlAnswer(status=response.status_code, body=data, reason=_reason(data))
+
+    async def book(self, request: LabelRequest) -> BookedLabel:
         answer = await self._call(
             "POST",
             "/orders",
@@ -222,7 +264,7 @@ class DhlCarrier:
                 "includeDocs": "include",
                 "mustEncode": "false",
             },
-            json={"profile": PROFILE, "shipments": [shipment]},
+            json=self._order(request),
         )
         item = _first_item(answer)
         number = str(item.get("shipmentNo") or "")
@@ -308,35 +350,45 @@ def _reason(data: dict[str, Any]) -> str:
 
 def build_carrier(settings: Settings) -> Carrier:
     """The configured carrier (``MB_DHL_MODE``)."""
-    participations = {
-        ShippingProduct.PARCEL: settings.dhl_participation_national,
-        ShippingProduct.PARCEL_INTERNATIONAL: settings.dhl_participation_international,
-    }
     match settings.dhl_mode:
         case CarrierMode.OFF:
             return NoCarrier()
         case CarrierMode.TEST:
             return TestCarrier()
         case CarrierMode.SANDBOX:
-            return DhlCarrier(
-                api_key=settings.dhl_api_key.get_secret_value(),
-                username=settings.dhl_username or SANDBOX_USER,
-                password=settings.dhl_password.get_secret_value() or SANDBOX_PASSWORD,
-                ekp=settings.dhl_ekp or SANDBOX_EKP,
-                participations=participations,
-                print_format=settings.dhl_print_format,
-                base_url=settings.dhl_api_url or DHL_SANDBOX_URL,
-            )
+            return dhl_carrier(settings, sandbox=True)
         case CarrierMode.PRODUCTION:
-            return DhlCarrier(
-                api_key=settings.dhl_api_key.get_secret_value(),
-                username=settings.dhl_username,
-                password=settings.dhl_password.get_secret_value(),
-                ekp=settings.dhl_ekp,
-                participations=participations,
-                print_format=settings.dhl_print_format,
-                base_url=settings.dhl_api_url or DHL_PRODUCTION_URL,
-            )
+            return dhl_carrier(settings, sandbox=False)
+
+
+def dhl_carrier(settings: Settings, *, sandbox: bool) -> DhlCarrier:
+    """DHL with the shop's API key: in the sandbox as DHL's test customer, else as the shop.
+
+    Also what ``cli dhl-check`` checks, whatever ``MB_DHL_MODE`` says: so the sandbox can be
+    tried on the live server, and the business account before the shop books with it.
+    """
+    if sandbox:
+        return DhlCarrier(
+            api_key=settings.dhl_api_key.get_secret_value(),
+            username=SANDBOX_USER,
+            password=SANDBOX_PASSWORD,
+            ekp=SANDBOX_EKP,
+            participations=dict.fromkeys(ShippingProduct, SANDBOX_PARTICIPATION),
+            print_format=settings.dhl_print_format,
+            base_url=settings.dhl_api_url or DHL_SANDBOX_URL,
+        )
+    return DhlCarrier(
+        api_key=settings.dhl_api_key.get_secret_value(),
+        username=settings.dhl_username,
+        password=settings.dhl_password.get_secret_value(),
+        ekp=settings.dhl_ekp,
+        participations={
+            ShippingProduct.PARCEL: settings.dhl_participation_national,
+            ShippingProduct.PARCEL_INTERNATIONAL: settings.dhl_participation_international,
+        },
+        print_format=settings.dhl_print_format,
+        base_url=settings.dhl_api_url or DHL_PRODUCTION_URL,
+    )
 
 
 TEST_SHIPPER: Final = LabelAddress(

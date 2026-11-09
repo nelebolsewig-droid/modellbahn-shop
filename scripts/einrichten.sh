@@ -272,7 +272,7 @@ public_ipv6() {
 
 run_wizard() {
 
-TOTAL_STAGES=12
+TOTAL_STAGES=13
 
 if [[ $EUID -ne 0 ]]; then
   printf 'Bitte als root starten: sudo %s\n' "$0" >&2
@@ -507,6 +507,62 @@ fi
 pause
 
 # ── 10 ────────────────────────────────────────────────────────────────────
+stage "DHL-Versandlabels (kann später nachgeholt werden)"
+say "Das Stellwerk bucht das DHL-Label für den Etikettendrucker (100 × 150 mm), sobald das Paket"
+say "gepackt ist, und die Sendungsnummer kommt mit Verfolgungslink in die Versandmail."
+say "Dafür braucht es den API-Schlüssel eurer App im DHL-Entwicklerportal und für echte Labels"
+say "einen Systembenutzer des DHL-Geschäftskundenportals mit eurer Kundennummer (EKP)."
+note "Ohne DHL tragt ihr die Sendungsnummer wie bisher von Hand ein."
+printf '\n'
+if confirm "DHL jetzt anbinden?"; then
+  open_url "https://developer.dhl.com/user/apps"
+  step "Apps → eure App → „Show key“: den ${BOLD}API Key${RESET} kopieren (nicht das API Secret)."
+  step "Er steht danach nur noch hier in .env, nirgends sonst."
+  ask_secret MB_DHL_API_KEY "API-Schlüssel (unsichtbar):"
+  until [[ -n "$MB_DHL_API_KEY" ]]; do
+    ask_secret MB_DHL_API_KEY "API-Schlüssel (unsichtbar):"
+  done
+  write_env MB_DHL_API_KEY "$MB_DHL_API_KEY"
+  printf '\n'
+  if confirm "Liegt der Systembenutzer des Geschäftskundenportals schon vor?"; then
+    open_url "https://geschaeftskunden.dhl.de"
+    step "Einstellungen → Benutzerverwaltung → Systembenutzer (für die API) anlegen."
+    ask_real MB_DHL_USERNAME "Name des Systembenutzers:"
+    ask_secret MB_DHL_PASSWORD "Passwort des Systembenutzers (unsichtbar):"
+    step "Die Abrechnungsnummer hat 14 Ziffern: Kundennummer (EKP, 10), Verfahren (2), Teilnahme (2)."
+    ask_real MB_DHL_EKP "Kundennummer, die ersten 10 Ziffern (EKP):"
+    until [[ "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')" =~ ^[0-9]{10}$ ]]; do
+      warn "Die EKP hat genau 10 Ziffern."
+      ask MB_DHL_EKP "Kundennummer (EKP):"
+    done
+    step "Teilnahme: die letzten 2 Ziffern hinter Verfahren 01 (DHL Paket) bzw. 53 (International)."
+    ask_real MB_DHL_PARTICIPATION_NATIONAL "Teilnahme DHL Paket (meist 01):" "01"
+    ask_real MB_DHL_PARTICIPATION_INTERNATIONAL "Teilnahme DHL Paket International (meist 01):" "01"
+    write_env MB_DHL_USERNAME "$MB_DHL_USERNAME"
+    write_env MB_DHL_PASSWORD "$MB_DHL_PASSWORD"
+    write_env MB_DHL_EKP "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')"
+    write_env MB_DHL_PARTICIPATION_NATIONAL "$MB_DHL_PARTICIPATION_NATIONAL"
+    write_env MB_DHL_PARTICIPATION_INTERNATIONAL "$MB_DHL_PARTICIPATION_INTERNATIONAL"
+    note "Erst einschalten, wenn ${BOLD}make dhl-check${RESET} beide Probesendungen angenommen hat."
+    if confirm "Labels im Stellwerk jetzt echt buchen lassen?"; then
+      write_env MB_DHL_MODE "production"
+    else
+      write_env MB_DHL_MODE "off"
+      SKIPPED+=("DHL einschalten: make dhl-check, dann Skript erneut starten und einschalten")
+    fi
+  else
+    write_env MB_DHL_MODE "off"
+    SKIPPED+=("DHL-Systembenutzer: Skript erneut starten, sobald er angelegt ist")
+  fi
+  step "Prüfen (bucht nichts Echtes): ${BOLD}make dhl-check SANDBOX=1${RESET} in DHLs Sandbox,"
+  step "${BOLD}make dhl-check${RESET} mit dem Geschäftskundenkonto. Beides nach dem Bauen."
+else
+  write_env MB_DHL_MODE "off"
+  SKIPPED+=("DHL-Labels: Skript erneut starten, sobald der API-Schlüssel da ist")
+fi
+pause
+
+# ── 11 ────────────────────────────────────────────────────────────────────
 stage "Shop bauen und starten"
 say "Der erste Bau dauert 10 bis 20 Minuten; danach startet der Shop mit HTTPS."
 if confirm "Jetzt bauen und starten?"; then
@@ -528,7 +584,7 @@ else
 fi
 pause
 
-# ── 11 ────────────────────────────────────────────────────────────────────
+# ── 12 ────────────────────────────────────────────────────────────────────
 stage "Konten für das Stellwerk"
 say "Das erste Konto bekommt die Rolle Inhaber. Das Passwort fragt das Programm gleich ab"
 say "(mindestens 12 Zeichen)."
@@ -546,7 +602,7 @@ fi
 step "Anmelden: ${BOLD}https://$SITE_ADDRESS/admin${RESET}"
 pause
 
-# ── 12 ────────────────────────────────────────────────────────────────────
+# ── 13 ────────────────────────────────────────────────────────────────────
 stage "Nächtliche Sicherung"
 say "Jede Nacht um 3:30 sichert der Server Datenbank und Bilder nach /var/backups/modellbahn"
 say "und hält 14 Tage vor."

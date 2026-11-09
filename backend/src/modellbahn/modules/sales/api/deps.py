@@ -74,7 +74,7 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 def get_label_service(request: Request) -> ShippingLabelService:
-    return app_state(request, "label_service", ShippingLabelService)
+    return app_state(request, "shipping_label_service", ShippingLabelService)
 
 
 LabelServiceDep = Annotated[ShippingLabelService, Depends(get_label_service)]

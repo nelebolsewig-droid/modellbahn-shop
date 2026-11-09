@@ -401,7 +401,7 @@ def _attach_sales_services(
         shop_url=settings.public_base_url,
         bank_transfer=settings.bank_account is not None,
     )
-    app.state.label_service = ShippingLabelService(
+    app.state.shipping_label_service = ShippingLabelService(
         uow_factory=uow_factory,
         clock=clock,
         carrier=carrier,

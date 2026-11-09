@@ -15,6 +15,7 @@ from modellbahn.modules.sales.application.ports import Carrier, LabelRequest, Sa
 from modellbahn.modules.sales.domain.errors import (
     CarrierRejectedError,
     CarrierUnavailableError,
+    InvalidOrderStateError,
     LabelExistsError,
     LabelNotFoundError,
     OrderNotFoundError,
@@ -27,7 +28,7 @@ from modellbahn.modules.sales.domain.labels import (
     check_weight,
     product_for,
 )
-from modellbahn.modules.sales.domain.model import Order
+from modellbahn.modules.sales.domain.model import Order, OrderStatus
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.outbox import HandlerRegistry
 
@@ -111,8 +112,15 @@ class ShippingLabelService:
             return label
 
     async def cancel(self, order_id: UUID) -> None:
-        """Drop the order's label at the carrier, e.g. after a wrong weight or address."""
+        """Drop the order's label at the carrier, e.g. after a wrong weight or address.
+
+        Not once the order is shipped: the parcel is on its way with this label.
+        """
         async with self._uow() as uow:
+            order = await _locked(uow, order_id)
+            if order.status is OrderStatus.SHIPPED:
+                msg = "a shipped order keeps its label"
+                raise InvalidOrderStateError(msg)
             label = await uow.labels.active_for(order_id, for_update=True)
             if label is None:
                 raise LabelNotFoundError
@@ -128,7 +136,11 @@ class ShippingLabelService:
             if label is None:
                 return
             try:
-                await self._carrier.cancel(label.shipment_number)
+                if not self._carrier.books_labels:
+                    # DHL was switched off since: the label is dropped here, never used.
+                    _logger.warning("sales.label.cancel_skipped", shipment=label.shipment_number)
+                else:
+                    await self._carrier.cancel(label.shipment_number)
             except CarrierRejectedError as error:
                 # The carrier no longer knows it (cancelled there, or never used): it is gone.
                 _logger.warning(

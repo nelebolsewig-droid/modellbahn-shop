@@ -72,6 +72,16 @@ x-backend-env: &backend-env
   MB_BANK_IBAN:
   MB_BANK_BIC:
   MB_BANK_NAME:
+  # Shipping labels: off, test (drawn by the shop), sandbox or production (ADR 0023).
+  MB_DHL_MODE:
+  MB_DHL_API_KEY:
+  MB_DHL_USERNAME:
+  MB_DHL_PASSWORD:
+  MB_DHL_EKP:
+  MB_DHL_PARTICIPATION_NATIONAL:
+  MB_DHL_PARTICIPATION_INTERNATIONAL:
+  MB_DHL_PRINT_FORMAT:
+  MB_DHL_DEFAULT_WEIGHT_G:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

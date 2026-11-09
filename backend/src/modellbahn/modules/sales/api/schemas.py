@@ -665,7 +665,7 @@ class ShippingLabelOut(BaseModel):
     product: ShippingProduct
     shipment_number: str = Field(examples=["00340434161094042557"])
     weight_g: int
-    print_format: str = Field(examples=["910-300-300"])
+    print_format: str = Field(examples=["910-300-400"])
     created_at: datetime
 
     @classmethod

@@ -106,6 +106,11 @@ export const PROBLEM_MESSAGES: Messages = {
     "Die Bestellung ist noch nicht vollständig kommissioniert. Scanne zuerst alle Stücke.",
   marketplace_order:
     "Diese Bestellung kam über eBay. Storniere sie auf eBay; der Shop übernimmt die Stornierung dann selbst.",
+  carrier_unavailable:
+    "DHL ist gerade nicht erreichbar. Es wurde kein Label gebucht oder storniert; versuche es bitte gleich noch einmal.",
+  carrier_rejected: "DHL hat das abgelehnt. Prüfe Adresse und Gewicht; DHLs Begründung steht darunter.",
+  label_exists: "Für diese Bestellung gibt es schon ein Label. Storniere es zuerst, wenn du ein neues brauchst.",
+  label_not_found: "Für diese Bestellung gibt es kein gültiges Label.",
 
   // eBay
   ebay_off: "eBay ist auf diesem Server ausgeschaltet.",
