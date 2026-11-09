@@ -23,8 +23,11 @@ einen Server und das Repository darauf.
 Im Terminal (Mac, Linux) oder in der Windows-Eingabeaufforderung:
 
 ```bash
-ssh root@<IPv4-Adresse>
+ssh -o ServerAliveInterval=30 root@<IPv4-Adresse>
 ```
+
+`ServerAliveInterval=30` hält die Verbindung offen, während du im Browser etwas
+nachschlägst; ohne trennt der Server sie manchmal nach ein paar Minuten Stille.
 
 ## 3. Repository holen
 
@@ -108,6 +111,7 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Mitarbeiterkonten anzeigen | `make staff-list` |
 | Mitarbeiterkonto löschen | `make staff-delete EMAIL=…` (fragt nach; Anmeldungen enden sofort; das letzte Inhaberkonto bleibt) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
+| DHL einrichten oder einschalten | `./scripts/einrichten.sh dhl` |
 | DHL-Zugang prüfen | `make dhl-check SANDBOX=1` (Sandbox) · `make dhl-check` (Geschäftskundenkonto) |
 | Neu starten | `docker compose restart api worker` |
 
@@ -163,8 +167,11 @@ eingetragen ist (ADR 0022; Skript erneut starten, Stufe „Vorkasse“).
 
 ### DHL-Versandlabels
 
-Das Stellwerk bucht das DHL-Label, sobald ein Paket gepackt ist (ADR 0023; Skript erneut
-starten, Stufe „DHL-Versandlabels“).
+Das Stellwerk bucht das DHL-Label, sobald ein Paket gepackt ist (ADR 0023). Eingerichtet
+wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
+
+- **Schlüssel einfügen:** Im Feld erscheint beim Einfügen (⌘V) nichts. Nach Enter meldet
+  das Skript „✓ übernommen (… Zeichen)“; nur Enter ohne Eingabe lässt DHL aus.
 
 - **Zugang prüfen, ohne etwas Echtes zu buchen:**
   - `make dhl-check SANDBOX=1`: DHLs Sandbox mit DHLs Testkunden. Braucht nur den
@@ -184,8 +191,9 @@ starten, Stufe „DHL-Versandlabels“).
 - **DHL lehnt ab:** Unter der Meldung steht DHLs Begründung, meist Adresse oder Gewicht.
   Adresse mit dem Kunden klären; zur Not das Label im Geschäftskundenportal buchen und die
   Nummer von Hand eintragen.
-- **Ausschalten:** Skript erneut starten und bei „Labels im Stellwerk jetzt echt buchen
-  lassen?“ mit `N` antworten. Dann wird die Nummer wieder von Hand eingetragen.
+- **Einschalten, Ausschalten:** `./scripts/einrichten.sh dhl` und bei „Labels im Stellwerk
+  jetzt echt buchen lassen?“ mit `y` bzw. `N` antworten. Ausgeschaltet wird die Nummer
+  wieder von Hand eingetragen.
 
 ### Widerrufe
 
