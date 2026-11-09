@@ -219,6 +219,7 @@ WRITABLE_TABLES = (
     "inventory.allocations",
     "inventory.locations",
     "sales.withdrawals",
+    "sales.shipping_labels",
     "sales.cart_lines",
     "sales.carts",
     "sales.payments",

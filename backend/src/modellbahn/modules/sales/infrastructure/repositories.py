@@ -21,6 +21,7 @@ from modellbahn.modules.inventory.contracts.stock import load_free_units, load_p
 from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_received_order
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.ports import OrderQuery
+from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingLabel
 from modellbahn.modules.sales.domain.model import (
     BANK_TRANSFER,
     BANK_TRANSFER_TIMEOUT,
@@ -40,6 +41,7 @@ from modellbahn.modules.sales.infrastructure.tables import (
     order_number_seq,
     orders,
     payments,
+    shipping_labels,
     withdrawals,
 )
 from modellbahn.modules.site.contracts.fairs import load_next_fair
@@ -208,6 +210,23 @@ class SqlWithdrawalRepository:
         return list((await self._session.execute(statement)).scalars())
 
 
+class SqlLabelRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def active_for(self, order_id: UUID, *, for_update: bool = False) -> ShippingLabel | None:
+        statement = select(ShippingLabel).where(
+            shipping_labels.c.order_id == order_id,
+            shipping_labels.c.status == LabelStatus.ACTIVE,
+        )
+        if for_update:
+            statement = statement.with_for_update().execution_options(populate_existing=True)
+        return (await self._session.execute(statement)).scalars().one_or_none()
+
+    def add(self, label: ShippingLabel) -> None:
+        self._session.add(label)
+
+
 class SqlAddressRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -311,6 +330,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     orders: SqlOrderRepository
     addresses: SqlAddressRepository
     withdrawals: SqlWithdrawalRepository
+    labels: SqlLabelRepository
     catalog: SqlCatalog
     images: SqlImages
     accounts: SqlAccounts
@@ -330,6 +350,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.orders = SqlOrderRepository(session)
         self.addresses = SqlAddressRepository(session)
         self.withdrawals = SqlWithdrawalRepository(session)
+        self.labels = SqlLabelRepository(session)
         self.catalog = SqlCatalog(self)
         self.images = SqlImages(self, self._public_base_url)
         self.accounts = SqlAccounts(self)

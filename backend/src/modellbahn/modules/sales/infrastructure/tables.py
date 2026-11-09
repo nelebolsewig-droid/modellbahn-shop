@@ -19,6 +19,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     PrimaryKeyConstraint,
     Sequence,
     SmallInteger,
@@ -30,6 +31,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import CITEXT, ExcludeConstraint
 
 from modellbahn.modules.identity.contracts.accounts import CUSTOMER_KIND, CUSTOMER_REFERENCE
+from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingProduct
 from modellbahn.modules.sales.domain.model import (
     CancelReason,
     OrderStatus,
@@ -278,5 +280,38 @@ withdrawals = Table(
     CheckConstraint("order_reference <> ''", name="order_reference_not_empty"),
     Index("withdrawals_received_idx", "received_at"),
     Index("withdrawals_order_idx", "order_id"),
+    schema=SCHEMA,
+)
+
+
+# Shipping labels booked with the carrier (ADR 0023). A cancelled label stays for the
+# record; at most one label of an order is in force.
+shipping_labels = Table(
+    "shipping_labels",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("order_id", Uuid, ForeignKey(orders.c.id, ondelete="RESTRICT"), nullable=False),
+    Column("carrier", Text, nullable=False),
+    Column("product", StrEnumType(ShippingProduct), nullable=False),
+    Column("shipment_number", Text, nullable=False),
+    Column("weight_g", Integer, nullable=False),
+    Column("print_format", Text, nullable=False),
+    # The PDF as the carrier sent it: a few dozen kilobytes.
+    Column("document", LargeBinary, nullable=False),
+    Column("status", StrEnumType(LabelStatus), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("cancelled_at", DateTime(timezone=True)),
+    CheckConstraint("product IN ('V01PAK', 'V53WPAK')", name="product"),
+    CheckConstraint("status IN ('active', 'cancelled')", name="status"),
+    CheckConstraint("shipment_number <> ''", name="shipment_number_not_empty"),
+    CheckConstraint("weight_g BETWEEN 10 AND 31500", name="weight_range"),
+    CheckConstraint("(status = 'cancelled') = (cancelled_at IS NOT NULL)", name="cancelled_at"),
+    Index(
+        "shipping_labels_one_active_idx",
+        "order_id",
+        unique=True,
+        postgresql_where=text("status = 'active'"),
+    ),
+    Index("shipping_labels_order_idx", "order_id", "created_at"),
     schema=SCHEMA,
 )

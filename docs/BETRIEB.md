@@ -108,6 +108,7 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Mitarbeiterkonten anzeigen | `make staff-list` |
 | Mitarbeiterkonto löschen | `make staff-delete EMAIL=…` (fragt nach; Anmeldungen enden sofort; das letzte Inhaberkonto bleibt) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
+| DHL-Zugang prüfen | `make dhl-check SANDBOX=1` (Sandbox) · `make dhl-check` (Geschäftskundenkonto) |
 | Neu starten | `docker compose restart api worker` |
 
 ### Zahlungen mit SumUp
@@ -159,6 +160,32 @@ eingetragen ist (ADR 0022; Skript erneut starten, Stufe „Vorkasse“).
 - **Ausschalten:** Skript erneut starten und bei „Vorkasse anbieten?“ mit `N` antworten.
   Bestellungen, die schon auf eine Überweisung warten, behalten ihre Frist und lassen sich
   weiter buchen; die Bankverbindung finden die Kunden dann nur noch in ihrer Mail.
+
+### DHL-Versandlabels
+
+Das Stellwerk bucht das DHL-Label, sobald ein Paket gepackt ist (ADR 0023; Skript erneut
+starten, Stufe „DHL-Versandlabels“).
+
+- **Zugang prüfen, ohne etwas Echtes zu buchen:**
+  - `make dhl-check SANDBOX=1`: DHLs Sandbox mit DHLs Testkunden. Braucht nur den
+    API-Schlüssel, bucht dort ein Testlabel, misst seine Größe und storniert es wieder.
+  - `make dhl-check`: das Geschäftskundenkonto (Systembenutzer, Passwort, EKP). DHL prüft
+    eine Inlands- und eine EU-Sendung, ein Label entsteht nicht.
+  - Beide zeigen DHLs Antwort im Wortlaut. Erst einschalten, wenn `make dhl-check` „DHL
+    nimmt beide Sendungen an.“ meldet.
+- **Packen:** Ist alles kommissioniert, zeigt das Bestellpult unter „Versand“ das
+  Gewichtsfeld. Paket wiegen, Gewicht in Gramm eintragen, „DHL-Label buchen“.
+  - „Label drucken“ öffnet das PDF. Im Druckdialog den Etikettendrucker wählen, Papier
+    100 × 150 mm, „Tatsächliche Größe“.
+  - „Als versendet melden“ übernimmt die Sendungsnummer; der Kunde bekommt sie mit
+    Verfolgungslink.
+- **Falsches Label:** „Label stornieren“, dann neu buchen. Nach dem Versand geht das nicht
+  mehr. Storniert ihr die Bestellung, storniert der Shop ihr Label bei DHL selbst.
+- **DHL lehnt ab:** Unter der Meldung steht DHLs Begründung, meist Adresse oder Gewicht.
+  Adresse mit dem Kunden klären; zur Not das Label im Geschäftskundenportal buchen und die
+  Nummer von Hand eintragen.
+- **Ausschalten:** Skript erneut starten und bei „Labels im Stellwerk jetzt echt buchen
+  lassen?“ mit `N` antworten. Dann wird die Nummer wieder von Hand eingetragen.
 
 ### Widerrufe
 

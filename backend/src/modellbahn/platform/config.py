@@ -16,6 +16,8 @@ from modellbahn.platform.imprint import Imprint
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
+_EKP_DIGITS = 10
+_PARTICIPATION_DIGITS = 2
 # The textbook example account of .env.example: customers would pay a stranger.
 _EXAMPLE_IBAN = "DE89370400440532013000"
 
@@ -53,6 +55,19 @@ class MarketplaceMode(StrEnum):
     """The built-in test marketplace: eBay's flow without eBay, nothing leaves the server."""
     SANDBOX = "sandbox"
     PRODUCTION = "production"
+
+
+class CarrierMode(StrEnum):
+    """How the shop books shipping labels with DHL (ADR 0023)."""
+
+    OFF = "off"
+    """No labels from the shop: the staff book them elsewhere and type the number in."""
+    TEST = "test"
+    """Labels drawn by the shop itself, marked as test labels; nothing leaves the server."""
+    SANDBOX = "sandbox"
+    """DHL's sandbox with its public test user: real API, no real parcels."""
+    PRODUCTION = "production"
+    """DHL with the shop's business account: real labels, billed by DHL."""
 
 
 class PaymentProvider(StrEnum):
@@ -159,6 +174,23 @@ class Settings(BaseSettings):
     sumup_merchant_code: str = ""
     sumup_api_url: str = "https://api.sumup.com"
 
+    # Shipping labels from DHL (ADR 0023). The API key comes from the app in DHL's developer
+    # portal; user and password are a system user of the business customer portal, the EKP
+    # its ten-digit customer number. The sandbox brings its own test user and EKP.
+    dhl_mode: CarrierMode = CarrierMode.OFF
+    dhl_api_key: SecretStr = SecretStr("")
+    dhl_username: str = ""
+    dhl_password: SecretStr = SecretStr("")
+    dhl_ekp: str = ""
+    # Participation numbers of the contract: the last two digits of each billing number.
+    dhl_participation_national: str = "01"
+    dhl_participation_international: str = "01"
+    # DHL's thermal label of 103 x 150 mm, the nearest to the packing desk's 100 x 150 mm
+    # (4 x 6 inch) rolls; ``cli dhl-check --sandbox --buchen`` measures what DHL sends.
+    dhl_print_format: str = "910-300-400"
+    dhl_default_weight_g: int = Field(default=1000, ge=10, le=31_500)
+    dhl_api_url: str = ""
+
     # Payment in advance by bank transfer (ADR 0022): offered next to the provider as soon
     # as account holder and IBAN are set. The shop's own account, so it lives here only.
     bank_account_holder: str = ""
@@ -225,6 +257,23 @@ class Settings(BaseSettings):
             msg = "must be a BIC of 8 or 11 characters, e.g. BYLADEM1001"
             raise ValueError(msg)
         return bic
+
+    @field_validator("dhl_ekp")
+    @classmethod
+    def _check_ekp(cls, value: str) -> str:
+        ekp = "".join(value.split())
+        if ekp and not (ekp.isdigit() and len(ekp) == _EKP_DIGITS):
+            msg = "must be the ten digits of the DHL customer number (EKP)"
+            raise ValueError(msg)
+        return ekp
+
+    @field_validator("dhl_participation_national", "dhl_participation_international")
+    @classmethod
+    def _check_participation(cls, value: str) -> str:
+        if not (value.isdigit() and len(value) == _PARTICIPATION_DIGITS):
+            msg = "must be the two digits of the participation, e.g. 01"
+            raise ValueError(msg)
+        return value
 
     @field_validator("ebay_token_key")
     @classmethod
@@ -295,6 +344,23 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _require_dhl_keys(self) -> Self:
+        if self.dhl_mode not in {CarrierMode.SANDBOX, CarrierMode.PRODUCTION}:
+            return self
+        required = [("MB_DHL_API_KEY", self.dhl_api_key.get_secret_value())]
+        if self.dhl_mode is CarrierMode.PRODUCTION:
+            required += [
+                ("MB_DHL_USERNAME", self.dhl_username),
+                ("MB_DHL_PASSWORD", self.dhl_password.get_secret_value()),
+                ("MB_DHL_EKP", self.dhl_ekp),
+            ]
+        missing = [name for name, value in required if not value.strip()]
+        if missing:
+            msg = f"MB_DHL_MODE={self.dhl_mode} needs {', '.join(missing)}"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
     def _require_account_holder(self) -> Self:
         if bool(self.bank_iban) != bool(self.bank_account_holder.strip()):
             msg = "payment in advance needs both MB_BANK_ACCOUNT_HOLDER and MB_BANK_IBAN"
@@ -326,6 +392,10 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if self.ebay_verification_token.get_secret_value() == _DEVELOPMENT_EBAY_VERIFICATION_TOKEN:
             msg = "the development MB_EBAY_VERIFICATION_TOKEN is not allowed in production"
+            raise ValueError(msg)
+        if self.dhl_mode in {CarrierMode.TEST, CarrierMode.SANDBOX}:
+            # Test labels would go out on real parcels, and DHL would not carry them.
+            msg = f"MB_DHL_MODE={self.dhl_mode} is not allowed in production (off or production)"
             raise ValueError(msg)
         if self.bank_iban == _EXAMPLE_IBAN:
             msg = "the example account of .env.example is not allowed in production (MB_BANK_IBAN)"

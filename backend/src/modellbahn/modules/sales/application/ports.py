@@ -14,6 +14,7 @@ from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder
 from modellbahn.modules.media.contracts.images import ImageView
+from modellbahn.modules.sales.domain.labels import LabelAddress, ShippingLabel, ShippingProduct
 from modellbahn.modules.sales.domain.model import (
     Cart,
     CustomerAddress,
@@ -232,6 +233,61 @@ class PaymentGateway(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class LabelRequest:
+    """What the carrier needs to book a label (ADR 0023)."""
+
+    reference: str
+    """The order number: printed on the label and kept by the carrier."""
+    product: ShippingProduct
+    shipper: LabelAddress
+    consignee: LabelAddress
+    weight_g: int
+
+
+@dataclass(frozen=True, slots=True)
+class BookedLabel:
+    shipment_number: str
+    document: bytes
+    """The label as a PDF, in the configured print format."""
+    print_format: str
+
+
+class Carrier(Protocol):
+    """The parcel carrier behind an anti-corruption layer (ADR 0023).
+
+    Raises :class:`~modellbahn.modules.sales.domain.errors.CarrierUnavailableError` if it
+    cannot be reached (nothing was booked) and ``CarrierRejectedError`` with its reason if
+    it refuses.
+    """
+
+    @property
+    def name(self) -> str:
+        """As it appears in the dispatch and the customer's e-mail, e.g. ``DHL``."""
+        ...
+
+    @property
+    def books_labels(self) -> bool:
+        """False if no carrier is connected: the staff type the shipment number in."""
+        ...
+
+    async def book(self, request: LabelRequest) -> BookedLabel: ...
+
+    async def cancel(self, shipment_number: str) -> None:
+        """Drop a label that was not used; done already counts as done."""
+        ...
+
+    async def aclose(self) -> None: ...
+
+
+class LabelRepository(Protocol):
+    async def active_for(self, order_id: UUID, *, for_update: bool = False) -> ShippingLabel | None:
+        """The order's label in force, if any."""
+        ...
+
+    def add(self, label: ShippingLabel) -> None: ...
+
+
 class SalesUnitOfWork(Protocol):
     """One transaction over the sales repositories (see ``platform.uow``)."""
 
@@ -246,6 +302,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def withdrawals(self) -> WithdrawalRepository: ...
+
+    @property
+    def labels(self) -> LabelRepository: ...
 
     @property
     def catalog(self) -> Catalog: ...

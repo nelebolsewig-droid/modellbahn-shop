@@ -2,11 +2,12 @@
 
 import asyncio
 import json
+import re
 import sys
 from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Final, NoReturn
 
 import typer
 from pydantic import EmailStr, TypeAdapter, ValidationError
@@ -49,6 +50,10 @@ from modellbahn.modules.media.infrastructure.garage import (
 from modellbahn.modules.media.infrastructure.mapping import (
     start_mappers as start_media_mappers,
 )
+from modellbahn.modules.sales.application.ports import LabelRequest
+from modellbahn.modules.sales.domain.errors import CarrierRejectedError, CarrierUnavailableError
+from modellbahn.modules.sales.domain.labels import LabelAddress, ShippingProduct
+from modellbahn.modules.sales.infrastructure.carriers import DhlCarrier, dhl_carrier, shipper_of
 from modellbahn.platform.clock import SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import create_engine, create_session_factory
@@ -240,6 +245,154 @@ async def _import_catalog(settings: Settings, seed: CatalogSeed) -> ImportReport
         return await import_catalog(service, seed)
     finally:
         await engine.dispose()
+
+
+# Two made-up recipients DHL accepts: one at home (DHL Paket), one abroad (International).
+_DHL_CHECK_SHIPMENTS: Final = (
+    (
+        "Inland",
+        ShippingProduct.PARCEL,
+        LabelAddress(
+            name="Max Mustermann",
+            street="Charles-de-Gaulle-Straße",
+            house_number="20",
+            postal_code="53113",
+            city="Bonn",
+            country="DEU",
+        ),
+    ),
+    (
+        "EU-Ausland",
+        ShippingProduct.PARCEL_INTERNATIONAL,
+        LabelAddress(
+            name="Erika Musterfrau",
+            street="Stephansplatz",
+            house_number="1",
+            postal_code="1010",
+            city="Wien",
+            country="AUT",
+        ),
+    ),
+)
+_MEDIA_BOX: Final = re.compile(
+    rb"/MediaBox\s*\[\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\]"
+)
+_POINTS_PER_MM: Final = 72 / 25.4
+
+
+@app.command("dhl-check")
+def dhl_check(
+    sandbox: Annotated[
+        bool,
+        typer.Option(
+            "--sandbox",
+            help="In DHLs Sandbox als DHLs Testkunde prüfen; braucht nur MB_DHL_API_KEY.",
+        ),
+    ] = False,
+    book: Annotated[
+        bool,
+        typer.Option(
+            "--buchen",
+            help="Nur mit --sandbox: zusätzlich ein Testlabel buchen, vermessen und stornieren.",
+        ),
+    ] = False,
+) -> None:
+    """DHL-Zugang prüfen, ohne ein Label zu buchen.
+
+    Lässt DHL je eine Probesendung im Inland und ins EU-Ausland prüfen (validate) und
+    zeigt DHLs Antwort im Wortlaut. Dabei entsteht kein Label, und es kostet nichts.
+    Ohne --sandbox mit dem Geschäftskundenkonto (MB_DHL_USERNAME, MB_DHL_PASSWORD,
+    MB_DHL_EKP), auch solange MB_DHL_MODE noch „off“ ist.
+    """
+    try:
+        settings = Settings()
+    except ValidationError as exc:
+        _fail(f"Die Einstellungen passen nicht:\n{exc}")
+    if book and not sandbox:
+        _fail("--buchen gibt es nur mit --sandbox; echte Labels bucht nur das Stellwerk.")
+    missing = [
+        name
+        for name, value in (
+            ("MB_DHL_API_KEY", settings.dhl_api_key.get_secret_value()),
+            ("MB_DHL_USERNAME", "-" if sandbox else settings.dhl_username),
+            ("MB_DHL_PASSWORD", "-" if sandbox else settings.dhl_password.get_secret_value()),
+            ("MB_DHL_EKP", "-" if sandbox else settings.dhl_ekp),
+        )
+        if not value
+    ]
+    if missing:
+        _fail(f"Es fehlt: {', '.join(missing)}. Einrichten mit scripts/einrichten.sh.")
+    shipper = shipper_of(settings)
+    if shipper is None:
+        _fail("Das Impressum ist unvollständig (MB_IMPRINT_*); DHL braucht den Absender.")
+    carrier = dhl_carrier(settings, sandbox=sandbox)
+    where = "Sandbox (DHLs Testkunde)" if sandbox else "Geschäftskundenkonto"
+    typer.echo(f"DHL-Prüfung, {where}: {carrier.base_url}")
+    typer.echo(f"Absender: {shipper.name}, {shipper.postal_code} {shipper.city}")
+    if not asyncio.run(_dhl_check(carrier, shipper, book=book)):
+        raise typer.Exit(code=1)
+
+
+async def _dhl_check(carrier: DhlCarrier, shipper: LabelAddress, *, book: bool) -> bool:
+    accepted = True
+    try:
+        for title, product, consignee in _DHL_CHECK_SHIPMENTS:
+            request = LabelRequest(
+                reference="PRUEFUNG",
+                product=product,
+                shipper=shipper,
+                consignee=consignee,
+                weight_g=1000,
+            )
+            number = carrier.billing_number(product)
+            typer.echo("")
+            typer.echo(
+                f"{title} ({product.value}), Abrechnungsnummer "
+                f"…{number[6:10]} {number[10:12]} {number[12:]}"
+            )
+            answer = await carrier.validate(request)
+            verdict = "angenommen" if answer.accepted else "abgelehnt"
+            typer.echo(f"  DHL antwortet {answer.status}: {verdict}")
+            if answer.reason:
+                typer.echo(f"  {answer.reason}")
+            typer.echo(json.dumps(answer.body, indent=2, ensure_ascii=False))
+            accepted = accepted and answer.accepted
+        if book and accepted:
+            typer.echo("")
+            label = await carrier.book(_dhl_check_request(shipper))
+            typer.echo(
+                f"Testlabel gebucht: {label.shipment_number}, {len(label.document) // 1024} KB, "
+                f"{_page_size(label.document)}, Druckformat {label.print_format}"
+            )
+            await carrier.cancel(label.shipment_number)
+            typer.echo("Testlabel wieder storniert.")
+    except CarrierUnavailableError:
+        typer.echo("DHL ist nicht erreichbar (Netz oder Störung bei DHL).", err=True)
+        return False
+    except CarrierRejectedError as exc:
+        typer.echo(f"DHL lehnt ab: {exc.reason}", err=True)
+        return False
+    finally:
+        await carrier.aclose()
+    typer.echo("")
+    typer.echo("DHL nimmt beide Sendungen an." if accepted else "DHL lehnt ab; siehe oben.")
+    return accepted
+
+
+def _dhl_check_request(shipper: LabelAddress) -> LabelRequest:
+    _, product, consignee = _DHL_CHECK_SHIPMENTS[0]
+    return LabelRequest(
+        reference="PRUEFUNG", product=product, shipper=shipper, consignee=consignee, weight_g=1000
+    )
+
+
+def _page_size(document: bytes) -> str:
+    match = _MEDIA_BOX.search(document)
+    if match is None:
+        return "Seitengröße nicht erkannt"
+    left, bottom, right, top = (float(value) for value in match.groups())
+    width, height = abs(right - left) / _POINTS_PER_MM, abs(top - bottom) / _POINTS_PER_MM
+    return f"Seite {width:.0f} x {height:.0f} mm"
 
 
 @app.command("export-openapi")

@@ -8,6 +8,7 @@ are value objects stored in columns of their owner (``composite``).
 from sqlalchemy import inspect
 from sqlalchemy.orm import composite, relationship
 
+from modellbahn.modules.sales.domain.labels import ShippingLabel
 from modellbahn.modules.sales.domain.model import (
     Cart,
     CartLine,
@@ -40,6 +41,7 @@ def start_mappers() -> None:
             )
         },
     )
+    mapper_registry.map_imperatively(ShippingLabel, tables.shipping_labels)
     mapper_registry.map_imperatively(Withdrawal, tables.withdrawals)
     mapper_registry.map_imperatively(OrderLine, tables.order_lines)
     mapper_registry.map_imperatively(Payment, tables.payments)

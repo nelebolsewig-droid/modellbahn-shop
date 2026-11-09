@@ -75,6 +75,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | Unterstützend | Marktplatz | eBay als zweiter Verkaufsweg: Angebote, Bestand und Bestellungen im Gleichschritt mit dem Shop (ADR 0014). |
 | Generisch | Identität | Konten für Mitarbeiter und Kunden, Sitzungen, Rollen. Bewährte Verfahren, sorgfältig umgesetzt. |
 | Generisch | Zahlung | SumUp Online über eine Schutzschicht; die Testzahlung ist ein gleichwertiger Adapter für die Entwicklung (ADR 0019). Daneben Vorkasse per Überweisung ohne Zahlungsdienst: Die Werkstatt bucht den Eingang, Rückzahlungen gehen von Hand (ADR 0022). |
+| Generisch | Versand | DHL-Labels über die Parcel DE Shipping API hinter einer Schutzschicht; ein selbst gezeichnetes Testlabel für die Entwicklung (ADR 0023). |
 
 ### 2.2 Bounded Contexts
 
@@ -729,6 +730,7 @@ erDiagram
     CART ||--o{ CART_LINE : "enthält"
     ORDER ||--|{ ORDER_LINE : "enthält"
     ORDER ||--o{ PAYMENT : "bezahlt durch"
+    ORDER ||--o{ SHIPPING_LABEL : "verschickt mit"
     ACCOUNT ||--o{ ORDER : "bestellt (leer bei Gast)"
     ACCOUNT ||--o{ CUSTOMER_ADDRESS : "Adressbuch"
 
@@ -782,6 +784,15 @@ erDiagram
         uuid idempotency_key UK
         char request_fingerprint
         text failure_code
+    }
+    SHIPPING_LABEL {
+        uuid id PK
+        uuid order_id FK "höchstens ein aktives je Bestellung"
+        text product "V01PAK, V53WPAK"
+        text shipment_number "DHLs Sendungsnummer"
+        int weight_g "10 bis 31.500"
+        bytea document "das PDF"
+        text status "active, cancelled"
     }
     CUSTOMER_ADDRESS {
         uuid id PK
@@ -1382,6 +1393,8 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/orders/{id}` | Bestellung mit Positionen, Adresse, Zahlungen und Stornohinweis; Zuteilungen ab Schritt 5 |
 | | GET | `/orders/{id}/pick-list` | Pickliste mit Lagerplätzen (ab Schritt 5) |
 | | POST | `/orders/{id}/ship` · `/cancel` | versenden mit Versanddienst und Sendungsnummer (auch Packer); stornieren mit Hinweis und Erstattung (Owner, Mitarbeiter) |
+| | POST · GET · DELETE | `/orders/{id}/shipping-label` | DHL-Label buchen (mit Gewicht), anzeigen, stornieren; das PDF unter `…/shipping-label.pdf` (auch Packer, ADR 0023) |
+| | GET | `/shipping/setup` | ob das Stellwerk Labels bucht, Versanddienst, Vorschlagsgewicht |
 | Planung | POST | `/planning/runs` | neu rechnen, `202` |
 | | GET | `/planning/runs/{id}` | Lauf mit Kennzahlen |
 | | GET | `/planning/proposals` | aktuelle Rangliste |
@@ -1568,7 +1581,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
 Die Module entstehen nacheinander. Jeder Schritt endet mit grünen Tests und etwas,
 das man anfassen kann.
 
-**Stand 04.11.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016). Mit Schritt 6a kennt das Stellwerk die Drucker der Werkstatt mit ihrem Zustand, Teile, Stücklisten und Druckaufträge, in einer Druckerhalle, die live mitläuft (ADR 0017). Mit 6b gehen die guten Teile fertiger Platten in den Wareneingang und per Scan in ihre Boxen; die Montage nimmt sie nach Stückliste heraus und erzeugt Einheiten, die wissen, aus welchen Boxen ihre Teile stammen (ADR 0018). Für den Start mit echtem Geld kamen das Einrichtungsskript für den Strato-Server (`docs/BETRIEB.md`), SumUp Online als Zahlung (ADR 0019) und die Rechtstexte mit der Widerrufsfunktion nach § 356a BGB hinzu (ADR 0020). Am 09.11.2026 kam Vorkasse per Überweisung als zweite Zahlungsart hinzu, mit GiroCode und Buchung im Stellwerk (ADR 0022).
+**Stand 04.11.2026:** Schritte 1 bis 5 sind umgesetzt; der Katalog ist nach Maßstab geordnet (ADR 0010), das Lager arbeitet mit Strichcodes und kennt Modelle auf Bestellung (ADR 0011). Dazu kamen Messetermine mit Kalender und Messe-Post, das Impressum aus der Konfiguration und der Versand in alle EU-Länder (ADR 0012), dann Bausatz und Fertigmodell in Farben, die Schnellerfassung fürs Handy und der Startbestand aus Shopify-Export und Lagerfotos (ADR 0013). Am 29.10.2026 kam eBay als zweiter Verkaufsweg hinzu, mit eingebautem Testmarktplatz (ADR 0014), und der Empfang für eBays Löschmeldungen, ohne den eBay keine Produktions-Schlüssel freigibt (ADR 0015). Die Seite „So entsteht ein Modell“ zeigt ein Fahrzeug als Explosionszeichnung in 3D, vorerst mit einem Platzhalter (ADR 0016). Mit Schritt 6a kennt das Stellwerk die Drucker der Werkstatt mit ihrem Zustand, Teile, Stücklisten und Druckaufträge, in einer Druckerhalle, die live mitläuft (ADR 0017). Mit 6b gehen die guten Teile fertiger Platten in den Wareneingang und per Scan in ihre Boxen; die Montage nimmt sie nach Stückliste heraus und erzeugt Einheiten, die wissen, aus welchen Boxen ihre Teile stammen (ADR 0018). Für den Start mit echtem Geld kamen das Einrichtungsskript für den Strato-Server (`docs/BETRIEB.md`), SumUp Online als Zahlung (ADR 0019) und die Rechtstexte mit der Widerrufsfunktion nach § 356a BGB hinzu (ADR 0020). Am 09.11.2026 kam Vorkasse per Überweisung als zweite Zahlungsart hinzu, mit GiroCode und Buchung im Stellwerk (ADR 0022). Am selben Tag kamen die DHL-Versandlabels hinzu: Das Stellwerk bucht das Label für den Etikettendrucker, und die Sendungsnummer geht mit Verfolgungslink in die Versandmail (ADR 0023).
 
 | Schritt | Inhalt | Am Ende vorführbar |
 | --- | --- | --- |
@@ -1610,6 +1623,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 18 | Zahlungsanbieter (04.11.2026) | **SumUp Online**, wie die Kasse auf Messen: Der Kunde bezahlt auf SumUps Seite, der Shop fragt SumUp selbst nach dem Ausgang; ohne Anbieter nimmt der Shop keine Bestellungen an (ADR 0019) |
 | 19 | Rechtstexte (04.11.2026) | AGB, Widerrufsbelehrung und Datenschutz mit dem Anbieter aus der Konfiguration; die Rücksendekosten nach einem Widerruf trägt der Kunde. Die Widerrufsfunktion „Vertrag widerrufen“ nach § 356a BGB bestätigt jeden Widerruf sofort per E-Mail (ADR 0020) |
 | 20 | Vorkasse (09.11.2026) | **Überweisung als zweite Zahlungsart**, ohne Zahlungsdienst: zehn Tage Frist, GiroCode, die Werkstatt bucht den Eingang im Stellwerk und überweist Erstattungen von Hand zurück (ADR 0022) |
+| 21 | DHL-Versand (09.11.2026) | **DHL-Label aus dem Stellwerk** über das Geschäftskundenkonto: DHL Paket im Inland, International in der EU, Thermoetikett 103 × 150 mm für den 100-×-150-Drucker; die Sendungsnummer kommt ohne Abtippen in die Versandmail (ADR 0023) |
 
 Noch offen:
 
