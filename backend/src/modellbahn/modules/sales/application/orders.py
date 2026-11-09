@@ -26,7 +26,6 @@ from modellbahn.modules.sales.domain.errors import (
     RefundNotPossibleError,
 )
 from modellbahn.modules.sales.domain.model import (
-    PAYMENT_TIMEOUT,
     CancelReason,
     Order,
     OrderStatus,
@@ -189,10 +188,10 @@ class OrderService:
         return "cancelled"
 
     async def cancel_overdue(self) -> int:
-        """Give up orders whose payment has not come in within 24 hours (a periodic job)."""
+        """Give up orders whose payment did not come in by their deadline (a periodic job)."""
         now = self._clock.now()
         async with self._uow() as uow:
-            ids = await uow.orders.overdue_ids(now - PAYMENT_TIMEOUT, OVERDUE_BATCH_SIZE)
+            ids = await uow.orders.overdue_ids(now, OVERDUE_BATCH_SIZE)
         cancelled = 0
         for order_id in ids:
             async with self._uow() as uow:

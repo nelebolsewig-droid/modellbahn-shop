@@ -8,7 +8,7 @@ from datetime import date, datetime
 from functools import partial
 from uuid import UUID
 
-from sqlalchemy import Select, delete, or_, select, tuple_
+from sqlalchemy import Select, and_, delete, exists, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant, load_sale_variants
@@ -22,6 +22,9 @@ from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.ports import OrderQuery
 from modellbahn.modules.sales.domain.model import (
+    BANK_TRANSFER,
+    BANK_TRANSFER_TIMEOUT,
+    PAYMENT_TIMEOUT,
     Cart,
     CustomerAddress,
     Order,
@@ -135,12 +138,19 @@ class SqlOrderRepository:
         )
         return list((await self._session.execute(statement)).scalars())
 
-    async def overdue_ids(self, placed_before: datetime, limit: int) -> list[UUID]:
+    async def overdue_ids(self, now: datetime, limit: int) -> list[UUID]:
+        # Orders waiting for a transfer stay out of the 24-hour batch, or they would fill it.
+        by_transfer = exists().where(
+            payments.c.order_id == orders.c.id, payments.c.provider == BANK_TRANSFER
+        )
         statement = (
             select(orders.c.id)
             .where(
                 orders.c.status == OrderStatus.PENDING_PAYMENT,
-                orders.c.placed_at <= placed_before,
+                or_(
+                    and_(orders.c.placed_at <= now - PAYMENT_TIMEOUT, ~by_transfer),
+                    orders.c.placed_at <= now - BANK_TRANSFER_TIMEOUT,
+                ),
             )
             .order_by(orders.c.placed_at)
             .limit(limit)

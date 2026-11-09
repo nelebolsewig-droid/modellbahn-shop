@@ -67,6 +67,8 @@ class OrderCancelled(_OrderEvent):
     aggregate_type: ClassVar[str] = ORDER_AGGREGATE
 
     refunded: bool
+    refund_by_transfer: bool = False
+    """The money came by bank transfer: the shop transfers it back by hand (ADR 0022)."""
 
 
 @domain_event
@@ -80,6 +82,17 @@ class OrderRefunded(_OrderEvent):
     amount_cents: int
     refunded_cents: int
     """Everything refunded for the order so far, this amount included."""
+    by_transfer: bool = False
+    """The money came by bank transfer: the shop transfers it back by hand (ADR 0022)."""
+
+
+@domain_event
+@dataclass(frozen=True, kw_only=True)
+class BankTransferChosen(_OrderEvent):
+    """The customer will pay in advance by bank transfer; they get the bank details."""
+
+    event_type: ClassVar[str] = "sales.order.bank_transfer_chosen"
+    aggregate_type: ClassVar[str] = ORDER_AGGREGATE
 
 
 WITHDRAWAL_AGGREGATE: Final = "sales.withdrawal"

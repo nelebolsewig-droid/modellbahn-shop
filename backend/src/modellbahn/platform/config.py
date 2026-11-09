@@ -11,6 +11,7 @@ from argon2 import DEFAULT_MEMORY_COST, DEFAULT_PARALLELISM, DEFAULT_TIME_COST
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from modellbahn.platform.bank import BankAccount, bic_is_valid, iban_is_valid, normalise_iban
 from modellbahn.platform.imprint import Imprint
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -155,6 +156,13 @@ class Settings(BaseSettings):
     sumup_merchant_code: str = ""
     sumup_api_url: str = "https://api.sumup.com"
 
+    # Payment in advance by bank transfer (ADR 0022): offered next to the provider as soon
+    # as account holder and IBAN are set. The shop's own account, so it lives here only.
+    bank_account_holder: str = ""
+    bank_iban: str = ""
+    bank_bic: str = ""
+    bank_name: str = ""
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg_driver(cls, value: str) -> str:
@@ -196,6 +204,24 @@ class Settings(BaseSettings):
             msg = "must be DE followed by nine digits, e.g. DE123456789"
             raise ValueError(msg)
         return cleaned
+
+    @field_validator("bank_iban")
+    @classmethod
+    def _check_iban(cls, value: str) -> str:
+        iban = normalise_iban(value)
+        if iban and not iban_is_valid(iban):
+            msg = "is not a valid IBAN (format or check digits)"
+            raise ValueError(msg)
+        return iban
+
+    @field_validator("bank_bic")
+    @classmethod
+    def _check_bic(cls, value: str) -> str:
+        bic = "".join(value.split()).upper()
+        if bic and not bic_is_valid(bic):
+            msg = "must be a BIC of 8 or 11 characters, e.g. BYLADEM1001"
+            raise ValueError(msg)
+        return bic
 
     @field_validator("ebay_token_key")
     @classmethod
@@ -266,6 +292,13 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _require_account_holder(self) -> Self:
+        if bool(self.bank_iban) != bool(self.bank_account_holder.strip()):
+            msg = "payment in advance needs both MB_BANK_ACCOUNT_HOLDER and MB_BANK_IBAN"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
     def _refuse_insecure_production(self) -> Self:
         if self.environment is not Environment.PRODUCTION:
             return self
@@ -301,6 +334,18 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """True when running with ``MB_ENVIRONMENT=production``."""
         return self.environment is Environment.PRODUCTION
+
+    @property
+    def bank_account(self) -> BankAccount | None:
+        """The account for payment in advance, or None if the shop does not offer it."""
+        if not self.bank_iban:
+            return None
+        return BankAccount(
+            holder=self.bank_account_holder.strip(),
+            iban=self.bank_iban,
+            bic=self.bank_bic,
+            bank_name=self.bank_name.strip(),
+        )
 
     @property
     def shop_name(self) -> str:

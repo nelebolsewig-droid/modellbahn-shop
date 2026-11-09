@@ -24,6 +24,7 @@ dependencies = [
     "reportlab>=5.1.0,<5.2",
     "httpx>=0.28.1,<0.29",
     "cryptography>=46.0.7,<46.1",
+    "segno>=1.6,<2",
 ]
 
 [project.scripts]
