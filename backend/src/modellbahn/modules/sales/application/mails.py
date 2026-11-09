@@ -120,6 +120,11 @@ def confirmation_mail(order: Order, *, base_url: str, shop_name: str) -> MailCon
     )
 
 
+DHL_TRACKING_URL: Final = (
+    "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="
+)
+
+
 def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = None) -> MailContent:
     parcel = "Dein Paket ist unterwegs."
     if order.tracking_number:
@@ -127,6 +132,8 @@ def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = No
         parcel = (
             f"Dein Paket ist unterwegs, die Sendungsnummer{carrier} ist {order.tracking_number}."
         )
+        if order.carrier.strip().upper() == "DHL":
+            parcel += f" Verfolgen kannst du es hier: {DHL_TRACKING_URL}{order.tracking_number}"
     return MailContent(
         subject=f"Deine Bestellung {order.number} ist unterwegs",
         greeting=_greeting(order),

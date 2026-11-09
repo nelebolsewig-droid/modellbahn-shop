@@ -94,9 +94,20 @@ class OrderService:
             return await order_details(uow, order)
 
     async def ship(self, order_id: UUID, *, carrier: str, tracking_number: str) -> OrderDetails:
-        """Ship a paid order whose pieces are all picked (the workshop scanned each one)."""
+        """Ship a paid order whose pieces are all picked (the workshop scanned each one).
+
+        Without a shipment number given, the order's label in force supplies carrier and
+        number (ADR 0023), so they reach the customer's e-mail.
+        """
         async with self._uow() as uow:
             order = await self._locked(uow, order_id)
+            if not tracking_number.strip():
+                label = await uow.labels.active_for(order.id)
+                if label is not None:
+                    carrier, tracking_number = (
+                        carrier.strip() or label.carrier,
+                        label.shipment_number,
+                    )
             if order.status is OrderStatus.PAID:
                 progress = await uow.inventory.pick_progress(order.id)
                 if not progress.is_complete:

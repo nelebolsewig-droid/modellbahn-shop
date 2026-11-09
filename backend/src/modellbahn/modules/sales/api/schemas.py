@@ -15,6 +15,12 @@ from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
 from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
 from modellbahn.modules.sales.application.withdrawals import WithdrawalState, WithdrawalView
+from modellbahn.modules.sales.domain.labels import (
+    LABEL_WEIGHT_MAX_G,
+    LABEL_WEIGHT_MIN_G,
+    ShippingLabel,
+    ShippingProduct,
+)
 from modellbahn.modules.sales.domain.model import (
     CANCEL_NOTE_MAX_LENGTH,
     CARRIER_MAX_LENGTH,
@@ -632,3 +638,43 @@ class RefundIn(_Request):
 
 class WithdrawalListOut(BaseModel):
     items: list[WithdrawalOut]
+
+
+class ShippingSetupOut(BaseModel):
+    """Whether the Stellwerk books labels, with which carrier and default weight (ADR 0023)."""
+
+    books_labels: bool = Field(
+        description="False without a carrier (or without the shop's own address in the "
+        "imprint): the staff type the shipment number in."
+    )
+    carrier: str = Field(examples=["DHL"])
+    default_weight_g: int = Field(examples=[1000])
+
+
+class LabelIn(_Request):
+    weight_g: int | None = Field(
+        default=None,
+        ge=LABEL_WEIGHT_MIN_G,
+        le=LABEL_WEIGHT_MAX_G,
+        description="Of the packed parcel; the configured default if left out.",
+    )
+
+
+class ShippingLabelOut(BaseModel):
+    carrier: str = Field(examples=["DHL"])
+    product: ShippingProduct
+    shipment_number: str = Field(examples=["00340434161094042557"])
+    weight_g: int
+    print_format: str = Field(examples=["910-300-300"])
+    created_at: datetime
+
+    @classmethod
+    def from_label(cls, label: ShippingLabel) -> Self:
+        return cls(
+            carrier=label.carrier,
+            product=label.product,
+            shipment_number=label.shipment_number,
+            weight_g=label.weight_g,
+            print_format=label.print_format,
+            created_at=label.created_at,
+        )

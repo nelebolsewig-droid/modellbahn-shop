@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from modellbahn.modules.sales.domain.errors import (
     AddressBookFullError,
     AddressNotFoundError,
+    CarrierRejectedError,
+    CarrierUnavailableError,
     CartFullError,
     CartItemsUnavailableError,
     CheckoutClosedError,
@@ -16,6 +18,8 @@ from modellbahn.modules.sales.domain.errors import (
     InsufficientStockError,
     InvalidFieldError,
     InvalidOrderStateError,
+    LabelExistsError,
+    LabelNotFoundError,
     MarketplaceOrderError,
     OrderNotFoundError,
     OrderNotPayableError,
@@ -67,6 +71,19 @@ def _refund_not_possible(error: RefundNotPossibleError) -> AppError:
 
 _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     RefundNotPossibleError: _refund_not_possible,
+    CarrierUnavailableError: lambda _: ServiceUnavailableError(
+        "The carrier is not connected or not reachable; no label was booked.",
+        code="carrier_unavailable",
+    ),
+    # The detail is the carrier's own answer, e.g. an address it cannot deliver to.
+    CarrierRejectedError: lambda error: ConflictError(error.reason, code="carrier_rejected"),
+    LabelExistsError: lambda _: ConflictError(
+        "The order has a shipping label already; cancel it to book another.",
+        code="label_exists",
+    ),
+    LabelNotFoundError: lambda _: NotFoundError(
+        "The order has no shipping label in force.", code="label_not_found"
+    ),
     # The detail is the provider's own answer: the Stellwerk shows it to the staff.
     RefundRejectedError: lambda error: ConflictError(error.reason, code="refund_rejected"),
     InvalidFieldError: _invalid_field,

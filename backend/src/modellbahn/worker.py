@@ -33,10 +33,12 @@ from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfW
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.withdrawals import RefundReminder, WithdrawalAutomation
+from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.handlers import SiteHandlers
@@ -136,6 +138,15 @@ async def run_worker(
     payment_gateway = build_payment_gateway(settings)
     order_service = OrderService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
     payment_service = PaymentService(uow_factory=sales_uow, clock=clock, gateway=payment_gateway)
+    # A cancelled order's label is cancelled at the carrier too (ADR 0023).
+    carrier = build_carrier(settings)
+    ShippingLabelService(
+        uow_factory=sales_uow,
+        clock=clock,
+        carrier=carrier,
+        shipper=shipper_of(settings),
+        default_weight_g=settings.dhl_default_weight_g,
+    ).register(handlers)
     # A withdrawal before dispatch cancels and refunds by itself (ADR 0020).
     WithdrawalAutomation(orders=order_service).register(handlers)
     refund_reminder = RefundReminder(
@@ -211,6 +222,7 @@ async def run_worker(
         if marketplace is not None:
             await marketplace.aclose()
         await payment_gateway.aclose()
+        await carrier.aclose()
         await engine.dispose()
 
 

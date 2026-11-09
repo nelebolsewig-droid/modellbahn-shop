@@ -18,6 +18,7 @@ from modellbahn.modules.identity.contracts.auth import (
 from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
@@ -70,6 +71,13 @@ AddressServiceDep = Annotated[AddressService, Depends(get_address_service)]
 PaymentServiceDep = Annotated[PaymentService, Depends(get_payment_service)]
 WithdrawalServiceDep = Annotated[WithdrawalService, Depends(get_withdrawal_service)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def get_label_service(request: Request) -> ShippingLabelService:
+    return app_state(request, "label_service", ShippingLabelService)
+
+
+LabelServiceDep = Annotated[ShippingLabelService, Depends(get_label_service)]
 
 OptionalCustomer = Annotated[Customer | None, Depends(customer_or_none)]
 CurrentCustomer = Annotated[Customer, Depends(require_customer)]

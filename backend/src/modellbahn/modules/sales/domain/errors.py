@@ -124,3 +124,26 @@ class AddressNotFoundError(SalesError):
 
 class AddressBookFullError(SalesError):
     """An address book holds a limited number of addresses."""
+
+
+class LabelNotFoundError(SalesError):
+    """The order has no shipping label in force."""
+
+
+class LabelExistsError(SalesError):
+    """The order has a label in force already; cancel it before booking another."""
+
+
+class CarrierUnavailableError(SalesError):
+    """No carrier is connected, or it could not be reached; nothing was booked."""
+
+
+class CarrierRejectedError(SalesError):
+    """The carrier answered and refused, e.g. an address it cannot deliver to.
+
+    ``reason`` is the carrier's own words, for the staff to read and fix.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"the carrier refused: {reason}")
+        self.reason = reason

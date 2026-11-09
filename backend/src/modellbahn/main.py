@@ -109,10 +109,12 @@ from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
-from modellbahn.modules.sales.application.ports import PaymentGateway
+from modellbahn.modules.sales.application.ports import Carrier, PaymentGateway
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
+from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
@@ -211,6 +213,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     hub = RealtimeHub(asyncpg_dsn(settings.database_url))
     marketplace = build_marketplace(settings, session_factory, clock)
     payment_gateway = build_payment_gateway(settings)
+    carrier = build_carrier(settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -225,6 +228,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if marketplace is not None:
                 await marketplace.aclose()
             await payment_gateway.aclose()
+            await carrier.aclose()
             await engine.dispose()
 
     # The interactive documentation is a development aid; production does not expose it.
@@ -258,8 +262,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
         clock=clock,
         gateway=payment_gateway,
-        shop_url=settings.public_base_url,
-        bank_transfer=settings.bank_account is not None,
+        carrier=carrier,
+        settings=settings,
     )
     _attach_inventory_services(app, uow_factory=inventory_uow_factory(session_factory), clock=clock)
     _attach_manufacturing_services(
@@ -323,6 +327,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(media_admin.router)
     api.include_router(sales_admin.router)
     api.include_router(sales_admin.withdrawals_router)
+    api.include_router(sales_admin.shipping_router)
     api.include_router(inventory_admin.router)
     api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
@@ -385,16 +390,23 @@ def _attach_sales_services(
     uow_factory: UnitOfWorkFactory,
     clock: SystemClock,
     gateway: PaymentGateway,
-    shop_url: str,
-    bank_transfer: bool,
+    carrier: Carrier,
+    settings: Settings,
 ) -> None:
     app.state.cart_service = CartService(uow_factory=uow_factory, clock=clock)
     app.state.checkout_service = CheckoutService(
         uow_factory=uow_factory,
         clock=clock,
         gateway=gateway,
-        shop_url=shop_url,
-        bank_transfer=bank_transfer,
+        shop_url=settings.public_base_url,
+        bank_transfer=settings.bank_account is not None,
+    )
+    app.state.label_service = ShippingLabelService(
+        uow_factory=uow_factory,
+        clock=clock,
+        carrier=carrier,
+        shipper=shipper_of(settings),
+        default_weight_g=settings.dhl_default_weight_g,
     )
     app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
     app.state.payment_service = PaymentService(
