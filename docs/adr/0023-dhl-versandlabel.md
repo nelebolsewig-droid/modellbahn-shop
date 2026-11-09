@@ -91,6 +91,7 @@ DHL bietet dafür die „Parcel DE Shipping API“ (Version 2) an:
     Live-Server, ohne den Modus des Shops zu ändern.
 - **Einrichtungsskript:** Stufe „DHL-Versandlabels“ fragt API-Schlüssel, Systembenutzer,
   Passwort, EKP und Teilnahmen ab. Eingeschaltet wird erst, wenn die Prüfung bestanden ist.
+  `einrichten.sh dhl` führt nur diese Stufe aus und startet den Shop danach neu.
 
 ## Folgen
 

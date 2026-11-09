@@ -130,7 +130,13 @@ ask_secret() {
   read -rs input || rc=1
   printf '\n'
   if (( rc )) && [[ -z "$input" ]]; then return 1; fi
-  [[ -z "$input" && -n "$current" ]] && input="$current"
+  # Nothing shows while typing or pasting, so say what arrived.
+  if [[ -n "$input" ]]; then
+    note "✓ übernommen (${#input} Zeichen)"
+  elif [[ -n "$current" ]]; then
+    input="$current"
+    note "✓ bisheriger Wert bleibt"
+  fi
   printf -v "$key" '%s' "$input"
 }
 
@@ -270,6 +276,71 @@ public_ipv6() {
   ip -6 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1
 }
 
+# dhl_stage asks for DHL's access (ADR 0023). A stage of the wizard, and on its own with
+# `einrichten.sh dhl`, so DHL can be set up or switched on without the other stages.
+dhl_stage() {
+stage "DHL-Versandlabels (kann später nachgeholt werden)"
+say "Das Stellwerk bucht das DHL-Label für den Etikettendrucker (100 × 150 mm), sobald das Paket"
+say "gepackt ist, und die Sendungsnummer kommt mit Verfolgungslink in die Versandmail."
+say "Dafür braucht es den API-Schlüssel eurer App im DHL-Entwicklerportal und für echte Labels"
+say "einen Systembenutzer des DHL-Geschäftskundenportals mit eurer Kundennummer (EKP)."
+note "Ohne DHL tragt ihr die Sendungsnummer wie bisher von Hand ein."
+printf '\n'
+if ! confirm "DHL jetzt anbinden?"; then
+  write_env MB_DHL_MODE "off"
+  SKIPPED+=("DHL-Labels: ./scripts/einrichten.sh dhl, sobald der API-Schlüssel da ist")
+  pause
+  return
+fi
+open_url "https://developer.dhl.com/user/apps"
+step "Apps → eure App → „Show key“: den ${BOLD}API Key${RESET} kopieren (nicht das API Secret)."
+step "Hier einfügen (Mac: ⌘V) und Enter. Beim Einfügen erscheint nichts, das ist richtig so."
+step "Er steht danach nur noch hier in .env, nirgends sonst."
+ask_secret MB_DHL_API_KEY "API-Schlüssel (unsichtbar; nur Enter = später):"
+if [[ -z "$MB_DHL_API_KEY" ]]; then
+  warn "Kein Schlüssel angekommen: DHL bleibt aus."
+  write_env MB_DHL_MODE "off"
+  SKIPPED+=("DHL-Labels: ./scripts/einrichten.sh dhl, sobald der API-Schlüssel da ist")
+  pause
+  return
+fi
+write_env MB_DHL_API_KEY "$MB_DHL_API_KEY"
+printf '\n'
+if confirm "Liegt der Systembenutzer des Geschäftskundenportals schon vor?"; then
+  open_url "https://geschaeftskunden.dhl.de"
+  step "Einstellungen → Benutzerverwaltung → Systembenutzer (für die API) anlegen."
+  ask_real MB_DHL_USERNAME "Name des Systembenutzers:"
+  ask_secret MB_DHL_PASSWORD "Passwort des Systembenutzers (unsichtbar):"
+  step "Die Abrechnungsnummer hat 14 Ziffern: Kundennummer (EKP, 10), Verfahren (2), Teilnahme (2)."
+  ask_real MB_DHL_EKP "Kundennummer, die ersten 10 Ziffern (EKP):"
+  until [[ "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')" =~ ^[0-9]{10}$ ]]; do
+    warn "Die EKP hat genau 10 Ziffern."
+    ask MB_DHL_EKP "Kundennummer (EKP):"
+  done
+  step "Teilnahme: die letzten 2 Ziffern hinter Verfahren 01 (DHL Paket) bzw. 53 (International)."
+  ask_real MB_DHL_PARTICIPATION_NATIONAL "Teilnahme DHL Paket (meist 01):" "01"
+  ask_real MB_DHL_PARTICIPATION_INTERNATIONAL "Teilnahme DHL Paket International (meist 01):" "01"
+  write_env MB_DHL_USERNAME "$MB_DHL_USERNAME"
+  write_env MB_DHL_PASSWORD "$MB_DHL_PASSWORD"
+  write_env MB_DHL_EKP "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')"
+  write_env MB_DHL_PARTICIPATION_NATIONAL "$MB_DHL_PARTICIPATION_NATIONAL"
+  write_env MB_DHL_PARTICIPATION_INTERNATIONAL "$MB_DHL_PARTICIPATION_INTERNATIONAL"
+  note "Erst einschalten, wenn ${BOLD}make dhl-check${RESET} beide Probesendungen angenommen hat."
+  if confirm "Labels im Stellwerk jetzt echt buchen lassen?"; then
+    write_env MB_DHL_MODE "production"
+  else
+    write_env MB_DHL_MODE "off"
+    SKIPPED+=("DHL einschalten: make dhl-check, dann ./scripts/einrichten.sh dhl und einschalten")
+  fi
+else
+  write_env MB_DHL_MODE "off"
+  SKIPPED+=("DHL-Systembenutzer: ./scripts/einrichten.sh dhl, sobald er angelegt ist")
+fi
+step "Prüfen (bucht nichts Echtes): ${BOLD}make dhl-check SANDBOX=1${RESET} in DHLs Sandbox,"
+step "${BOLD}make dhl-check${RESET} mit dem Geschäftskundenkonto. Beides nach dem Neustart."
+pause
+}
+
 run_wizard() {
 
 TOTAL_STAGES=13
@@ -283,6 +354,24 @@ if [[ ! -f "$ENV_FILE" ]]; then
   (umask 077 && cp .env.example "$ENV_FILE")
 fi
 chmod 600 "$ENV_FILE"
+
+if [[ "${1:-}" == "dhl" ]]; then
+  TOTAL_STAGES=2
+  banner "DHL-Versandlabels einrichten"
+  dhl_stage
+  stage "Shop neu starten"
+  say "Damit der Shop die DHL-Einstellungen liest, wird er neu gebaut und gestartet."
+  say "Das dauert ein paar Minuten; der Shop läuft währenddessen weiter."
+  if confirm "Jetzt neu bauen und starten?"; then
+    docker compose up --detach --build --wait
+    say "✓ Neu gestartet."
+  else
+    SKIPPED+=("Neu starten: docker compose up --detach --build --wait")
+  fi
+  finish
+  say "Prüfen: make dhl-check SANDBOX=1 (Sandbox) · make dhl-check (Geschäftskundenkonto)"
+  return
+fi
 
 banner "Modellbahn-Shop auf dem Strato-Server einrichten"
 
@@ -507,60 +596,7 @@ fi
 pause
 
 # ── 10 ────────────────────────────────────────────────────────────────────
-stage "DHL-Versandlabels (kann später nachgeholt werden)"
-say "Das Stellwerk bucht das DHL-Label für den Etikettendrucker (100 × 150 mm), sobald das Paket"
-say "gepackt ist, und die Sendungsnummer kommt mit Verfolgungslink in die Versandmail."
-say "Dafür braucht es den API-Schlüssel eurer App im DHL-Entwicklerportal und für echte Labels"
-say "einen Systembenutzer des DHL-Geschäftskundenportals mit eurer Kundennummer (EKP)."
-note "Ohne DHL tragt ihr die Sendungsnummer wie bisher von Hand ein."
-printf '\n'
-if confirm "DHL jetzt anbinden?"; then
-  open_url "https://developer.dhl.com/user/apps"
-  step "Apps → eure App → „Show key“: den ${BOLD}API Key${RESET} kopieren (nicht das API Secret)."
-  step "Er steht danach nur noch hier in .env, nirgends sonst."
-  ask_secret MB_DHL_API_KEY "API-Schlüssel (unsichtbar):"
-  until [[ -n "$MB_DHL_API_KEY" ]]; do
-    ask_secret MB_DHL_API_KEY "API-Schlüssel (unsichtbar):"
-  done
-  write_env MB_DHL_API_KEY "$MB_DHL_API_KEY"
-  printf '\n'
-  if confirm "Liegt der Systembenutzer des Geschäftskundenportals schon vor?"; then
-    open_url "https://geschaeftskunden.dhl.de"
-    step "Einstellungen → Benutzerverwaltung → Systembenutzer (für die API) anlegen."
-    ask_real MB_DHL_USERNAME "Name des Systembenutzers:"
-    ask_secret MB_DHL_PASSWORD "Passwort des Systembenutzers (unsichtbar):"
-    step "Die Abrechnungsnummer hat 14 Ziffern: Kundennummer (EKP, 10), Verfahren (2), Teilnahme (2)."
-    ask_real MB_DHL_EKP "Kundennummer, die ersten 10 Ziffern (EKP):"
-    until [[ "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')" =~ ^[0-9]{10}$ ]]; do
-      warn "Die EKP hat genau 10 Ziffern."
-      ask MB_DHL_EKP "Kundennummer (EKP):"
-    done
-    step "Teilnahme: die letzten 2 Ziffern hinter Verfahren 01 (DHL Paket) bzw. 53 (International)."
-    ask_real MB_DHL_PARTICIPATION_NATIONAL "Teilnahme DHL Paket (meist 01):" "01"
-    ask_real MB_DHL_PARTICIPATION_INTERNATIONAL "Teilnahme DHL Paket International (meist 01):" "01"
-    write_env MB_DHL_USERNAME "$MB_DHL_USERNAME"
-    write_env MB_DHL_PASSWORD "$MB_DHL_PASSWORD"
-    write_env MB_DHL_EKP "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')"
-    write_env MB_DHL_PARTICIPATION_NATIONAL "$MB_DHL_PARTICIPATION_NATIONAL"
-    write_env MB_DHL_PARTICIPATION_INTERNATIONAL "$MB_DHL_PARTICIPATION_INTERNATIONAL"
-    note "Erst einschalten, wenn ${BOLD}make dhl-check${RESET} beide Probesendungen angenommen hat."
-    if confirm "Labels im Stellwerk jetzt echt buchen lassen?"; then
-      write_env MB_DHL_MODE "production"
-    else
-      write_env MB_DHL_MODE "off"
-      SKIPPED+=("DHL einschalten: make dhl-check, dann Skript erneut starten und einschalten")
-    fi
-  else
-    write_env MB_DHL_MODE "off"
-    SKIPPED+=("DHL-Systembenutzer: Skript erneut starten, sobald er angelegt ist")
-  fi
-  step "Prüfen (bucht nichts Echtes): ${BOLD}make dhl-check SANDBOX=1${RESET} in DHLs Sandbox,"
-  step "${BOLD}make dhl-check${RESET} mit dem Geschäftskundenkonto. Beides nach dem Bauen."
-else
-  write_env MB_DHL_MODE "off"
-  SKIPPED+=("DHL-Labels: Skript erneut starten, sobald der API-Schlüssel da ist")
-fi
-pause
+dhl_stage
 
 # ── 11 ────────────────────────────────────────────────────────────────────
 stage "Shop bauen und starten"
