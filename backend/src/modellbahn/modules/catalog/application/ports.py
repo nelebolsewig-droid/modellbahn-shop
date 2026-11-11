@@ -178,6 +178,37 @@ class Images(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class PiecesOfProduct:
+    unsold: int
+    """Pieces in the warehouse that never left the shop: they go with the product."""
+    kept: int
+    """Pieces reserved, picked, shipped or assembled from parts: they keep the product."""
+
+
+class Neighbours(Protocol):
+    """What the other modules hold of a product, as far as deleting it needs to know."""
+
+    async def open_orders(self, variant_ids: Collection[UUID]) -> list[str]:
+        """Orders still to pay or to ship with one of the variants: the shop's numbers, and
+        "eBay …" for a paid eBay order the shop has not taken over yet."""
+        ...
+
+    async def pieces(self, variant_ids: Collection[UUID]) -> PiecesOfProduct:
+        """Counted and locked until the transaction ends."""
+        ...
+
+    async def remove_unsold_pieces(self, variant_ids: Collection[UUID]) -> int: ...
+
+    async def live_listings(self, product_id: UUID) -> int:
+        """eBay listings of the product that eBay still shows."""
+        ...
+
+    async def remove_listings(self, product_id: UUID) -> int:
+        """The product's listings that eBay no longer shows."""
+        ...
+
+
 class CatalogUnitOfWork(Protocol):
     """One transaction over the catalogue repositories (see ``platform.uow``)."""
 
@@ -192,6 +223,9 @@ class CatalogUnitOfWork(Protocol):
 
     @property
     def images(self) -> Images: ...
+
+    @property
+    def neighbours(self) -> Neighbours: ...
 
     async def __aenter__(self) -> Self: ...
 

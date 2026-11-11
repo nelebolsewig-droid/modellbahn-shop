@@ -1175,7 +1175,8 @@ export const useCreateProduct = <TError = ErrorType<Problem | ValidationProblem>
 }
 
 /**
- * @summary Delete a draft that was never published
+ * Its pieces that never left the shop go along, with their journal, and so do ended eBay listings; orders keep their own copy. Refused while orders still to pay or ship contain it, pieces of it were sold or assembled, or eBay may still list it.
+ * @summary Delete a draft or archived product, e.g. a test model
  */
 export const deleteProduct = async (productId: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
 
@@ -1227,7 +1228,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteProductMutationVariables = {productId: string}
 
     /**
- * @summary Delete a draft that was never published
+ * @summary Delete a draft or archived product, e.g. a test model
  */
 export const useDeleteProduct = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProduct>>, TError,DeleteProductMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

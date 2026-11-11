@@ -10,9 +10,12 @@ from modellbahn.modules.catalog.domain.errors import (
     CategoryNotFoundError,
     InvalidFieldError,
     InvalidProductStateError,
+    ProductHasHistoryError,
+    ProductInOpenOrdersError,
     ProductNotDeletableError,
     ProductNotFoundError,
     ProductNotPublishableError,
+    ProductOnMarketplaceError,
     ProductScaleHasBomError,
     ProductScaleNotFoundError,
     PublishBlocker,
@@ -116,7 +119,18 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         code="product_scale_has_bom",
     ),
     ProductNotDeletableError: lambda _: ConflictError(
-        "Only drafts that were never published can be deleted.", code="product_not_deletable"
+        "A product in the shop is archived before it is deleted.", code="product_not_deletable"
+    ),
+    ProductInOpenOrdersError: lambda exc: ConflictError(
+        f"Open orders contain the product: {exc}.", code="product_in_open_orders"
+    ),
+    ProductHasHistoryError: lambda exc: ConflictError(
+        f"Pieces of the product were sold or assembled ({exc}); it stays for the record.",
+        code="product_has_history",
+    ),
+    ProductOnMarketplaceError: lambda _: ConflictError(
+        "eBay still shows a listing of the product; try again once the sync has ended it.",
+        code="product_on_marketplace",
     ),
     VersionMismatchError: lambda _: PreconditionFailedError(
         "The product was changed in the meantime; load it again.", code="precondition_failed"

@@ -855,9 +855,17 @@ class Product:
         )
 
     def ensure_deletable(self) -> None:
-        """Only drafts that were never in the shop: anything else may have been ordered."""
-        if self.status is not ProductStatus.DRAFT or self.published_at is not None:
+        """Not while in the shop: a product there is archived first (which ends eBay too).
+
+        Orders keep their own copy of name, price and picture, so they do not hold a
+        product back; open orders and pieces that were sold do (the service checks those).
+        """
+        if self.status is ProductStatus.ACTIVE:
             raise ProductNotDeletableError
+
+    @property
+    def variant_ids(self) -> list[UUID]:
+        return [variant.id for scale in self.scales for variant in scale.variants]
 
     def change_notice(self, now: datetime) -> ProductUpdated | None:
         """The event announcing a change to a product in the shop; none for drafts."""

@@ -239,6 +239,23 @@ Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
 - Passt ein Widerruf zu keiner Bestellung des Shops, ist es vielleicht ein eBay-Kauf; den
   erstattet man über eBay.
 
+### Modelle löschen
+
+- **Testmodell weg:** im Stellwerk das Modell öffnen, „Modell löschen …“, dann „Endgültig
+  löschen“. Ist es im Shop, zuerst „Archivieren“.
+- Mit dem Modell gehen seine nie verkauften Stücke samt Lagerbuchungen und seine
+  eBay-Angebote, die nicht mehr online sind. Etiketten dieser Stücke gelten dann nicht
+  mehr; am besten abziehen. Die Fotos bleiben in der Medienbibliothek.
+- **Lässt sich nicht löschen?** Der Dialog sagt warum:
+  - Offene Bestellungen (Nummern stehen dabei, eBay-Bestellungen mit „eBay“): versenden
+    oder stornieren, dann noch einmal.
+  - Stücke verkauft oder montiert: Das Modell bleibt archiviert, unsichtbar im Shop. Direkt
+    nach einem Storno kann die Meldung auch kommen, bis das Lager die Stücke freigibt
+    (etwa eine Minute).
+  - Noch bei eBay online: Nach dem Archivieren nimmt der Shop das Angebot in ein paar
+    Minuten herunter.
+- Rückgängig geht nur über die Sicherung (unten, „Wiederherstellen“) (ADR 0024).
+
 ### Fotos aus einem Ordner hochladen
 
 `scripts/fotos_hochladen.py` lädt Fotos vom eigenen Rechner in die Galerien der Produkte,

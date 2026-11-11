@@ -50,7 +50,7 @@ Die drei Entscheidungen, die alles Weitere prägen:
 | **Fachlichkeit vor Technik** | Module schneiden entlang der Werkstatt (Lager, Fertigung, Planung), nicht entlang von Schichten. |
 | **Die Datenbank ist die letzte Verteidigungslinie** | Invarianten, die ein Bug verletzen könnte, stehen zusätzlich als Constraint im Schema. |
 | **Nichts Abgeleitetes speichern** | Bestand, „Drucker druckt gerade“, Hauptbild: Das wird abgeleitet. Ein zweites Feld könnte dem ersten widersprechen. |
-| **Geschäftsvorfälle sind unveränderlich** | Bestellungen, Zahlungen und Lagerbuchungen werden nie gelöscht, nur durch Gegenbuchungen korrigiert. |
+| **Geschäftsvorfälle sind unveränderlich** | Bestellungen, Zahlungen und Lagerbuchungen werden nie gelöscht, nur durch Gegenbuchungen korrigiert. Einzige Ausnahme: Ein gelöschtes Testmodell nimmt die Buchungen seiner nie verkauften Stücke mit (ADR 0024). |
 | **Jede Aktion ist wiederholbar** | Scans, Zahlungen und Uploads tragen eine Kennung vom Client. Eine Wiederholung nach einem Netzabbruch bucht nicht doppelt. |
 | **Asynchron, wo es dauert** | Bildverarbeitung, KI und Prognose laufen im Worker. Die Oberfläche bekommt das Ergebnis per Server-Sent Events. |
 | **Mensch im Regelkreis** | Weder ein KI-Text noch ein Druckvorschlag wird ohne Bestätigung wirksam. |
@@ -1624,6 +1624,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 19 | Rechtstexte (04.11.2026) | AGB, Widerrufsbelehrung und Datenschutz mit dem Anbieter aus der Konfiguration; die Rücksendekosten nach einem Widerruf trägt der Kunde. Die Widerrufsfunktion „Vertrag widerrufen“ nach § 356a BGB bestätigt jeden Widerruf sofort per E-Mail (ADR 0020) |
 | 20 | Vorkasse (09.11.2026) | **Überweisung als zweite Zahlungsart**, ohne Zahlungsdienst: zehn Tage Frist, GiroCode, die Werkstatt bucht den Eingang im Stellwerk und überweist Erstattungen von Hand zurück (ADR 0022) |
 | 21 | DHL-Versand (09.11.2026) | **DHL-Label aus dem Stellwerk** über das Geschäftskundenkonto: DHL Paket im Inland, International in der EU, Thermoetikett 103 × 150 mm für den 100-×-150-Drucker; die Sendungsnummer kommt ohne Abtippen in die Versandmail (ADR 0023) |
+| 22 | Modelle löschen (11.11.2026) | **Testmodelle endgültig löschen**, als Entwurf oder archiviert: Nie verkaufte Stücke samt Buchungen und eBay-Angebote, die nicht mehr online sind, gehen mit; offene Bestellungen (auch eBay-Bestellungen auf dem Weg in den Shop), verkaufte oder montierte Stücke und Angebote, die eBay noch zeigt, halten das Modell fest (ADR 0024) |
 
 Noch offen:
 

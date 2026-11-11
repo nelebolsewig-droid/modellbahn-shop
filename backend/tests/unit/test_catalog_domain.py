@@ -413,13 +413,14 @@ class TestLifeCycle:
         with pytest.raises(SlugLockedError):
             item.change_details(slug="anders", now=NOW)
 
-    def test_only_unpublished_drafts_can_be_deleted(self) -> None:
+    def test_a_product_in_the_shop_is_archived_before_it_is_deleted(self) -> None:
         product().ensure_deletable()
         item = sellable()
         item.publish(main_image_ready=True, now=NOW)
-        item.archive(NOW)
         with pytest.raises(ProductNotDeletableError):
             item.ensure_deletable()
+        item.archive(NOW)
+        item.ensure_deletable()
 
     def test_epochs_keep_their_rows(self) -> None:
         item = product()
