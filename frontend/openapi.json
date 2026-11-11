@@ -21066,6 +21066,7 @@
     },
     "/api/v1/admin/products/{product_id}": {
       "delete": {
+        "description": "Its pieces that never left the shop go along, with their journal, and so do ended eBay listings; orders keep their own copy. Refused while orders still to pay or ship contain it, pieces of it were sold or assembled, or eBay may still list it.",
         "operationId": "deleteProduct",
         "parameters": [
           {
@@ -21139,7 +21140,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `product_not_deletable`, `product_scale_has_bom`, `variant_has_units`."
+            "description": "Conflict. Problem codes: `product_has_history`, `product_in_open_orders`, `product_not_deletable`, `product_on_marketplace`, `product_scale_has_bom`, `variant_has_units`."
           },
           "412": {
             "content": {
@@ -21187,7 +21188,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Delete a draft that was never published",
+        "summary": "Delete a draft or archived product, e.g. a test model",
         "tags": [
           "admin-catalog"
         ]

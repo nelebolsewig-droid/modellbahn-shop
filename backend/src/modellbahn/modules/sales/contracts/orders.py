@@ -21,6 +21,7 @@ __all__ = [
     "OrderStatus",
     "OrderSummary",
     "Shipment",
+    "load_open_order_numbers",
     "load_order_numbers",
     "load_order_summary",
     "load_shipment",
@@ -137,3 +138,21 @@ async def load_shipment(uow: UnitOfWork, order_id: UUID) -> Shipment | None:
     return Shipment(
         carrier=row.carrier, tracking_number=row.tracking_number, shipped_at=row.shipped_at
     )
+
+
+async def load_open_order_numbers(uow: UnitOfWork, variant_ids: Collection[UUID]) -> list[str]:
+    """Orders still to pay or to ship that contain one of the variants, by number."""
+    ids = list(set(variant_ids))
+    if not ids:
+        return []
+    rows = await uow.session.execute(
+        select(orders.c.number)
+        .distinct()
+        .join(order_lines, order_lines.c.order_id == orders.c.id)
+        .where(
+            order_lines.c.variant_id.in_(ids),
+            orders.c.status.in_([OrderStatus.PENDING_PAYMENT, OrderStatus.PAID]),
+        )
+        .order_by(orders.c.number)
+    )
+    return [str(row[0]) for row in rows]

@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Final
 from uuid import UUID
 
+import structlog
+
 from modellbahn.modules.catalog.application.cursors import decode_cursor, encode_cursor
 from modellbahn.modules.catalog.application.ports import (
     Article,
@@ -23,8 +25,11 @@ from modellbahn.modules.catalog.domain.errors import (
     CategoryCycleError,
     CategoryNotFoundError,
     InvalidFieldError,
+    ProductHasHistoryError,
+    ProductInOpenOrdersError,
     ProductNotFoundError,
     ProductNotPublishableError,
+    ProductOnMarketplaceError,
     ProductScaleHasBomError,
     ProductScaleNotFoundError,
     PublishBlocker,
@@ -65,6 +70,8 @@ from modellbahn.platform.uow import (
 
 type UnitOfWorkFactory = Callable[[], CatalogUnitOfWork]
 type ProductChange = Callable[[CatalogUnitOfWork, Product, datetime], Awaitable[list[DomainEvent]]]
+
+_logger = structlog.get_logger(__name__)
 
 ADMIN_PAGE_MAX: Final = 100
 STORE_PAGE_MAX: Final = 48
@@ -612,14 +619,34 @@ class CatalogService:
         return await self._change(_by_id(product_id), expected_version, change)
 
     async def delete_product(self, product_id: UUID, *, expected_version: int | None) -> None:
+        """Delete a draft or archived product, e.g. a test model.
+
+        Not while orders still to pay or to ship contain it, pieces of it were reserved,
+        picked, shipped or assembled, or an eBay listing may still be up. Its pieces that
+        never left the shop go along (with their journal), and so do ended eBay listings;
+        orders keep their own copy of name, price and picture.
+        """
         async with self._uow() as uow:
             product = await uow.products.get(product_id, for_update=True)
             if product is None:
                 raise ProductNotFoundError
             _check_version(product, expected_version)
             product.ensure_deletable()
+            variant_ids = product.variant_ids
+            if numbers := await uow.neighbours.open_orders(variant_ids):
+                raise ProductInOpenOrdersError(numbers)
+            pieces = await uow.neighbours.pieces(variant_ids)
+            if pieces.kept:
+                raise ProductHasHistoryError(pieces.kept)
+            if await uow.neighbours.live_listings(product.id):
+                raise ProductOnMarketplaceError
+            removed = await uow.neighbours.remove_unsold_pieces(variant_ids)
+            await uow.neighbours.remove_ended_listings(product.id)
             await uow.products.delete(product)
             await _commit(uow)
+        _logger.info(
+            "catalog.product.deleted", product=product.name, number=product.number, pieces=removed
+        )
 
     async def _change(
         self,

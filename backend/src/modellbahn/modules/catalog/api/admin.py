@@ -358,13 +358,23 @@ async def update_product(
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     operation_id="deleteProduct",
-    summary="Delete a draft that was never published",
+    summary="Delete a draft or archived product, e.g. a test model",
+    description="Its pieces that never left the shop go along, with their journal, and so "
+    "do ended eBay listings; orders keep their own copy. Refused while orders still to pay "
+    "or ship contain it, pieces of it were sold or assembled, or eBay may still list it.",
     responses=problems(
         {
             **ACCESS,
             **PRODUCT_NOT_FOUND,
             **VERSIONED,
-            409: ["product_not_deletable", "variant_has_units", "product_scale_has_bom"],
+            409: [
+                "product_not_deletable",
+                "product_in_open_orders",
+                "product_has_history",
+                "product_on_marketplace",
+                "variant_has_units",
+                "product_scale_has_bom",
+            ],
         }
     ),
 )

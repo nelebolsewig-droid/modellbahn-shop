@@ -34,8 +34,13 @@ export const PROBLEM_MESSAGES: Messages = {
   scale_not_found: "Diesen Maßstab gibt es nicht mehr.",
   scale_in_use: "Der Maßstab wird noch verwendet: Produkte gibt es in ihm, oder Fotos sind ihm zugeordnet.",
   invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
-  product_not_deletable:
-    "Nur Entwürfe, die nie im Shop waren, lassen sich löschen. Archiviere das Produkt stattdessen.",
+  product_not_deletable: "Das Modell ist im Shop. Archiviere es zuerst, dann lässt es sich löschen.",
+  product_in_open_orders:
+    "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell. Solange sie offen sind, lässt es sich nicht löschen.",
+  product_has_history:
+    "Von diesem Modell wurden schon Stücke verkauft oder montiert. Es bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist; als Entwurf oder archiviert erscheint es nicht im Shop.",
+  product_on_marketplace:
+    "Das eBay-Angebot zu diesem Modell läuft noch oder wird gerade beendet. Ist das Modell archiviert, beendet eBay es in ein paar Minuten; versuche es dann noch einmal.",
   not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
 
   // Manufacturing

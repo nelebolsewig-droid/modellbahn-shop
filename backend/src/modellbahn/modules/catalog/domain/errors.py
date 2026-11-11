@@ -77,7 +77,27 @@ class ProductScaleHasBomError(CatalogError):
 
 
 class ProductNotDeletableError(CatalogError):
-    """Only drafts that were never published can be deleted."""
+    """A product in the shop is archived first; only drafts and archived ones are deleted."""
+
+
+class ProductInOpenOrdersError(CatalogError):
+    """Orders still to pay or to ship contain the product: it stays until they are done."""
+
+    def __init__(self, numbers: list[str]) -> None:
+        super().__init__(", ".join(numbers))
+        self.numbers = numbers
+
+
+class ProductHasHistoryError(CatalogError):
+    """Pieces of the product were reserved, picked, shipped or assembled: they stay."""
+
+    def __init__(self, pieces: int) -> None:
+        super().__init__(f"{pieces} pieces")
+        self.pieces = pieces
+
+
+class ProductOnMarketplaceError(CatalogError):
+    """An eBay listing of the product is (or may still be) up; ending it takes a moment."""
 
 
 class VersionMismatchError(CatalogError):

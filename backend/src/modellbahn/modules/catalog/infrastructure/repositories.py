@@ -14,6 +14,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from modellbahn.modules.catalog.application.ports import (
     Article,
+    PiecesOfProduct,
     ProductCursor,
     ProductOrder,
     ProductQuery,
@@ -40,7 +41,16 @@ from modellbahn.modules.catalog.infrastructure.tables import (
     scales,
     variants,
 )
+from modellbahn.modules.inventory.contracts.stock import (
+    count_units_of_variants,
+    remove_unsold_units,
+)
+from modellbahn.modules.marketplace.contracts.listings import (
+    count_live_listings,
+    remove_ended_listings,
+)
 from modellbahn.modules.media.contracts.images import ImageView, load_images
+from modellbahn.modules.sales.contracts.orders import load_open_order_numbers
 from modellbahn.platform.uow import UnitOfWork
 
 
@@ -362,6 +372,29 @@ class SqlImages:
         return await load_images(self._uow, asset_ids, public_base_url=self._public_base_url)
 
 
+class SqlNeighbours:
+    """Sales, inventory and marketplace facades, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def open_orders(self, variant_ids: Collection[UUID]) -> list[str]:
+        return await load_open_order_numbers(self._uow, variant_ids)
+
+    async def pieces(self, variant_ids: Collection[UUID]) -> PiecesOfProduct:
+        counted = await count_units_of_variants(self._uow, variant_ids)
+        return PiecesOfProduct(unsold=counted.unsold, kept=counted.kept)
+
+    async def remove_unsold_pieces(self, variant_ids: Collection[UUID]) -> int:
+        return await remove_unsold_units(self._uow, variant_ids)
+
+    async def live_listings(self, product_id: UUID) -> int:
+        return await count_live_listings(self._uow, product_id)
+
+    async def remove_ended_listings(self, product_id: UUID) -> int:
+        return await remove_ended_listings(self._uow, product_id)
+
+
 class SqlCatalogUnitOfWork(UnitOfWork):
     """Unit of work with the catalogue repositories attached."""
 
@@ -369,6 +402,7 @@ class SqlCatalogUnitOfWork(UnitOfWork):
     categories: SqlCategoryRepository
     references: SqlReferenceData
     images: SqlImages
+    neighbours: SqlNeighbours
 
     def __init__(
         self, session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str
@@ -382,6 +416,7 @@ class SqlCatalogUnitOfWork(UnitOfWork):
         self.categories = SqlCategoryRepository(session)
         self.references = SqlReferenceData(session)
         self.images = SqlImages(self, self._public_base_url)
+        self.neighbours = SqlNeighbours(self)
 
 
 def catalog_uow_factory(

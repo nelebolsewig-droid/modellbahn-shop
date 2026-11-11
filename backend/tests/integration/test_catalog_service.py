@@ -220,7 +220,7 @@ class TestProducts:
                 other.product.id, expected_version=None, slug="stellwerk-altenau"
             )
 
-    async def test_delete_only_drafts(
+    async def test_delete_drafts_and_archived_products(
         self,
         catalog: CatalogService,
         media: MediaService,
@@ -235,6 +235,10 @@ class TestProducts:
         await catalog.publish(published.product.id, expected_version=None)
         with pytest.raises(ProductNotDeletableError):
             await catalog.delete_product(published.product.id, expected_version=None)
+        await catalog.archive(published.product.id, expected_version=None)
+        await catalog.delete_product(published.product.id, expected_version=None)
+        with pytest.raises(ProductNotFoundError):
+            await catalog.get_product(published.product.id)
 
 
 class TestGallery:

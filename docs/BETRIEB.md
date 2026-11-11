@@ -224,6 +224,18 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
 - Passt ein Widerruf zu keiner Bestellung des Shops, ist es vielleicht ein eBay-Kauf; den
   erstattet man über eBay.
 
+### Modelle löschen
+
+- **Testmodell weg:** im Stellwerk das Modell öffnen, „Modell löschen …“, dann „Endgültig
+  löschen“. Ist es im Shop, zuerst „Archivieren“.
+- Mit dem Modell gehen seine nie verkauften Stücke samt Lagerbuchungen und beendete
+  eBay-Angebote. Etiketten dieser Stücke gelten dann nicht mehr; am besten abziehen.
+- **Lässt sich nicht löschen?** Der Dialog sagt warum:
+  - Offene Bestellungen (Nummern stehen dabei): versenden oder stornieren, dann noch einmal.
+  - Stücke verkauft oder montiert: Das Modell bleibt archiviert, unsichtbar im Shop.
+  - eBay-Angebot läuft noch: Nach dem Archivieren beendet der Shop es in ein paar Minuten.
+- Rückgängig geht nur über die Sicherung (unten, „Wiederherstellen“) (ADR 0024).
+
 ### Fotos aus einem Ordner hochladen
 
 `scripts/fotos_hochladen.py` lädt Fotos vom eigenen Rechner in die Galerien der Produkte,

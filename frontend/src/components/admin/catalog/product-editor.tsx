@@ -1,9 +1,8 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
@@ -14,9 +13,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { archiveProduct, deleteProduct, publishProduct } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { archiveProduct, publishProduct } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import type { ProductOut } from "@/lib/api/generated/model";
-import type { ApiProblem } from "@/lib/api/problem";
 import { formatProductNumber } from "@/lib/catalog/format";
 import { PRODUCT_STATUS_LABELS, PUBLISH_BLOCKER_LABELS, PUBLISH_RULES } from "@/lib/catalog/labels";
 import { ifMatch } from "@/lib/catalog/versions";
@@ -25,12 +23,12 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, assetIdOf, MEDIA_EVENT_TYPES } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 
+import { DeleteProduct } from "./delete-product";
 import { STATUS_TONES } from "./product-list";
 import { ProductDetailsForm } from "./product-details-form";
 import { ProductGallery } from "./product-gallery";
 import { ProductScales } from "./product-scales";
 import {
-  ADMIN_PRODUCTS_KEY,
   isVersionConflict,
   productQueryKey,
   useCategories,
@@ -120,20 +118,11 @@ function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactN
 }
 
 function PublishPanel({ product }: { product: ProductOut }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const command = useProductCommand(product.id);
-  const remove = useMutation<void, ApiProblem>({
-    mutationFn: () => deleteProduct(product.id, ifMatch(product.version)),
-    onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
-      router.replace("/admin/katalog");
-    },
-  });
   const blockers = new Set(product.publish_blockers);
-  const deletable = product.status === "draft" && product.published_at === null;
-  const conflict = isVersionConflict(command.error) || isVersionConflict(remove.error);
-  const error = command.error ?? remove.error;
+  const conflict = isVersionConflict(command.error);
+  const error = command.error;
 
   return (
     <Panel title={product.status === "active" ? "Im Shop" : "Veröffentlichen"} code="PRD 01">
@@ -186,20 +175,7 @@ function PublishPanel({ product }: { product: ProductOut }) {
             </Button>
           </>
         )}
-        {deletable ? (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(`Den Entwurf „${product.name}“ endgültig löschen?`)) {
-                remove.mutate();
-              }
-            }}
-          >
-            Entwurf löschen
-          </Button>
-        ) : null}
+        <DeleteProduct product={product} />
       </div>
       {blockers.size > 0 && product.status !== "active" ? (
         <p className="mt-3 text-hint text-ink-tertiary">Veröffentlichen geht, sobald alle Punkte erfüllt sind.</p>
@@ -215,7 +191,6 @@ function PublishPanel({ product }: { product: ProductOut }) {
                 size="sm"
                 onClick={() => {
                   command.reset();
-                  remove.reset();
                   void queryClient.invalidateQueries({ queryKey: productQueryKey(product.id) });
                 }}
               >

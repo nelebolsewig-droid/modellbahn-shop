@@ -292,12 +292,15 @@ class TestPublishing:
             409,
             "slug_locked",
         )
-        archived = await staff_client.post(f"{PRODUCTS}/{product['id']}/archive")
-        assert archived.json()["status"] == "archived"
-        assert (await client.get(f"{SHOP}/products")).json()["items"] == []
         assert_problem(
             await staff_client.delete(f"{PRODUCTS}/{product['id']}"), 409, "product_not_deletable"
         )
+        archived = await staff_client.post(f"{PRODUCTS}/{product['id']}/archive")
+        assert archived.json()["status"] == "archived"
+        assert (await client.get(f"{SHOP}/products")).json()["items"] == []
+        deleted = await staff_client.delete(f"{PRODUCTS}/{product['id']}")
+        assert deleted.status_code == 204, deleted.text
+        assert (await staff_client.get(f"{PRODUCTS}/{product['id']}")).status_code == 404
 
 
 class TestCategoriesAndLists:
