@@ -2584,6 +2584,16 @@
             "format": "uuid",
             "title": "Asset Id",
             "type": "string"
+          },
+          "color": {
+            "default": "",
+            "description": "The colour the photo shows: it is tagged with the variant of that colour, so the shop shows it for that colour. Ignored if no variant has it.",
+            "examples": [
+              "Hellblau"
+            ],
+            "maxLength": 40,
+            "title": "Color",
+            "type": "string"
           }
         },
         "required": [

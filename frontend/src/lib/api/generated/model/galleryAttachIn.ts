@@ -16,4 +16,9 @@ export interface GalleryAttachIn {
   /** @maxLength 250 */
   alt_text?: string;
   asset_id: string;
+  /**
+     * The colour the photo shows: it is tagged with the variant of that colour, so the shop shows it for that colour. Ignored if no variant has it.
+     * @maxLength 40
+     */
+  color?: string;
 }

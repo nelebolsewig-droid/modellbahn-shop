@@ -564,6 +564,11 @@ def _lead_time(shortest: int | None, longest: int | None) -> tuple[int, int] | N
 class GalleryAttachIn(_Request):
     asset_id: UUID
     alt_text: Annotated[str, Field(max_length=ALT_TEXT_MAX_LENGTH)] = ""
+    color: Color = Field(
+        default="",
+        description="The colour the photo shows: it is tagged with the variant of that "
+        "colour, so the shop shows it for that colour. Ignored if no variant has it.",
+    )
 
 
 class GalleryEntryIn(_Request):

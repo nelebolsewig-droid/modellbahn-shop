@@ -68,6 +68,8 @@ type ProductChange = Callable[[CatalogUnitOfWork, Product, datetime], Awaitable[
 
 ADMIN_PAGE_MAX: Final = 100
 STORE_PAGE_MAX: Final = 48
+# Every product at once, for maintenance over the whole catalogue (a few hundred models).
+_ALL_PRODUCTS: Final = 10_000
 # Images that may join a gallery: the upload is complete (processing may still run).
 _ATTACHABLE: Final = frozenset({AssetStatus.UPLOADED, AssetStatus.READY})
 # Unique constraints that stand for a rule of the model.
@@ -558,9 +560,12 @@ class CatalogService:
         return await self._change(_by_variant(variant_id), expected_version, change)
 
     async def attach_image(
-        self, product_id: UUID, *, asset_id: UUID, alt_text: str = ""
+        self, product_id: UUID, *, asset_id: UUID, alt_text: str = "", color: str = ""
     ) -> ProductDetails:
         """Append an uploaded image to the gallery.
+
+        With ``color``, the image shows the variant of that colour (when the product has
+        one), so the shop shows it when a customer picks the colour.
 
         Needs no version: appending commutes, and the row lock orders concurrent
         uploads of the same gallery.
@@ -570,9 +575,46 @@ class CatalogService:
             uow: CatalogUnitOfWork, product: Product, now: datetime
         ) -> list[DomainEvent]:
             await _attach(uow, product, asset_id, alt_text=alt_text, now=now)
+            if color.strip():
+                product.tag_image_by_color(asset_id, color, now)
             return []
 
         return await self._change(_by_id(product_id), None, change)
+
+    async def tag_colors_from_alt_texts(self) -> list[tuple[str, str]]:
+        """Tag gallery images without a colour whose alt text ends in one of the product's.
+
+        The photo script wrote the colour only into the alt text ("Stellwerk Altenau, Rot")
+        before it tagged images; the shop then showed the first photo for every colour.
+        Returns (product, colour) per tagged image. Running it twice changes nothing more.
+        """
+        async with self._uow() as uow:
+            products = await uow.products.search(
+                ProductQuery(order=ProductOrder.CREATED, limit=_ALL_PRODUCTS)
+            )
+        tagged: list[tuple[str, str]] = []
+        for found in products:
+            hits = {
+                media.asset_id: media.alt_text.rsplit(",", 1)[1].strip()
+                for media in found.media
+                if media.color is None and "," in media.alt_text
+            }
+            if not any(found.colored_variant(color) for color in hits.values()):
+                continue
+
+            async def change(
+                uow: CatalogUnitOfWork,
+                product: Product,
+                now: datetime,
+                hits: dict[UUID, str] = hits,
+            ) -> list[DomainEvent]:
+                for asset_id, color in hits.items():
+                    if product.tag_image_by_color(asset_id, color, now):
+                        tagged.append((product.name, color))
+                return []
+
+            await self._change(_by_id(found.id), None, change)
+        return tagged
 
     async def arrange_gallery(
         self, product_id: UUID, *, expected_version: int | None, entries: list[GalleryEntry]

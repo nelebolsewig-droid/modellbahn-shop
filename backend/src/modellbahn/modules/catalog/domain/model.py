@@ -764,6 +764,28 @@ class Product:
         entry.color = normalize_color(color) or None
         self.updated_at = now
 
+    def colored_variant(self, color: str) -> Variant | None:
+        """The variant in this colour (first scale first); None if no variant has it."""
+        wanted = color.strip().casefold()
+        if not wanted:
+            return None
+        return next(
+            (v for s in self.scales for v in s.variants if v.color.casefold() == wanted), None
+        )
+
+    def tag_image_by_color(self, asset_id: UUID, color: str, now: datetime) -> bool:
+        """Tag an image as showing the variant of ``color``: its finish and colour, any scale.
+
+        False (and no change) where no variant has the colour.
+        """
+        variant = self.colored_variant(color)
+        if variant is None:
+            return False
+        self.tag_image(
+            asset_id, scale_code=None, finish_code=variant.finish_code, color=variant.color, now=now
+        )
+        return True
+
     def arrange_gallery(
         self, entries: list[GalleryEntry], *, main_image_ready: bool, now: datetime
     ) -> None:

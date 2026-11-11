@@ -65,6 +65,7 @@ HTTP_REDIRECT: Final = 300
 IMAGE_MAX_BYTES: Final = 50 * 1024 * 1024
 GALLERY_MAX_SIZE: Final = 40
 ALT_TEXT_MAX_LENGTH: Final = 250
+COLOR_MAX_LENGTH: Final = 40
 MIME_TYPES: Final = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -383,11 +384,12 @@ class Stellwerk:
         self.call("POST", f"{API}/media/{asset_id}/complete")
         return asset_id
 
-    def attach(self, product_id: str, asset_id: str, alt_text: str) -> None:
+    def attach(self, product_id: str, asset_id: str, alt_text: str, color: str = "") -> None:
+        """Into the gallery; with ``color`` the shop shows the photo for that colour."""
         self.call(
             "POST",
             f"{API}/products/{product_id}/media",
-            {"asset_id": asset_id, "alt_text": alt_text},
+            {"asset_id": asset_id, "alt_text": alt_text, "color": color[:COLOR_MAX_LENGTH]},
         )
 
 
@@ -494,7 +496,7 @@ def run(args: argparse.Namespace) -> int:
             before = stellwerk.gallery_size(product["id"])
             for photo in gallery:
                 path = file_to_send(photo.path, converter, cache=cache_dir())
-                stellwerk.attach(product["id"], stellwerk.upload(path), photo.alt_text)
+                stellwerk.attach(product["id"], stellwerk.upload(path), photo.alt_text, photo.color)
             added = stellwerk.gallery_size(product["id"]) - before
         except (StellwerkError, OSError) as error:
             failed += 1

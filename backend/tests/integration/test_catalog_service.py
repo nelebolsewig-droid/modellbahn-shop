@@ -675,6 +675,57 @@ class TestQuickEntry:
         assert unready.details.blockers  # no category, no photo: it stays a draft
         assert await catalog.publish_ready() == []
 
+    async def test_photos_show_their_colour(
+        self,
+        catalog: CatalogService,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        async def enter(product_id: UUID | None, color: str) -> QuickEntry:
+            return await catalog.quick_entry(
+                product_id=product_id,
+                name="Feuerwehr W50" if product_id is None else None,
+                category_id=None,
+                scale_code="H0",
+                finish_code="painted",
+                color=color,
+                price_cents=8000,
+            )
+
+        product_id = (await enter(None, "Blau")).details.product.id
+        await enter(product_id, "Rot")
+
+        async def image() -> UUID:
+            asset = await ready_image(
+                media, media_storage, deliver, photo(400, 300, colour=_colour())
+            )
+            return asset.id
+
+        # Attached with its colour (as the photo script does now): tagged at once.
+        red = await image()
+        details = await catalog.attach_image(product_id, asset_id=red, color="rot")
+        (tagged,) = details.product.gallery
+        assert (tagged.scale_code, tagged.finish_code, tagged.color) == (None, "painted", "Rot")
+        # A colour the model does not come in tags nothing.
+        green = await image()
+        details = await catalog.attach_image(product_id, asset_id=green, color="Grün")
+        assert details.product.gallery[-1].color is None
+
+        # Photos the script attached before: the colour only in the alt text.
+        blue = await image()
+        plain = await image()
+        await catalog.attach_image(product_id, asset_id=blue, alt_text="Feuerwehr W50, Blau")
+        await catalog.attach_image(product_id, asset_id=plain, alt_text="Feuerwehr W50")
+        assert await catalog.tag_colors_from_alt_texts() == [("Feuerwehr W50", "Blau")]
+        gallery = {
+            image.asset_id: image.color
+            for image in (await catalog.get_product(product_id)).product.gallery
+        }
+        assert gallery == {red: "Rot", green: None, blue: "Blau", plain: None}
+        # Once is enough: the second run finds nothing left.
+        assert await catalog.tag_colors_from_alt_texts() == []
+
     async def test_names_the_colour_of_the_one_finished_model_without_one(
         self, catalog: CatalogService
     ) -> None:

@@ -26,7 +26,7 @@ SERVICE ?=
 ROLE ?= owner
 
 .PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff staff-list staff-delete \
-	catalog-import dhl-check smoke check \
+	catalog-import gallery-colors dhl-check smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -79,6 +79,9 @@ staff-delete: export STAFF_EMAIL = $(EMAIL)
 staff-delete: .env ## Mitarbeiterkonto löschen: make staff-delete EMAIL=...
 	$(if $(EMAIL),,$(error Aufruf: make staff-delete EMAIL=adresse@example.de))
 	$(COMPOSE) run --rm api python -m modellbahn.cli delete-staff --email "$$STAFF_EMAIL"
+
+gallery-colors: .env ## Fotos ihrer Farbe zuordnen, wo der Bildtext sie nennt („Modell, Rot“)
+	$(COMPOSE) run --rm api python -m modellbahn.cli gallery-colors
 
 # make dhl-check [SANDBOX=1]: DHL checks two sample parcels and books nothing (ADR 0023);
 # SANDBOX=1 tries DHL's sandbox and books and cancels one test label there.
