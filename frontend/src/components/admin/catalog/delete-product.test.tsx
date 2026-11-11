@@ -60,7 +60,7 @@ describe("DeleteProduct", () => {
     renderWithQueryClient(<DeleteProduct product={product({})} />);
 
     const dialog = await openDialog(user);
-    expect(dialog).toHaveTextContent("Bestellungen behalten ihre eigene Kopie von Name, Preis und Bild.");
+    expect(dialog).toHaveTextContent("Bestellungen behalten Name und Preis, die Fotos bleiben in der Medienbibliothek.");
     expect(dialog).toHaveTextContent("Das lässt sich nicht rückgängig machen.");
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -93,7 +93,7 @@ describe("DeleteProduct", () => {
             type: "/problems/product-in-open-orders",
             title: "Conflict",
             status: 409,
-            detail: "Open orders contain the product: MB-2026-00042, MB-2026-00043.",
+            detail: "Open orders contain the product: MB-2026-00042, MB-2026-100043, eBay 12-34567-89012.",
             code: "product_in_open_orders",
           },
           409,
@@ -108,13 +108,14 @@ describe("DeleteProduct", () => {
 
     expect(
       await within(dialog).findByText(
-        "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell. Solange sie offen sind, lässt es sich nicht löschen.",
+        "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell, auch eBay-Bestellungen, die der Shop gerade übernimmt. Solange sie offen sind, lässt es sich nicht löschen.",
       ),
     ).toBeInTheDocument();
     const orders = within(dialog).getByRole("list", { name: "Offene Bestellungen" });
     expect(within(orders).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "MB-2026-00042",
-      "MB-2026-00043",
+      "MB-2026-100043",
+      "eBay 12-34567-89012",
     ]);
     expect(dialog).not.toHaveTextContent("Open orders");
     expect(replace).not.toHaveBeenCalled();

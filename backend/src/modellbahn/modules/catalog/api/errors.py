@@ -129,7 +129,7 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         code="product_has_history",
     ),
     ProductOnMarketplaceError: lambda _: ConflictError(
-        "An eBay listing of the product may still be up; try again once eBay has ended it.",
+        "eBay still shows a listing of the product; try again once the sync has ended it.",
         code="product_on_marketplace",
     ),
     VersionMismatchError: lambda _: PreconditionFailedError(

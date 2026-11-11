@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Final
 from uuid import UUID
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import Select, delete, func, select
 
 from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.inventory.domain.model import AllocationStatus, UnitStatus
@@ -86,10 +86,17 @@ def _unsold_units(ids: list[UUID]) -> Select[tuple[UUID]]:
 async def count_units_of_variants(
     uow: UnitOfWork, variant_ids: Collection[UUID]
 ) -> UnitsOfVariants:
-    """How many pieces of the variants could go with them, and how many must stay."""
+    """How many pieces of the variants could go with them, and how many must stay.
+
+    Locks the pieces until the transaction ends, so that no scan, pick or allocation changes
+    one between counting and :func:`remove_unsold_units`.
+    """
     ids = list(set(variant_ids))
     if not ids:
         return UnitsOfVariants(unsold=0, kept=0)
+    await uow.session.execute(
+        select(units.c.id).where(units.c.variant_id.in_(ids)).with_for_update()
+    )
     total = (
         await uow.session.execute(select(func.count()).where(units.c.variant_id.in_(ids)))
     ).scalar_one()
@@ -111,10 +118,12 @@ async def remove_unsold_units(uow: UnitOfWork, variant_ids: Collection[UUID]) ->
     doomed = [row[0] for row in await uow.session.execute(_unsold_units(ids))]
     if not doomed:
         return 0
-    # An undo names the entry it reverses; both belong to the same piece and go together.
+    # An undo names the entry it reverses (of the same piece), so it goes first. Nothing
+    # undoes an undo.
+    journal = stock_ledger.c.unit_id.in_(doomed)
     await uow.session.execute(
-        update(stock_ledger).where(stock_ledger.c.unit_id.in_(doomed)).values(reverses_id=None)
+        delete(stock_ledger).where(journal, stock_ledger.c.reverses_id.is_not(None))
     )
-    await uow.session.execute(delete(stock_ledger).where(stock_ledger.c.unit_id.in_(doomed)))
+    await uow.session.execute(delete(stock_ledger).where(journal))
     await uow.session.execute(delete(units).where(units.c.id.in_(doomed)))
     return len(doomed)

@@ -36,11 +36,11 @@ export const PROBLEM_MESSAGES: Messages = {
   invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
   product_not_deletable: "Das Modell ist im Shop. Archiviere es zuerst, dann lässt es sich löschen.",
   product_in_open_orders:
-    "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell. Solange sie offen sind, lässt es sich nicht löschen.",
+    "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell, auch eBay-Bestellungen, die der Shop gerade übernimmt. Solange sie offen sind, lässt es sich nicht löschen.",
   product_has_history:
-    "Von diesem Modell wurden schon Stücke verkauft oder montiert. Es bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist; als Entwurf oder archiviert erscheint es nicht im Shop.",
+    "Stücke dieses Modells sind verkauft, montiert oder einer Bestellung zugeteilt. Verkaufte und montierte Stücke behalten ihre Geschichte, das Modell bleibt dann archiviert und erscheint nicht im Shop. Kam die Meldung direkt nach einem Storno, gibt das Lager die Stücke gleich frei: in einer Minute noch einmal versuchen.",
   product_on_marketplace:
-    "Das eBay-Angebot zu diesem Modell läuft noch oder wird gerade beendet. Ist das Modell archiviert, beendet eBay es in ein paar Minuten; versuche es dann noch einmal.",
+    "Das Modell ist noch bei eBay eingestellt. Ist es archiviert, nimmt der Shop das Angebot in ein paar Minuten herunter; versuche es dann noch einmal. Bleibt es online, unter eBay nachsehen, ob die Verbindung steht.",
   not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
 
   // Manufacturing

@@ -243,12 +243,17 @@ Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
 
 - **Testmodell weg:** im Stellwerk das Modell öffnen, „Modell löschen …“, dann „Endgültig
   löschen“. Ist es im Shop, zuerst „Archivieren“.
-- Mit dem Modell gehen seine nie verkauften Stücke samt Lagerbuchungen und beendete
-  eBay-Angebote. Etiketten dieser Stücke gelten dann nicht mehr; am besten abziehen.
+- Mit dem Modell gehen seine nie verkauften Stücke samt Lagerbuchungen und seine
+  eBay-Angebote, die nicht mehr online sind. Etiketten dieser Stücke gelten dann nicht
+  mehr; am besten abziehen. Die Fotos bleiben in der Medienbibliothek.
 - **Lässt sich nicht löschen?** Der Dialog sagt warum:
-  - Offene Bestellungen (Nummern stehen dabei): versenden oder stornieren, dann noch einmal.
-  - Stücke verkauft oder montiert: Das Modell bleibt archiviert, unsichtbar im Shop.
-  - eBay-Angebot läuft noch: Nach dem Archivieren beendet der Shop es in ein paar Minuten.
+  - Offene Bestellungen (Nummern stehen dabei, eBay-Bestellungen mit „eBay“): versenden
+    oder stornieren, dann noch einmal.
+  - Stücke verkauft oder montiert: Das Modell bleibt archiviert, unsichtbar im Shop. Direkt
+    nach einem Storno kann die Meldung auch kommen, bis das Lager die Stücke freigibt
+    (etwa eine Minute).
+  - Noch bei eBay online: Nach dem Archivieren nimmt der Shop das Angebot in ein paar
+    Minuten herunter.
 - Rückgängig geht nur über die Sicherung (unten, „Wiederherstellen“) (ADR 0024).
 
 ### Fotos aus einem Ordner hochladen

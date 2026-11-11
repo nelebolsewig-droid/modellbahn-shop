@@ -190,18 +190,23 @@ class Neighbours(Protocol):
     """What the other modules hold of a product, as far as deleting it needs to know."""
 
     async def open_orders(self, variant_ids: Collection[UUID]) -> list[str]:
-        """Numbers of orders still to pay or to ship with one of the variants."""
+        """Orders still to pay or to ship with one of the variants: the shop's numbers, and
+        "eBay …" for a paid eBay order the shop has not taken over yet."""
         ...
 
-    async def pieces(self, variant_ids: Collection[UUID]) -> PiecesOfProduct: ...
+    async def pieces(self, variant_ids: Collection[UUID]) -> PiecesOfProduct:
+        """Counted and locked until the transaction ends."""
+        ...
 
     async def remove_unsold_pieces(self, variant_ids: Collection[UUID]) -> int: ...
 
     async def live_listings(self, product_id: UUID) -> int:
-        """eBay listings of the product that are, or may still be, up."""
+        """eBay listings of the product that eBay still shows."""
         ...
 
-    async def remove_ended_listings(self, product_id: UUID) -> int: ...
+    async def remove_listings(self, product_id: UUID) -> int:
+        """The product's listings that eBay no longer shows."""
+        ...
 
 
 class CatalogUnitOfWork(Protocol):

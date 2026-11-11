@@ -663,10 +663,10 @@ class CatalogService:
     async def delete_product(self, product_id: UUID, *, expected_version: int | None) -> None:
         """Delete a draft or archived product, e.g. a test model.
 
-        Not while orders still to pay or to ship contain it, pieces of it were reserved,
-        picked, shipped or assembled, or an eBay listing may still be up. Its pieces that
-        never left the shop go along (with their journal), and so do ended eBay listings;
-        orders keep their own copy of name, price and picture.
+        Not while orders still to pay or to ship contain it (eBay orders on their way in
+        too), pieces of it are reserved or picked or were shipped or assembled, or eBay still
+        shows a listing of it. Its pieces that never left the shop go along (with their
+        journal), and so do its other eBay listings; orders keep their own name and price.
         """
         async with self._uow() as uow:
             product = await uow.products.get(product_id, for_update=True)
@@ -683,7 +683,7 @@ class CatalogService:
             if await uow.neighbours.live_listings(product.id):
                 raise ProductOnMarketplaceError
             removed = await uow.neighbours.remove_unsold_pieces(variant_ids)
-            await uow.neighbours.remove_ended_listings(product.id)
+            await uow.neighbours.remove_listings(product.id)
             await uow.products.delete(product)
             await _commit(uow)
         _logger.info(

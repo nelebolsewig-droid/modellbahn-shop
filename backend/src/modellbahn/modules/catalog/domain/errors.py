@@ -81,7 +81,7 @@ class ProductNotDeletableError(CatalogError):
 
 
 class ProductInOpenOrdersError(CatalogError):
-    """Orders still to pay or to ship contain the product: it stays until they are done."""
+    """Orders still to pay or to ship (or eBay orders on their way in) contain the product."""
 
     def __init__(self, numbers: list[str]) -> None:
         super().__init__(", ".join(numbers))
@@ -97,7 +97,7 @@ class ProductHasHistoryError(CatalogError):
 
 
 class ProductOnMarketplaceError(CatalogError):
-    """An eBay listing of the product is (or may still be) up; ending it takes a moment."""
+    """eBay still shows a listing of the product; once archived, the sync ends it."""
 
 
 class VersionMismatchError(CatalogError):

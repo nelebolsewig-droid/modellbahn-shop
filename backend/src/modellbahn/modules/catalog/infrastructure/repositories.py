@@ -47,10 +47,11 @@ from modellbahn.modules.inventory.contracts.stock import (
 )
 from modellbahn.modules.marketplace.contracts.listings import (
     count_live_listings,
-    remove_ended_listings,
+    remove_listings,
 )
+from modellbahn.modules.marketplace.contracts.orders import load_received_order_refs
 from modellbahn.modules.media.contracts.images import ImageView, load_images
-from modellbahn.modules.sales.contracts.orders import load_open_order_numbers
+from modellbahn.modules.sales.contracts.orders import load_open_order_numbers, load_order_numbers
 from modellbahn.platform.uow import UnitOfWork
 
 
@@ -379,7 +380,13 @@ class SqlNeighbours:
         self._uow = uow
 
     async def open_orders(self, variant_ids: Collection[UUID]) -> list[str]:
-        return await load_open_order_numbers(self._uow, variant_ids)
+        numbers = await load_open_order_numbers(self._uow, variant_ids)
+        # A paid eBay order on its way into sales: without the variant it would be dropped.
+        received = await load_received_order_refs(self._uow, variant_ids)
+        arrived = await load_order_numbers(self._uow, received.keys())
+        return numbers + sorted(
+            f"eBay {ref}" for order_id, ref in received.items() if order_id not in arrived
+        )
 
     async def pieces(self, variant_ids: Collection[UUID]) -> PiecesOfProduct:
         counted = await count_units_of_variants(self._uow, variant_ids)
@@ -391,8 +398,8 @@ class SqlNeighbours:
     async def live_listings(self, product_id: UUID) -> int:
         return await count_live_listings(self._uow, product_id)
 
-    async def remove_ended_listings(self, product_id: UUID) -> int:
-        return await remove_ended_listings(self._uow, product_id)
+    async def remove_listings(self, product_id: UUID) -> int:
+        return await remove_listings(self._uow, product_id)
 
 
 class SqlCatalogUnitOfWork(UnitOfWork):

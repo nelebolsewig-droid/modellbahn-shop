@@ -22,9 +22,6 @@ import { errorMessage } from "@/lib/i18n/problems";
 
 import { ADMIN_PRODUCTS_KEY, isVersionConflict, productQueryKey } from "./use-product";
 
-/** Order numbers as the shop prints them, e.g. MB-2026-00042. */
-const ORDER_NUMBER = /MB-\d{4}-\d{5}/g;
-
 /**
  * Where the general text speaks of a single scale, the delete dialog speaks of the whole
  * model: deleting it removes every scale, so the bill of materials of any one holds it back.
@@ -43,14 +40,18 @@ function deleteErrorMessage(error: unknown): string {
 
 /**
  * The open orders that keep a product from being deleted. The problem's English detail
- * names them ("Open orders contain the product: MB-2026-00042, MB-2026-00043."); only the
- * numbers are shown.
+ * names them after the colon ("Open orders contain the product: MB-2026-00042, eBay
+ * 12-34567-89012."); only the numbers are shown.
  */
 export function openOrderNumbers(error: unknown): string[] {
   if (!isApiProblem(error) || error.code !== "product_in_open_orders") {
     return [];
   }
-  return error.detail.match(ORDER_NUMBER) ?? [];
+  const listed = /:\s*(.+?)\.?$/.exec(error.detail)?.[1] ?? "";
+  return listed
+    .split(",")
+    .map((number) => number.trim())
+    .filter((number) => number !== "");
 }
 
 /**
@@ -95,8 +96,9 @@ export function DeleteProduct({ product }: { product: ProductOut }) {
         <DialogTitle>„{product.name}“ endgültig löschen?</DialogTitle>
         <DialogDescription>
           Gelöscht werden das Modell mit allen Maßstäben, Varianten und der Galerie, seine nie verkauften Stücke im
-          Lager samt Journal und beendete eBay-Angebote; die Etiketten dieser Stücke gelten dann nicht mehr.
-          Bestellungen behalten ihre eigene Kopie von Name, Preis und Bild. Das lässt sich nicht rückgängig machen.
+          Lager samt Journal und seine eBay-Angebote, die nicht mehr online sind; die Etiketten dieser Stücke gelten
+          dann nicht mehr. Bestellungen behalten Name und Preis, die Fotos bleiben in der Medienbibliothek. Das lässt
+          sich nicht rückgängig machen.
         </DialogDescription>
         <FormError message={remove.isError ? deleteErrorMessage(remove.error) : undefined} className="mt-4">
           {orders.length > 0 ? (

@@ -1,8 +1,10 @@
-"""Read-only facade for the sales module: an order as a marketplace reported it.
+"""Read-only facade: an order as a marketplace reported it (for sales), and the orders
+that still involve a variant (for the catalogue, before it deletes a product).
 
 It runs SQL, so a domain layer must not import it (the pure-domain contract says so).
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -16,7 +18,12 @@ from modellbahn.modules.marketplace.infrastructure.tables import (
 )
 from modellbahn.platform.uow import UnitOfWork
 
-__all__ = ["ReceivedOrder", "ReceivedOrderLine", "load_received_order"]
+__all__ = [
+    "ReceivedOrder",
+    "ReceivedOrderLine",
+    "load_received_order",
+    "load_received_order_refs",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,3 +97,29 @@ async def load_received_order(uow: UnitOfWork, marketplace_order_id: UUID) -> Re
             if line.variant_id is not None
         ],
     )
+
+
+async def load_received_order_refs(
+    uow: UnitOfWork, variant_ids: Collection[UUID]
+) -> dict[UUID, str]:
+    """Received orders (neither shipped nor cancelled) with one of the variants.
+
+    By the id the shop's order gets (or got), with the marketplace's own order number. One
+    the shop has not made its own order of yet would be lost if the variant went away.
+    """
+    ids = list(set(variant_ids))
+    if not ids:
+        return {}
+    rows = await uow.session.execute(
+        select(marketplace_orders.c.order_id, marketplace_orders.c.external_id)
+        .distinct()
+        .join(
+            marketplace_order_lines,
+            marketplace_order_lines.c.marketplace_order_id == marketplace_orders.c.id,
+        )
+        .where(
+            marketplace_order_lines.c.variant_id.in_(ids),
+            marketplace_orders.c.status == MarketplaceOrderStatus.RECEIVED,
+        )
+    )
+    return {row[0]: str(row[1]) for row in rows}

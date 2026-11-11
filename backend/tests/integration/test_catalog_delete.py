@@ -1,8 +1,9 @@
 """Deleting a test model: what goes along, and what holds a product back.
 
 A product leaves the shop first (archived). Its pieces that never left the shop go with
-it, journal and all; open orders, sold pieces and eBay listings that may still be up hold
-it back. Orders that are done keep their own copy and do not.
+it, journal and all; open orders (eBay orders on their way in too), sold pieces and eBay
+listings that eBay still shows hold it back. Orders that are done keep their own copy and
+do not.
 """
 
 from datetime import UTC, datetime
@@ -25,15 +26,27 @@ from modellbahn.modules.inventory.application.allocation import AllocationServic
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
+from modellbahn.modules.inventory.domain.model import ScanMode
 from modellbahn.modules.inventory.infrastructure.tables import stock_ledger
 from modellbahn.modules.inventory.infrastructure.tables import units as unit_rows
-from modellbahn.modules.marketplace.infrastructure.tables import listings
+from modellbahn.modules.marketplace.infrastructure.tables import (
+    listings,
+    marketplace_order_lines,
+    marketplace_orders,
+)
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.orders import OrderService
 from tests.conftest import Deliver
-from tests.inventory_support import pick_everything, staff_member, stock_up, store
+from tests.inventory_support import (
+    COMPARTMENT,
+    pick_everything,
+    scan,
+    staff_member,
+    stock_up,
+    store,
+)
 from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import filled_cart, place, shop_product, variant_id
 
@@ -70,6 +83,70 @@ async def paid_order(carts: CartService, checkout: CheckoutService, variant: UUI
     order = (await place(checkout, carts, cart)).details.order
     await checkout.pay(public_token=order.public_token, method="succeeds", idempotency_key=uuid4())
     return order.id
+
+
+async def listing(
+    engine: AsyncEngine, product_id: UUID, *, status: str, external_id: str = ""
+) -> UUID:
+    listing_id = uuid4()
+    async with engine.begin() as connection:
+        await connection.execute(
+            insert(listings).values(
+                id=listing_id,
+                product_id=product_id,
+                scale_code="H0",
+                group_key=f"MB-{uuid4().hex[:8]}",
+                wanted=True,
+                status=status,
+                external_id=external_id,
+                needs_sync=False,
+                error_code="not_in_shop" if status == "failed" else None,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+    return listing_id
+
+
+async def ebay_order(engine: AsyncEngine, variant: UUID, external_id: str) -> UUID:
+    """A paid eBay order as the marketplace received it; the shop's order follows later."""
+    marketplace_order_id = uuid4()
+    async with engine.begin() as connection:
+        await connection.execute(
+            insert(marketplace_orders).values(
+                id=marketplace_order_id,
+                channel="ebay",
+                external_id=external_id,
+                order_id=uuid4(),
+                status="received",
+                buyer_name="kaeufer",
+                email="kaeufer@example.com",
+                recipient="Erika Mustermann",
+                street="Bahnhofstraße 1",
+                postal_code="17235",
+                city="Neustrelitz",
+                country_code="DE",
+                shipping_cents=590,
+                total_cents=5490,
+                paid_at=NOW,
+                received_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        await connection.execute(
+            insert(marketplace_order_lines).values(
+                id=uuid4(),
+                marketplace_order_id=marketplace_order_id,
+                position=1,
+                line_ref="10001",
+                sku="TEST",
+                variant_id=variant,
+                title="Testmodell",
+                quantity=1,
+                unit_price_cents=4900,
+            )
+        )
+    return marketplace_order_id
 
 
 class TestDeleting:
@@ -149,34 +226,79 @@ class TestDeleting:
             await catalog.delete_product(product.product.id, expected_version=None)
         assert held.value.pieces == 1
 
-    async def test_an_ebay_listing_holds_it_back_until_it_ended(
+    async def test_undone_scans_go_along(
+        self,
+        catalog: CatalogService,
+        identity: IdentityService,
+        locations: LocationService,
+        units: UnitService,
+        scans: ScanService,
+        engine: AsyncEngine,
+        product: ProductDetails,
+        painted: UUID,
+    ) -> None:
+        staff = await staff_member(identity)
+        await store(locations)
+        (piece,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+        context = {"location_code": COMPARTMENT}
+        stored = await scan(scans, staff, piece.unit.code, ScanMode.PUT_AWAY, context=context)
+        await scans.undo(UUID(str(stored["scan_id"])), staff_id=staff)
+        await scan(scans, staff, piece.unit.code, ScanMode.PUT_AWAY, context=context)
+
+        await catalog.archive(product.product.id, expected_version=None)
+        await catalog.delete_product(product.product.id, expected_version=None)
+        assert await count(engine, unit_rows, variant_id=painted) == 0
+        assert await count(engine, stock_ledger) == 0
+
+    async def test_a_listing_ebay_still_shows_holds_it_back_until_it_ended(
         self,
         catalog: CatalogService,
         engine: AsyncEngine,
         product: ProductDetails,
     ) -> None:
         product_id = product.product.id
-        listing_id = uuid4()
-        async with engine.begin() as connection:
-            await connection.execute(
-                insert(listings).values(
-                    id=listing_id,
-                    product_id=product_id,
-                    scale_code="H0",
-                    group_key=f"MB-{uuid4().hex[:8]}",
-                    wanted=False,
-                    status="active",
-                    needs_sync=True,
-                    created_at=NOW,
-                    updated_at=NOW,
-                )
-            )
+        up = await listing(engine, product_id, status="active", external_id="ebay-group-1")
         await catalog.archive(product_id, expected_version=None)
         with pytest.raises(ProductOnMarketplaceError):
             await catalog.delete_product(product_id, expected_version=None)
         async with engine.begin() as connection:
             await connection.execute(
-                update(listings).where(listings.c.id == listing_id).values(status="ended")
+                update(listings).where(listings.c.id == up).values(status="ended")
             )
         await catalog.delete_product(product_id, expected_version=None)
         assert await count(engine, listings) == 0
+
+    async def test_a_listing_held_back_from_ebay_goes_along(
+        self,
+        catalog: CatalogService,
+        engine: AsyncEngine,
+        product: ProductDetails,
+    ) -> None:
+        # Archived, the sync keeps the listing off eBay: failed, without an eBay id.
+        await listing(engine, product.product.id, status="failed")
+        await catalog.archive(product.product.id, expected_version=None)
+        await catalog.delete_product(product.product.id, expected_version=None)
+        assert await count(engine, listings) == 0
+
+    async def test_an_ebay_order_on_its_way_in_holds_it_back(
+        self,
+        catalog: CatalogService,
+        engine: AsyncEngine,
+        product: ProductDetails,
+        painted: UUID,
+    ) -> None:
+        received = await ebay_order(engine, painted, "12-34567-89012")
+        await catalog.archive(product.product.id, expected_version=None)
+        with pytest.raises(ProductInOpenOrdersError) as held:
+            await catalog.delete_product(product.product.id, expected_version=None)
+        assert held.value.numbers == ["eBay 12-34567-89012"]
+        # Cancelled on eBay, it no longer needs the article.
+        async with engine.begin() as connection:
+            await connection.execute(
+                update(marketplace_orders)
+                .where(marketplace_orders.c.id == received)
+                .values(status="cancelled")
+            )
+        await catalog.delete_product(product.product.id, expected_version=None)

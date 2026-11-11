@@ -1624,7 +1624,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 19 | Rechtstexte (04.11.2026) | AGB, Widerrufsbelehrung und Datenschutz mit dem Anbieter aus der Konfiguration; die Rücksendekosten nach einem Widerruf trägt der Kunde. Die Widerrufsfunktion „Vertrag widerrufen“ nach § 356a BGB bestätigt jeden Widerruf sofort per E-Mail (ADR 0020) |
 | 20 | Vorkasse (09.11.2026) | **Überweisung als zweite Zahlungsart**, ohne Zahlungsdienst: zehn Tage Frist, GiroCode, die Werkstatt bucht den Eingang im Stellwerk und überweist Erstattungen von Hand zurück (ADR 0022) |
 | 21 | DHL-Versand (09.11.2026) | **DHL-Label aus dem Stellwerk** über das Geschäftskundenkonto: DHL Paket im Inland, International in der EU, Thermoetikett 103 × 150 mm für den 100-×-150-Drucker; die Sendungsnummer kommt ohne Abtippen in die Versandmail (ADR 0023) |
-| 22 | Modelle löschen (11.11.2026) | **Testmodelle endgültig löschen**, als Entwurf oder archiviert: Nie verkaufte Stücke samt Buchungen und beendete eBay-Angebote gehen mit; offene Bestellungen, verkaufte oder montierte Stücke und laufende eBay-Angebote halten das Modell fest (ADR 0024) |
+| 22 | Modelle löschen (11.11.2026) | **Testmodelle endgültig löschen**, als Entwurf oder archiviert: Nie verkaufte Stücke samt Buchungen und eBay-Angebote, die nicht mehr online sind, gehen mit; offene Bestellungen (auch eBay-Bestellungen auf dem Weg in den Shop), verkaufte oder montierte Stücke und Angebote, die eBay noch zeigt, halten das Modell fest (ADR 0024) |
 
 Noch offen:
 
