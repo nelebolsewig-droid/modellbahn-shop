@@ -14,8 +14,9 @@ export const metadata: Metadata = {
 /**
  * The privacy notice (Art. 13 DSGVO), with the controller from MB_IMPRINT_*. Every period it
  * names is the shop's own: carts 30 days (CART_LIFETIME), customer sessions 30 days, staff
- * sessions 12 hours, rate limits 10 minutes, backups 14 days (scripts/sicherung.sh), logs at
- * most 50 MB per service (docker-compose.yml). Change it here when any of them changes.
+ * sessions 12 hours, rate limits 10 minutes, backups 14 days on the server and at Hetzner
+ * (scripts/sicherung.sh, ADR 0025), logs at most 50 MB per service (docker-compose.yml).
+ * Change it here when any of them changes.
  */
 export default async function PrivacyPage() {
   await connection();
@@ -47,8 +48,9 @@ export default async function PrivacyPage() {
 
           <LegalSection id="server" mark="2" title="Server, Protokolle und Sicherungen">
             <p>
-              Der Shop läuft auf unserem eigenen Server bei Strato in Deutschland; dort liegen auch alle Daten. Mit
-              Strato haben wir einen Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO).
+              Der Shop läuft auf unserem eigenen Server bei Strato in Deutschland; dort liegen alle Daten,
+              verschlüsselte Kopien der Sicherungen zusätzlich bei Hetzner (siehe unten). Mit Strato haben wir einen
+              Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO).
             </p>
             <p>
               Wie jeder Webserver protokolliert unser Server die Anfragen, die ihn erreichen: IP-Adresse, Zeitpunkt,
@@ -62,8 +64,11 @@ export default async function PrivacyPage() {
               Minuten.
             </p>
             <p>
-              Die Datenbank sichern wir jede Nacht. Die Sicherungen bewahren wir 14 Tage auf; was du löschen lässt,
-              verschwindet spätestens dann auch aus ihnen.
+              Die Datenbank sichern wir jede Nacht. Eine Kopie jeder Sicherung legen wir zusätzlich verschlüsselt bei
+              einem Speicheranbieter in Deutschland ab, der Hetzner Online GmbH in Gunzenhausen; den Schlüssel haben
+              nur wir. Auch mit Hetzner haben wir einen Vertrag zur Auftragsverarbeitung (Art. 28 DSGVO). Die
+              Sicherungen bewahren wir an beiden Orten 14 Tage auf; was du löschen lässt, verschwindet spätestens dann
+              auch aus ihnen.
             </p>
           </LegalSection>
 

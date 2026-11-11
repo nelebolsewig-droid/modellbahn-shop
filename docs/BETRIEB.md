@@ -61,7 +61,7 @@ Die Frage nach dem Fingerabdruck von github.com mit `yes` beantworten.
 cd /opt/modellbahn-shop && ./scripts/einrichten.sh
 ```
 
-Das Skript führt durch elf Schritte und sagt bei jedem, was zu tun ist:
+Das Skript führt durch vierzehn Schritte und sagt bei jedem, was zu tun ist:
 
 1. **Grundsystem:** Updates, Firewall (nur SSH, HTTP, HTTPS), automatische Sicherheitsupdates.
 2. **Docker** aus der offiziellen Paketquelle.
@@ -79,9 +79,15 @@ Das Skript führt durch elf Schritte und sagt bei jedem, was zu tun ist:
    eBay-Entwicklerkonto eingetragen werden.
 8. **SumUp** (überspringbar): API-Schlüssel (`sup_sk_…`, verdeckt) und Händlercode des
    SumUp-Kontos. Ohne sie nimmt der Shop keine Bestellungen an (`MB_PAYMENT_PROVIDER=off`).
-9. **Shop bauen und starten**: beim ersten Mal 10 bis 20 Minuten.
-10. **Konten**: dein Inhaberkonto, auf Wunsch eins für Johann.
-11. **Nächtliche Sicherung** um 3:30 Uhr.
+9. **Vorkasse** (überspringbar): die Bankverbindung für Überweisungen.
+10. **DHL-Versandlabels** (überspringbar): API-Schlüssel und Systembenutzer.
+11. **Shop bauen und starten**: beim ersten Mal 10 bis 20 Minuten.
+12. **Konten**: dein Inhaberkonto, auf Wunsch eins für Johann.
+13. **Nächtliche Sicherung** um 3:30 Uhr.
+14. **Überwachung und Sicherung außer Haus** (überspringbar): Mails von Healthchecks.io, wenn
+    der Shop oder die Sicherung ausfällt, und eine verschlüsselte Kopie jeder Sicherung auf
+    einer Storage Box bei Hetzner (siehe [Überwachung](#überwachung) und
+    [Sicherung](#sicherung)).
 
 Alle Werte stehen danach in `/opt/modellbahn-shop/.env` (nur für root lesbar). Das Skript
 lässt sich jederzeit erneut starten: Es bietet die gespeicherten Werte an, und einmal
@@ -112,6 +118,10 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Mitarbeiterkonto löschen | `make staff-delete EMAIL=…` (fragt nach; Anmeldungen enden sofort; das letzte Inhaberkonto bleibt) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
 | DHL einrichten oder einschalten | `./scripts/einrichten.sh dhl` |
+| Überwachung und Sicherung außer Haus einrichten | `./scripts/einrichten.sh sicherung` |
+| Shop prüfen wie die Überwachung | `./scripts/ueberwachung.sh` |
+| Jetzt sichern (Bilder kurz nicht erreichbar) | `./scripts/sicherung.sh` |
+| Sicherung zur Probe wiederherstellen | `make sicherung-pruefen` (der Shop läuft weiter) |
 | Fotos ihrer Farbe zuordnen (alte Uploads) | `make gallery-colors` |
 | DHL-Zugang prüfen | `make dhl-check SANDBOX=1` (Sandbox) · `make dhl-check` (Geschäftskundenkonto) |
 | Neu starten | `docker compose restart api worker` |
@@ -293,6 +303,55 @@ Das Passwort fürs Stellwerk fragt das Skript verdeckt ab.
 `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` die Einstellungen für den echten
 Betrieb (ohne das Test-Postfach Mailpit).
 
+## Überwachung
+
+Healthchecks.io schickt eine Mail, wenn der Shop nicht antwortet oder die nächtliche
+Sicherung fehlschlägt (ADR 0025). Eingerichtet wird es mit `./scripts/einrichten.sh sicherung`.
+
+- **Konto:** kostenlos auf [healthchecks.io](https://healthchecks.io), mit der Mail-Adresse,
+  die die Warnungen bekommen soll. Weitere Empfänger: dort unter „Integrations“.
+- **Zwei Checks**, ihre Ping-Adressen (`https://hc-ping.com/…`) fragt das Skript ab:
+
+  | Check | Period | Grace Time | Wer meldet sich |
+  | --- | --- | --- | --- |
+  | Shop | 5 Minuten | 10 Minuten | `scripts/ueberwachung.sh`, alle 5 Minuten |
+  | Sicherung | 1 Tag | 2 Stunden | `scripts/sicherung.sh`, jede Nacht um 3:30 Uhr |
+
+- **Was der Server alle 5 Minuten prüft:**
+  - `https://neu.adp-modelle.de/readyz` antwortet. Das klappt nur, wenn Caddy, API und
+    Datenbank laufen und das HTTPS-Zertifikat gültig ist.
+  - Die Festplatte (`/` und der Datenordner von Docker) ist höchstens zu 90 % voll.
+- Die Ping-Adressen stehen nur in `.env`. Wer sie kennt, kann für die Checks melden; also
+  nicht in Mails oder Chats weitergeben. Die Meldungen selbst enthalten keine Kundendaten.
+
+**Grenzen:** Der Server prüft sich selbst. Fällt der ganze Server oder sein Netz aus, kann er
+nichts melden. Dann bleibt die Meldung aus, und Healthchecks.io schickt die Mail nach Period
+und Grace Time: beim Shop nach höchstens 15 Minuten, bei der Sicherung gegen 5:30 Uhr am
+Morgen danach. Eine Sperre, die nur Besucher von außen trifft (etwa die Firewall im
+Strato-Login), sieht der Server nicht.
+
+### Was die Mails bedeuten
+
+Healthchecks.io schreibt „down“, wenn etwas nicht stimmt, und „up“, sobald es wieder geht.
+Unter der Meldung steht der Grund, den der Server geschickt hat.
+
+| In der Mail steht | Was tun |
+| --- | --- |
+| Shop: „Keine Verbindung“, „Keine Antwort“ oder „HTTP 502“ | `docker compose ps`; steht ein Dienst nicht auf „running“ oder „healthy“: `docker compose up --detach --wait`, dann `docker compose logs --tail 200 api caddy` |
+| Shop: „die Datenbank antwortet nicht (HTTP 503)“ | `docker compose logs --tail 100 db`; oft ist die Platte voll (`df -h`) |
+| Shop: „das Zertifikat ist ungültig oder abgelaufen“ | Caddy bekommt kein neues Zertifikat: `docker compose logs caddy \| grep -i acme`. Zeigt die Adresse noch auf den Server (`dig +short neu.adp-modelle.de`)? Dann `docker compose restart caddy` |
+| Shop: „Speicherplatz: / ist zu 9… % voll“ | `df -h` und `docker system df`. Platz schaffen: `docker builder prune --force` und `docker image prune --force` (alte Bauten, die Daten bleiben) |
+| Shop: kein Grund, die Meldung blieb aus | Der Server oder sein Netz ist weg. Shop im Browser öffnen; im Strato-Server-Login nachsehen, ob der Server läuft, sonst dort neu starten. Der Shop startet danach von selbst |
+| Sicherung: Grund mit den letzten Zeilen des Protokolls | Die Zeilen sagen, was fehlte (Platte voll, Storage Box nicht erreichbar, …). Ursache beheben, dann `./scripts/sicherung.sh` und abwarten, bis „up“ kommt |
+| Sicherung: kein Grund, die Meldung blieb aus | Die Sicherung lief nicht an oder hängt: `tail -n 50 /var/log/modellbahn-sicherung.log`, `cat /etc/cron.d/modellbahn-sicherung`. Läuft der Server? |
+
+Für geplante Arbeiten, bei denen der Shop steht, den Check in Healthchecks.io pausieren
+(„Pause“). Die nächste Meldung des Servers schaltet ihn wieder ein.
+
+Auf dem Server selbst: Probleme der Überwachung stehen in
+`/var/log/modellbahn-ueberwachung.log`; `./scripts/ueberwachung.sh` prüft sofort und zeigt
+das Ergebnis.
+
 ## Sicherung
 
 `scripts/sicherung.sh` läuft jede Nacht um 3:30 Uhr
@@ -302,16 +361,64 @@ Betrieb (ohne das Test-Postfach Mailpit).
 - **Bilder:** `bilder-<Datum>.tar.gz` mit Originalen und Bildgrößen. Der Bildspeicher pausiert
   dafür kurz; nachts sind so lange nur die Bilder im Shop nicht erreichbar.
 - Beides liegt in `/var/backups/modellbahn` und bleibt **14 Tage**.
+- **Außer Haus:** Danach legt restic die beiden Dateien der Nacht und `.env` verschlüsselt auf
+  eine Storage Box bei Hetzner in Deutschland. Dort bleibt ebenfalls nur, was jünger als
+  **14 Tage** ist, so wie es die Datenschutzerklärung zusagt. Sonntags liest restic zur Probe
+  ein Zehntel der Daten zurück.
+- Geht etwas davon schief, gilt die ganze Nacht als fehlgeschlagen, und Healthchecks.io
+  schickt eine Mail (siehe [Überwachung](#überwachung)). Ohne Storage Box steht im Protokoll
+  nur „Sicherung außer Haus ist nicht eingerichtet“.
 
-Eine Sicherung auf demselben Server übersteht dessen Verlust nicht. Darum regelmäßig vom
-eigenen Rechner herunterladen; heruntergeladene Sicherungen nach 14 Tagen löschen, so wie es
-die Datenschutzerklärung zusagt:
+`.env` gehört in die Kopie, weil die Daten ohne ihre Schlüssel nicht vollständig sind (z. B.
+der Schlüssel der eBay-Token und der Zugang zum Bildspeicher).
+
+### Sicherung außer Haus einrichten
+
+1. Bei Hetzner eine **Storage Box** bestellen; die kleinste reicht.
+2. In der Hetzner-Konsole bei der Box **SSH-Support** und **Externe Erreichbarkeit**
+   einschalten. Benutzername (`u` und Ziffern) und Passwort der Box bereithalten.
+3. Mit Hetzner den **Vertrag zur Auftragsverarbeitung (AVV)** abschließen, ebenfalls in der
+   Hetzner-Konsole. Die Datenschutzerklärung nennt Hetzner als Speicheranbieter; ohne AVV
+   stimmt sie nicht.
+4. Auf dem Server:
+
+   ```bash
+   cd /opt/modellbahn-shop && ./scripts/einrichten.sh sicherung
+   ```
+
+   Das Skript fragt die Ping-Adressen von Healthchecks.io, Benutzername und Adresse der Box
+   (`u123456.your-storagebox.de`). Dann:
+   - Es erzeugt einen eigenen SSH-Schlüssel (`/root/.ssh/modellbahn-sicherung`) und trägt
+     die Box unter dem Namen `modellbahn-sicherung` in `/root/.ssh/config` ein (Port 23).
+   - Es bringt den Schlüssel auf die Box. Dafür fragt die Box **einmal** nach ihrem Passwort.
+   - Es legt die verschlüsselte Sicherung auf der Box an (Ordner `modellbahn`) und würfelt
+     ihr Passwort.
+5. **Das Passwort der Sicherung erscheint genau einmal.** Sofort in den Passwort-Manager
+   legen, zusammen mit Benutzername und Adresse der Box. Ohne dieses Passwort kann niemand
+   die Sicherung öffnen, auch Hetzner nicht. Geht der Server verloren, ist es der einzige Weg
+   zurück. Auf dem Server steht es nur in `/root/.config/modellbahn/restic-passwort`.
+6. Zum Schluss bietet das Skript eine Sicherung und eine Probe-Wiederherstellung an.
+
+Das Skript lässt sich gefahrlos erneut starten: Enter behält die Werte, Schlüssel, Passwort
+und Sicherung auf der Box bleiben, wie sie sind.
+
+### Probe-Wiederherstellung
 
 ```bash
-scp 'root@<IPv4-Adresse>:/var/backups/modellbahn/*' ./modellbahn-sicherung/
+cd /opt/modellbahn-shop && make sicherung-pruefen
 ```
 
-Bietet dein Strato-Paket Backups oder Snapshots des Servers an, schalte sie zusätzlich ein.
+Holt die neueste Datenbank von der Storage Box und spielt sie in eine Wegwerf-Datenbank ein,
+die nur im Arbeitsspeicher lebt; der Shop läuft dabei weiter und merkt nichts. Dann zählt sie
+Produkte und Bestellungen, liest das Bilder-Archiv bis zum Ende und sagt:
+
+- **„✓ Die Sicherung vom … lässt sich vollständig wiederherstellen.“** Alles gut. Die Zahlen
+  darunter sollten zu denen des Shops passen („Shop jetzt“); seit der Nacht können ein paar
+  dazugekommen sein.
+- **„✗ …“** mit Grund: Die Sicherung taugt so nicht. Den Grund beheben (oft wie bei den Mails
+  oben) und danach `./scripts/sicherung.sh` und `make sicherung-pruefen` wiederholen.
+
+Am besten einmal im Monat und nach jeder größeren Änderung am Server.
 
 ### Wiederherstellen
 
@@ -336,9 +443,54 @@ docker run --rm --volumes-from "$(docker compose ps --all --quiet storage)" \
 docker compose start storage
 ```
 
-Auf einem neuen Server zuerst die Schritte 1 bis 4 durchgehen, mit der gesicherten `.env`
-statt einer neuen (sie enthält die Passwörter, zu denen die Sicherungen passen). Danach
-wiederherstellen.
+Fehlt die Nacht in `/var/backups/modellbahn`, liegt sie noch auf der Storage Box (höchstens
+14 Tage zurück):
+
+```bash
+export RESTIC_REPOSITORY=sftp:modellbahn-sicherung:modellbahn RESTIC_PASSWORD_FILE=/root/.config/modellbahn/restic-passwort
+restic snapshots
+restic restore <ID> --target /root/wiederherstellung
+```
+
+`restic snapshots` zeigt eine Zeile je Nacht; die ID der gewünschten Nacht nehmen (oder
+`latest` für die neueste). Die Dateien liegen danach unter
+`/root/wiederherstellung/var/backups/modellbahn/`; in den Befehlen oben diesen Ordner statt
+`/var/backups/modellbahn` nehmen. Danach `rm -rf /root/wiederherstellung`.
+
+### Auf einem neuen Server
+
+Ist der alte Server verloren, kommt alles von der Storage Box. Dafür braucht es das Passwort
+der Sicherung aus dem Passwort-Manager und das Passwort der Storage Box.
+
+1. Die Schritte 1 bis 3 oben: Server bestellen, anmelden, Repository holen.
+2. Storage Box anbinden:
+
+   ```bash
+   cd /opt/modellbahn-shop && ./scripts/einrichten.sh sicherung
+   ```
+
+   - Ping-Adressen: nur Enter, sie kommen gleich mit der alten `.env`.
+   - Benutzername und Adresse der Box eingeben; die Box fragt einmal nach ihrem Passwort.
+   - Das Skript findet die alte Sicherung und fragt nach **ihrem Passwort** aus dem
+     Passwort-Manager.
+   - „Jetzt einmal sichern?“ mit `N` beantworten: Es gibt noch nichts zu sichern.
+3. Die neueste Nacht holen und die alte `.env` zurücklegen:
+
+   ```bash
+   export RESTIC_REPOSITORY=sftp:modellbahn-sicherung:modellbahn RESTIC_PASSWORD_FILE=/root/.config/modellbahn/restic-passwort
+   restic restore latest --target /root/wiederherstellung
+   cp /root/wiederherstellung/opt/modellbahn-shop/.env /opt/modellbahn-shop/.env
+   mkdir -p /var/backups/modellbahn && cp /root/wiederherstellung/var/backups/modellbahn/* /var/backups/modellbahn/
+   ```
+
+4. Das ganze Skript wie in Schritt 4 oben: `./scripts/einrichten.sh`. Es bietet die Werte der
+   alten `.env` an (Enter behält sie) und erzeugt keine neuen Geheimnisse. Bei „Domain“ den
+   A-Record auf die **neue** IP-Adresse setzen. Die Fragen nach einer Probe-Sicherung mit `N`
+   beantworten, bis die Daten zurück sind.
+5. Datenbank und Bilder wie oben unter „Wiederherstellen“ einspielen, mit den Dateien aus
+   `/var/backups/modellbahn`.
+6. Prüfen: Shop und Stellwerk im Browser, dann `./scripts/sicherung.sh` und
+   `make sicherung-pruefen`. Danach `rm -rf /root/wiederherstellung`.
 
 ## Später: www.adp-modelle.de übernehmen
 
@@ -350,7 +502,8 @@ Der Umzug von Shopify ist ein eigener Schritt. Er setzt voraus:
 - **Rechtliches:**
   - AGB, Widerrufsbelehrung und Datenschutzerklärung stehen im Shop (ADR 0020); vor dem
     Start sollte sie ein Anwalt durchsehen.
-  - Mit Strato ist im Kundenlogin der Vertrag zur Auftragsverarbeitung abgeschlossen.
+  - Mit Strato ist im Kundenlogin der Vertrag zur Auftragsverarbeitung abgeschlossen,
+    mit Hetzner für die Storage Box ebenso (siehe „Sicherung außer Haus einrichten“).
   - Der EU-Gewährleistungshinweis (Pflicht seit 27.09.2026) ist eingebunden (ADR 0020).
 
 Dann:

@@ -26,7 +26,7 @@ SERVICE ?=
 ROLE ?= owner
 
 .PHONY: help up down logs dev-db test lint fmt typecheck migrate openapi client staff staff-list staff-delete \
-	catalog-import gallery-colors dhl-check smoke check \
+	catalog-import gallery-colors dhl-check sicherung-pruefen smoke check \
 	check-build check-contract check-compose
 
 help: ## Diese Übersicht
@@ -87,6 +87,11 @@ gallery-colors: .env ## Fotos ihrer Farbe zuordnen, wo der Bildtext sie nennt (�
 # SANDBOX=1 tries DHL's sandbox and books and cancels one test label there.
 dhl-check: .env ## DHL-Zugang prüfen, ohne Label: make dhl-check [SANDBOX=1]
 	$(COMPOSE) run --rm api python -m modellbahn.cli dhl-check $(if $(SANDBOX),--sandbox --buchen)
+
+# Restores the latest offsite backup into a throwaway database next to the running shop and
+# counts what came back (scripts/sicherung_pruefen.sh, ADR 0025). Root only, on the server.
+sicherung-pruefen: .env ## Sicherung außer Haus zur Probe wiederherstellen (der Shop läuft weiter)
+	./scripts/sicherung_pruefen.sh
 
 catalog-import: .env ## Startbestand des Katalogs einspielen (wiederholbar, legt nur Entwürfe an)
 	$(COMPOSE) run --rm api python -m modellbahn.cli import-catalog seed/startbestand.json
@@ -161,7 +166,7 @@ check-contract: $(NODE_MODULES)
 check-compose:
 	$(COMPOSE) --env-file .env.example config --quiet
 	$(COMPOSE) --file docker-compose.yml --file docker-compose.prod.yml --env-file .env.example config --quiet
-	bash -n scripts/einrichten.sh && bash -n scripts/sicherung.sh
+	for script in scripts/*.sh; do bash -n "$$script"; done
 	docker run --rm --volume "$(CURDIR)/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
 		caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 	$(COMPOSE) --env-file .env.example build
