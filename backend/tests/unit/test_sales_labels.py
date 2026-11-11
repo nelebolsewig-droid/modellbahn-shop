@@ -238,6 +238,30 @@ class TestDhlBooking:
             "country": "DEU",
         }
 
+    async def test_go_green_plus_where_the_contract_books_it(self) -> None:
+        seen: list[httpx.Request] = []
+
+        def handle(sent: httpx.Request) -> httpx.Response:
+            seen.append(sent)
+            return httpx.Response(200, json={"status": {"title": "OK", "statusCode": 200}})
+
+        green = DhlCarrier(
+            api_key=API_KEY,
+            username="gkp-user",
+            password="gkp-secret",
+            ekp=EKP,
+            participations=dict.fromkeys(ShippingProduct, "01"),
+            print_format="910-300-400",
+            base_url="https://dhl.test/parcel/de/shipping/v2",
+            go_green_plus=True,
+            transport=httpx.MockTransport(handle),
+        )
+        await green.validate(request())
+        await green.validate(request(ShippingProduct.PARCEL_INTERNATIONAL))
+        national, international = (json.loads(r.content)["shipments"][0] for r in seen)
+        assert national["services"] == {"goGreenPlus": True}
+        assert international["services"] == {"endorsement": "RETURN", "goGreenPlus": True}
+
     def test_the_billing_number_of_each_product(self) -> None:
         dhl = carrier(answer({}))
         assert dhl.billing_number(ShippingProduct.PARCEL) == f"{EKP}0101"
@@ -372,6 +396,13 @@ class TestSettings:
             dhl_participation_international="02",
         )
         production = dhl_carrier(settings, sandbox=False)
+        assert not production._go_green_plus
+        green = dhl_carrier(settings.model_copy(update={"dhl_gogreen_plus": True}), sandbox=False)
+        assert green._go_green_plus
+        # DHL's test customer has no GoGreen Plus: the sandbox never asks for it.
+        assert not dhl_carrier(
+            settings.model_copy(update={"dhl_gogreen_plus": True}), sandbox=True
+        )._go_green_plus
         assert production.base_url.startswith(DHL_PRODUCTION_URL)
         assert production.billing_number(ShippingProduct.PARCEL_INTERNATIONAL) == f"{EKP}5302"
         assert "gkp-secret" not in repr(settings)

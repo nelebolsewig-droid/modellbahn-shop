@@ -192,8 +192,10 @@ class DhlCarrier:
         participations: dict[ShippingProduct, str],
         print_format: str,
         base_url: str,
+        go_green_plus: bool = False,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
+        self._go_green_plus = go_green_plus
         self._ekp = ekp
         self._participations = participations
         self._print_format = print_format
@@ -237,8 +239,13 @@ class DhlCarrier:
             "consignee": _party(request.consignee),
             "details": {"weight": {"uom": "g", "value": request.weight_g}},
         }
+        services: dict[str, Any] = {}
         if request.product is ShippingProduct.PARCEL_INTERNATIONAL:
-            shipment["services"] = {"endorsement": ENDORSEMENT_RETURN}
+            services["endorsement"] = ENDORSEMENT_RETURN
+        if self._go_green_plus:
+            services["goGreenPlus"] = True
+        if services:
+            shipment["services"] = services
         return {"profile": PROFILE, "shipments": [shipment]}
 
     async def validate(self, request: LabelRequest) -> DhlAnswer:
@@ -393,6 +400,7 @@ def dhl_carrier(settings: Settings, *, sandbox: bool) -> DhlCarrier:
         },
         print_format=settings.dhl_print_format,
         base_url=settings.dhl_api_url or DHL_PRODUCTION_URL,
+        go_green_plus=settings.dhl_gogreen_plus,
     )
 
 
