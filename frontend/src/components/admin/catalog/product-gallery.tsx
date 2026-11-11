@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 import { Panel } from "@/components/admin/panel";
+import { Callout } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ColorDot } from "@/components/ui/color-dot";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,18 @@ function entryOf(item: GalleryItemOut): GalleryEntryIn {
 }
 
 /**
+ * The colours of a model in several colours that no photo of the gallery shows yet: the
+ * shop then shows its first photo for them. Empty for a model in one colour or none.
+ */
+export function colorsWithoutPhoto(colors: readonly string[], entries: readonly GalleryEntryIn[]): string[] {
+  if (colors.length < 2) {
+    return [];
+  }
+  const shown = entries.flatMap((entry) => (entry.color ? [entry.color] : []));
+  return colors.filter((color) => !shown.some((tag) => sameColor(tag, color)));
+}
+
+/**
  * Keeps local edits of the gallery while the server state moves on (an upload
  * finished, a photo got processed): entries that are gone are dropped, new ones
  * are appended, the rest keeps its local order and texts.
@@ -101,6 +114,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
   const dirty = edits !== null;
   const draft = edits === null ? product.media.map(entryOf) : mergeDraft(edits, product.media);
   const colors = productColors(product);
+  const unshown = colorsWithoutPhoto(colors, draft);
 
   function change(next: GalleryEntryIn[]) {
     setEdits(next);
@@ -203,6 +217,15 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
             <UploadRow key={item.id} upload={item} onDismiss={() => setUploads((c) => c.filter((u) => u.id !== item.id))} />
           ))}
         </ul>
+      ) : null}
+
+      {draft.length > 0 && unshown.length > 0 ? (
+        <Callout tone="info" title={`Noch ohne eigenes Foto: ${unshown.join(", ")}`} className="mt-5">
+          <p className="text-small">
+            Wählt unter dem passenden Foto bei „Farbe“ die Farbe und speichert. Sonst zeigt der Shop bei dieser Farbe
+            das erste Foto.
+          </p>
+        </Callout>
       ) : null}
 
       {draft.length > 0 ? (
