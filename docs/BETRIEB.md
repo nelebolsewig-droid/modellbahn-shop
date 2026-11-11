@@ -189,6 +189,8 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
     Verfolgungslink.
 - **Falsches Label:** „Label stornieren“, dann neu buchen. Nach dem Versand geht das nicht
   mehr. Storniert ihr die Bestellung, storniert der Shop ihr Label bei DHL selbst.
+- **„wird automatisch GoGreen Plus hinzugebucht“:** `./scripts/einrichten.sh dhl` und bei
+  „GoGreen Plus bei jedem Label mitbuchen?“ mit `y` antworten.
 - **DHL lehnt ab:** Unter der Meldung steht DHLs Begründung, meist Adresse oder Gewicht.
   Adresse mit dem Kunden klären; zur Not das Label im Geschäftskundenportal buchen und die
   Nummer von Hand eintragen.

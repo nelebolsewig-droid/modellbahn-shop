@@ -325,6 +325,12 @@ if confirm "Liegt der Systembenutzer des Geschäftskundenportals schon vor?"; th
   write_env MB_DHL_EKP "$(printf '%s' "$MB_DHL_EKP" | tr -d ' ')"
   write_env MB_DHL_PARTICIPATION_NATIONAL "$MB_DHL_PARTICIPATION_NATIONAL"
   write_env MB_DHL_PARTICIPATION_INTERNATIONAL "$MB_DHL_PARTICIPATION_INTERNATIONAL"
+  step "Bucht euer DHL-Vertrag GoGreen Plus automatisch zu, meldet DHL das bei ${BOLD}make dhl-check${RESET}."
+  if confirm "GoGreen Plus bei jedem Label mitbuchen?"; then
+    write_env MB_DHL_GOGREEN_PLUS "true"
+  else
+    write_env MB_DHL_GOGREEN_PLUS "false"
+  fi
   note "Erst einschalten, wenn ${BOLD}make dhl-check${RESET} beide Probesendungen angenommen hat."
   if confirm "Labels im Stellwerk jetzt echt buchen lassen?"; then
     write_env MB_DHL_MODE "production"
