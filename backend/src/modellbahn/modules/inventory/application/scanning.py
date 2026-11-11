@@ -24,7 +24,6 @@ from typing import Final
 from uuid import UUID
 
 from modellbahn.modules.inventory.application.allocation import (
-    Allocator,
     PickItem,
     PickList,
     PieceState,
@@ -37,7 +36,7 @@ from modellbahn.modules.inventory.application.common import (
 )
 from modellbahn.modules.inventory.application.parts import walking_order
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
-from modellbahn.modules.inventory.application.units import unit_views
+from modellbahn.modules.inventory.application.units import put_away, unit_views
 from modellbahn.modules.inventory.domain.errors import (
     InsufficientPartsError,
     InvalidReceiptStateError,
@@ -410,11 +409,8 @@ class _Interpreter:
             return _Answer(
                 ScanOutcome.REJECTED, refusal, location=await self._location_info(location)
             )
-        self._journal.know(location)
-        movement = unit.put_away(location, self._now)
-        await self._journal.book(unit, movement)
+        movement, allocation = await put_away(self._uow, self._journal, unit, location)
         effect = await self._effect(movement)
-        allocation = await Allocator(self._uow, self._journal).serve_backorder(unit)
         if allocation is not None:
             effect["to_status"] = unit.status.value
             numbers = await self._uow.orders.numbers([allocation.order_id])

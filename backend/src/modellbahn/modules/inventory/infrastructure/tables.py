@@ -38,6 +38,7 @@ from modellbahn.modules.inventory.domain.model import (
     MovementReason,
     ScanMode,
     ScanOutcome,
+    ScrapReason,
     UnitStatus,
 )
 from modellbahn.modules.inventory.domain.parts import PartMovementReason
@@ -51,6 +52,7 @@ from modellbahn.platform.db import Ltree, StrEnumType, metadata
 SCHEMA = "inventory"
 
 _UNIT_STATUSES = "'labeled', 'in_stock', 'allocated', 'picked', 'shipped', 'scrapped'"
+_SCRAP_REASONS = "'sold', 'damaged', 'missing', 'mistake'"
 
 locations = Table(
     "locations",
@@ -108,9 +110,14 @@ units = Table(
     Column("location_id", Uuid, ForeignKey(locations.c.id, ondelete="RESTRICT")),
     Column("allocation_id", Uuid, ForeignKey(allocations.c.id, ondelete="RESTRICT")),
     Column("scrap_note", Text, nullable=False, server_default=text("''")),
+    Column("scrap_reason", StrEnumType(ScrapReason)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(f"status IN ({_UNIT_STATUSES})", name="status"),
+    CheckConstraint(f"scrap_reason IN ({_SCRAP_REASONS})", name="scrap_reason"),
+    CheckConstraint(
+        "scrap_reason IS NULL OR status = 'scrapped'", name="scrap_reason_when_scrapped"
+    ),
     # Crockford Base32: no I, L, O or U.
     CheckConstraint("code ~ '^[0-9A-HJKMNP-TV-Z]{10}$'", name="code_format"),
     CheckConstraint(

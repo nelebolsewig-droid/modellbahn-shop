@@ -147,6 +147,14 @@ class SqlUnitRepository:
         statement = _locked(select(Unit).where(units.c.code == code), for_update)
         return (await self._session.execute(statement)).scalar_one_or_none()
 
+    async def lock(self, unit_ids: Collection[UUID]) -> list[Unit]:
+        ids = list(set(unit_ids))
+        if not ids:
+            return []
+        # PostgreSQL locks the rows in the order it returns them.
+        statement = _locked(select(Unit).where(units.c.id.in_(ids)).order_by(units.c.id), True)
+        return list((await self._session.execute(statement)).scalars())
+
     async def existing_codes(self, codes: Collection[str]) -> set[str]:
         if not codes:
             return set()
@@ -165,6 +173,21 @@ class SqlUnitRepository:
             .where(units.c.location_id.in_(ids))
             .order_by(units.c.created_at, units.c.id)
         )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def listed(
+        self,
+        *,
+        variant_id: UUID | None,
+        statuses: Collection[UnitStatus] | None,
+        limit: int,
+    ) -> list[Unit]:
+        statement = select(Unit)
+        if variant_id is not None:
+            statement = statement.where(units.c.variant_id == variant_id)
+        if statuses is not None:
+            statement = statement.where(units.c.status.in_([str(s) for s in set(statuses)]))
+        statement = statement.order_by(units.c.created_at, units.c.id).limit(limit)
         return list((await self._session.execute(statement)).scalars())
 
     async def oldest_labeled(self, variant_id: UUID) -> Unit | None:

@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useState, type ReactNode } from "react";
+import { useWatch } from "react-hook-form";
 
 import { useProduct, useReferences } from "@/components/admin/catalog/use-product";
 import { FormError } from "@/components/forms/form-error";
@@ -94,9 +95,11 @@ function RecordUnits({
   });
   const {
     register,
+    control,
     setValue,
     formState: { errors, isSubmitting },
   } = form;
+  const place = useWatch({ control, name: "location_code" });
 
   const choose = (next: ChosenVariant | null) => {
     setChosen(next);
@@ -132,7 +135,11 @@ function RecordUnits({
           </FormField>
           <FormField
             label="Platz"
-            hint="Ohne Platz warten die Stücke mit Etikett, bis jemand sie einlagert."
+            hint={
+              place === ""
+                ? "Ohne Platz bleiben die Stücke „Unverbucht“: Im Shop sind sie erst lieferbar, wenn sie eingelagert sind."
+                : "Die Stücke liegen gleich dort und sind im Shop lieferbar."
+            }
             error={errors.location_code?.message}
           >
             {(control) => (
@@ -286,7 +293,10 @@ function PrintNewLabels({ units, variant, onClose }: { units: UnitOut[]; variant
     <>
       <DialogTitle>{units.length === 1 ? "1 Einheit erfasst" : `${units.length} Einheiten erfasst`}</DialogTitle>
       <DialogDescription>
-        {variant.title}. {stored ? `Liegen in ${stored}.` : "Liegen bereit zum Einlagern: Platz scannen, dann die Etiketten."}
+        {variant.title}.{" "}
+        {stored
+          ? `Liegen in ${stored}.`
+          : "Unverbucht: Erst eingelagert sind sie im Shop lieferbar. Platz scannen, dann die Etiketten, oder im Lager unter „Unverbuchte einlagern“."}
       </DialogDescription>
       <ul className="mt-5 flex flex-wrap gap-1.5">
         {units.slice(0, 12).map((unit) => (

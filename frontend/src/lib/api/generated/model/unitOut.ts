@@ -12,11 +12,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LocationOut } from './locationOut';
+import type { ScrapReason } from './scrapReason';
 import type { UnitStatus } from './unitStatus';
 import type { VariantRefOut } from './variantRefOut';
 
 export interface UnitOut {
   code: string;
+  /** When it was labelled. */
   created_at: string;
   /** Grouped for reading. */
   display_code: string;
@@ -25,6 +27,8 @@ export interface UnitOut {
   order_id: string | null;
   order_number: string | null;
   scrap_note: string;
+  /** Why it was taken out by hand; empty for older ones. */
+  scrap_reason: ScrapReason | null;
   status: UnitStatus;
   updated_at: string;
   variant: VariantRefOut | null;

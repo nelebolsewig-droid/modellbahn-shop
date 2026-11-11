@@ -8,6 +8,7 @@ import { LocationDesk } from "./location-desk";
 import { PartDesk } from "./part-desk";
 import { ScannerDesk } from "./scanner-desk";
 import { UnitDesk } from "./unit-desk";
+import { UnitListDesk } from "./unit-list-desk";
 
 // The pages pass functions to the shell, which only client components can do.
 
@@ -39,6 +40,16 @@ export function UnitPage({ code }: { code: string }) {
   return (
     <AdminShell>
       {({ staff, revalidate }) => <UnitDesk code={code} staffRole={staff.role} onStreamClosed={revalidate} />}
+    </AdminShell>
+  );
+}
+
+export function UnitListPage({ variantId, filter }: { variantId: string | null; filter: string | null }) {
+  return (
+    <AdminShell>
+      {({ staff, revalidate }) => (
+        <UnitListDesk variantId={variantId} initialFilter={filter} staffRole={staff.role} onStreamClosed={revalidate} />
+      )}
     </AdminShell>
   );
 }

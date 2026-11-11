@@ -36,12 +36,17 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanNotFoundError,
     ScanNotUndoableError,
     UnitNotFoundError,
+    UnitsNotMovableError,
+    UnitsNotScrappableError,
     VariantNotFoundError,
 )
 from modellbahn.modules.inventory.domain.model import (
     UNDO_WINDOW_SECONDS,
+    UNITS_PER_BATCH_MAX,
     LocationKind,
+    MovementReason,
     ScanMode,
+    ScrapReason,
     UnitStatus,
 )
 from modellbahn.modules.inventory.infrastructure.tables import stock_ledger
@@ -599,6 +604,400 @@ class TestPutAwayScans:
         assert unit["unit"]["location_code"] == COMPARTMENT  # type: ignore[index,call-overload]
         assert location["location"]["unit_count"] == 1  # type: ignore[index,call-overload]
         assert variant["variant"]["free_units"] == 1  # type: ignore[index,call-overload]
+
+
+async def stock_events_into(engine: AsyncEngine, code: str) -> list[tuple[str, str, str]]:
+    """``(unit code, reason, status)`` of every stock event that ended in location ``code``."""
+    async with engine.connect() as connection:
+        rows = await connection.execute(
+            select(outbox_table.c.payload)
+            .where(
+                outbox_table.c.event_type == "inventory.stock.changed",
+                outbox_table.c.payload["location_code"].astext == code,
+            )
+            .order_by(outbox_table.c.occurred_at, outbox_table.c.id)
+        )
+        return sorted((p["unit_code"], p["reason"], p["status"]) for (p,) in rows)
+
+
+class TestMovingSeveralUnits:
+    """Ticked in a list in the Stellwerk and moved in one go, without the scanner."""
+
+    TARGET = "R01-F02"
+
+    async def target(self, locations: LocationService) -> None:
+        await store(locations)
+        await locations.create(
+            parent_code="R01", segment="F02", kind=LocationKind.COMPARTMENT, name="Oben"
+        )
+
+    async def test_stored_and_labelled_units_go_together(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        availability: AvailabilityService,
+        engine: AsyncEngine,
+        product: ProductDetails,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await self.target(locations)
+        stored = await stock_up(locations, units, painted, quantity=2)
+        (labelled,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+        free = {a.variant_id: a for a in await availability.for_product(product.product.slug)}
+        assert free[painted].free_units == 2
+        ids = [(await units.details(code)).view.unit.id for code in stored]
+
+        move = await units.move_units(
+            [*ids, labelled.unit.id], location_code="r01-f02", staff_id=staff
+        )
+
+        assert (move.location.code, move.moved, move.already_there) == (self.TARGET, 3, 0)
+        inside = await locations.contents(self.TARGET)
+        assert {u.code for u in inside.units} == {*stored, labelled.unit.code}
+        assert (await locations.contents(COMPARTMENT)).units == []
+        for code, reason in [
+            (stored[0], MovementReason.MOVE),
+            (stored[1], MovementReason.MOVE),
+            (labelled.unit.code, MovementReason.PUT_AWAY),
+        ]:
+            last = (await units.details(code)).history[-1]
+            assert (last.entry.reason, last.entry.to_location_id, last.entry.staff_id) == (
+                reason,
+                move.location.id,
+                staff,
+            )
+            assert (last.entry.scan_id, last.staff_name) == (None, "Lagerist")
+        # The labelled piece is for sale now; screens and eBay hear of every piece.
+        free = {a.variant_id: a for a in await availability.for_product(product.product.slug)}
+        assert (free[painted].availability, free[painted].free_units) == (
+            Availability.IN_STOCK,
+            3,
+        )
+        assert await stock_events_into(engine, self.TARGET) == sorted(
+            [
+                (stored[0], "move", "in_stock"),
+                (stored[1], "move", "in_stock"),
+                (labelled.unit.code, "put_away", "in_stock"),
+            ]
+        )
+
+    async def test_a_reserved_unit_keeps_its_order(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        deliver: Deliver,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await self.target(locations)
+        (code,) = await stock_up(locations, units, painted)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        before = (await units.details(code)).view.unit
+        assert before.status is UnitStatus.ALLOCATED
+
+        await units.move_units([before.id], location_code=self.TARGET, staff_id=staff)
+
+        after = (await units.details(code)).view
+        assert (after.unit.status, after.unit.allocation_id, after.order_id) == (
+            UnitStatus.ALLOCATED,
+            before.allocation_id,
+            order_id,
+        )
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert item.state is PieceState.RESERVED
+        assert item.location is not None
+        assert item.location.code == self.TARGET
+
+    async def test_a_labelled_unit_goes_to_the_order_waiting_for_it(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        catalog: CatalogService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        deliver: Deliver,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await self.target(locations)
+        await catalog.change_variant(painted, expected_version=None, allow_backorder=True)
+        waiting = await order(carts, checkout, (painted, 1))
+        await deliver()
+        (labelled,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+
+        await units.move_units([labelled.unit.id], location_code=self.TARGET, staff_id=staff)
+
+        (item,) = (await allocation.pick_list(waiting)).items
+        assert (item.state, item.unit_code) == (PieceState.RESERVED, labelled.unit.code)
+
+    async def test_units_already_there_are_left_alone(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        engine: AsyncEngine,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await self.target(locations)
+        codes = await stock_up(locations, units, painted, quantity=2)
+        first, second = [(await units.details(code)).view.unit.id for code in codes]
+        booked = await journal_size(engine)
+
+        here = await units.move_units([first, second], location_code=COMPARTMENT, staff_id=staff)
+        assert (here.moved, here.already_there) == (0, 2)
+        assert await journal_size(engine) == booked
+
+        await units.move_units([first], location_code=self.TARGET, staff_id=staff)
+        both = await units.move_units(
+            [first, second, second], location_code=self.TARGET, staff_id=staff
+        )
+        assert (both.moved, both.already_there) == (1, 1)
+        booked = await journal_size(engine)
+        # The answer got lost and the request comes again: nothing more happens.
+        again = await units.move_units([first, second], location_code=self.TARGET, staff_id=staff)
+        assert (again.moved, again.already_there) == (0, 2)
+        assert await journal_size(engine) == booked
+
+    async def test_a_picked_or_shipped_unit_stops_them_all(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        allocation: AllocationService,
+        scans: ScanService,
+        deliver: Deliver,
+        engine: AsyncEngine,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await self.target(locations)
+        (sold,) = await stock_up(locations, units, painted)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        (free,) = await stock_up(locations, units, painted)
+        ids = {code: (await units.details(code)).view.unit.id for code in (sold, free)}
+        await pick_everything(scans, allocation, order_id, staff)
+        booked = await journal_size(engine)
+
+        with pytest.raises(UnitsNotMovableError) as picked:
+            await units.move_units(list(ids.values()), location_code=self.TARGET, staff_id=staff)
+        assert (picked.value.refused, picked.value.missing) == ({sold: "picked"}, [])
+
+        await orders.ship(order_id, carrier="DHL", tracking_number="1")
+        await deliver()
+        unknown = uuid4()
+        with pytest.raises(UnitsNotMovableError) as shipped:
+            await units.move_units(
+                [*ids.values(), unknown], location_code=self.TARGET, staff_id=staff
+            )
+        assert (shipped.value.refused, shipped.value.missing) == ({sold: "shipped"}, [unknown])
+        assert sold in str(shipped.value)
+
+        # Nothing moved, not even the free unit.
+        assert (await units.details(free)).view.location is not None
+        assert (await units.details(free)).view.location.code == COMPARTMENT  # type: ignore[union-attr]
+        assert await journal_size(engine) == booked + 1  # only the shipment
+
+    async def test_refusals(
+        self, locations: LocationService, units: UnitService, painted: UUID, staff: UUID
+    ) -> None:
+        (code,) = await stock_up(locations, units, painted)
+        unit_id = (await units.details(code)).view.unit.id
+        with pytest.raises(LocationNotFoundError):
+            await units.move_units([unit_id], location_code="R77", staff_id=staff)
+        with pytest.raises(InvalidFieldError) as shelf:
+            await units.move_units([unit_id], location_code="R01", staff_id=staff)
+        assert (shelf.value.field, shelf.value.code) == ("location_code", "holds_no_goods")
+        for count in (0, UNITS_PER_BATCH_MAX + 1):
+            with pytest.raises(InvalidFieldError) as size:
+                await units.move_units(
+                    [uuid4() for _ in range(count)], location_code=COMPARTMENT, staff_id=staff
+                )
+            assert size.value.code == "out_of_range"
+
+
+class TestListingUnits:
+    async def test_by_article_by_state_or_both(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        painted: UUID,
+        unpainted: UUID,
+        clock: FixedClock,
+    ) -> None:
+        stored = await stock_up(locations, units, painted)
+        clock.advance(timedelta(minutes=1))
+        loose = [
+            view.unit.code
+            for variant in (painted, unpainted)
+            for view in await units.label_units(
+                variant_id=variant, quantity=1, location_code=None, staff_id=None
+            )
+        ]
+
+        mine = await units.list_units(painted)
+        assert [v.unit.code for v in mine.views] == [*stored, loose[0]]
+        assert mine.views[0].location is not None
+        assert mine.views[0].variant is not None
+        assert mine.more is False
+        # The backlog the shop cannot sell yet: every labelled piece, whatever the article.
+        unbooked = await units.list_units(None, statuses={UnitStatus.LABELED})
+        assert [v.unit.code for v in unbooked.views] == loose
+        assert {v.unit.variant_id for v in unbooked.views} == {painted, unpainted}
+        only = await units.list_units(unpainted, statuses={UnitStatus.IN_STOCK})
+        assert only.views == []
+
+
+class TestTakingSeveralUnitsOut:
+    async def test_free_labelled_and_reserved_units_go_with_their_reason(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        catalog: CatalogService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        availability: AvailabilityService,
+        deliver: Deliver,
+        engine: AsyncEngine,
+        product: ProductDetails,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await catalog.change_variant(painted, expected_version=None, allow_backorder=True)
+        reserved, free, spare = await stock_up(locations, units, painted, quantity=3)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert item.unit_code == reserved
+        (labelled,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+        ids = [(await units.details(code)).view.unit.id for code in (reserved, free)]
+
+        out = await units.scrap_units(
+            [*ids, labelled.unit.id],
+            reason=ScrapReason.MISSING,
+            note="Inventur Oktober",
+            staff_id=staff,
+        )
+
+        assert (out.scrapped, out.already_scrapped) == (3, 0)
+        for code in (reserved, free, labelled.unit.code):
+            details = await units.details(code)
+            unit = details.view.unit
+            assert (unit.status, unit.scrap_reason, unit.scrap_note) == (
+                UnitStatus.SCRAPPED,
+                ScrapReason.MISSING,
+                "Inventur Oktober",
+            )
+            assert details.history[-1].entry.staff_id == staff
+        # The order got the one piece left, not one of those that just went out.
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert (item.state, item.unit_code) == (PieceState.RESERVED, spare)
+        free_now = {a.variant_id: a for a in await availability.for_product(product.product.slug)}
+        assert free_now[painted].free_units == 0
+        async with engine.connect() as connection:
+            rows = await connection.execute(
+                select(outbox_table.c.payload["unit_code"].astext).where(
+                    outbox_table.c.event_type == "inventory.stock.changed",
+                    outbox_table.c.payload["reason"].astext == "scrap",
+                )
+            )
+            assert sorted(rows.scalars()) == sorted([reserved, free, labelled.unit.code])
+
+        # Sent again (the answer got lost): nothing more happens.
+        booked = await journal_size(engine)
+        again = await units.scrap_units(
+            [*ids, labelled.unit.id], reason=ScrapReason.MISSING, note="", staff_id=staff
+        )
+        assert (again.scrapped, again.already_scrapped) == (0, 3)
+        assert await journal_size(engine) == booked
+
+    async def test_without_a_spare_the_order_waits_for_the_workshop(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        catalog: CatalogService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        deliver: Deliver,
+        engine: AsyncEngine,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        await catalog.change_variant(painted, expected_version=None, allow_backorder=True)
+        (code,) = await stock_up(locations, units, painted)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        unit_id = (await units.details(code)).view.unit.id
+
+        await units.scrap_units([unit_id], reason=ScrapReason.DAMAGED, note="", staff_id=staff)
+
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert item.state is PieceState.BACKORDERED
+        async with engine.connect() as connection:
+            backordered = await connection.scalar(
+                select(func.count())
+                .select_from(outbox_table)
+                .where(outbox_table.c.event_type == "inventory.allocation.backordered")
+            )
+        assert backordered == 1
+
+    async def test_a_unit_on_its_way_to_a_customer_stops_them_all(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        scans: ScanService,
+        deliver: Deliver,
+        engine: AsyncEngine,
+        painted: UUID,
+        staff: UUID,
+    ) -> None:
+        (sold,) = await stock_up(locations, units, painted)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        (free,) = await stock_up(locations, units, painted)
+        await pick_everything(scans, allocation, order_id, staff)
+        ids = [(await units.details(code)).view.unit.id for code in (sold, free)]
+        booked = await journal_size(engine)
+
+        with pytest.raises(UnitsNotScrappableError) as error:
+            await units.scrap_units(ids, reason=ScrapReason.SOLD, note="", staff_id=staff)
+        assert error.value.refused == {sold: "picked"}
+        assert (await units.details(free)).view.unit.status is UnitStatus.IN_STOCK
+        assert await journal_size(engine) == booked
+        with pytest.raises(UnitsNotScrappableError) as unknown:
+            await units.scrap_units([uuid4()], reason=ScrapReason.SOLD, note="", staff_id=staff)
+        assert len(unknown.value.missing) == 1
+        with pytest.raises(InvalidFieldError):
+            await units.scrap_units([], reason=ScrapReason.SOLD, note="", staff_id=staff)
+
+    async def test_one_unit_on_its_page_keeps_the_reason_too(
+        self, locations: LocationService, units: UnitService, painted: UUID
+    ) -> None:
+        (code,) = await stock_up(locations, units, painted)
+        view = await units.scrap(code, note="", reason=ScrapReason.SOLD, staff_id=None)
+        assert (view.unit.status, view.unit.scrap_reason) == (
+            UnitStatus.SCRAPPED,
+            ScrapReason.SOLD,
+        )
 
 
 class TestPickScans:

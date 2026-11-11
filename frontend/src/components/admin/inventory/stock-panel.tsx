@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 
 import { Panel } from "@/components/admin/panel";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { useListStock } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { StockLineOut } from "@/lib/api/generated/model";
+import { pieces, unitListHref } from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +50,7 @@ export function StockPanel() {
       {stock.isSuccess ? (
         <>
           <Totals lines={lines} />
+          <Unbooked count={lines.reduce((sum, line) => sum + line.labeled, 0)} />
           {lines.length > 0 ? (
             <div className="mt-6">
               <label htmlFor="stock-search" className="sr-only">
@@ -79,6 +82,24 @@ export function StockPanel() {
         </>
       ) : null}
     </Panel>
+  );
+}
+
+/** Labelled pieces that were never put away: on the shelf, yet not for sale. */
+function Unbooked({ count }: { count: number }) {
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-subtle px-4 py-3 text-small">
+      <p>
+        <span className="font-medium">{pieces(count)} unverbucht:</span> etikettiert, aber nie eingelagert. Shop und eBay zählen
+        sie erst nach dem Einlagern.
+      </p>
+      <Link href={unitListHref({ filter: "unverbucht" })} className="font-medium underline underline-offset-2 hover:no-underline">
+        Unverbuchte einlagern
+      </Link>
+    </div>
   );
 }
 
@@ -120,6 +141,9 @@ function StockRow({ line }: { line: StockLineOut }) {
         <p className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-hint text-ink-tertiary">
           <span>{variant?.sku ?? line.variant_id}</span>
           {variant?.gtin ? <span>EAN {variant.gtin}</span> : null}
+          <Link href={unitListHref({ variantId: line.variant_id })} className="font-sans text-accent hover:underline">
+            Stücke<span className="sr-only"> von {title}</span>
+          </Link>
         </p>
       </div>
       <div className="flex items-center gap-3">

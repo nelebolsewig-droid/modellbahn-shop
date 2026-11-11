@@ -137,6 +137,10 @@ export const PROBLEM_MESSAGES: Messages = {
     "Hier lag schon einmal Ware. Der Lagerplatz bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist.",
   unit_not_found: "Diese Einheit gibt es nicht.",
   invalid_unit_state: "Das ist im aktuellen Zustand der Einheit nicht möglich.",
+  units_not_movable:
+    "Nicht alle Stücke lassen sich verlegen: Kommissionierte, versendete und ausgebuchte bleiben, wo sie sind. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
+  units_not_scrappable:
+    "Kommissionierte und versendete Stücke gehören zu einer Bestellung und lassen sich hier nicht ausbuchen. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
   variant_has_units:
     "Von dieser Variante gibt es Einheiten im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
   order_not_allocatable: "Nur bezahlte Bestellungen bekommen Ware zugeteilt.",

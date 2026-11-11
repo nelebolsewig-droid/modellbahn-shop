@@ -75,12 +75,27 @@ class UnitRepository(Protocol):
 
     async def get_by_code(self, code: str, *, for_update: bool = False) -> Unit | None: ...
 
+    async def lock(self, unit_ids: Collection[UUID]) -> list[Unit]:
+        """The units with these ids (unknown ids are missing), locked one after the other
+        by id, so two requests over the same units never wait for each other crosswise."""
+        ...
+
     async def existing_codes(self, codes: Collection[str]) -> set[str]: ...
 
     def add(self, unit: Unit) -> None: ...
 
     async def in_locations(self, location_ids: Collection[UUID]) -> list[Unit]:
         """Units lying in the locations, oldest first."""
+        ...
+
+    async def listed(
+        self,
+        *,
+        variant_id: UUID | None,
+        statuses: Collection[UnitStatus] | None,
+        limit: int,
+    ) -> list[Unit]:
+        """Units oldest first, of the variant and in the states (``None``: any)."""
         ...
 
     async def oldest_labeled(self, variant_id: UUID) -> Unit | None:

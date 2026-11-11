@@ -150,15 +150,27 @@ class TestUnitsAndScans:
         stock = (await staff_client.get(f"{INVENTORY}/stock")).json()["items"]
         assert [(s["labeled"], s["in_stock"]) for s in stock] == [(1, 1)]
 
+        no_reason = assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/{second['code']}/scrap", json={"note": "Dach gebrochen"}
+            ),
+            422,
+            "validation_failed",
+        )
+        assert no_reason["errors"][0]["field"] == "reason"
         scrapped = await staff_client.post(
-            f"{INVENTORY}/units/{second['code']}/scrap", json={"note": "Dach gebrochen"}
+            f"{INVENTORY}/units/{second['code']}/scrap",
+            json={"reason": "damaged", "note": "Dach gebrochen"},
         )
-        assert (scrapped.json()["status"], scrapped.json()["scrap_note"]) == (
+        assert [scrapped.json()[k] for k in ("status", "scrap_reason", "scrap_note")] == [
             "scrapped",
+            "damaged",
             "Dach gebrochen",
-        )
+        ]
         assert_problem(
-            await staff_client.post(f"{INVENTORY}/units/{second['code']}/scrap", json={}),
+            await staff_client.post(
+                f"{INVENTORY}/units/{second['code']}/scrap", json={"reason": "damaged"}
+            ),
             409,
             "invalid_unit_state",
         )
@@ -182,6 +194,113 @@ class TestUnitsAndScans:
         assert_problem(
             await staff_client.post(f"{INVENTORY}/scans/{uuid4()}/undo"), 404, "scan_not_found"
         )
+
+
+class TestSeveralUnitsAtOnce:
+    async def label(self, staff: AsyncClient, painted: UUID, quantity: int) -> list[dict[str, Any]]:
+        created = await staff.post(
+            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": quantity}
+        )
+        assert created.status_code == 201, created.text
+        items: list[dict[str, Any]] = created.json()["items"]
+        return items
+
+    async def test_list_the_unbooked_and_put_them_away_in_one_go(
+        self, staff_client: AsyncClient, packer_client: AsyncClient, painted: UUID
+    ) -> None:
+        await build_store(staff_client)
+        labelled = await self.label(staff_client, painted, 2)
+        listed = await packer_client.get(f"{INVENTORY}/units", params={"status": "labeled"})
+        assert listed.status_code == 200, listed.text
+        assert [u["code"] for u in listed.json()["items"]] == [u["code"] for u in labelled]
+        assert listed.json()["more"] is False
+
+        # Packers put away with the scanner, so they may do it from the list too.
+        moved = await packer_client.post(
+            f"{INVENTORY}/units/moves",
+            json={"unit_ids": [u["id"] for u in labelled], "location_code": "r01-f01"},
+        )
+        assert moved.status_code == 200, moved.text
+        assert moved.json()["moved"] == 2
+        assert moved.json()["already_there"] == 0
+        assert moved.json()["location"]["code"] == "R01-F01"
+        inside = (await staff_client.get(f"{INVENTORY}/locations/R01-F01")).json()["units"]
+        assert {u["id"] for u in inside} == {u["id"] for u in labelled}
+        mine = await staff_client.get(
+            f"{INVENTORY}/units", params={"variant_id": str(painted), "status": ["in_stock"]}
+        )
+        assert [u["location"]["code"] for u in mine.json()["items"]] == ["R01-F01", "R01-F01"]
+
+    async def test_refusals_and_roles(
+        self,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        client: AsyncClient,
+        painted: UUID,
+    ) -> None:
+        await build_store(staff_client)
+        first, second = await self.label(staff_client, painted, 2)
+        ids = [first["id"], second["id"]]
+        gone = await staff_client.post(
+            f"{INVENTORY}/units/scraps", json={"unit_ids": [second["id"]], "reason": "mistake"}
+        )
+        assert gone.json() == {"scrapped": 1, "already_scrapped": 0}
+
+        refused = assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/moves", json={"unit_ids": ids, "location_code": "R01-F01"}
+            ),
+            409,
+            "units_not_movable",
+        )
+        assert second["code"] in refused["detail"]
+        assert first["code"] not in refused["detail"]
+        assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/moves", json={"unit_ids": ids[:1], "location_code": "R77"}
+            ),
+            404,
+            "location_not_found",
+        )
+        assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/moves", json={"unit_ids": [], "location_code": "R01-F01"}
+            ),
+            422,
+            "validation_failed",
+        )
+        unknown = str(uuid4())
+        not_scrappable = assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/scraps", json={"unit_ids": [unknown], "reason": "sold"}
+            ),
+            409,
+            "units_not_scrappable",
+        )
+        assert unknown in not_scrappable["detail"]
+        assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units/scraps", json={"unit_ids": ids, "reason": "verschenkt"}
+            ),
+            422,
+            "validation_failed",
+        )
+        # Taking stock out by hand is for owner and staff, like scrapping one unit.
+        assert_problem(
+            await packer_client.post(
+                f"{INVENTORY}/units/scraps", json={"unit_ids": ids[:1], "reason": "sold"}
+            ),
+            403,
+            "insufficient_role",
+        )
+        assert_problem(
+            await client.post(
+                f"{INVENTORY}/units/moves", json={"unit_ids": ids[:1], "location_code": "R01-F01"}
+            ),
+            401,
+            "not_authenticated",
+        )
+        assert_problem(await client.get(f"{INVENTORY}/units"), 401, "not_authenticated")
 
 
 class TestPicking:

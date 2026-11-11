@@ -32,6 +32,9 @@ from modellbahn.modules.inventory.application.units import (
     HistoryEntry,
     StockLine,
     UnitDetails,
+    UnitList,
+    UnitMove,
+    UnitScrap,
     UnitView,
 )
 from modellbahn.modules.inventory.domain.availability import Availability
@@ -45,6 +48,7 @@ from modellbahn.modules.inventory.domain.model import (
     MovementReason,
     ScanMode,
     ScanOutcome,
+    ScrapReason,
     UnitStatus,
 )
 from modellbahn.modules.inventory.domain.parts import (
@@ -327,7 +331,10 @@ class UnitOut(BaseModel):
     order_id: UUID | None
     order_number: str | None
     scrap_note: str
-    created_at: datetime
+    scrap_reason: ScrapReason | None = Field(
+        description="Why it was taken out by hand; empty for older ones."
+    )
+    created_at: datetime = Field(description="When it was labelled.")
     updated_at: datetime
 
     @classmethod
@@ -344,6 +351,7 @@ class UnitOut(BaseModel):
             order_id=view.order_id,
             order_number=view.order_number,
             scrap_note=unit.scrap_note,
+            scrap_reason=unit.scrap_reason,
             created_at=unit.created_at,
             updated_at=unit.updated_at,
         )
@@ -351,6 +359,15 @@ class UnitOut(BaseModel):
 
 class UnitBatchOut(BaseModel):
     items: list[UnitOut]
+
+
+class UnitListOut(BaseModel):
+    items: list[UnitOut] = Field(description="Oldest first.")
+    more: bool = Field(description="True if there are more; the oldest are listed.")
+
+    @classmethod
+    def from_list(cls, listed: UnitList) -> Self:
+        return cls(items=[UnitOut.from_view(view) for view in listed.views], more=listed.more)
 
 
 class HistoryEntryOut(BaseModel):
@@ -427,10 +444,49 @@ class UnitsCreateIn(_Request):
 
 
 class ScrapIn(_Request):
+    reason: ScrapReason
     note: str = Field(default="", max_length=SCRAP_NOTE_MAX_LENGTH)
 
 
+class UnitsScrapIn(ScrapIn):
+    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_PER_BATCH_MAX)
+
+
+class UnitScrapOut(BaseModel):
+    scrapped: int
+    already_scrapped: int = Field(description="Units that were out already; left alone.")
+
+    @classmethod
+    def from_scrap(cls, scrap: UnitScrap) -> Self:
+        return cls(scrapped=scrap.scrapped, already_scrapped=scrap.already_scrapped)
+
+
+class UnitMoveIn(_Request):
+    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_PER_BATCH_MAX)
+    location_code: str = Field(
+        min_length=1,
+        max_length=44,
+        examples=["R01-F02"],
+        description="Where they go: a compartment, box or staging area.",
+    )
+
+
+class UnitMoveOut(BaseModel):
+    moved: int = Field(description="Units that went there (labelled ones are stored).")
+    already_there: int = Field(description="Units that lay there already; left alone.")
+    location: LocationOut
+
+    @classmethod
+    def from_move(cls, move: UnitMove) -> Self:
+        return cls(
+            moved=move.moved,
+            already_there=move.already_there,
+            location=LocationOut.from_location(move.location),
+        )
+
+
 class LocatedUnitOut(BaseModel):
+    id: UUID
     code: str
     display_code: str
     status: UnitStatus
@@ -464,6 +520,7 @@ class LocationContentsOut(BaseModel):
             location = contents.locations.get(unit.location_id) if unit.location_id else None
             units.append(
                 LocatedUnitOut(
+                    id=unit.id,
                     code=unit.code,
                     display_code=format_unit_code(unit.code),
                     status=unit.status,

@@ -16,6 +16,7 @@ import type { UnitStatus } from './unitStatus';
 export interface LocatedUnitOut {
   code: string;
   display_code: string;
+  id: string;
   location_code: string | null;
   order_number: string | null;
   sku: string | null;

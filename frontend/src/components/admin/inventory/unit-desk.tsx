@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
+import { useWatch } from "react-hook-form";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { Panel } from "@/components/admin/panel";
@@ -26,7 +27,8 @@ import type { HistoryEntryOut, StaffRole, UnitDetailsOut } from "@/lib/api/gener
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { formatClock, formatLongDate } from "@/lib/format";
 import { normalizeUnitCode } from "@/lib/inventory/codes";
-import { MOVEMENT_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
+import { MOVEMENT_LABELS, SCRAP_REASON_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
+import { SELECTABLE_STATUSES, unitListHref } from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
@@ -36,6 +38,7 @@ import { scrapSchema } from "@/lib/validation/inventory";
 import { MAY_MANAGE_STOCK } from "./inventory-overview";
 import { LabelPrinter } from "./label-printer";
 import { partHref } from "./parts-panels";
+import { MoveUnitsDialog, ScrapReasonChoice } from "./unit-dialogs";
 
 /** One piece: what it is, where it lies, and every step it took through the workshop. */
 export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: string; staffRole: StaffRole; onStreamClosed: () => void }) {
@@ -98,6 +101,7 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
         <div className="space-y-6">
           <Panel title="Steckbrief" code="LG 22">
             <Facts unit={data} />
+            {SELECTABLE_STATUSES.has(data.status) ? <MoveUnit unit={data} /> : null}
           </Panel>
           {data.parts.length > 0 ? (
             <Panel title="Aus diesen Teilen" code="LG 25">
@@ -146,15 +150,44 @@ function AssembledFrom({ unit }: { unit: UnitDetailsOut }) {
   );
 }
 
+/** Into another place without the scanner; a labelled piece is stored for the first time. */
+function MoveUnit({ unit }: { unit: UnitDetailsOut }) {
+  const [message, setMessage] = useState("");
+  return (
+    <div className="mt-4 border-t border-line pt-4">
+      <MoveUnitsDialog
+        units={[unit]}
+        onMoved={setMessage}
+        trigger={
+          <Button type="button" size="sm" variant="secondary">
+            {unit.status === "labeled" ? "Einlagern …" : "Umlagern …"}
+          </Button>
+        }
+      />
+      <p role="status" className="text-small font-medium text-success not-empty:mt-3">
+        {message}
+      </p>
+    </div>
+  );
+}
+
 function Facts({ unit }: { unit: UnitDetailsOut }) {
   return (
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-small">
+      <dt className="text-ink-tertiary">Artikel</dt>
+      <dd>
+        <Link href={unitListHref({ variantId: unit.variant_id })} className="text-accent hover:underline">
+          Alle Stücke
+        </Link>
+      </dd>
       <dt className="text-ink-tertiary">Platz</dt>
       <dd>
         {unit.location ? (
           <Link href={`/admin/lager/plaetze/${unit.location.code}` as Route} className="font-mono text-accent hover:underline">
             {unit.location.code}
           </Link>
+        ) : unit.status === "labeled" ? (
+          <span className="text-warning">nie eingelagert</span>
         ) : (
           "—"
         )}
@@ -178,10 +211,14 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
       ) : null}
       <dt className="text-ink-tertiary">Erfasst</dt>
       <dd>{formatLongDate(new Date(unit.created_at))}</dd>
-      {unit.scrap_note ? (
+      {unit.scrap_reason || unit.scrap_note ? (
         <>
           <dt className="text-ink-tertiary">Grund</dt>
-          <dd>„{unit.scrap_note}“</dd>
+          <dd>
+            {unit.scrap_reason ? SCRAP_REASON_LABELS[unit.scrap_reason] : null}
+            {unit.scrap_reason && unit.scrap_note ? " · " : null}
+            {unit.scrap_note ? `„${unit.scrap_note}“` : null}
+          </dd>
         </>
       ) : null}
     </dl>
@@ -255,7 +292,7 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
   const [open, setOpen] = useState(false);
   const { form, onSubmit, formError } = useApiForm({
     schema: scrapSchema,
-    defaultValues: { note: "" },
+    defaultValues: { reason: "", note: "" },
     async submit(values) {
       const updated = await scrapUnit(unit.code, values);
       queryClient.setQueryData(getGetUnitQueryKey(unit.code), { ...unit, ...updated });
@@ -266,12 +303,15 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
   });
   const {
     register,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
   } = form;
+  const reason = useWatch({ control, name: "reason" });
   return (
     <>
       <p className="text-small text-ink-secondary">
-        Beschädigt, verloren oder als Muster verschenkt: Das Stück verlässt den Bestand.
+        Verkauft (Messe, Laden), beschädigt oder bei der Inventur nicht gefunden: Das Stück verlässt den Bestand.
         {unit.status === "allocated" || unit.status === "picked" ? " Die Bestellung bekommt dafür ein anderes Stück oder wartet auf die Fertigung." : ""}
       </p>
       <Dialog
@@ -293,8 +333,13 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
           <DialogDescription>Das lässt sich nicht rückgängig machen.</DialogDescription>
           <form noValidate onSubmit={onSubmit} className="mt-6">
             <FormError message={formError?.message} />
-            <FormField label="Grund" hint="Optional, z. B. „Gehäuse gebrochen“." error={errors.note?.message}>
-              {(control) => <Textarea {...control} {...register("note")} maxLength={200} className="min-h-20" />}
+            <ScrapReasonChoice
+              value={reason}
+              onChange={(next) => setValue("reason", next, { shouldValidate: true })}
+              error={errors.reason?.message}
+            />
+            <FormField label="Notiz" hint="Optional, z. B. „Gehäuse gebrochen“." error={errors.note?.message} className="mt-5">
+              {(field) => <Textarea {...field} {...register("note")} maxLength={200} className="min-h-20" />}
             </FormField>
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <DialogClose asChild>

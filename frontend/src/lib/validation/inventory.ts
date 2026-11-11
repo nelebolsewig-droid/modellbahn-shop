@@ -37,7 +37,11 @@ export const unitsCreateSchema = z.object({
 });
 export type UnitsCreateValues = z.input<typeof unitsCreateSchema>;
 
+export const SCRAP_REASONS = ["sold", "damaged", "missing", "mistake"] as const;
+
 export const scrapSchema = z.object({
+  // "" until one is chosen: the choice is required.
+  reason: z.string().pipe(z.enum(SCRAP_REASONS, "Bitte einen Grund wählen.")),
   note: z.string().trim().max(200, "Bitte höchstens 200 Zeichen."),
 });
 export type ScrapValues = z.input<typeof scrapSchema>;
