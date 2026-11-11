@@ -630,7 +630,9 @@ async def attach_image(
 
     Needs no ``If-Match``: several uploads may append to the same gallery at once.
     """
-    details = await service.attach_image(product_id, asset_id=body.asset_id, alt_text=body.alt_text)
+    details = await service.attach_image(
+        product_id, asset_id=body.asset_id, alt_text=body.alt_text, color=body.color
+    )
     return _product(details, response)
 
 

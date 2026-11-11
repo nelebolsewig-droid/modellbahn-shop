@@ -395,6 +395,36 @@ def _page_size(document: bytes) -> str:
     return f"Seite {width:.0f} x {height:.0f} mm"
 
 
+@app.command("gallery-colors")
+def gallery_colors() -> None:
+    """Fotos ihrer Farbe zuordnen, wo der Bildtext sie nennt („Stellwerk Altenau, Rot“).
+
+    Für Fotos, die das Foto-Skript hochgeladen hat, bevor es die Farbe selbst zuordnete:
+    Ohne Zuordnung zeigt der Shop bei jeder Farbe das erste Foto. Mehrfach ausführen
+    schadet nicht.
+    """
+    tagged = asyncio.run(_tag_gallery_colors(Settings()))
+    for product, color in tagged:
+        typer.echo(f"{product}: Foto der Farbe {color} zugeordnet")
+    typer.echo(f"{len(tagged)} Fotos zugeordnet." if tagged else "Es gab nichts zuzuordnen.")
+
+
+async def _tag_gallery_colors(settings: Settings) -> list[tuple[str, str]]:
+    engine = create_engine(settings.database_url)
+    start_media_mappers()
+    start_catalog_mappers()
+    service = CatalogService(
+        uow_factory=catalog_uow_factory(
+            create_session_factory(engine), public_base_url=settings.media_public_base_url
+        ),
+        clock=SystemClock(),
+    )
+    try:
+        return await service.tag_colors_from_alt_texts()
+    finally:
+        await engine.dispose()
+
+
 @app.command("export-openapi")
 def export_openapi(
     output: Annotated[

@@ -82,6 +82,7 @@ x-backend-env: &backend-env
   MB_DHL_PARTICIPATION_INTERNATIONAL:
   MB_DHL_PRINT_FORMAT:
   MB_DHL_DEFAULT_WEIGHT_G:
+  MB_DHL_GOGREEN_PLUS:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.

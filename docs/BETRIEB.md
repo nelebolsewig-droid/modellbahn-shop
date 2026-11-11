@@ -112,6 +112,7 @@ läuft währenddessen weiter und wechselt am Ende auf die neue Fassung.
 | Mitarbeiterkonto löschen | `make staff-delete EMAIL=…` (fragt nach; Anmeldungen enden sofort; das letzte Inhaberkonto bleibt) |
 | Gesperrtes Konto freigeben | `docker compose run --rm api python -m modellbahn.cli unlock-staff --email …` |
 | DHL einrichten oder einschalten | `./scripts/einrichten.sh dhl` |
+| Fotos ihrer Farbe zuordnen (alte Uploads) | `make gallery-colors` |
 | DHL-Zugang prüfen | `make dhl-check SANDBOX=1` (Sandbox) · `make dhl-check` (Geschäftskundenkonto) |
 | Neu starten | `docker compose restart api worker` |
 
@@ -189,12 +190,26 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
     Verfolgungslink.
 - **Falsches Label:** „Label stornieren“, dann neu buchen. Nach dem Versand geht das nicht
   mehr. Storniert ihr die Bestellung, storniert der Shop ihr Label bei DHL selbst.
+- **„wird automatisch GoGreen Plus hinzugebucht“:** `./scripts/einrichten.sh dhl` und bei
+  „GoGreen Plus bei jedem Label mitbuchen?“ mit `y` antworten.
 - **DHL lehnt ab:** Unter der Meldung steht DHLs Begründung, meist Adresse oder Gewicht.
   Adresse mit dem Kunden klären; zur Not das Label im Geschäftskundenportal buchen und die
   Nummer von Hand eintragen.
 - **Einschalten, Ausschalten:** `./scripts/einrichten.sh dhl` und bei „Labels im Stellwerk
   jetzt echt buchen lassen?“ mit `y` bzw. `N` antworten. Ausgeschaltet wird die Nummer
   wieder von Hand eingetragen.
+
+### Fotos und Farben
+
+Bei einem Modell in mehreren Farben zeigt der Shop zur gewählten Farbe das Foto, das dieser
+Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
+
+- **Im Stellwerk:** Katalog → Modell → Galerie, unter jedem Foto bei „Farbe“ die Farbe
+  wählen und speichern. Fehlt einer Farbe noch ein Foto, sagt die Galerie es oben.
+- **Foto-Skript:** ordnet jedes Foto der Farbe aus der Spalte „Farbe“ zu.
+- **Fotos, die das Skript früher ohne Zuordnung hochgeladen hat:** einmal
+  `make gallery-colors`. Das ordnet jedes Foto der Farbe aus seinem Bildtext („Modell, Rot“)
+  zu, sofern es die Farbe beim Modell gibt.
 
 ### Etiketten der Modelle
 

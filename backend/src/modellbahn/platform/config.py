@@ -189,6 +189,9 @@ class Settings(BaseSettings):
     # (4 x 6 inch) rolls; ``cli dhl-check --sandbox --buchen`` measures what DHL sends.
     dhl_print_format: str = "910-300-400"
     dhl_default_weight_g: int = Field(default=1000, ge=10, le=31_500)
+    # GoGreen Plus with every label: where the contract books it automatically, DHL refuses
+    # shipments that do not ask for it ("wird automatisch GoGreen Plus hinzugebucht").
+    dhl_gogreen_plus: bool = False
     dhl_api_url: str = ""
 
     # Payment in advance by bank transfer (ADR 0022): offered next to the provider as soon
