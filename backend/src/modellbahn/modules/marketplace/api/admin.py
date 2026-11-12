@@ -139,11 +139,33 @@ async def change_settings(
     operation_id="listEbayPolicies",
     summary="The business policies of the eBay account",
     responses=problems(
-        {**STAFF_ACCESS, **_NOT_CONNECTED, **EBAY_UNAVAILABLE}, unsafe=False, validated=False
+        {
+            **STAFF_ACCESS,
+            409: [*_NOT_CONNECTED[409], "ebay_policies_not_enabled", "ebay_rejected"],
+            **EBAY_UNAVAILABLE,
+        },
+        unsafe=False,
+        validated=False,
     ),
 )
 async def list_policies(_: EbayOwner, marketplace: MarketplaceDep) -> PoliciesOut:
     return PoliciesOut.from_policies(await marketplace.connection.policies())
+
+
+@router.post(
+    "/policies/opt-in",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="enableEbayPolicies",
+    summary="Turn on business policies for the eBay account",
+    description="Opts the seller in to eBay's business policies; the shipping, payment and "
+    "return policies themselves are then created on eBay.",
+    responses=problems(
+        {**STAFF_ACCESS, 409: [*_NOT_CONNECTED[409], "ebay_rejected"], **EBAY_UNAVAILABLE},
+        validated=False,
+    ),
+)
+async def enable_policies(_: EbayOwner, marketplace: MarketplaceDep) -> None:
+    await marketplace.connection.enable_policies()
 
 
 @router.post(

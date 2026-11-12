@@ -140,6 +140,9 @@ class BuiltInEbayGateway:
             returns=[PolicyOption(id="test-return-30", name="30 Tage Rückgabe")],
         )
 
+    async def enable_policies(self, access_token: str) -> None:
+        _logger.info("marketplace.test.policies_enabled")
+
     async def ensure_location(self, access_token: str, key: str, address: LocationAddress) -> None:
         _logger.info("marketplace.test.location", key=key, city=address.city)
 

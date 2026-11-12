@@ -290,6 +290,10 @@ EXPECTED_OPERATIONS = {
         "listEbayPolicies",
         "admin-marketplace",
     ),
+    ("POST", "/api/v1/admin/marketplace/ebay/policies/opt-in"): (
+        "enableEbayPolicies",
+        "admin-marketplace",
+    ),
     ("POST", "/api/v1/admin/marketplace/ebay/location"): (
         "createEbayLocation",
         "admin-marketplace",

@@ -172,6 +172,11 @@ class ConnectionService:
     async def policies(self) -> Policies:
         return await self._gateway.policies(await self._access.token())
 
+    async def enable_policies(self) -> None:
+        """Turn on business policies for the seller; they are then created on eBay."""
+        await self._gateway.enable_policies(await self._access.token())
+        _logger.info("marketplace.ebay.policies_enabled")
+
     async def create_location(self) -> EbayAccount:
         await self._prepare(await self._access.token())
         return await self.status()

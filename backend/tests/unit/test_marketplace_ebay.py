@@ -19,6 +19,7 @@ from modellbahn.modules.marketplace.application.ports import (
     MarketplaceRejectedError,
     MarketplaceUnavailableError,
     OfferDraft,
+    PoliciesNotEnabledError,
     ShipmentReport,
 )
 from modellbahn.modules.marketplace.infrastructure.ebay import (
@@ -299,6 +300,29 @@ class TestAccount:
         assert [p.name for p in policies.payment] == ["eBay"]
         assert list(policies.returns) == []
         assert recorder.requests[0].url.params["marketplace_id"] == "EBAY_DE"
+
+    async def test_a_seller_without_business_policies_is_told_so(self) -> None:
+        refused = httpx.Response(
+            400,
+            json={
+                "errors": [
+                    {"errorId": 20403, "message": "User is not eligible for Business Policy."}
+                ]
+            },
+        )
+        recorder = Recorder({("GET", "/sell/account/v1/fulfillment_policy"): refused})
+        with pytest.raises(PoliciesNotEnabledError) as caught:
+            await gateway(recorder).policies(TOKEN)
+        assert caught.value.code == "20403"
+
+    async def test_business_policies_are_turned_on(self) -> None:
+        recorder = Recorder(
+            {("POST", "/sell/account/v1/program/opt_in"): httpx.Response(200, json={})}
+        )
+        await gateway(recorder).enable_policies(TOKEN)
+        assert recorder.body("POST", "/sell/account/v1/program/opt_in") == {
+            "programType": "SELLING_POLICY_MANAGEMENT"
+        }
 
     async def test_the_location_is_created_once(self) -> None:
         recorder = Recorder(
