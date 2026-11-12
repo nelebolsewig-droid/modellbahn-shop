@@ -125,6 +125,8 @@ export const PROBLEM_MESSAGES: Messages = {
   ebay_state_invalid: "Der Rücksprung von eBay war abgelaufen. Bitte verbinde dich erneut.",
   ebay_unavailable: "eBay ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.",
   ebay_rejected: "eBay hat die Anfrage abgelehnt.",
+  ebay_policies_not_enabled:
+    "Euer eBay-Konto nutzt noch keine Grundsätze für Angebote (Versand, Zahlung, Rücknahme). Schaltet sie in der eBay-Einrichtung ein.",
   listing_not_found: "Dieses Angebot (oder das Modell in diesem Maßstab) gibt es nicht.",
   marketplace_order_not_found: "Diese eBay-Bestellung gibt es nicht.",
   test_mode_only: "Das geht nur auf dem Testmarktplatz.",

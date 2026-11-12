@@ -1208,7 +1208,81 @@ export function useListEbayPolicies<TData = Awaited<ReturnType<typeof listEbayPo
 
 
 
-export const getListProductEbayListingsUrl = (productId: string,) => {
+export const getEnableEbayPoliciesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/marketplace/ebay/policies/opt-in`
+}
+
+/**
+ * Opts the seller in to eBay's business policies; the shipping, payment and return policies themselves are then created on eBay.
+ * @summary Turn on business policies for the eBay account
+ */
+export const enableEbayPolicies = async ( options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getEnableEbayPoliciesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnableEbayPoliciesMutationKey = () => ['enableEbayPolicies'] as const;
+
+export const getEnableEbayPoliciesMutationOptions = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableEbayPolicies>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enableEbayPolicies>>, TError,void, TContext> => {
+
+const mutationKey = getEnableEbayPoliciesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enableEbayPolicies>>, void> = () => {
+
+
+          return  enableEbayPolicies(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnableEbayPoliciesMutationResult = NonNullable<Awaited<ReturnType<typeof enableEbayPolicies>>>
+
+    export type EnableEbayPoliciesMutationError = ErrorType<Problem>
+
+
+    /**
+ * @summary Turn on business policies for the eBay account
+ */
+export const useEnableEbayPolicies = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableEbayPolicies>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof enableEbayPolicies>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEnableEbayPoliciesMutationOptions(options), queryClient);
+    }
+    export const getListProductEbayListingsUrl = (productId: string,) => {
 
 
 
