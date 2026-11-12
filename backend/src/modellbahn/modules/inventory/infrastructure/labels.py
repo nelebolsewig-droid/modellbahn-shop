@@ -145,12 +145,14 @@ class ReportLabLabelRenderer:
     def __init__(self, *, maker: Sequence[str] = ()) -> None:
         self._maker = tuple(maker)
 
-    def render(self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int) -> bytes:
+    def render(
+        self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int, title: str = ""
+    ) -> bytes:
         _register_fonts()
         buffer = BytesIO()
         if sheet is LabelSheet.A4_70X37:
             canvas = Canvas(buffer, pagesize=A4)
-            _start(canvas, len(labels))
+            _start(canvas, len(labels), title)
             per_sheet = _A4_COLUMNS * _A4_ROWS
             for index, label in enumerate(labels, start=skip):
                 if index and index % per_sheet == 0:
@@ -161,7 +163,7 @@ class ReportLabLabelRenderer:
                 _draw(canvas, label, (x, y), _A4_LAYOUT, self._maker)
         else:
             canvas = Canvas(buffer, pagesize=(_QL_LAYOUT.width, _QL_LAYOUT.height))
-            _start(canvas, len(labels))
+            _start(canvas, len(labels), title)
             for index, label in enumerate(labels):
                 if index:
                     canvas.showPage()
@@ -171,8 +173,8 @@ class ReportLabLabelRenderer:
         return buffer.getvalue()
 
 
-def _start(canvas: Canvas, count: int) -> None:
-    canvas.setTitle(f"{count} Etikett" + ("en" if count != 1 else ""))
+def _start(canvas: Canvas, count: int, title: str) -> None:
+    canvas.setTitle(title or f"{count} Etikett" + ("en" if count != 1 else ""))
     canvas.setCreator("Modellbahn-Shop · Stellwerk")
 
 

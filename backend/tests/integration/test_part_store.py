@@ -455,7 +455,7 @@ class TestPartLabels:
         self, inventory_uow: object, parts: dict[str, UUID]
     ) -> None:
         service = LabelService(uow_factory=inventory_uow, renderer=ReportLabLabelRenderer())  # type: ignore[arg-type]
-        pdf = await service.render(
+        printed = await service.render(
             LabelRequest(
                 unit_codes=[],
                 location_codes=[],
@@ -463,7 +463,8 @@ class TestPartLabels:
                 sheet=LabelSheet.A4_70X37,
             )
         )
-        assert pdf.startswith(b"%PDF")
+        assert printed.pdf.startswith(b"%PDF")
+        assert printed.name.startswith("Teil ")
         with pytest.raises(InvalidFieldError) as caught:
             await service.render(
                 LabelRequest(

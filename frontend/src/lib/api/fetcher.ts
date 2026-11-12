@@ -58,7 +58,10 @@ async function readBody<T>(response: Response): Promise<T> {
   // handed over as they are.
   const type = response.headers.get("Content-Type") ?? "";
   if (type.startsWith("application/pdf") || type.startsWith("image/") || type.startsWith("application/zip")) {
-    return (await response.blob()) as T;
+    const blob = await response.blob();
+    // A file the server named (e.g. labels after their model) keeps that name for saving.
+    const name = fileNameOf(response.headers.get("Content-Disposition"));
+    return (name ? new File([blob], name, { type: blob.type }) : blob) as T;
   }
   if (type.startsWith("text/csv")) {
     return (await response.text()) as T;
@@ -77,4 +80,28 @@ async function readBody<T>(response: Response): Promise<T> {
 
 function isAbort(error: unknown, signal: AbortSignal | null | undefined): boolean {
   return signal?.aborted === true || (error instanceof DOMException && error.name === "AbortError");
+}
+
+/**
+ * The file name in a Content-Disposition header: the UTF-8 `filename*` (RFC 6266) if
+ * there is one, else the plain `filename`; null without either.
+ */
+export function fileNameOf(disposition: string | null): string | null {
+  if (!disposition) {
+    return null;
+  }
+  const encoded = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded.trim());
+    } catch {
+      // A broken encoding: fall back to the plain name.
+    }
+  }
+  return /filename\s*=\s*"([^"]*)"/i.exec(disposition)?.[1] || null;
+}
+
+/** The name the server gave a downloaded file (e.g. labels after their model), if any. */
+export function savedName(blob: Blob): string | null {
+  return blob instanceof File && blob.name !== "" ? blob.name : null;
 }

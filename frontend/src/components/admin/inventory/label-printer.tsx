@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { LabelPictures } from "@/components/admin/inventory/label-pictures";
 import { Button } from "@/components/ui/button";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
+import { savedName } from "@/lib/api/fetcher";
 import { printLabels } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import { LabelSheet } from "@/lib/api/generated/model";
 import { errorMessage } from "@/lib/i18n/problems";
@@ -86,7 +87,7 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers =
         location_codes: [...locationCodes],
         part_numbers: [...partNumbers],
       });
-      setPdf({ url: URL.createObjectURL(blob), name: fileName(new Date()) });
+      setPdf({ url: URL.createObjectURL(blob), name: savedName(blob) ?? fileName(new Date()) });
     } catch (error) {
       setProblem(errorMessage(error));
     } finally {
