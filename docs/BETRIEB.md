@@ -280,6 +280,64 @@ Zeigt das Stellwerk mehr Stücke, als im Regal liegen:
   bekommt sie ein anderes oder wartet auf die Fertigung.
 - Kommissionierte und versendete Stücke gehören zu einer Bestellung; die Liste bucht sie
   nicht aus. Ein beim Packen zerbrochenes Stück bucht man auf seiner Seite aus.
+- Einen ganzen Platz zählt man bequemer mit der Inventur (unten).
+
+### Ausgebuchtes wieder einbuchen
+
+Falsch ausgebucht, oder ein „fehlendes“ Stück taucht doch wieder auf:
+
+- **Ein Stück:** seinen Code scannen oder unter „Stücke“ mit „Ausgebucht“ öffnen, im
+  Steckbrief „Wieder einbuchen …“, den Platz wählen, in dem es liegt, „Hier einbuchen“.
+- **Mehrere:** Lager → beim Modell „Stücke“ → „Ausgebucht“, die Stücke ankreuzen, „Wieder
+  einbuchen …“, Platz wählen, „Hier einbuchen“.
+- Danach sind sie frei im Lager und im Shop lieferbar; Grund und Notiz des Ausbuchens
+  entfallen, der Lebenslauf zeigt „Wieder eingebucht“. Wartet eine Bestellung auf das
+  Modell, bekommt sie das Stück gleich. Eine Bestellung, der das Stück vor dem Ausbuchen
+  gehörte, hat inzwischen ein anderes oder wartet; sie bekommt es nicht automatisch zurück.
+- Wieder einbuchen dürfen Inhaber und Mitarbeiter, wie das Ausbuchen.
+
+### Falsche Ausführung korrigieren
+
+Ein Stück trägt das Etikett der falschen Ausführung (Bausatz statt Fertigmodell, falsche
+Farbe, falscher Maßstab):
+
+1. Die Seite des Stücks öffnen (Code scannen), „Ausführung ändern …“.
+2. Modell suchen, die richtige Ausführung wählen, „Ausführung ändern“.
+3. Im selben Dialog „Etikett neu drucken“: Die EAN auf dem Etikett gehört zur Ausführung,
+   das alte Etikett stimmt also nicht mehr. Der Code des Stücks bleibt.
+
+- Das Stück bleibt, wo es liegt; beide Ausführungen zählen danach im Shop und bei eBay
+  richtig. Wartet eine Bestellung auf die neue Ausführung, bekommt sie ein freies Stück
+  gleich.
+- Geht nur bei unverbuchten oder freien Stücken, die nie für eine Bestellung kommissioniert
+  waren. Ein reserviertes Stück erst freigeben (die Bestellung bekommt dann ein anderes),
+  oder das falsche ausbuchen und das richtige neu erfassen.
+- Inhaber und Mitarbeiter.
+
+### Inventur
+
+Einen Platz Stück für Stück zählen und das Ergebnis auf einmal buchen:
+
+1. Lager → Platz öffnen (Fach, Box oder Ablage) → „Inventur …“. Die Liste zeigt alle
+   Stücke, die laut Lager hier liegen.
+2. Jedes Stück, das da ist, abhaken oder sein Etikett scannen (Handscanner, Kamera-App mit
+   Tastatur oder den Code eintippen und Enter). Liegt hier ein Stück, das anderswo gebucht,
+   unverbucht oder ausgebucht ist: sein Etikett scannen, es erscheint unter „Gefunden“.
+3. „Abschließen …“ zeigt, was gebucht wird: wie viele bestätigt sind, welche fehlen
+   (werden ausgebucht mit Grund „Fehlt bei Inventur“) und welche gefunden wurden (werden hier
+   eingelagert, ausgebuchte wieder eingebucht). „Inventur buchen“ bucht alles zusammen.
+
+- Gezählt wird nur im Browser: Bis „Inventur buchen“ ist nichts gebucht; „Inventur
+  abbrechen“ oder Neuladen verwirft die Zählung.
+- Fehlt ein reserviertes Stück, bekommt seine Bestellung ein anderes oder wartet auf die
+  Fertigung; der Dialog sagt das vorher.
+- Kam während der Zählung ein Stück hinzu oder wurde eins weggebucht, bucht der Shop
+  nichts und sagt es. Die Liste ist dann aktuell, die Haken bleiben: neue Stücke prüfen und
+  noch einmal abschließen.
+- Kommissionierte und versendete Stücke gehören zu einer Bestellung; ein Scan sagt das und
+  nimmt sie nicht auf. Stücke aus einer Box im gezählten Fach auch nicht: Die Box hat ihre
+  eigene Inventur.
+- Inventur dürfen Inhaber und Mitarbeiter.
 
 ### Widerrufe
 

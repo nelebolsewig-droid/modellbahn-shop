@@ -1,7 +1,8 @@
 """SQLAlchemy Core tables of the ``inventory`` schema.
 
-They mirror migrations ``0005_inventory`` and ``0011_part_stock`` exactly, including
-constraint names; ``tests/integration/test_migrations.py`` compares both.
+They mirror migrations ``0005_inventory`` and ``0011_part_stock`` (with the later
+changes of ``0017`` and ``0018``) exactly, including constraint names;
+``tests/integration/test_migrations.py`` compares both.
 
 Units refer to catalogue variants with a ``RESTRICT`` key: a variant that has ever had a
 unit keeps existing (it can be deactivated). Allocations refer to the order, the
@@ -185,7 +186,7 @@ stock_ledger = Table(
     Column("occurred_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
         "reason IN ('label', 'put_away', 'move', 'allocate', 'release', 'pick', 'ship', "
-        "'scrap', 'undo')",
+        "'scrap', 'undo', 'restore', 'correct')",
         name="reason",
     ),
     CheckConstraint(

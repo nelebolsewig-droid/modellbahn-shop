@@ -11,9 +11,11 @@ A *unit* is one finished piece with its own code, from labelling to shipping:
                   ▲            │           │
                   └─ release ──┘           └─ release (order cancelled) ─▶ labeled
 
-Any unit that has not left the workshop can be scrapped. Every change of a unit returns
-a :class:`Movement`, which the journal keeps for good (``stock_ledger``); undoing a scan
-books the movements backwards instead of deleting them.
+Any unit that has not left the workshop can be scrapped; a scrapped one can be booked in
+again (restored) into a location. A unit labelled as the wrong variant is corrected as
+long as no order has touched it. Every change of a unit returns a :class:`Movement`,
+which the journal keeps for good (``stock_ledger``); undoing a scan books the movements
+backwards instead of deleting them.
 
 An *allocation* is one piece of an order line. It is backordered while no unit points to
 it, reserved while one is allocated to it, picked once that unit is taken from the shelf.
@@ -23,7 +25,7 @@ Every method that depends on time takes ``now``.
 """
 
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from typing import Final
@@ -33,7 +35,10 @@ from modellbahn.modules.inventory.domain.codes import SEGMENT
 from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
     InvalidUnitStateError,
+    StocktakeOutdatedError,
+    UnitNotCorrectableError,
     UnitsNotMovableError,
+    UnitsNotRestorableError,
     UnitsNotScrappableError,
 )
 from modellbahn.platform.events import JsonObject
@@ -45,6 +50,8 @@ UNITS_PER_BATCH_MAX: Final = 200
 """New pieces labelled at once."""
 UNITS_SELECTED_MAX: Final = 500
 """Pieces moved or scrapped at once: as many as one list shows."""
+UNITS_COUNTED_MAX: Final = 2000
+"""Pieces named in one stocktake of a location: confirmed, missing and found together."""
 UNDO_WINDOW_SECONDS: Final = 600
 
 
@@ -166,6 +173,8 @@ STORABLE: Final = frozenset({UnitStatus.LABELED, *ON_SHELF})
 
 BELONGS_TO_ORDER: Final = frozenset({UnitStatus.PICKED, UnitStatus.SHIPPED})
 """States in which a unit is being packed or has gone out for an order."""
+CORRECTABLE: Final = frozenset({UnitStatus.LABELED, UnitStatus.IN_STOCK})
+"""States in which a unit may turn out to be another variant: promised to nobody."""
 
 
 class ScrapReason(StrEnum):
@@ -190,6 +199,14 @@ class MovementReason(StrEnum):
     SHIP = "ship"
     SCRAP = "scrap"
     UNDO = "undo"
+    RESTORE = "restore"
+    """A scrapped unit is booked in again into a location (*Wieder einbuchen*)."""
+    CORRECT = "correct"
+    """The unit is another variant than its label said; it stays where it lies."""
+
+
+ORDER_STEPS: Final = frozenset({MovementReason.PICK, MovementReason.SHIP})
+"""Movements after which a unit has been part of an order's parcel."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,6 +222,9 @@ class Movement:
     to_location_id: UUID | None
     allocation_id: UUID | None
     """The allocation the unit served before or serves afterwards (allocate, release, pick)."""
+    previous_variant_id: UUID | None = None
+    """Set by a correction: the variant the unit was recorded as. The journal has no column
+    for it; the unit's entry before the correction carries that variant."""
 
 
 @dataclass(eq=False, kw_only=True)
@@ -322,6 +342,45 @@ class Unit:
         self.allocation_id = None
         return self._changed(MovementReason.SCRAP, before, allocation_id, now)
 
+    def restore(self, location: Location, now: datetime) -> Movement:
+        """Back into ``location`` after it was scrapped by mistake or turned up again
+        (*Wieder einbuchen*): free stock there, without the reason and note of the scrap."""
+        if not location.holds_goods:
+            raise InvalidUnitStateError(f"a {location.kind} holds no goods")
+        if self.status is not UnitStatus.SCRAPPED:
+            raise InvalidUnitStateError(f"a unit that is {self.status} cannot be restored")
+        before = self._state()
+        self.status = UnitStatus.IN_STOCK
+        self.location_id = location.id
+        self.scrap_note = ""
+        self.scrap_reason = None
+        return self._changed(MovementReason.RESTORE, before, None, now)
+
+    def is_correctable(self, history: Collection[MovementReason]) -> bool:
+        """Whether the unit may still turn out to be another variant: labelled or free in
+        stock, and never picked or shipped (``history``: the reasons of its journal)."""
+        return (
+            self.status in CORRECTABLE
+            and self.allocation_id is None
+            and not ORDER_STEPS.intersection(history)
+        )
+
+    def correct(
+        self, variant_id: UUID, now: datetime, *, history: Collection[MovementReason]
+    ) -> Movement:
+        """The label named the wrong variant: the piece is ``variant_id`` (*Ausführung
+        ändern*). It stays where it lies; its label has to be printed again, since the EAN
+        on it is the variant's. Refused for a unit an order has had its hands on."""
+        if not self.is_correctable(history):
+            raise UnitNotCorrectableError(self.code, self.status.value)
+        if variant_id == self.variant_id:
+            raise InvalidFieldError("variant_id", "unchanged", "the unit is of this variant")
+        before = self._state()
+        previous = self.variant_id
+        self.variant_id = variant_id
+        movement = self._changed(MovementReason.CORRECT, before, None, now)
+        return replace(movement, previous_variant_id=previous)
+
     def is_in(self, movement: Movement) -> bool:
         """True if the unit is still exactly where ``movement`` left it."""
         expected_allocation = movement.allocation_id if movement.to_status in TAKEN else None
@@ -411,6 +470,96 @@ def units_to_scrap(units: Sequence[Unit], *, missing: Collection[UUID] = ()) -> 
     if refused or missing:
         raise UnitsNotScrappableError(refused, missing)
     return [unit for unit in units if unit.status is not UnitStatus.SCRAPPED]
+
+
+def units_to_restore(
+    units: Sequence[Unit], location: Location, *, missing: Collection[UUID] = ()
+) -> list[Unit]:
+    """The scrapped units that go back into ``location`` when several are booked in again.
+
+    All or nothing: a unit that is not scrapped, or one that is ``missing``, refuses the
+    request. Units lying in ``location`` already (booked in by a request whose answer
+    got lost) are left out, so asking twice books nothing twice.
+    """
+    if not location.holds_goods:
+        raise InvalidUnitStateError(f"a {location.kind} holds no goods")
+    refused = {
+        unit.code: unit.status.value
+        for unit in units
+        if unit.status is not UnitStatus.SCRAPPED and unit.location_id != location.id
+    }
+    if refused or missing:
+        raise UnitsNotRestorableError(refused, missing)
+    return [unit for unit in units if unit.status is UnitStatus.SCRAPPED]
+
+
+@dataclass(frozen=True, slots=True)
+class Stocktake:
+    """What counting one location books (*Inventur*)."""
+
+    confirmed: list[Unit]
+    """Found where the journal says they lie: nothing to book."""
+    missing: list[Unit]
+    """Not found: they leave the stock as missing."""
+    found: list[Unit]
+    """Lying here, though the journal has them elsewhere, unbooked or scrapped: they are
+    put away (or booked in again) here."""
+
+
+def take_stock(
+    location: Location,
+    units: Sequence[Unit],
+    *,
+    present: Collection[UUID],
+    missing: Collection[UUID],
+    found: Collection[UUID],
+) -> Stocktake:
+    """Check a count of ``location`` against the journal and say what it books.
+
+    ``units`` are the units lying in the location now and every unit the count names.
+    The count lists every unit expected there as ``present`` or ``missing``; scanned units
+    from elsewhere are ``found``. If the location changed since the count began (a unit
+    named as there is gone, or a unit came that the count does not name) the whole count
+    is refused (:class:`StocktakeOutdatedError`); so is a found unit that belongs to an
+    order or does not exist (:class:`UnitsNotMovableError`). Missing units scrapped and
+    found units stored already (a request repeated after its answer got lost) are left
+    out, so a repeat books nothing twice.
+    """
+    if not location.holds_goods:
+        raise InvalidUnitStateError(f"a {location.kind} holds no goods")
+    lists = (set(present), set(missing), set(found))
+    if sum(map(len, lists)) != len(set().union(*lists)):
+        raise InvalidFieldError("unit_ids", "duplicate", "a unit is named in more than one list")
+    present_ids, missing_ids, found_ids = lists
+    known = {unit.id: unit for unit in units}
+    named = present_ids | missing_ids | found_ids
+
+    def here(unit: Unit) -> bool:
+        return unit.location_id == location.id
+
+    changed = {
+        unit.code: unit.status.value
+        for unit in units
+        if (unit.id in present_ids and not here(unit))
+        or (unit.id in missing_ids and not here(unit) and unit.status is not UnitStatus.SCRAPPED)
+        or (here(unit) and unit.id not in named)
+    }
+    vanished = (present_ids | missing_ids) - known.keys()
+    if changed or vanished:
+        raise StocktakeOutdatedError(changed, vanished)
+    coming = [unit for unit in units if unit.id in found_ids and not here(unit)]
+    refused = {
+        unit.code: unit.status.value
+        for unit in coming
+        if not unit.is_storable and unit.status is not UnitStatus.SCRAPPED
+    }
+    if refused or found_ids - known.keys():
+        raise UnitsNotMovableError(refused, found_ids - known.keys())
+    return Stocktake(
+        confirmed=[unit for unit in units if unit.id in present_ids],
+        missing=[unit for unit in units if unit.id in missing_ids and here(unit)],
+        found=coming,
+    )
 
 
 # --- Allocations ----------------------------------------------------------------------

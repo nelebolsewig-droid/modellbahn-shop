@@ -23,8 +23,11 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanIdReusedError,
     ScanNotFoundError,
     ScanNotUndoableError,
+    StocktakeOutdatedError,
+    UnitNotCorrectableError,
     UnitNotFoundError,
     UnitsNotMovableError,
+    UnitsNotRestorableError,
     UnitsNotScrappableError,
     VariantNotFoundError,
 )
@@ -69,6 +72,19 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     UnitsNotScrappableError: lambda error: ConflictError(
         f"Nothing was taken out; these units belong to an order or do not exist: {error}.",
         code="units_not_scrappable",
+    ),
+    UnitsNotRestorableError: lambda error: ConflictError(
+        f"Nothing was booked in; these units are not scrapped or do not exist: {error}.",
+        code="units_not_restorable",
+    ),
+    StocktakeOutdatedError: lambda error: ConflictError(
+        f"Nothing was booked; the location changed while it was counted: {error}.",
+        code="stocktake_outdated",
+    ),
+    UnitNotCorrectableError: lambda error: ConflictError(
+        "Only a labelled or free unit that was never picked for an order can change its "
+        f"variant: {error}.",
+        code="unit_not_correctable",
     ),
     VariantNotFoundError: lambda _: NotFoundError(
         "The variant does not exist.", code="variant_not_found"

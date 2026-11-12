@@ -8,11 +8,19 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, Dia
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { moveUnits, scrapUnits, useListLocations } from "@/lib/api/generated/admin-inventory/admin-inventory";
-import type { ScrapReason, UnitMoveOut, UnitScrapOut, UnitStatus } from "@/lib/api/generated/model";
+import { moveUnits, restoreUnits, scrapUnits, useListLocations } from "@/lib/api/generated/admin-inventory/admin-inventory";
+import type { ScrapReason, UnitScrapOut, UnitStatus } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { SCRAP_REASON_LABELS } from "@/lib/inventory/labels";
-import { moveMessage, onlyUnbooked, pathLabel, pieces, scrapMessage } from "@/lib/inventory/selection";
+import {
+  moveMessage,
+  onlyScrapped,
+  onlyUnbooked,
+  pathLabel,
+  pieces,
+  restoreMessage,
+  scrapMessage,
+} from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { SCRAP_REASONS } from "@/lib/validation/inventory";
 
@@ -40,9 +48,31 @@ type MoveUnitsDialogProps = {
   onMoved: (message: string) => void;
 };
 
+/** What the dialog does with the pieces: decided by their states. */
+const MOVE_TEXTS = {
+  restore: {
+    title: "wieder einbuchen",
+    description:
+      "Falsch ausgebucht oder doch wieder aufgetaucht: Sie kommen frei in den Bestand, Grund und Notiz des Ausbuchens entfallen. Wartet eine Bestellung, bekommt sie das Stück gleich.",
+    submit: "Hier einbuchen",
+  },
+  store: {
+    title: "einlagern",
+    description:
+      "Etikettiert, aber noch in keinem Platz. Danach sind sie im Shop lieferbar oder gehen gleich an eine wartende Bestellung.",
+    submit: "Hier einlagern",
+  },
+  move: {
+    title: "umlagern",
+    description: "Reservierte Stücke behalten ihre Bestellung; was schon dort liegt, bleibt, wie es ist.",
+    submit: "Hierher umlagern",
+  },
+} as const;
+
 /**
  * Pieces go to another place in one booking, without the scanner. Labelled pieces that
  * were never put away are stored (Einlagern): only then does the shop count them.
+ * Scrapped pieces are booked in again there (Wieder einbuchen).
  */
 export function MoveUnitsDialog({ units, trigger, onMoved }: MoveUnitsDialogProps) {
   const [open, setOpen] = useState(false);
@@ -52,16 +82,22 @@ export function MoveUnitsDialog({ units, trigger, onMoved }: MoveUnitsDialogProp
   const places = useListLocations({
     query: { enabled: open, select: (tree) => tree.items.filter((item) => item.holds_goods) },
   });
-  const storing = onlyUnbooked(units.map((unit) => unit.status));
-  const move = useMutation<UnitMoveOut, ApiProblem>({
-    mutationFn: () => moveUnits({ unit_ids: units.map((unit) => unit.id), location_code: target }),
-    onSuccess(result) {
+  const statuses = units.map((unit) => unit.status);
+  const storing = onlyUnbooked(statuses);
+  const mode = onlyScrapped(statuses) ? "restore" : storing ? "store" : "move";
+  const texts = MOVE_TEXTS[mode];
+  const move = useMutation<string, ApiProblem>({
+    async mutationFn() {
+      const body = { unit_ids: units.map((unit) => unit.id), location_code: target };
+      return mode === "restore" ? restoreMessage(await restoreUnits(body)) : moveMessage(await moveUnits(body), storing);
+    },
+    onSuccess(message) {
       refresh();
       setOpen(false);
-      onMoved(moveMessage(result, storing));
+      onMoved(message);
     },
     onError(error) {
-      if (error.code === "units_not_movable") {
+      if (error.code === "units_not_movable" || error.code === "units_not_restorable") {
         refresh();
       }
     },
@@ -86,13 +122,9 @@ export function MoveUnitsDialog({ units, trigger, onMoved }: MoveUnitsDialogProp
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogTitle>
-          {what(units)} {storing ? "einlagern" : "umlagern"}
+          {what(units)} {texts.title}
         </DialogTitle>
-        <DialogDescription>
-          {storing
-            ? "Etikettiert, aber noch in keinem Platz. Danach sind sie im Shop lieferbar oder gehen gleich an eine wartende Bestellung."
-            : "Reservierte Stücke behalten ihre Bestellung; was schon dort liegt, bleibt, wie es ist."}
-        </DialogDescription>
+        <DialogDescription>{texts.description}</DialogDescription>
         <form
           noValidate
           className="mt-6 space-y-4"
@@ -157,7 +189,7 @@ export function MoveUnitsDialog({ units, trigger, onMoved }: MoveUnitsDialogProp
               </Button>
             </DialogClose>
             <Button type="submit" size="sm" disabled={target === "" || move.isPending} aria-busy={move.isPending || undefined}>
-              {move.isPending ? "Wird gebucht …" : storing ? "Hier einlagern" : "Hierher umlagern"}
+              {move.isPending ? "Wird gebucht …" : texts.submit}
             </Button>
           </div>
         </form>

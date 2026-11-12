@@ -1377,12 +1377,15 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET · POST · PUT · DELETE | `/manufacturing/materials` … | Material (Bestand folgt) |
 | Lager | GET · POST | `/locations` | Lagerbaum |
 | | GET | `/locations/{code}` | Inhalt eines Platzes |
+| | POST | `/locations/{code}/stocktakes` | Inventur eines Platzes buchen: fehlende Stücke ausbuchen („Fehlt bei Inventur“), gefundene hier einlagern, alles oder nichts (Inhaber, Mitarbeiter; 409 `stocktake_outdated`, `units_not_movable`; ADR 0011) |
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
 | | GET | `/units` | Stücke eines Artikels (`variant_id`) und/oder in Zuständen (`status`, mehrfach), etwa alle unverbuchten |
 | | POST | `/units/moves` | mehrere Stücke in einen Platz ein- oder umlagern, alles oder nichts; schon dort liegende bleiben (409 `units_not_movable`) |
 | | POST | `/units/scraps` | mehrere Stücke mit Grund ausbuchen, alles oder nichts (Inhaber, Mitarbeiter; 409 `units_not_scrappable`) |
+| | POST | `/units/restores` | ausgebuchte Stücke in einen Platz wieder einbuchen, alles oder nichts (Inhaber, Mitarbeiter; 409 `units_not_restorable`) |
 | | GET | `/units/{code}` | Einheit mit Lebenslauf |
 | | POST | `/units/{code}/scrap` | eine Einheit mit Grund ausbuchen; ihre Bestellung bekommt eine andere |
+| | POST | `/units/{code}/correction` | Ausführung eines falsch etikettierten Stücks ändern, danach Etikett neu drucken (Inhaber, Mitarbeiter; 409 `unit_not_correctable`) |
 | | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` |
 | | GET | `/parts` · `/parts/{Teilenummer}` | Teilelager; ein Teil mit Boxen, Wareneingang und Journal (ADR 0018) |
 | | POST | `/parts/{Teilenummer}/count` | Gezählt: Menge in einem Platz setzen, das Journal bucht den Unterschied |
@@ -1392,7 +1395,7 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | POST | `/assemblies` | Bausätze aus Teilen montieren, Einheiten und Etiketten erzeugen |
 | | POST | `/movements` | Korrekturbuchung mit Begründung (für Teile: `/parts/{Teilenummer}/count`) |
 | | POST | `/labels` | Etiketten als PDF oder an den Etikettendrucker |
-| | POST · PATCH | `/stocktakes` … | Inventur |
+| | POST · PATCH | `/stocktakes` … | Inventur (umgesetzt je Platz: `/locations/{code}/stocktakes`) |
 | Verkauf | GET | `/orders` | Liste nach Zustand (`status`, mehrfach), Suche nach Nummer oder E-Mail (`q`), Cursor |
 | | GET | `/orders/{id}` | Bestellung mit Positionen, Adresse, Zahlungen und Stornohinweis; Zuteilungen ab Schritt 5 |
 | | GET | `/orders/{id}/pick-list` | Pickliste mit Lagerplätzen (ab Schritt 5) |

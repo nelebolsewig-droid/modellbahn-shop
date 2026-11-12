@@ -84,6 +84,8 @@ export const MOVEMENT_LABELS: Readonly<Record<MovementReason, string>> = {
   ship: "Versendet",
   scrap: "Ausgebucht",
   undo: "Rückgängig gemacht",
+  restore: "Wieder eingebucht",
+  correct: "Ausführung geändert",
 };
 
 /** What happened to printed parts, as the parts journal says it. */

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { NOT_SELECTABLE_REASONS, onlyUnbooked, pieces, SELECTABLE_STATUSES } from "@/lib/inventory/selection";
+import type { UnitStatus } from "@/lib/api/generated/model";
+import { NOT_SELECTABLE_REASONS, onlyScrapped, onlyUnbooked, pieces, SELECTABLE_STATUSES } from "@/lib/inventory/selection";
 
 import { MoveUnitsDialog, ScrapUnitsDialog, type SelectedUnit } from "./unit-dialogs";
 
@@ -12,6 +13,8 @@ export type UnitSelection<T extends SelectedUnit> = {
   selected: T[];
   /** The pieces shown that can be ticked. */
   selectable: T[];
+  /** Whether a piece in this state can be ticked here. */
+  canSelect: (unit: SelectedUnit) => boolean;
   isSelected: (id: string) => boolean;
   toggle: (id: string) => void;
   /** Ticks or unticks all of `units`. */
@@ -22,13 +25,19 @@ export type UnitSelection<T extends SelectedUnit> = {
 /**
  * Which pieces of a list are ticked. Only the pieces shown count: a piece that left the
  * list (moved on, filtered out) or can no longer be ticked drops out of the selection.
+ * `statuses`: the states that can be ticked here (scrapped pieces in their own list).
  */
-export function useUnitSelection<T extends SelectedUnit>(units: readonly T[]): UnitSelection<T> {
+export function useUnitSelection<T extends SelectedUnit>(
+  units: readonly T[],
+  statuses: ReadonlySet<UnitStatus> = SELECTABLE_STATUSES,
+): UnitSelection<T> {
   const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
-  const selectable = units.filter((unit) => SELECTABLE_STATUSES.has(unit.status));
+  const canSelect = (unit: SelectedUnit) => statuses.has(unit.status);
+  const selectable = units.filter(canSelect);
   return {
     selected: selectable.filter((unit) => ticked.has(unit.id)),
     selectable,
+    canSelect,
     isSelected: (id) => ticked.has(id),
     toggle(id) {
       setTicked((current) => {
@@ -60,7 +69,7 @@ const CHECKBOX = "size-4 shrink-0 accent-[var(--selected)] disabled:cursor-not-a
 
 /** The box in front of one piece; a piece that cannot be ticked says why. */
 export function UnitCheckbox<T extends SelectedUnit>({ unit, selection }: { unit: T; selection: UnitSelection<T> }) {
-  if (!SELECTABLE_STATUSES.has(unit.status)) {
+  if (!selection.canSelect(unit)) {
     const reason = NOT_SELECTABLE_REASONS[unit.status] ?? "";
     return <input type="checkbox" disabled title={reason} aria-label={`${unit.display_code}: ${reason}`} className={CHECKBOX} />;
   }
@@ -88,7 +97,7 @@ export function SelectAllCheckbox<T extends SelectedUnit>({
   className?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
-  const candidates = units.filter((unit) => SELECTABLE_STATUSES.has(unit.status));
+  const candidates = units.filter(selection.canSelect);
   const count = candidates.filter((unit) => selection.isSelected(unit.id)).length;
   const all = candidates.length > 0 && count === candidates.length;
   useEffect(() => {
@@ -113,12 +122,16 @@ export function SelectAllCheckbox<T extends SelectedUnit>({
 
 /**
  * The bar under a list once pieces are ticked: move or store them, or take them out of
- * the stock. What was booked stays readable after the bar is gone.
+ * the stock; scrapped ones are booked in again. What was booked stays readable after the
+ * bar is gone. `mayScrap`: owner and staff, who also book scrapped pieces in again.
  */
 export function UnitSelectionBar<T extends SelectedUnit>({ selection, mayScrap }: { selection: UnitSelection<T>; mayScrap: boolean }) {
   const [message, setMessage] = useState("");
   const { selected } = selection;
-  const storing = onlyUnbooked(selected.map((unit) => unit.status));
+  const statuses = selected.map((unit) => unit.status);
+  const storing = onlyUnbooked(statuses);
+  const restoring = onlyScrapped(statuses);
+  const mixed = !restoring && statuses.includes("scrapped");
   const done = (text: string) => {
     selection.clear();
     setMessage(text);
@@ -138,16 +151,18 @@ export function UnitSelectionBar<T extends SelectedUnit>({ selection, mayScrap }
             {pieces(selected.length)} ausgewählt
           </p>
           <div className="flex flex-wrap gap-2">
-            <MoveUnitsDialog
-              units={selected}
-              onMoved={done}
-              trigger={
-                <Button type="button" size="sm">
-                  {storing ? "Einlagern …" : "Umlagern …"}
-                </Button>
-              }
-            />
-            {mayScrap ? (
+            {(restoring && mayScrap) || !(restoring || mixed) ? (
+              <MoveUnitsDialog
+                units={selected}
+                onMoved={done}
+                trigger={
+                  <Button type="button" size="sm">
+                    {restoring ? "Wieder einbuchen …" : storing ? "Einlagern …" : "Umlagern …"}
+                  </Button>
+                }
+              />
+            ) : null}
+            {mayScrap && !restoring && !mixed ? (
               <ScrapUnitsDialog
                 units={selected}
                 onScrapped={done}

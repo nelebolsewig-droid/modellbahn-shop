@@ -1,16 +1,20 @@
 /*
  * Several pieces ticked in a list and booked together: moved into one place, stored for
- * the first time, or taken out of the stock (backend: UnitService.move_units and
- * scrap_units). Picked, shipped and scrapped pieces cannot be ticked; the backend refuses
- * them as well.
+ * the first time, taken out of the stock, or booked in again (backend: UnitService.
+ * move_units, scrap_units and restore_units). Picked and shipped pieces cannot be ticked;
+ * scrapped ones only in the list of scrapped pieces, to book them in again. The backend
+ * refuses the others as well.
  */
 
 import type { Route } from "next";
 
-import type { UnitMoveOut, UnitScrapOut, UnitStatus } from "@/lib/api/generated/model";
+import type { UnitMoveOut, UnitRestoreOut, UnitScrapOut, UnitStatus } from "@/lib/api/generated/model";
 
 /** Labelled, in the store or reserved there: such a piece can go to a place or out. */
 export const SELECTABLE_STATUSES: ReadonlySet<UnitStatus> = new Set(["labeled", "in_stock", "allocated"]);
+
+/** Scrapped: such a piece can only be booked in again (Wieder einbuchen). */
+export const RESTORABLE_STATUSES: ReadonlySet<UnitStatus> = new Set(["scrapped"]);
 
 /** Why a piece cannot be ticked, as the title of its disabled checkbox. */
 export const NOT_SELECTABLE_REASONS: Readonly<Partial<Record<UnitStatus, string>>> = {
@@ -44,6 +48,24 @@ export function pathLabel(path: string): string {
 /** Only labelled pieces, never put away: moving them stores them (Einlagern). */
 export function onlyUnbooked(statuses: readonly UnitStatus[]): boolean {
   return statuses.length > 0 && statuses.every((status) => status === "labeled");
+}
+
+/** Only scrapped pieces: moving them books them in again (Wieder einbuchen). */
+export function onlyScrapped(statuses: readonly UnitStatus[]): boolean {
+  return statuses.length > 0 && statuses.every((status) => status === "scrapped");
+}
+
+/** „2 Stücke in R01-F02 wieder eingebucht, 1 davon gleich für eine wartende Bestellung reserviert.“ */
+export function restoreMessage(result: UnitRestoreOut): string {
+  const code = result.location.code;
+  const there = result.already_there;
+  if (result.restored === 0) {
+    return `Nichts gebucht: ${there === 1 ? "Das Stück lag" : "Alle lagen"} schon in ${code}.`;
+  }
+  const skipped = there > 0 ? `, ${there} ${there === 1 ? "lag" : "lagen"} schon dort` : "";
+  const reserved = result.reserved;
+  const waiting = reserved > 0 ? `, ${reserved} davon gleich für ${reserved === 1 ? "eine wartende Bestellung" : "wartende Bestellungen"} reserviert` : "";
+  return `${pieces(result.restored)} in ${code} wieder eingebucht${skipped}${waiting}.`;
 }
 
 /** „3 Stücke nach R01-F02 umgelagert, 1 lag schon dort.“ */
