@@ -2890,6 +2890,17 @@
               }
             ]
           },
+          "from_variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of a correction: the variant the unit was recorded as; else empty."
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2960,6 +2971,17 @@
           },
           "to_status": {
             "$ref": "#/components/schemas/UnitStatus"
+          },
+          "to_variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of a correction: the variant the unit is; else empty."
           }
         },
         "required": [
@@ -2969,6 +2991,8 @@
           "to_status",
           "from_location_code",
           "to_location_code",
+          "from_variant",
+          "to_variant",
           "order_number",
           "staff_name",
           "scan_id",
@@ -4345,7 +4369,9 @@
           "pick",
           "ship",
           "scrap",
-          "undo"
+          "undo",
+          "restore",
+          "correct"
         ],
         "title": "MovementReason",
         "type": "string"
@@ -9543,6 +9569,80 @@
         "title": "StockPartOut",
         "type": "object"
       },
+      "StocktakeIn": {
+        "additionalProperties": false,
+        "description": "A location as counted: every unit expected there is present or missing.",
+        "properties": {
+          "found_unit_ids": {
+            "description": "Found there, though booked elsewhere, unbooked or scrapped: put away there (scrapped ones booked in again).",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Found Unit Ids",
+            "type": "array"
+          },
+          "missing_unit_ids": {
+            "description": "Expected there, not found: scrapped as missing.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Missing Unit Ids",
+            "type": "array"
+          },
+          "present_unit_ids": {
+            "description": "Expected there and found there.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Present Unit Ids",
+            "type": "array"
+          }
+        },
+        "title": "StocktakeIn",
+        "type": "object"
+      },
+      "StocktakeOut": {
+        "properties": {
+          "confirmed": {
+            "description": "Units found where the journal has them.",
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "found": {
+            "description": "Units put away there now.",
+            "title": "Found",
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationOut"
+          },
+          "reserved": {
+            "description": "Of the found units, those that went straight to a waiting order.",
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "scrapped": {
+            "description": "Missing units scrapped now.",
+            "title": "Scrapped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "confirmed",
+          "scrapped",
+          "found",
+          "reserved",
+          "location"
+        ],
+        "title": "StocktakeOut",
+        "type": "object"
+      },
       "StoreGalleryItemOut": {
         "properties": {
           "alt_text": {
@@ -10099,6 +10199,22 @@
         "title": "UnitBatchOut",
         "type": "object"
       },
+      "UnitCorrectionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "variant_id": {
+            "description": "The variant the unit really is.",
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id"
+        ],
+        "title": "UnitCorrectionIn",
+        "type": "object"
+      },
       "UnitDetailsOut": {
         "properties": {
           "code": {
@@ -10435,6 +10551,67 @@
           "updated_at"
         ],
         "title": "UnitOut",
+        "type": "object"
+      },
+      "UnitRestoreIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_code": {
+            "description": "Where they go back: a compartment, box or staging area.",
+            "examples": [
+              "R01-F02"
+            ],
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
+          },
+          "unit_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "unit_ids",
+          "location_code"
+        ],
+        "title": "UnitRestoreIn",
+        "type": "object"
+      },
+      "UnitRestoreOut": {
+        "properties": {
+          "already_there": {
+            "description": "Units that lay there already; left alone.",
+            "title": "Already There",
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationOut"
+          },
+          "reserved": {
+            "description": "Of the restored units, those that went straight to a waiting order.",
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "restored": {
+            "description": "Scrapped units booked in again there.",
+            "title": "Restored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "restored",
+          "already_there",
+          "reserved",
+          "location"
+        ],
+        "title": "UnitRestoreOut",
         "type": "object"
       },
       "UnitScrapOut": {
@@ -13557,6 +13734,124 @@
         ]
       }
     },
+    "/api/v1/admin/inventory/locations/{code}/stocktakes": {
+      "post": {
+        "description": "Every unit lying in the location is named as present or missing; units scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing units are scrapped as missing (an order they were reserved for gets another unit or waits), found ones are put away there. If the location changed during the count, nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated request books nothing twice.",
+        "operationId": "takeStock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StocktakeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocktakeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `stocktake_outdated`, `units_not_movable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Book the count of a location: missing units out, found units in, all or none",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
     "/api/v1/admin/inventory/orders/{order_id}/allocation": {
       "post": {
         "operationId": "allocateOrder",
@@ -14743,6 +15038,113 @@
         ]
       }
     },
+    "/api/v1/admin/inventory/units/restores": {
+      "post": {
+        "description": "Scrapped by mistake or turned up again: the units are free stock there, without reason and note of the scrap, and go to waiting orders like units put away. Units lying there already are left alone; a unit that is not scrapped, or an unknown one, refuses the whole request and `detail` names them.",
+        "operationId": "restoreUnits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitRestoreIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitRestoreOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `units_not_restorable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Book scrapped units in again into one location, all or none",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
     "/api/v1/admin/inventory/units/scraps": {
       "post": {
         "description": "Booked like scrapping one unit. Units already out are left alone; a unit picked or shipped for an order, or an unknown one, refuses the whole request and `detail` names them.",
@@ -14922,6 +15324,124 @@
           }
         ],
         "summary": "A unit with what it is, where it lies and its whole history",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/{code}/correction": {
+      "post": {
+        "description": "Only for a labelled or free unit that was never picked for an order. It stays where it lies; the journal entry carries the new variant, the entry before it the old one. The EAN on the label is the variant's, so the label must be printed again.",
+        "operationId": "correctUnit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitCorrectionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `unit_not_found`, `variant_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `unit_not_correctable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The unit is another variant than its label says: change it (reprint the label)",
         "tags": [
           "admin-inventory"
         ]

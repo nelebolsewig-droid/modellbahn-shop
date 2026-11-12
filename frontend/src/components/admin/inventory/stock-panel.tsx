@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 
@@ -37,7 +38,8 @@ function matches(line: StockLineOut, query: string): boolean {
 
 /**
  * Stock per article, live: what is free, promised, packed, waiting or still to make.
- * `mayManage`: owner and staff label new pieces right from a line.
+ * `mayManage`: owner and staff label new pieces right from a line and open its Modell in
+ * the Katalog.
  */
 export function StockPanel({ mayManage }: { mayManage: boolean }) {
   const stock = useListStock();
@@ -149,6 +151,11 @@ function StockRow({ line, mayManage }: { line: StockLineOut; mayManage: boolean 
           <Link href={unitListHref({ variantId: line.variant_id })} className="font-sans text-accent hover:underline">
             Stücke<span className="sr-only"> von {title}</span>
           </Link>
+          {variant && mayManage ? (
+            <Link href={`/admin/katalog/${variant.product_id}` as Route} className="font-sans text-accent hover:underline">
+              Modell<span className="sr-only"> {title} im Katalog</span>
+            </Link>
+          ) : null}
         </p>
       </div>
       <div className="flex items-center gap-3">

@@ -31,9 +31,11 @@ from modellbahn.modules.inventory.application.units import (
     AssembledPart,
     HistoryEntry,
     StockLine,
+    StocktakeResult,
     UnitDetails,
     UnitList,
     UnitMove,
+    UnitRestore,
     UnitScrap,
     UnitView,
 )
@@ -42,6 +44,7 @@ from modellbahn.modules.inventory.domain.codes import format_unit_code
 from modellbahn.modules.inventory.domain.model import (
     LOCATION_NAME_MAX_LENGTH,
     SCRAP_NOTE_MAX_LENGTH,
+    UNITS_COUNTED_MAX,
     UNITS_PER_BATCH_MAX,
     UNITS_SELECTED_MAX,
     Location,
@@ -378,6 +381,12 @@ class HistoryEntryOut(BaseModel):
     to_status: UnitStatus
     from_location_code: str | None
     to_location_code: str | None
+    from_variant: VariantRefOut | None = Field(
+        description="Of a correction: the variant the unit was recorded as; else empty."
+    )
+    to_variant: VariantRefOut | None = Field(
+        description="Of a correction: the variant the unit is; else empty."
+    )
     order_number: str | None
     staff_name: str | None
     scan_id: UUID | None
@@ -397,6 +406,10 @@ class HistoryEntryOut(BaseModel):
             to_status=entry.to_status,
             from_location_code=item.from_location.code if item.from_location else None,
             to_location_code=item.to_location.code if item.to_location else None,
+            from_variant=VariantRefOut.from_variant(item.from_variant)
+            if item.from_variant
+            else None,
+            to_variant=VariantRefOut.from_variant(item.to_variant) if item.to_variant else None,
             order_number=item.order_number,
             staff_name=item.staff_name,
             scan_id=entry.scan_id,
@@ -487,6 +500,79 @@ class UnitMoveOut(BaseModel):
             already_there=move.already_there,
             reserved=move.reserved,
             location=LocationOut.from_location(move.location),
+        )
+
+
+class UnitRestoreIn(_Request):
+    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_SELECTED_MAX)
+    location_code: str = Field(
+        min_length=1,
+        max_length=44,
+        examples=["R01-F02"],
+        description="Where they go back: a compartment, box or staging area.",
+    )
+
+
+class UnitRestoreOut(BaseModel):
+    restored: int = Field(description="Scrapped units booked in again there.")
+    already_there: int = Field(description="Units that lay there already; left alone.")
+    reserved: int = Field(
+        description="Of the restored units, those that went straight to a waiting order."
+    )
+    location: LocationOut
+
+    @classmethod
+    def from_restore(cls, restore: UnitRestore) -> Self:
+        return cls(
+            restored=restore.restored,
+            already_there=restore.already_there,
+            reserved=restore.reserved,
+            location=LocationOut.from_location(restore.location),
+        )
+
+
+class UnitCorrectionIn(_Request):
+    variant_id: UUID = Field(description="The variant the unit really is.")
+
+
+class StocktakeIn(_Request):
+    """A location as counted: every unit expected there is present or missing."""
+
+    present_unit_ids: list[UUID] = Field(
+        default_factory=list,
+        max_length=UNITS_COUNTED_MAX,
+        description="Expected there and found there.",
+    )
+    missing_unit_ids: list[UUID] = Field(
+        default_factory=list,
+        max_length=UNITS_COUNTED_MAX,
+        description="Expected there, not found: scrapped as missing.",
+    )
+    found_unit_ids: list[UUID] = Field(
+        default_factory=list,
+        max_length=UNITS_COUNTED_MAX,
+        description="Found there, though booked elsewhere, unbooked or scrapped: put away "
+        "there (scrapped ones booked in again).",
+    )
+
+
+class StocktakeOut(BaseModel):
+    confirmed: int = Field(description="Units found where the journal has them.")
+    scrapped: int = Field(description="Missing units scrapped now.")
+    found: int = Field(description="Units put away there now.")
+    reserved: int = Field(
+        description="Of the found units, those that went straight to a waiting order."
+    )
+    location: LocationOut
+
+    @classmethod
+    def from_result(cls, result: StocktakeResult) -> Self:
+        return cls(
+            confirmed=result.confirmed,
+            scrapped=result.scrapped,
+            found=result.found,
+            reserved=result.reserved,
+            location=LocationOut.from_location(result.location),
         )
 
 

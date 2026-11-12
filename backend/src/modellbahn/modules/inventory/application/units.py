@@ -1,4 +1,5 @@
-"""Use cases of units: label, list, move, look one up with its history, scrap, count."""
+"""Use cases of units: label, list, move, look one up with its history, scrap, count,
+book in again, correct the variant, and take stock of a location."""
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from modellbahn.modules.inventory.domain.errors import (
 )
 from modellbahn.modules.inventory.domain.events import AllocationBackordered
 from modellbahn.modules.inventory.domain.model import (
+    UNITS_COUNTED_MAX,
     UNITS_PER_BATCH_MAX,
     UNITS_SELECTED_MAX,
     Allocation,
@@ -28,10 +30,13 @@ from modellbahn.modules.inventory.domain.model import (
     LedgerEntry,
     Location,
     Movement,
+    MovementReason,
     ScrapReason,
     Unit,
     UnitStatus,
+    take_stock,
     units_to_move,
+    units_to_restore,
     units_to_scrap,
 )
 from modellbahn.modules.manufacturing.contracts.parts import PartInfo
@@ -59,6 +64,10 @@ class HistoryEntry:
     to_location: Location | None
     staff_name: str | None
     order_number: str | None
+    from_variant: SaleVariant | None = None
+    """Of a correction: what the unit was recorded as (the variant of the entry before)."""
+    to_variant: SaleVariant | None = None
+    """Of a correction: what the unit is."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +108,33 @@ class UnitScrap:
     scrapped: int
     already_scrapped: int
     """Units that were out already and were left alone."""
+
+
+@dataclass(frozen=True, slots=True)
+class UnitRestore:
+    """What booking several scrapped units in again did."""
+
+    location: Location
+    restored: int
+    already_there: int
+    """Units that lay there already (booked in by an earlier request) and were left alone."""
+    reserved: int
+    """Of the restored ones, those that went straight to a waiting order."""
+
+
+@dataclass(frozen=True, slots=True)
+class StocktakeResult:
+    """What booking the count of one location did."""
+
+    location: Location
+    confirmed: int
+    """Units found where the journal has them."""
+    scrapped: int
+    """Missing units that left the stock now."""
+    found: int
+    """Units put away here now: from elsewhere, unbooked, or booked in again."""
+    reserved: int
+    """Of the found ones, those that went straight to a waiting order."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,6 +290,10 @@ class UnitService:
                 {entry.allocation_id for entry in entries if entry.allocation_id is not None}
             )
             numbers = await uow.orders.numbers({a.order_id for a in allocations.values()})
+            corrections = _corrections(entries)
+            variants = await uow.catalog.variants(
+                {variant_id for pair in corrections.values() for variant_id in pair}
+            )
             taken = await uow.part_ledger.for_unit(unit.id)
             part_infos = await uow.manufacturing.parts({entry.part_id for entry in taken})
             locations |= await uow.locations.by_ids(
@@ -268,8 +308,9 @@ class UnitService:
             for entry in taken
         ]
         history = []
-        for entry in entries:
+        for index, entry in enumerate(entries):
             allocation = allocations.get(entry.allocation_id) if entry.allocation_id else None
+            before, after = corrections.get(index, (None, None))
             history.append(
                 HistoryEntry(
                     entry=entry,
@@ -281,6 +322,8 @@ class UnitService:
                     else None,
                     staff_name=names.get(entry.staff_id) if entry.staff_id else None,
                     order_number=numbers.get(allocation.order_id) if allocation else None,
+                    from_variant=variants.get(before) if before else None,
+                    to_variant=variants.get(after) if after else None,
                 )
             )
         return UnitDetails(view=view, history=history, parts=parts)
@@ -341,6 +384,121 @@ class UnitService:
             await _allocate_again(uow, journal, freed)
             await uow.commit()
         return UnitScrap(scrapped=len(leaving), already_scrapped=len(units) - len(leaving))
+
+    async def restore_units(
+        self, unit_ids: Sequence[UUID], *, location_code: str, staff_id: UUID | None
+    ) -> UnitRestore:
+        """Book scrapped units in again into one location, all or nothing (*Wieder
+        einbuchen*): scrapped by mistake, or turned up after all.
+
+        They are free stock there without the reason and note of the scrap, and each goes
+        to the order waiting longest for its variant, as a piece put away does. Units lying
+        there already are left alone, so sending the same request again is harmless; a
+        unit that is not scrapped refuses the request (:class:`UnitsNotRestorableError`).
+        """
+        wanted = list(dict.fromkeys(unit_ids))
+        if not 1 <= len(wanted) <= UNITS_SELECTED_MAX:
+            raise InvalidFieldError(
+                "unit_ids", "out_of_range", f"between 1 and {UNITS_SELECTED_MAX} units"
+            )
+        async with self._uow() as uow:
+            location = await resolve_location(uow, location_code, "location_code")
+            units = await uow.units.lock(wanted)
+            missing = set(wanted) - {unit.id for unit in units}
+            returning = units_to_restore(units, location, missing=missing)
+            journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
+            reserved = 0
+            for unit in returning:
+                reserved += await book_in_again(uow, journal, unit, location) is not None
+            await uow.commit()
+        return UnitRestore(
+            location=location,
+            restored=len(returning),
+            already_there=len(units) - len(returning),
+            reserved=reserved,
+        )
+
+    async def correct(self, code: str, *, variant_id: UUID, staff_id: UUID | None) -> UnitView:
+        """The unit is another variant than its label says (*Ausführung ändern*).
+
+        Only a labelled or free unit that no order ever had (never picked or shipped) may
+        change (:class:`UnitNotCorrectableError`). It stays where it lies; a free one goes
+        to an order waiting for its new variant. The journal entry carries the new
+        variant; the entry before it the old one. Its label must be printed again.
+        """
+        async with self._uow() as uow:
+            unit = await uow.units.get_by_code(normalize_unit_code(code), for_update=True)
+            if unit is None:
+                raise UnitNotFoundError
+            if variant_id not in await uow.catalog.variants([variant_id]):
+                raise VariantNotFoundError
+            history = [entry.reason for entry in await uow.ledger.for_unit(unit.id)]
+            journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
+            await journal.book(unit, unit.correct(variant_id, journal.now, history=history))
+            await Allocator(uow, journal).serve_backorder(unit)
+            await uow.commit()
+            (view,) = await unit_views(uow, [unit])
+            return view
+
+    async def take_stock(
+        self,
+        location_code: str,
+        *,
+        present: Collection[UUID],
+        missing: Collection[UUID],
+        found: Collection[UUID],
+        staff_id: UUID | None,
+    ) -> StocktakeResult:
+        """Book the count of one location in one go, all or nothing (*Inventur*).
+
+        Missing units leave the stock as missing (an order they were reserved for gets
+        another unit or waits for the workshop); found ones are put away here like any
+        moved unit, scrapped ones booked in again. A count of a location that changed
+        meanwhile is refused (:class:`StocktakeOutdatedError`), so no unit put there
+        during the count is taken for missing. A repeated request books nothing twice.
+        """
+        named = set(present) | set(missing) | set(found)
+        if len(named) > UNITS_COUNTED_MAX:
+            raise InvalidFieldError(
+                "unit_ids", "out_of_range", f"at most {UNITS_COUNTED_MAX} units"
+            )
+        async with self._uow() as uow:
+            location = await resolve_location(uow, location_code, "code")
+            lying = await uow.units.in_locations([location.id])
+            units = await uow.units.lock(named | {unit.id for unit in lying})
+            locked = {unit.id for unit in units}
+            # Put there between the first look and the locks: the count cannot name them.
+            arrived = [
+                unit
+                for unit in await uow.units.in_locations([location.id])
+                if unit.id not in locked
+            ]
+            count = take_stock(
+                location, [*units, *arrived], present=present, missing=missing, found=found
+            )
+            journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
+            reserved = 0
+            for unit in count.found:
+                if unit.status is UnitStatus.SCRAPPED:
+                    allocation = await book_in_again(uow, journal, unit, location)
+                else:
+                    _, allocation = await put_away(uow, journal, unit, location)
+                reserved += allocation is not None
+            freed: list[UUID | None] = []
+            for unit in count.missing:
+                movement = unit.scrap(f"Inventur {location.code}", journal.now, ScrapReason.MISSING)
+                await journal.book(unit, movement)
+                freed.append(movement.allocation_id)
+            # Only now: none of the missing units may stand in for another one.
+            await _allocate_again(uow, journal, freed)
+            await uow.commit()
+        return StocktakeResult(
+            location=location,
+            confirmed=len(count.confirmed),
+            scrapped=len(count.missing),
+            found=len(count.found),
+            reserved=reserved,
+        )
 
     async def stock(self) -> list[StockLine]:
         """Every variant that has units or backorders, by product name."""
@@ -440,6 +598,29 @@ async def put_away(
     await journal.book(unit, movement)
     allocation = await Allocator(uow, journal).serve_backorder(unit)
     return movement, allocation
+
+
+async def book_in_again(
+    uow: InventoryUnitOfWork, journal: Journal, unit: Unit, location: Location
+) -> Allocation | None:
+    """Book a scrapped ``unit`` in again into ``location``; like a unit put away, it goes
+    to the order waiting longest for its variant, whose allocation is returned."""
+    journal.know(location)
+    await journal.book(unit, unit.restore(location, journal.now))
+    return await Allocator(uow, journal).serve_backorder(unit)
+
+
+def _corrections(entries: Sequence[LedgerEntry]) -> dict[int, tuple[UUID, UUID]]:
+    """The corrections in a unit's history by position: the variant before and after.
+
+    The journal keeps the variant of the unit with every entry, so the variant before a
+    correction is the one of the entry preceding it.
+    """
+    corrections: dict[int, tuple[UUID, UUID]] = {}
+    for index, entry in enumerate(entries):
+        if entry.reason is MovementReason.CORRECT and index > 0:
+            corrections[index] = (entries[index - 1].variant_id, entry.variant_id)
+    return corrections
 
 
 async def _fresh_codes(uow: InventoryUnitOfWork, quantity: int) -> list[str]:

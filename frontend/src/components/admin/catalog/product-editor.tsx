@@ -14,13 +14,14 @@ import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { archiveProduct, publishProduct } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { getListStockQueryKey } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { ProductOut } from "@/lib/api/generated/model";
 import { formatProductNumber } from "@/lib/catalog/format";
 import { PRODUCT_STATUS_LABELS, PUBLISH_BLOCKER_LABELS, PUBLISH_RULES } from "@/lib/catalog/labels";
 import { ifMatch } from "@/lib/catalog/versions";
 import { formatEventTime } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
-import { ADMIN_EVENTS_URL, assetIdOf, MEDIA_EVENT_TYPES } from "@/lib/realtime/events";
+import { ADMIN_EVENTS_URL, assetIdOf, INVENTORY_EVENT_TYPES, MEDIA_EVENT_TYPES, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 
 import { DeleteProduct } from "./delete-product";
@@ -28,6 +29,7 @@ import { STATUS_TONES } from "./product-list";
 import { ProductDetailsForm } from "./product-details-form";
 import { ProductGallery } from "./product-gallery";
 import { ProductScales } from "./product-scales";
+import { ProductStockPanel } from "./product-stock-panel";
 import {
   isVersionConflict,
   productQueryKey,
@@ -46,15 +48,21 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
   const references = useReferences();
   const categories = useCategories();
   const mediaIds = new Set(product.data?.media.map((item) => item.asset_id) ?? []);
+  const variantIds = new Set(product.data?.scales.flatMap((scale) => scale.variants.map((variant) => variant.id)) ?? []);
 
-  // A processed photo swaps its placeholder for the thumbnail without reloading.
+  // A processed photo swaps its placeholder for the thumbnail without reloading; the
+  // stock of the Ausführungen follows the store.
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
-    eventTypes: MEDIA_EVENT_TYPES,
+    eventTypes: [...MEDIA_EVENT_TYPES, ...INVENTORY_EVENT_TYPES],
     onMessage(data) {
       const assetId = assetIdOf(data);
       if (assetId !== null && mediaIds.has(assetId)) {
         void queryClient.invalidateQueries({ queryKey: productQueryKey(productId) });
+      }
+      const stock = stockEventOf(data);
+      if (stock?.variantId && variantIds.has(stock.variantId)) {
+        void queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
       }
     },
     onClosed: onStreamClosed,
@@ -90,6 +98,7 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
         </div>
         <div className="space-y-6">
           <PublishPanel product={data} />
+          <ProductStockPanel product={data} references={references.data} />
           <ProductEbayPanel product={data} />
         </div>
       </div>

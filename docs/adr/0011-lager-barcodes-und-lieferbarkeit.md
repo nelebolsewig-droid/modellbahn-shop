@@ -258,3 +258,57 @@ nicht heran. Und Stücke ließen sich nur einzeln ausbuchen.
   „Umlagern …“, mit demselben Dialog und Endpunkt.
 - **Einheiten erfassen ohne Platz** sagt jetzt, dass die Stücke bis zum Einlagern im Shop
   nicht lieferbar sind.
+
+## Nachtrag 12.11.2026: Wieder einbuchen, Ausführung korrigieren, Inventur je Platz
+
+Ausbuchen war eine Einbahnstraße, ein falsch etikettiertes Stück ließ sich nur ausbuchen und
+neu erfassen (mit neuem Code), und gezählt wurde ein Platz, indem man die fehlenden Stücke
+in der Liste suchte.
+
+- **Wieder einbuchen** (`POST /units/restores`, Stücke und Platz): ein ausgebuchtes Stück
+  liegt danach frei im gewählten Platz. Grund und Notiz des Ausbuchens entfallen; das
+  Journal bucht `restore` (von *ausgebucht* ohne Platz nach *im Lager*). Wie beim Einlagern
+  bekommt die älteste wartende Bestellung das Stück. Eine Bestellung, der es vor dem
+  Ausbuchen gehörte, hat längst ein anderes oder wartet; sie bekommt es nicht bevorzugt
+  zurück. Inhaber und Mitarbeiter, wie das Ausbuchen. Alles oder nichts, Stücke nach
+  Kennung gesperrt; was schon im Zielplatz liegt, bleibt unberührt (409
+  `units_not_restorable` für ein Stück, das nicht ausgebucht ist).
+- **Ausführung korrigieren** (`POST /units/{code}/correction`): nur für unverbuchte oder
+  freie Stücke, die nie kommissioniert wurden (kein `pick` im Journal), sonst 409
+  `unit_not_correctable`. Ein Stück, das einmal in einem Paket lag, bleibt, was die
+  Bestellung verkauft hat. Das Stück bleibt, wo es liegt; ein freies geht an eine
+  Bestellung, die auf die neue Ausführung wartet.
+  - **Journal:** Das Journal bekommt keine Spalte für die alte Ausführung. Jede Buchung
+    trägt die Ausführung des Stücks zu ihrer Zeit (`variant_id`); die Buchung `correct`
+    trägt die neue, die Buchung davor die alte. Der Lebenslauf liest beide daraus
+    (`from_variant`, `to_variant`). Eine Spalte, die nur eine Art Buchung füllt, hätte nichts
+    gespeichert, was nicht schon dasteht.
+  - **Ereignisse:** `inventory.stock.changed` geht für beide Ausführungen hinaus, damit
+    Stellwerk und eBay beide neu zählen.
+  - **Etikett:** Die EAN darauf gehört zur Ausführung, der Code des Stücks bleibt. Der
+    Dialog endet deshalb mit „Etikett neu drucken“.
+- **Inventur je Platz** (`POST /locations/{code}/stocktakes`): Das Stellwerk listet die
+  Stücke, die laut Journal im Platz selbst liegen (nicht in Plätzen darunter). Gezählt wird
+  nur im Browser: abhaken oder scannen; ein Stück, das anderswo gebucht, unverbucht oder
+  ausgebucht ist, wird als *gefunden* notiert; kommissionierte und versendete nicht, und
+  auch keine aus einem Platz darin (eine Box im Fach wird für sich gezählt).
+  - **Anfrage:** Sie nennt jedes erwartete Stück als vorhanden oder fehlend und die
+    gefundenen. Fehlende werden ausgebucht (Grund `missing`, Notiz „Inventur R01-F01“; ihre
+    Bestellung bekommt ein anderes Stück oder wartet), gefundene wie beim Umlagern
+    eingelagert, ausgebuchte unter ihnen wieder eingebucht. Eine Transaktion; alle
+    beteiligten Stücke werden nach Kennung gesperrt.
+  - **Warum auch die fehlenden in der Anfrage stehen:** Der Server prüft, dass der Platz
+    noch so ist, wie gezählt wurde. Kam während der Zählung ein Stück hinzu (jemand lagert
+    gerade ein) oder ging ein vorhandenes weg, bucht er nichts (409 `stocktake_outdated`,
+    `detail` nennt die Stücke). Würde er „fehlend“ selbst als „erwartet minus vorhanden“
+    ausrechnen, buchte er ein eben eingelagertes Stück als fehlend aus. Das Stellwerk lädt
+    den Platz dann neu; die Haken bleiben.
+  - **Wiederholung:** Schon ausgebuchte fehlende und schon eingelagerte gefundene Stücke
+    bleiben unberührt; dieselbe Anfrage nach einem Netzfehler bucht nichts doppelt.
+  - Inhaber und Mitarbeiter, weil fehlende Stücke ausgebucht werden.
+- **Migration 0018** erweitert `ck_stock_ledger_reason` um `restore` und `correct`. Das
+  Zurückrollen macht aus `restore` ein `put_away` und aus `correct` ein `move`; das ältere
+  Modell kennt beide nicht.
+- **Modellseite:** Der Katalog zeigt je Ausführung freie, reservierte und unverbuchte
+  Stücke (aus `GET /stock`), mit „Stücke“ und „Stücke erfassen“. Im Bestand des Lagers führt
+  „Modell“ zurück in den Katalog.

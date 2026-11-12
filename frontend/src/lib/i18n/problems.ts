@@ -141,6 +141,12 @@ export const PROBLEM_MESSAGES: Messages = {
     "Nicht alle Stücke lassen sich verlegen: Kommissionierte, versendete und ausgebuchte bleiben, wo sie sind. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
   units_not_scrappable:
     "Kommissionierte und versendete Stücke gehören zu einer Bestellung und lassen sich hier nicht ausbuchen. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
+  units_not_restorable:
+    "Nur ausgebuchte Stücke lassen sich wieder einbuchen; mindestens eins ist inzwischen wieder im Bestand. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
+  unit_not_correctable:
+    "Die Ausführung lässt sich nur bei unverbuchten oder freien Stücken ändern, die nie für eine Bestellung kommissioniert waren. Reservierte, kommissionierte, versendete und ausgebuchte Stücke bleiben, was sie sind.",
+  stocktake_outdated:
+    "Während der Inventur hat sich der Platz geändert: Ein Stück kam hinzu oder wurde weggebucht. Es wurde nichts gebucht. Die Liste ist jetzt aktuell; bitte die neuen Stücke prüfen und noch einmal abschließen.",
   variant_has_units:
     "Von dieser Ausführung gibt es Stücke im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
   order_not_allocatable: "Nur bezahlte Bestellungen bekommen Ware zugeteilt.",

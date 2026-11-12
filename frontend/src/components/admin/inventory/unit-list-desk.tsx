@@ -13,7 +13,7 @@ import { useListStock, useListUnits } from "@/lib/api/generated/admin-inventory/
 import type { StaffRole, UnitOut, UnitStatus } from "@/lib/api/generated/model";
 import { formatShortDate } from "@/lib/format";
 import { SCRAP_REASON_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
-import { pieces, unitListHref } from "@/lib/inventory/selection";
+import { pieces, RESTORABLE_STATUSES, SELECTABLE_STATUSES, unitListHref } from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
@@ -39,6 +39,8 @@ export const UNIT_FILTERS: readonly Filter[] = [
 ];
 
 const DEFAULT_FILTER = UNIT_FILTERS[0] as Filter;
+
+const NOTHING: ReadonlySet<UnitStatus> = new Set();
 
 /** The list's own word for labelled pieces, as in the stock overview: never put away. */
 function statusLabel(status: UnitStatus): string {
@@ -86,7 +88,13 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
   const lines = (stock.data?.items ?? []).filter((line) => variantId === null || line.variant_id === variantId);
   const article = variantId === null ? null : (lines[0]?.variant ?? units.data?.items[0]?.variant ?? null);
   const items = units.data?.items ?? [];
-  const selection = useUnitSelection(items);
+  const mayManage = MAY_MANAGE_STOCK.has(staffRole);
+  // Scrapped pieces are ticked in their own list, to book them in again (owner and staff).
+  const restoring = filter.key === "ausgebucht";
+  const selection = useUnitSelection(
+    items,
+    restoring ? (mayManage ? RESTORABLE_STATUSES : NOTHING) : SELECTABLE_STATUSES,
+  );
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
     eventTypes: INVENTORY_EVENT_TYPES,
@@ -161,6 +169,12 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
           bucht „Ausbuchen …“ mit dem Grund „Falsch erfasst“ aus.
         </p>
       ) : null}
+      {restoring && mayManage && items.length > 0 ? (
+        <p className="mt-6 text-small text-ink-secondary">
+          Falsch ausgebucht oder doch gefunden? Die Stücke ankreuzen, dann „Wieder einbuchen …“ und den Platz wählen, in dem
+          sie liegen.
+        </p>
+      ) : null}
 
       <Panel
         title={units.isSuccess ? `${filter.label} · ${pieces(items.length)}` : filter.label}
@@ -181,7 +195,7 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
         {units.data?.more ? (
           <p className="mt-4 text-hint text-ink-tertiary">Es sind mehr; gezeigt sind die ältesten 500.</p>
         ) : null}
-        <UnitSelectionBar selection={selection} mayScrap={MAY_MANAGE_STOCK.has(staffRole)} />
+        <UnitSelectionBar selection={selection} mayScrap={mayManage} />
       </Panel>
     </>
   );
