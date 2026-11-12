@@ -23,7 +23,7 @@ export const PROBLEM_MESSAGES: Messages = {
   insufficient_role: "Deine Rolle erlaubt das nicht. Bitte wende dich an den Inhaber.",
 
   // Catalogue
-  product_not_found: "Dieses Produkt gibt es nicht (mehr).",
+  product_not_found: "Dieses Modell gibt es nicht (mehr).",
   product_scale_not_found: "Diesen Maßstab gibt es an dem Modell nicht mehr.",
   variant_not_found: "Diese Ausführung gibt es nicht mehr.",
   category_not_found: "Diese Kategorie gibt es nicht.",

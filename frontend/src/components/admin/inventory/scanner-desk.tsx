@@ -351,7 +351,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-caps text-ink-tertiary">Lager</p>
-          <h1 className="mt-3 text-heading sm:text-title">Scanner</h1>
+          <h1 className="mt-3 text-heading sm:text-title">Scannen</h1>
         </div>
         <ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />
       </div>

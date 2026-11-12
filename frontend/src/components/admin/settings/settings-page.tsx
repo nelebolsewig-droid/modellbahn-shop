@@ -26,7 +26,7 @@ const ENTRIES = [
     code: "EIN 03",
     href: "/admin/einstellungen/ebay",
     title: "eBay-Einrichtung",
-    text: "Verbindung, Versand und Zahlung, eBay-Kategorien und Löschmeldungen.",
+    text: "Verbindung, Versand und Zahlung, eBay-Kategorien und Löschmeldungen. Ändern kann sie nur der Inhaber.",
   },
 ] as const satisfies readonly { code: string; href: Route; title: string; text: string }[];
 
