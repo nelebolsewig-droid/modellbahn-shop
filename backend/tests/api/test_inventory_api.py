@@ -405,7 +405,10 @@ class TestLabels:
         )
         assert one.status_code == 200, one.text
         assert one.headers["content-type"] == "image/png"
-        assert 'filename="etikett.png"' in one.headers["content-disposition"]
+        # Named after the model and variant, with the piece's code (umlauts survive).
+        disposition = one.headers["content-disposition"]
+        assert f'{codes[0]}.png"' in disposition
+        assert "filename*=UTF-8''" in disposition
         picture = Image.open(BytesIO(one.content))
         # 62 x 29 mm at 300 dpi, black and white as the thermal printer prints.
         assert picture.size == (733, 343)
@@ -421,7 +424,11 @@ class TestLabels:
         )
         assert several.headers["content-type"] == "application/zip"
         with ZipFile(BytesIO(several.content)) as archive:
-            assert archive.namelist() == ["etikett-01.png", "etikett-02.png", "etikett-03.png"]
+            names = archive.namelist()
+        assert [name[:3] for name in names] == ["01 ", "02 ", "03 "]
+        assert names[0].endswith(f" {codes[0]}.png")
+        assert names[2] == "03 Platz R01-F01.png"
+        assert "und 1 weitere.zip" in several.headers["content-disposition"]
         sheet = await staff_client.post(
             f"{INVENTORY}/labels",
             json={"unit_codes": codes, "sheet": "a4_70x37", "format": "png"},

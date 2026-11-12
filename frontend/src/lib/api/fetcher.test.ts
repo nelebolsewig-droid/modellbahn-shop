@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { jsonResponse, problemResponse } from "@/test/render";
 
-import { apiFetch, CLIENT_HEADER } from "./fetcher";
+import { apiFetch, CLIENT_HEADER, fileNameOf, savedName } from "./fetcher";
 import { ApiProblem, isSessionMissing } from "./problem";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -77,6 +77,27 @@ describe("apiFetch response", () => {
       new Response("Name;EAN", { status: 200, headers: { "Content-Type": "text/csv; charset=utf-8" } }),
     );
     await expect(apiFetch<string>("/articles.csv")).resolves.toBe("Name;EAN");
+  });
+
+  it("keeps the file name the server gives, umlauts included", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("%PDF-1.4", {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition":
+            "inline; filename=\"Kraen H0 Fertigmodell Gelb.pdf\"; filename*=UTF-8''Kr%C3%A4n%20H0%20Fertigmodell%20Gelb.pdf",
+        },
+      }),
+    );
+    const blob = await apiFetch<Blob>("/labels", { method: "POST" });
+    expect(savedName(blob)).toBe("Krän H0 Fertigmodell Gelb.pdf");
+  });
+
+  it("reads the plain file name when there is no UTF-8 one", () => {
+    expect(fileNameOf('inline; filename="etikett.png"')).toBe("etikett.png");
+    expect(fileNameOf(null)).toBeNull();
+    expect(fileNameOf("inline")).toBeNull();
   });
 
   it("hands over pictures and ZIPs as blobs", async () => {
