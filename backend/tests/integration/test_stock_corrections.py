@@ -18,6 +18,7 @@ from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
     LocationNotFoundError,
+    ScanNotUndoableError,
     StocktakeOutdatedError,
     UnitNotCorrectableError,
     UnitNotFoundError,
@@ -30,6 +31,7 @@ from modellbahn.modules.inventory.domain.model import (
     UNITS_SELECTED_MAX,
     LocationKind,
     MovementReason,
+    ScanMode,
     ScrapReason,
     UnitStatus,
 )
@@ -41,7 +43,14 @@ from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.outbox import outbox_table
 from tests.conftest import Deliver
-from tests.inventory_support import COMPARTMENT, pick_everything, staff_member, stock_up, store
+from tests.inventory_support import (
+    COMPARTMENT,
+    pick_everything,
+    scan,
+    staff_member,
+    stock_up,
+    store,
+)
 from tests.media_support import InMemoryMediaStorage
 from tests.sales_support import filled_cart, place, shop_product, variant_id
 
@@ -572,3 +581,32 @@ class TestStocktake:
         # An empty place counted empty: nothing to book.
         empty = await units.take_stock(OTHER, present=[], missing=[], found=[], staff_id=staff)
         assert (empty.confirmed, empty.scrapped, empty.found) == (0, 0, 0)
+
+
+@pytest.mark.usefixtures("places")
+class TestUndoingAScanAfterwards:
+    """Booked in again or corrected after a scan, the unit lies where the scan put it,
+    but undoing the scan would wipe out what came since."""
+
+    async def test_a_restore_or_a_correction_closes_the_scan(
+        self,
+        units: UnitService,
+        scans: ScanService,
+        painted: UUID,
+        unpainted: UUID,
+        staff: UUID,
+    ) -> None:
+        first, second = await units.label_units(
+            variant_id=painted, quantity=2, location_code=None, staff_id=None
+        )
+        context = {"location_code": COMPARTMENT}
+        restored = await scan(scans, staff, first.unit.code, ScanMode.PUT_AWAY, context=context)
+        await units.scrap(first.unit.code, note="", staff_id=staff, reason=ScrapReason.DAMAGED)
+        await units.restore_units([first.unit.id], location_code=COMPARTMENT, staff_id=staff)
+        corrected = await scan(scans, staff, second.unit.code, ScanMode.PUT_AWAY, context=context)
+        await units.correct(second.unit.code, variant_id=unpainted, staff_id=staff)
+
+        for stored, code in ((restored, first.unit.code), (corrected, second.unit.code)):
+            with pytest.raises(ScanNotUndoableError, match="changed_since"):
+                await scans.undo(UUID(str(stored["scan_id"])), staff_id=staff)
+            assert (await units.details(code)).view.unit.status is UnitStatus.IN_STOCK

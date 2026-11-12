@@ -18,6 +18,7 @@ and its parts are still in the box: the movements are booked backwards, the jour
 keep both.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
@@ -47,6 +48,7 @@ from modellbahn.modules.inventory.domain.errors import (
 )
 from modellbahn.modules.inventory.domain.model import (
     GONE,
+    LedgerEntry,
     Location,
     Movement,
     Scan,
@@ -191,9 +193,12 @@ class ScanService:
                 reason = "too_old" if scan.outcome is ScanOutcome.APPLIED else "nothing_booked"
                 raise ScanNotUndoableError(reason)
             journal = Journal(uow, staff_id=staff_id, now=now)
-            for entry in reversed(await uow.ledger.for_scan(scan.id)):
+            entries = await uow.ledger.for_scan(scan.id)
+            for entry in reversed(entries):
                 unit = await uow.units.get(entry.unit_id, for_update=True)
                 if unit is None:  # pragma: no cover - units are never deleted
+                    raise ScanNotUndoableError("changed_since")
+                if await _booked_since(uow, entry, entries):
                     raise ScanNotUndoableError("changed_since")
                 try:
                     movement = unit.revert(entry.movement(), now)
@@ -204,6 +209,24 @@ class ScanService:
             scan.mark_undone(now)
             await uow.commit()
             return _with_undo_state(scan, dict(scan.response), can_undo=False)
+
+
+async def _booked_since(
+    uow: InventoryUnitOfWork, entry: LedgerEntry, scanned: Sequence[LedgerEntry]
+) -> bool:
+    """True if something else booked the unit after ``entry``. Moved away and back,
+    scrapped and booked in again or corrected, it lies where the scan put it, yet the
+    scan is no longer the last word on it. Rows of the scan itself, and their undo rows
+    booked a moment ago, do not count."""
+    own = {row.id for row in scanned}
+    return any(
+        row.id is not None
+        and entry.id is not None
+        and row.id > entry.id
+        and row.id not in own
+        and row.reverses_id not in own
+        for row in await uow.ledger.for_unit(entry.unit_id)
+    )
 
 
 async def _undo_parts(
