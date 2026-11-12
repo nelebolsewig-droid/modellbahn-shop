@@ -15,7 +15,12 @@ from modellbahn.modules.inventory.domain.codes import (
     new_unit_code,
     normalize_unit_code,
 )
-from modellbahn.modules.inventory.domain.errors import InvalidFieldError, InvalidUnitStateError
+from modellbahn.modules.inventory.domain.errors import (
+    InvalidFieldError,
+    InvalidUnitStateError,
+    UnitsNotMovableError,
+    UnitsNotScrappableError,
+)
 from modellbahn.modules.inventory.domain.model import (
     UNDO_WINDOW_SECONDS,
     Location,
@@ -24,8 +29,11 @@ from modellbahn.modules.inventory.domain.model import (
     Scan,
     ScanMode,
     ScanOutcome,
+    ScrapReason,
     Unit,
     UnitStatus,
+    units_to_move,
+    units_to_scrap,
 )
 from modellbahn.modules.inventory.domain.scanning import CodeKind, Reading, interpretations
 
@@ -316,6 +324,93 @@ class TestUnitLifecycle:
         unit.put_away(box, NOW)
         with pytest.raises(InvalidUnitStateError, match="changed since"):
             unit.revert(moved, NOW)
+
+
+class TestMovingSeveralUnits:
+    def _units(self, box: Location, compartment: Location) -> dict[str, Unit]:
+        """A labelled unit, one in the box, one reserved in the compartment."""
+        labelled = _unit()
+        boxed = _unit()
+        boxed.code = "BOXED"
+        boxed.put_away(box, NOW)
+        reserved = _unit()
+        reserved.code = "RESERVED"
+        reserved.put_away(compartment, NOW)
+        reserved.allocate(uuid4(), NOW)
+        return {"labelled": labelled, "boxed": boxed, "reserved": reserved}
+
+    def test_only_those_not_there_yet_have_to_move(self) -> None:
+        _, _, compartment, box = _tree()
+        units = self._units(box, compartment)
+        assert all(unit.is_storable for unit in units.values())
+        moving = units_to_move(list(units.values()), compartment)
+        assert moving == [units["labelled"], units["boxed"]]
+        assert units_to_move([units["reserved"]], compartment) == []
+
+    def test_one_unit_that_cannot_move_stops_them_all(self) -> None:
+        _, _, compartment, box = _tree()
+        units = self._units(box, compartment)
+        units["reserved"].pick(NOW)
+        gone = _unit()
+        gone.code = "GONE"
+        gone.scrap("", NOW)
+        missing = uuid4()
+        assert not units["reserved"].is_storable
+        assert not gone.is_storable
+        with pytest.raises(UnitsNotMovableError) as error:
+            units_to_move([*units.values(), gone], box, missing=[missing])
+        assert error.value.refused == {"GONE": "scrapped", "RESERVED": "picked"}
+        assert error.value.missing == [missing]
+        assert str(error.value) == f"GONE (scrapped), RESERVED (picked), {missing} (unknown)"
+        # Nothing was touched.
+        assert units["boxed"].location_id == box.id
+        assert units["labelled"].status is UnitStatus.LABELED
+
+    def test_only_into_a_place_that_holds_goods(self) -> None:
+        _, shelf, compartment, box = _tree()
+        units = self._units(box, compartment)
+        with pytest.raises(InvalidUnitStateError, match="holds no goods"):
+            units_to_move(list(units.values()), shelf)
+
+
+class TestTakingSeveralUnitsOut:
+    def test_free_reserved_and_labelled_units_go_those_out_already_stay_out(self) -> None:
+        box = _tree()[3]
+        labelled, stored, reserved, gone = _unit(), _unit(), _unit(), _unit()
+        stored.put_away(box, NOW)
+        reserved.put_away(box, NOW)
+        reserved.allocate(uuid4(), NOW)
+        gone.scrap("", NOW)
+        assert units_to_scrap([labelled, stored, reserved, gone]) == [labelled, stored, reserved]
+
+    def test_units_of_an_order_on_its_way_stop_them_all(self) -> None:
+        box = _tree()[3]
+        free, picked = _unit(), _unit()
+        free.put_away(box, NOW)
+        picked.code = "PICKED"
+        picked.put_away(box, NOW)
+        picked.allocate(uuid4(), NOW)
+        picked.pick(NOW)
+        missing = uuid4()
+        with pytest.raises(UnitsNotScrappableError) as error:
+            units_to_scrap([free, picked], missing=[missing])
+        assert (error.value.refused, error.value.missing) == ({"PICKED": "picked"}, [missing])
+        picked.ship(NOW)
+        with pytest.raises(UnitsNotScrappableError, match=r"PICKED \(shipped\)"):
+            units_to_scrap([picked])
+
+    def test_the_reason_is_kept_and_undone_with_the_scrap(self) -> None:
+        box = _tree()[3]
+        unit = _unit()
+        unit.put_away(box, NOW)
+        scrapped = unit.scrap("Messe Leipzig", NOW, ScrapReason.SOLD)
+        assert (unit.scrap_reason, unit.scrap_note) == (ScrapReason.SOLD, "Messe Leipzig")
+        unit.revert(scrapped, NOW)
+        assert (unit.status, unit.scrap_reason, unit.scrap_note) == (
+            UnitStatus.IN_STOCK,
+            None,
+            "",
+        )
 
 
 class TestScans:

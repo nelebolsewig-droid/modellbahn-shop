@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getExportArticlesUrl } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import { getListLocationsQueryKey, getListStockQueryKey } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { StaffRole } from "@/lib/api/generated/model";
+import { unitListHref } from "@/lib/inventory/selection";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 
@@ -71,6 +72,9 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
         ) : null}
         <Button asChild size="sm" variant="secondary">
           <Link href="/admin/scanner">Scanner öffnen</Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link href={unitListHref({})}>Stücke</Link>
         </Button>
         <Button asChild size="sm" variant="ghost">
           {/* A plain download: the browser sends the staff cookie along. */}

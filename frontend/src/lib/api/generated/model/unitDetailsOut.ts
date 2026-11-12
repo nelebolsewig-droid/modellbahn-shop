@@ -14,11 +14,13 @@
 import type { AssembledPartOut } from './assembledPartOut';
 import type { HistoryEntryOut } from './historyEntryOut';
 import type { LocationOut } from './locationOut';
+import type { ScrapReason } from './scrapReason';
 import type { UnitStatus } from './unitStatus';
 import type { VariantRefOut } from './variantRefOut';
 
 export interface UnitDetailsOut {
   code: string;
+  /** When it was labelled. */
   created_at: string;
   /** Grouped for reading. */
   display_code: string;
@@ -31,6 +33,8 @@ export interface UnitDetailsOut {
   /** What the unit was assembled from; empty for a unit labelled by hand. */
   parts: AssembledPartOut[];
   scrap_note: string;
+  /** Why it was taken out by hand; empty for older ones. */
+  scrap_reason: ScrapReason | null;
   status: UnitStatus;
   updated_at: string;
   variant: VariantRefOut | null;

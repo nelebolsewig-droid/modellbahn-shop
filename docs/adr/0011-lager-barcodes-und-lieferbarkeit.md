@@ -216,3 +216,45 @@ Verpackung.
 - Ohne Preis (z. B. ein Entwurf) bleibt die Stelle leer.
 - **Lange Namen:** Auf der QL-Rolle passt eine zweite Zeile des Namens nur, wenn sie
   Ausführung und Artikelnummer nicht berührt; sonst wird der Name auf eine Zeile gekürzt.
+
+## Nachtrag 11.11.2026: Stücke in Listen ein-, um- und ausbuchen
+
+Im Stellwerk lagen mehr Stücke „unverbucht“ (etikettiert, nie eingelagert) als im Lager.
+Shop und eBay zählen nur eingelagerte Stücke; ohne Scanner kam man an diesen Rückstand
+nicht heran. Und Stücke ließen sich nur einzeln ausbuchen.
+
+- **Stücke-Liste** (`/admin/lager/einheiten`, `GET /units`): die Stücke eines Artikels
+  oder alle in einem Zustand, etwa alle unverbuchten über alle Artikel, nach Artikel
+  gruppiert. Erreichbar aus dem Bestand („Stücke“ je Artikel, Hinweis „… unverbucht“).
+- **Ankreuzen und gemeinsam buchen**, in der Stücke-Liste und im Inhalt eines Platzes:
+  - „Einlagern …“ (nur Unverbuchte) oder „Umlagern …“: `POST /units/moves`. Gebucht wie der
+    Einlager-Scan (Journal mit Person, ohne Scan; `inventory.stock.changed` je Stück;
+    ein frei gewordenes Stück geht an die älteste wartende Bestellung). Reservierte
+    behalten ihre Bestellung.
+  - „Ausbuchen …“ mit Grund: `POST /units/scraps`, nur Inhaber und Mitarbeiter, wie das
+    Ausbuchen einer Einheit.
+  - Eine Transaktion, alles oder nichts. Alle Wege sperren Stücke nach ihrer Kennung
+    (Sammelbuchungen, Freigeben und Versenden einer Bestellung, Scanner), so dass keine
+    zwei Anfragen einander über Kreuz warten.
+  - Bekannt, nicht behandelt: Wird eine bezahlte Bestellung genau in der Sekunde
+    zugeteilt, in der ein ganzer Platz umgelagert wird, kann sie auf Nachbestellung
+    landen, obwohl Bestand da ist (`skip_locked`). Über den Scanner lässt sie sich
+    trotzdem kommissionieren.
+  - Was schon am Ziel liegt oder schon ausgebucht ist, bleibt unberührt. Eine Wiederholung
+    nach einem Netzfehler bucht deshalb nichts doppelt.
+- **Was nicht geht:** Kommissionierte und versendete Stücke gehören zu einer Bestellung.
+  Ausgebuchte und unbekannte lassen sich nicht verlegen. Ist eins dabei, lehnt der Server
+  die ganze Anfrage ab (409 `units_not_movable` bzw. `units_not_scrappable`, `detail` nennt
+  die Codes). Die Liste bietet für solche Stücke kein Kästchen an.
+- **Reservierte Stücke ausbuchen:** wie bisher bei einem Stück. Die Zuteilung wird frei und
+  bekommt ein anderes freies Stück, sonst wartet sie auf die Fertigung
+  (`inventory.allocation.backordered`). Ein Stück aus derselben Auswahl springt dabei nie
+  ein.
+- **Grund des Ausbuchens** (Migration 0017, `inventory.units.scrap_reason`): verkauft
+  (Messe, Laden, privat), beschädigt, fehlt bei Inventur, falsch erfasst. Er ist Pflicht im
+  Stellwerk, auch auf der Seite einer Einheit; die Notiz bleibt frei. Ältere ausgebuchte
+  Stücke haben keinen Grund.
+- **Ein Stück von Hand verlegen:** Auf der Seite einer Einheit „Einlagern …“ bzw.
+  „Umlagern …“, mit demselben Dialog und Endpunkt.
+- **Einheiten erfassen ohne Platz** sagt jetzt, dass die Stücke bis zum Einlagern im Shop
+  nicht lieferbar sind.

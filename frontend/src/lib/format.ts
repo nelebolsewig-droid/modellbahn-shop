@@ -71,6 +71,11 @@ export function formatClock(date: Date): string {
   return clockFormat.format(date);
 }
 
+/** "22.10.2026", for dates in lists. */
+export function formatShortDate(date: Date): string {
+  return calendarDayFormat.format(date);
+}
+
 /** "22. Oktober 2026" */
 export function formatLongDate(date: Date): string {
   return longDateFormat.format(date);

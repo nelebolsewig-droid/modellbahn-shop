@@ -1378,7 +1378,11 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | Lager | GET · POST | `/locations` | Lagerbaum |
 | | GET | `/locations/{code}` | Inhalt eines Platzes |
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
+| | GET | `/units` | Stücke eines Artikels (`variant_id`) und/oder in Zuständen (`status`, mehrfach), etwa alle unverbuchten |
+| | POST | `/units/moves` | mehrere Stücke in einen Platz ein- oder umlagern, alles oder nichts; schon dort liegende bleiben (409 `units_not_movable`) |
+| | POST | `/units/scraps` | mehrere Stücke mit Grund ausbuchen, alles oder nichts (Inhaber, Mitarbeiter; 409 `units_not_scrappable`) |
 | | GET | `/units/{code}` | Einheit mit Lebenslauf |
+| | POST | `/units/{code}/scrap` | eine Einheit mit Grund ausbuchen; ihre Bestellung bekommt eine andere |
 | | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` |
 | | GET | `/parts` · `/parts/{Teilenummer}` | Teilelager; ein Teil mit Boxen, Wareneingang und Journal (ADR 0018) |
 | | POST | `/parts/{Teilenummer}/count` | Gezählt: Menge in einem Platz setzen, das Journal bucht den Unterschied |

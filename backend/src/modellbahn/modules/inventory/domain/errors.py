@@ -1,5 +1,8 @@
 """Errors of the inventory domain. The API layer decides how they are presented."""
 
+from collections.abc import Collection, Mapping
+from uuid import UUID
+
 
 class InventoryError(Exception):
     """Base of every error raised by the inventory module."""
@@ -37,6 +40,27 @@ class UnitNotFoundError(InventoryError):
 
 class InvalidUnitStateError(InventoryError):
     """The unit's state does not allow this (e.g. scrapping a shipped unit)."""
+
+
+class UnitsRefusedError(InventoryError):
+    """Of several units, some cannot take part or do not exist, so none did (all or nothing)."""
+
+    def __init__(self, refused: Mapping[str, str], missing: Collection[UUID] = ()) -> None:
+        self.refused = dict(sorted(refused.items()))
+        """Unit code → state (``picked``, ``shipped`` …)."""
+        self.missing = sorted(missing)
+        """Ids no unit has."""
+        named = [f"{code} ({status})" for code, status in self.refused.items()]
+        named += [f"{unit_id} (unknown)" for unit_id in self.missing]
+        super().__init__(", ".join(named))
+
+
+class UnitsNotMovableError(UnitsRefusedError):
+    """Units to move that cannot go into a location (picked, shipped, scrapped); none moved."""
+
+
+class UnitsNotScrappableError(UnitsRefusedError):
+    """Units to take out by hand that belong to an order already (picked, shipped); none went."""
 
 
 class VariantNotFoundError(InventoryError):

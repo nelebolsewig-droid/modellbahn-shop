@@ -46,12 +46,18 @@ from modellbahn.modules.inventory.api.schemas import (
     StockOut,
     UnitBatchOut,
     UnitDetailsOut,
+    UnitListOut,
+    UnitMoveIn,
+    UnitMoveOut,
     UnitOut,
+    UnitScrapOut,
     UnitsCreateIn,
+    UnitsScrapIn,
     WriteOffIn,
 )
 from modellbahn.modules.inventory.application.labels import LabelRequest
 from modellbahn.modules.inventory.application.scanning import ScanRequest
+from modellbahn.modules.inventory.domain.model import UnitStatus
 from modellbahn.modules.inventory.domain.parts import KITS_PER_ASSEMBLY_MAX
 from modellbahn.platform.errors import problems
 from modellbahn.platform.pdf_images import pdf_to_pngs
@@ -154,6 +160,25 @@ async def list_stock(_: StockWorker, service: UnitServiceDep) -> StockOut:
     return StockOut(items=[StockLineOut.from_line(line) for line in await service.stock()])
 
 
+@router.get(
+    "/units",
+    operation_id="listUnits",
+    summary="Pieces, oldest first: of one article, in some states, or both",
+    description="`status` may repeat. Without filters every piece ever labelled is listed.",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def list_units(
+    _: StockWorker,
+    service: UnitServiceDep,
+    variant_id: Annotated[UUID | None, Query()] = None,
+    status_filter: Annotated[list[UnitStatus] | None, Query(alias="status")] = None,
+) -> UnitListOut:
+    listed = await service.list_units(
+        variant_id, statuses=frozenset(status_filter) if status_filter else None
+    )
+    return UnitListOut.from_list(listed)
+
+
 @router.post(
     "/units",
     operation_id="labelUnits",
@@ -171,6 +196,40 @@ async def label_units(
         staff_id=staff.id,
     )
     return UnitBatchOut(items=[UnitOut.from_view(view) for view in views])
+
+
+@router.post(
+    "/units/moves",
+    operation_id="moveUnits",
+    summary="Put several units into one location in one go, all or none (without scanning)",
+    description="Booked like the put-away scan. Units already there are left alone, so a "
+    "repeated request is harmless; a picked, shipped, scrapped or unknown unit refuses the "
+    "whole request and `detail` names them.",
+    responses=problems({**STAFF_ACCESS, **_LOCATION_NOT_FOUND, 409: ["units_not_movable"]}),
+)
+async def move_units(body: UnitMoveIn, staff: StockWorker, service: UnitServiceDep) -> UnitMoveOut:
+    move = await service.move_units(
+        body.unit_ids, location_code=body.location_code, staff_id=staff.id
+    )
+    return UnitMoveOut.from_move(move)
+
+
+@router.post(
+    "/units/scraps",
+    operation_id="scrapUnits",
+    summary="Take several units out of stock in one go, with a reason, all or none",
+    description="Booked like scrapping one unit. Units already out are left alone; a unit "
+    "picked or shipped for an order, or an unknown one, refuses the whole request and "
+    "`detail` names them.",
+    responses=problems({**STAFF_ACCESS, 409: ["units_not_scrappable"]}),
+)
+async def scrap_units(
+    body: UnitsScrapIn, staff: StockManager, service: UnitServiceDep
+) -> UnitScrapOut:
+    scrap = await service.scrap_units(
+        body.unit_ids, reason=body.reason, note=body.note, staff_id=staff.id
+    )
+    return UnitScrapOut.from_scrap(scrap)
 
 
 @router.get(
@@ -192,7 +251,8 @@ async def get_unit(code: str, _: StockWorker, service: UnitServiceDep) -> UnitDe
 async def scrap_unit(
     code: str, body: ScrapIn, staff: StockManager, service: UnitServiceDep
 ) -> UnitOut:
-    return UnitOut.from_view(await service.scrap(code, note=body.note, staff_id=staff.id))
+    view = await service.scrap(code, note=body.note, reason=body.reason, staff_id=staff.id)
+    return UnitOut.from_view(view)
 
 
 # --- Parts ----------------------------------------------------------------------------

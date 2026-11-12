@@ -5,6 +5,7 @@ import type {
   PartMovementReason,
   PieceState,
   ScanMode,
+  ScrapReason,
   ScanOut,
   ScanOutcome,
   ScanOutMessage,
@@ -20,6 +21,14 @@ export const UNIT_STATUS_LABELS: Readonly<Record<UnitStatus, string>> = {
   picked: "Kommissioniert",
   shipped: "Versendet",
   scrapped: "Ausgebucht",
+};
+
+/** Why a piece was taken out of the stock by hand (Ausbuchen). */
+export const SCRAP_REASON_LABELS: Readonly<Record<ScrapReason, string>> = {
+  sold: "Verkauft (Messe, Laden, privat)",
+  damaged: "Beschädigt",
+  missing: "Fehlt bei Inventur",
+  mistake: "Falsch erfasst",
 };
 
 export const UNIT_STATUS_TONES: Readonly<Record<UnitStatus, StatusTone>> = {

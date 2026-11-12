@@ -31,6 +31,7 @@ import { LocationCreateDialog, LocationDeleteDialog, LocationRenameDialog } from
 import { LocationGlyph } from "./location-glyph";
 import { LocationTree } from "./location-panel";
 import { partHref } from "./parts-panels";
+import { SelectAllCheckbox, UnitCheckbox, UnitSelectionBar, useUnitSelection, type UnitSelection } from "./unit-selection";
 
 /** Whether a stock event touched this location or a place below it. */
 function concerns(codes: readonly string[], contents: LocationContentsOut | undefined, code: string): boolean {
@@ -48,6 +49,7 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
   // The whole tree, for everything below this place (the contents name the direct children).
   const tree = useListLocations();
   const mayManage = MAY_MANAGE_STOCK.has(staffRole);
+  const selection = useUnitSelection(contents.data?.units ?? []);
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
     eventTypes: INVENTORY_EVENT_TYPES,
@@ -148,14 +150,19 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
-          <Panel title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`} code="LG 11">
+          <Panel
+            title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`}
+            code="LG 11"
+            actions={units.length > 0 ? <SelectAllCheckbox units={units} selection={selection} /> : null}
+          >
             {units.length === 0 ? (
               <p className="text-small text-ink-secondary">
                 {location.holds_goods ? "Leer. Beim Einlagern diesen Platz scannen, dann die Ware." : "Hier liegt nichts direkt; die Ware liegt in den Plätzen darin."}
               </p>
             ) : (
-              <UnitTable units={units} here={location.code} />
+              <UnitTable units={units} here={location.code} selection={selection} />
             )}
+            <UnitSelectionBar selection={selection} mayScrap={mayManage} />
           </Panel>
           {parts.length > 0 ? (
             <Panel title={`Teile · ${parts.reduce((sum, entry) => sum + entry.quantity, 0)}`} code="LG 13">
@@ -177,11 +184,22 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
   );
 }
 
-function UnitTable({ units, here }: { units: readonly LocatedUnitOut[]; here: string }) {
+function UnitTable({
+  units,
+  here,
+  selection,
+}: {
+  units: readonly LocatedUnitOut[];
+  here: string;
+  selection: UnitSelection<LocatedUnitOut>;
+}) {
   return (
     <ul className="divide-y divide-line border-y border-line">
       {units.map((unit) => (
-        <li key={unit.code} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 py-2.5">
+        <li key={unit.code} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 py-2.5">
+          <span className="self-center">
+            <UnitCheckbox unit={unit} selection={selection} />
+          </span>
           <div className="min-w-0">
             <Link href={`/admin/lager/einheiten/${unit.code}` as Route} className="font-mono text-small font-medium hover:underline">
               {unit.display_code}

@@ -11,8 +11,10 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ScrapReason } from './scrapReason';
 
 export interface ScrapIn {
   /** @maxLength 200 */
   note?: string;
+  reason: ScrapReason;
 }

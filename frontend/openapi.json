@@ -3616,6 +3616,11 @@
             "title": "Display Code",
             "type": "string"
           },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
           "location_code": {
             "anyOf": [
               {
@@ -3670,6 +3675,7 @@
           }
         },
         "required": [
+          "id",
           "code",
           "display_code",
           "status",
@@ -9079,10 +9085,27 @@
             "maxLength": 200,
             "title": "Note",
             "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ScrapReason"
           }
         },
+        "required": [
+          "reason"
+        ],
         "title": "ScrapIn",
         "type": "object"
+      },
+      "ScrapReason": {
+        "description": "Why a unit left the stock by hand (*Ausbuchen*).",
+        "enum": [
+          "sold",
+          "damaged",
+          "missing",
+          "mistake"
+        ],
+        "title": "ScrapReason",
+        "type": "string"
       },
       "SettingsIn": {
         "additionalProperties": false,
@@ -10086,6 +10109,7 @@
             "type": "string"
           },
           "created_at": {
+            "description": "When it was labelled.",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -10156,6 +10180,17 @@
             "title": "Scrap Note",
             "type": "string"
           },
+          "scrap_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScrapReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was taken out by hand; empty for older ones."
+          },
           "status": {
             "$ref": "#/components/schemas/UnitStatus"
           },
@@ -10191,12 +10226,97 @@
           "order_id",
           "order_number",
           "scrap_note",
+          "scrap_reason",
           "created_at",
           "updated_at",
           "history",
           "parts"
         ],
         "title": "UnitDetailsOut",
+        "type": "object"
+      },
+      "UnitListOut": {
+        "properties": {
+          "items": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/UnitOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "more": {
+            "description": "True if there are more; the oldest are listed.",
+            "title": "More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "more"
+        ],
+        "title": "UnitListOut",
+        "type": "object"
+      },
+      "UnitMoveIn": {
+        "additionalProperties": false,
+        "properties": {
+          "location_code": {
+            "description": "Where they go: a compartment, box or staging area.",
+            "examples": [
+              "R01-F02"
+            ],
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
+          },
+          "unit_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "unit_ids",
+          "location_code"
+        ],
+        "title": "UnitMoveIn",
+        "type": "object"
+      },
+      "UnitMoveOut": {
+        "properties": {
+          "already_there": {
+            "description": "Units that lay there already; left alone.",
+            "title": "Already There",
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationOut"
+          },
+          "moved": {
+            "description": "Units that went there (labelled ones are stored).",
+            "title": "Moved",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Of the moved units, those that went straight to a waiting order.",
+            "title": "Reserved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "moved",
+          "already_there",
+          "reserved",
+          "location"
+        ],
+        "title": "UnitMoveOut",
         "type": "object"
       },
       "UnitOut": {
@@ -10209,6 +10329,7 @@
             "type": "string"
           },
           "created_at": {
+            "description": "When it was labelled.",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -10263,6 +10384,17 @@
             "title": "Scrap Note",
             "type": "string"
           },
+          "scrap_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScrapReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was taken out by hand; empty for older ones."
+          },
           "status": {
             "$ref": "#/components/schemas/UnitStatus"
           },
@@ -10298,10 +10430,30 @@
           "order_id",
           "order_number",
           "scrap_note",
+          "scrap_reason",
           "created_at",
           "updated_at"
         ],
         "title": "UnitOut",
+        "type": "object"
+      },
+      "UnitScrapOut": {
+        "properties": {
+          "already_scrapped": {
+            "description": "Units that were out already; left alone.",
+            "title": "Already Scrapped",
+            "type": "integer"
+          },
+          "scrapped": {
+            "title": "Scrapped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scrapped",
+          "already_scrapped"
+        ],
+        "title": "UnitScrapOut",
         "type": "object"
       },
       "UnitStatus": {
@@ -10349,6 +10501,36 @@
           "quantity"
         ],
         "title": "UnitsCreateIn",
+        "type": "object"
+      },
+      "UnitsScrapIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ScrapReason"
+          },
+          "unit_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "unit_ids"
+        ],
+        "title": "UnitsScrapIn",
         "type": "object"
       },
       "UploadOut": {
@@ -14256,6 +14438,109 @@
       }
     },
     "/api/v1/admin/inventory/units": {
+      "get": {
+        "description": "`status` may repeat. Without filters every piece ever labelled is listed.",
+        "operationId": "listUnits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "variant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Variant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/UnitStatus"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Pieces, oldest first: of one article, in some states, or both",
+        "tags": [
+          "admin-inventory"
+        ]
+      },
       "post": {
         "operationId": "labelUnits",
         "requestBody": {
@@ -14346,6 +14631,210 @@
           }
         ],
         "summary": "New units of a variant, ready for their labels (optionally put away at once)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/moves": {
+      "post": {
+        "description": "Booked like the put-away scan. Units already there are left alone, so a repeated request is harmless; a picked, shipped, scrapped or unknown unit refuses the whole request and `detail` names them.",
+        "operationId": "moveUnits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitMoveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitMoveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `units_not_movable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Put several units into one location in one go, all or none (without scanning)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/scraps": {
+      "post": {
+        "description": "Booked like scrapping one unit. Units already out are left alone; a unit picked or shipped for an order, or an unknown one, refuses the whole request and `detail` names them.",
+        "operationId": "scrapUnits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitsScrapIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitScrapOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `units_not_scrappable`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Take several units out of stock in one go, with a reason, all or none",
         "tags": [
           "admin-inventory"
         ]

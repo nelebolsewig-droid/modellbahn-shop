@@ -122,6 +122,7 @@ const UNIT: UnitOut = {
   order_id: null,
   order_number: null,
   scrap_note: "",
+  scrap_reason: null,
   created_at: "2026-10-28T10:00:00Z",
   updated_at: "2026-10-28T10:00:00Z",
 };

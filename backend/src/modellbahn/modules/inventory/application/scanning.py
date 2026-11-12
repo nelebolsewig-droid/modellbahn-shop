@@ -24,7 +24,6 @@ from typing import Final
 from uuid import UUID
 
 from modellbahn.modules.inventory.application.allocation import (
-    Allocator,
     PickItem,
     PickList,
     PieceState,
@@ -37,7 +36,7 @@ from modellbahn.modules.inventory.application.common import (
 )
 from modellbahn.modules.inventory.application.parts import walking_order
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
-from modellbahn.modules.inventory.application.units import unit_views
+from modellbahn.modules.inventory.application.units import put_away, unit_views
 from modellbahn.modules.inventory.domain.errors import (
     InsufficientPartsError,
     InvalidReceiptStateError,
@@ -410,11 +409,8 @@ class _Interpreter:
             return _Answer(
                 ScanOutcome.REJECTED, refusal, location=await self._location_info(location)
             )
-        self._journal.know(location)
-        movement = unit.put_away(location, self._now)
-        await self._journal.book(unit, movement)
+        movement, allocation = await put_away(self._uow, self._journal, unit, location)
         effect = await self._effect(movement)
-        allocation = await Allocator(self._uow, self._journal).serve_backorder(unit)
         if allocation is not None:
             effect["to_status"] = unit.status.value
             numbers = await self._uow.orders.numbers([allocation.order_id])
@@ -528,9 +524,11 @@ class _Interpreter:
         item = next((i for i in wanted if i.state is PieceState.BACKORDERED), wanted[0])
         released_code: str | None = None
         if item.state is PieceState.RESERVED:
-            served = await self._uow.units.serving([item.allocation_id], for_update=True)
+            served = await self._uow.units.serving([item.allocation_id])
             reserved = served.get(item.allocation_id)
             if reserved is not None:
+                # Both units are locked in one query, in id order like every other path.
+                await self._uow.units.lock([unit.id, reserved.id])
                 await self._journal.book(reserved, reserved.release(self._now))
                 released_code = reserved.code
         await self._journal.book(unit, unit.allocate(item.allocation_id, self._now))

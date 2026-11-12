@@ -22,6 +22,7 @@ Plain dataclasses without any framework, mapped imperatively by the infrastructu
 Every method that depends on time takes ``now``.
 """
 
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -29,13 +30,21 @@ from typing import Final
 from uuid import UUID
 
 from modellbahn.modules.inventory.domain.codes import SEGMENT
-from modellbahn.modules.inventory.domain.errors import InvalidFieldError, InvalidUnitStateError
+from modellbahn.modules.inventory.domain.errors import (
+    InvalidFieldError,
+    InvalidUnitStateError,
+    UnitsNotMovableError,
+    UnitsNotScrappableError,
+)
 from modellbahn.platform.events import JsonObject
 from modellbahn.platform.ids import new_id
 
 LOCATION_NAME_MAX_LENGTH: Final = 60
 SCRAP_NOTE_MAX_LENGTH: Final = 200
 UNITS_PER_BATCH_MAX: Final = 200
+"""New pieces labelled at once."""
+UNITS_SELECTED_MAX: Final = 500
+"""Pieces moved or scrapped at once: as many as one list shows."""
 UNDO_WINDOW_SECONDS: Final = 600
 
 
@@ -151,6 +160,24 @@ ON_SHELF: Final = frozenset({UnitStatus.IN_STOCK, UnitStatus.ALLOCATED})
 TAKEN: Final = frozenset({UnitStatus.ALLOCATED, UnitStatus.PICKED, UnitStatus.SHIPPED})
 """States in which a unit serves an allocation."""
 GONE: Final = frozenset({UnitStatus.SHIPPED, UnitStatus.SCRAPPED})
+STORABLE: Final = frozenset({UnitStatus.LABELED, *ON_SHELF})
+"""States in which a unit can go into a location: labelled, or lying in another one."""
+
+
+BELONGS_TO_ORDER: Final = frozenset({UnitStatus.PICKED, UnitStatus.SHIPPED})
+"""States in which a unit is being packed or has gone out for an order."""
+
+
+class ScrapReason(StrEnum):
+    """Why a unit left the stock by hand (*Ausbuchen*)."""
+
+    SOLD = "sold"
+    """Sold outside the shop: at a fair, in the shop on site, privately."""
+    DAMAGED = "damaged"
+    MISSING = "missing"
+    """Not found when counting (*Fehlt bei Inventur*)."""
+    MISTAKE = "mistake"
+    """Never existed: recorded or labelled by mistake (labels printed twice)."""
 
 
 class MovementReason(StrEnum):
@@ -193,6 +220,8 @@ class Unit:
     created_at: datetime
     updated_at: datetime
     scrap_note: str = ""
+    scrap_reason: ScrapReason | None = None
+    """Why it was taken out by hand; ``None`` for units scrapped before reasons were kept."""
 
     @classmethod
     def label(cls, *, variant_id: UUID, code: str, now: datetime) -> tuple["Unit", Movement]:
@@ -216,11 +245,16 @@ class Unit:
         """In a location and promised to nobody: what the shop can sell straight away."""
         return self.status is UnitStatus.IN_STOCK
 
+    @property
+    def is_storable(self) -> bool:
+        """Can go into a location: not picked for packing, not shipped, not scrapped."""
+        return self.status in STORABLE
+
     def put_away(self, location: Location, now: datetime) -> Movement:
         """Into ``location``: a labelled unit is stored, a stored one moves there."""
         if not location.holds_goods:
             raise InvalidUnitStateError(f"a {location.kind} holds no goods")
-        if self.status not in {UnitStatus.LABELED, *ON_SHELF}:
+        if not self.is_storable:
             raise InvalidUnitStateError(f"a unit that is {self.status} cannot be put away")
         if self.location_id == location.id:
             raise InvalidUnitStateError("the unit is already there")
@@ -274,13 +308,15 @@ class Unit:
         self.status = UnitStatus.SHIPPED
         return self._changed(MovementReason.SHIP, before, self.allocation_id, now)
 
-    def scrap(self, note: str, now: datetime) -> Movement:
-        """Broken or lost: the unit leaves the stock; an allocation it served is open again."""
+    def scrap(self, note: str, now: datetime, reason: ScrapReason | None = None) -> Movement:
+        """Sold elsewhere, broken or lost: the unit leaves the stock; an allocation it
+        served is open again."""
         if self.status in GONE:
             raise InvalidUnitStateError(f"a unit that is {self.status} cannot be scrapped")
         before = self._state()
         allocation_id = self.allocation_id
         self.scrap_note = _text(note, "note", SCRAP_NOTE_MAX_LENGTH)
+        self.scrap_reason = reason
         self.status = UnitStatus.SCRAPPED
         self.location_id = None
         self.allocation_id = None
@@ -305,6 +341,7 @@ class Unit:
         self.allocation_id = movement.allocation_id if movement.from_status in TAKEN else None
         if movement.reason is MovementReason.SCRAP:
             self.scrap_note = ""
+            self.scrap_reason = None
         return self._changed(MovementReason.UNDO, before, movement.allocation_id, now)
 
     def _state(self) -> tuple[UnitStatus, UUID | None]:
@@ -344,6 +381,36 @@ class Unit:
             to_location_id=self.location_id,
             allocation_id=allocation_id,
         )
+
+
+def units_to_move(
+    units: Sequence[Unit], location: Location, *, missing: Collection[UUID] = ()
+) -> list[Unit]:
+    """The units that still have to go into ``location`` for all of them to lie there.
+
+    Moving several units is all or nothing: if any of them cannot go into a location
+    (picked, shipped, scrapped) or is ``missing``, none moves, and the error names them
+    all. Units already there are left out, so asking twice moves nothing twice.
+    """
+    if not location.holds_goods:
+        raise InvalidUnitStateError(f"a {location.kind} holds no goods")
+    refused = {unit.code: unit.status.value for unit in units if not unit.is_storable}
+    if refused or missing:
+        raise UnitsNotMovableError(refused, missing)
+    return [unit for unit in units if unit.location_id != location.id]
+
+
+def units_to_scrap(units: Sequence[Unit], *, missing: Collection[UUID] = ()) -> list[Unit]:
+    """The units that still have to leave the stock when several are taken out by hand.
+
+    A unit picked or shipped for an order is the order's business (it is scrapped on its
+    own page, where the order gets another one); if any is among them, or ``missing``,
+    none goes. Units scrapped already are left out, so asking twice books nothing twice.
+    """
+    refused = {unit.code: unit.status.value for unit in units if unit.status in BELONGS_TO_ORDER}
+    if refused or missing:
+        raise UnitsNotScrappableError(refused, missing)
+    return [unit for unit in units if unit.status is not UnitStatus.SCRAPPED]
 
 
 # --- Allocations ----------------------------------------------------------------------

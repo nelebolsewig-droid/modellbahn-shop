@@ -24,6 +24,8 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanNotFoundError,
     ScanNotUndoableError,
     UnitNotFoundError,
+    UnitsNotMovableError,
+    UnitsNotScrappableError,
     VariantNotFoundError,
 )
 from modellbahn.platform.errors import (
@@ -60,6 +62,14 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     ),
     UnitNotFoundError: lambda _: NotFoundError("The unit does not exist.", code="unit_not_found"),
     InvalidUnitStateError: lambda error: ConflictError(str(error), code="invalid_unit_state"),
+    UnitsNotMovableError: lambda error: ConflictError(
+        f"Nothing was moved; these units cannot go into a location: {error}.",
+        code="units_not_movable",
+    ),
+    UnitsNotScrappableError: lambda error: ConflictError(
+        f"Nothing was taken out; these units belong to an order or do not exist: {error}.",
+        code="units_not_scrappable",
+    ),
     VariantNotFoundError: lambda _: NotFoundError(
         "The variant does not exist.", code="variant_not_found"
     ),

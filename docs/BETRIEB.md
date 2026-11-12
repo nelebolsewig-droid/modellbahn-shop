@@ -232,6 +232,49 @@ Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
   aus dem Impressum.
 - **Preis geändert?** Die gedruckten Etiketten zeigen den alten Preis: auf der Seite der
   Einheit (Code scannen oder im Lager öffnen) das Etikett neu drucken.
+- **Ohne Platz erfasst?** Dann bleiben die Stücke „Unverbucht“ und sind im Shop und bei eBay
+  nicht lieferbar, bis sie eingelagert sind (nächster Abschnitt).
+
+### Unverbuchte Stücke einlagern
+
+Shop und eBay zählen nur Stücke, die in einem Platz liegen. Ein Stück mit Etikett, das nie
+eingelagert wurde, liegt vielleicht im Regal, ist online aber nicht zu haben.
+
+- **Finden:** Lager → im Bestand der gelbe Hinweis „… unverbucht“ → „Unverbuchte
+  einlagern“. Die Liste zeigt alle unverbuchten Stücke, nach Artikel geordnet.
+- **Einlagern:** die Stücke ankreuzen, die im Regal liegen („Alle auswählen“ oder „Alle“ je
+  Artikel), „Einlagern …“, den Platz suchen (Code oder Name) und „Hier einlagern“. Danach
+  sind sie im Shop lieferbar; wartet eine Bestellung auf den Artikel, bekommt sie das Stück.
+- **Etikett doppelt gedruckt?** Das überzählige Stück ankreuzen, „Ausbuchen …“, Grund
+  „Falsch erfasst“.
+- Ein einzelnes Stück geht auch auf seiner Seite: „Einlagern …“ im Steckbrief.
+
+### Stücke umlagern
+
+- **Mehrere auf einmal:** Lager → Platz öffnen (oder unter „Stücke“ den Artikel), die Stücke
+  ankreuzen, „Umlagern …“, Zielplatz wählen, „Hierher umlagern“. Reservierte Stücke behalten
+  ihre Bestellung; was schon dort liegt, bleibt, wie es ist.
+- **Ein Stück:** auf seiner Seite „Umlagern …“. Mit dem Scanner geht es wie bisher:
+  „Einlagern“, Zielplatz scannen, dann die Stücke.
+- Kommissionierte, versendete und ausgebuchte Stücke lassen sich nicht ankreuzen. Ist eins
+  inzwischen kommissioniert worden, bucht der Shop nichts und sagt es im Dialog.
+
+### Bestand korrigieren
+
+Zeigt das Stellwerk mehr Stücke, als im Regal liegen:
+
+1. Zählen, was wirklich da ist.
+2. Lager → beim Artikel „Stücke“. Die Liste zeigt jedes Stück mit Code, Zustand, Platz und
+   Erfassungsdatum; „Unverbucht“ ist gelb markiert (oft doppelt gedruckte Etiketten).
+3. Die fehlenden Stücke ankreuzen, „Ausbuchen …“, Grund „Fehlt bei Inventur“, optional eine
+   Notiz („Inventur November“), „Ausbuchen“.
+
+- Weitere Gründe: „Verkauft (Messe, Laden, privat)“, „Beschädigt“, „Falsch erfasst“. Der
+  Grund steht danach auf der Seite des Stücks.
+- Ausbuchen dürfen Inhaber und Mitarbeiter. War ein Stück für eine Bestellung reserviert,
+  bekommt sie ein anderes oder wartet auf die Fertigung.
+- Kommissionierte und versendete Stücke gehören zu einer Bestellung; die Liste bucht sie
+  nicht aus. Ein beim Packen zerbrochenes Stück bucht man auf seiner Seite aus.
 
 ### Widerrufe
 

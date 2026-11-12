@@ -35,6 +35,7 @@ import type {
   AssemblyOut,
   AssemblyPlanOut,
   LabelsIn,
+  ListUnitsParams,
   LocationContentsOut,
   LocationCreateIn,
   LocationOut,
@@ -54,8 +55,13 @@ import type {
   StockOut,
   UnitBatchOut,
   UnitDetailsOut,
+  UnitListOut,
+  UnitMoveIn,
+  UnitMoveOut,
   UnitOut,
+  UnitScrapOut,
   UnitsCreateIn,
+  UnitsScrapIn,
   ValidationProblem,
   WriteOffIn
 } from '../model';
@@ -1722,6 +1728,122 @@ export function useListStock<TData = Awaited<ReturnType<typeof listStock>>, TErr
 
 
 
+export const getListUnitsUrl = (params?: ListUnitsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/inventory/units?${stringifiedParams}` : `/api/v1/admin/inventory/units`
+}
+
+/**
+ * `status` may repeat. Without filters every piece ever labelled is listed.
+ * @summary Pieces, oldest first: of one article, in some states, or both
+ */
+export const listUnits = async (params?: ListUnitsParams, options?: Parameters<typeof apiFetch>[1]): Promise<UnitListOut> => {
+
+  return apiFetch<UnitListOut>(getListUnitsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListUnitsQueryKey = (params?: ListUnitsParams,) => {
+    return [
+    `/api/v1/admin/inventory/units`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListUnitsQueryOptions = <TData = Awaited<ReturnType<typeof listUnits>>, TError = ErrorType<Problem | ValidationProblem>>(params?: ListUnitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListUnitsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUnits>>> = ({ signal }) => listUnits(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListUnitsQueryResult = NonNullable<Awaited<ReturnType<typeof listUnits>>>
+export type ListUnitsQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useListUnits<TData = Awaited<ReturnType<typeof listUnits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: undefined |  ListUnitsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUnits>>,
+          TError,
+          Awaited<ReturnType<typeof listUnits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListUnits<TData = Awaited<ReturnType<typeof listUnits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListUnitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUnits>>,
+          TError,
+          Awaited<ReturnType<typeof listUnits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListUnits<TData = Awaited<ReturnType<typeof listUnits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListUnitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Pieces, oldest first: of one article, in some states, or both
+ */
+
+export function useListUnits<TData = Awaited<ReturnType<typeof listUnits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListUnitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listUnits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListUnitsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 export const getLabelUnitsUrl = () => {
 
 
@@ -1808,6 +1930,182 @@ export const useLabelUnits = <TError = ErrorType<Problem | ValidationProblem>,
         TContext
       > => {
       return useMutation(getLabelUnitsMutationOptions(options), queryClient);
+    }
+    export const getMoveUnitsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/units/moves`
+}
+
+/**
+ * Booked like the put-away scan. Units already there are left alone, so a repeated request is harmless; a picked, shipped, scrapped or unknown unit refuses the whole request and `detail` names them.
+ * @summary Put several units into one location in one go, all or none (without scanning)
+ */
+export const moveUnits = async (unitMoveIn: UnitMoveIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitMoveOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<UnitMoveOut>(getMoveUnitsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unitMoveIn)
+  }
+);}
+
+
+
+
+
+export const getMoveUnitsMutationKey = () => ['moveUnits'] as const;
+
+export const getMoveUnitsMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveUnits>>, TError,MoveUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveUnits>>, TError,MoveUnitsMutationVariables, TContext> => {
+
+const mutationKey = getMoveUnitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveUnits>>, MoveUnitsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  moveUnits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveUnitsMutationResult = NonNullable<Awaited<ReturnType<typeof moveUnits>>>
+    export type MoveUnitsMutationBody = UnitMoveIn
+    export type MoveUnitsMutationError = ErrorType<Problem | ValidationProblem>
+    export type MoveUnitsMutationVariables = {data: UnitMoveIn}
+
+    /**
+ * @summary Put several units into one location in one go, all or none (without scanning)
+ */
+export const useMoveUnits = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveUnits>>, TError,MoveUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveUnits>>,
+        TError,
+        MoveUnitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveUnitsMutationOptions(options), queryClient);
+    }
+    export const getScrapUnitsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/units/scraps`
+}
+
+/**
+ * Booked like scrapping one unit. Units already out are left alone; a unit picked or shipped for an order, or an unknown one, refuses the whole request and `detail` names them.
+ * @summary Take several units out of stock in one go, with a reason, all or none
+ */
+export const scrapUnits = async (unitsScrapIn: UnitsScrapIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitScrapOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<UnitScrapOut>(getScrapUnitsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unitsScrapIn)
+  }
+);}
+
+
+
+
+
+export const getScrapUnitsMutationKey = () => ['scrapUnits'] as const;
+
+export const getScrapUnitsMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scrapUnits>>, TError,ScrapUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scrapUnits>>, TError,ScrapUnitsMutationVariables, TContext> => {
+
+const mutationKey = getScrapUnitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scrapUnits>>, ScrapUnitsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  scrapUnits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScrapUnitsMutationResult = NonNullable<Awaited<ReturnType<typeof scrapUnits>>>
+    export type ScrapUnitsMutationBody = UnitsScrapIn
+    export type ScrapUnitsMutationError = ErrorType<Problem | ValidationProblem>
+    export type ScrapUnitsMutationVariables = {data: UnitsScrapIn}
+
+    /**
+ * @summary Take several units out of stock in one go, with a reason, all or none
+ */
+export const useScrapUnits = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scrapUnits>>, TError,ScrapUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof scrapUnits>>,
+        TError,
+        ScrapUnitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getScrapUnitsMutationOptions(options), queryClient);
     }
     export const getGetUnitUrl = (code: string,) => {
 
