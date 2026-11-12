@@ -93,7 +93,7 @@ function Unbooked({ count }: { count: number }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-subtle px-4 py-3 text-small">
       <p>
-        <span className="font-medium">{pieces(count)} unverbucht:</span> etikettiert, aber nie eingelagert. Shop und eBay zählen
+        <span className="font-medium">{pieces(count)} unverbucht:</span> etikettiert, aber ohne Platz. Shop und eBay zählen
         sie erst nach dem Einlagern.
       </p>
       <Link href={unitListHref({ filter: "unverbucht" })} className="font-medium underline underline-offset-2 hover:no-underline">

@@ -19,4 +19,6 @@ export interface UnitMoveOut {
   location: LocationOut;
   /** Units that went there (labelled ones are stored). */
   moved: number;
+  /** Of the moved units, those that went straight to a waiting order. */
+  reserved: number;
 }

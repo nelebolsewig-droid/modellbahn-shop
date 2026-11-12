@@ -10276,7 +10276,7 @@
               "format": "uuid",
               "type": "string"
             },
-            "maxItems": 200,
+            "maxItems": 500,
             "minItems": 1,
             "title": "Unit Ids",
             "type": "array"
@@ -10303,11 +10303,17 @@
             "description": "Units that went there (labelled ones are stored).",
             "title": "Moved",
             "type": "integer"
+          },
+          "reserved": {
+            "description": "Of the moved units, those that went straight to a waiting order.",
+            "title": "Reserved",
+            "type": "integer"
           }
         },
         "required": [
           "moved",
           "already_there",
+          "reserved",
           "location"
         ],
         "title": "UnitMoveOut",
@@ -10479,7 +10485,7 @@
             "title": "Location Code"
           },
           "quantity": {
-            "maximum": 200.0,
+            "maximum": 500.0,
             "minimum": 1.0,
             "title": "Quantity",
             "type": "integer"
@@ -10514,7 +10520,7 @@
               "format": "uuid",
               "type": "string"
             },
-            "maxItems": 200,
+            "maxItems": 500,
             "minItems": 1,
             "title": "Unit Ids",
             "type": "array"

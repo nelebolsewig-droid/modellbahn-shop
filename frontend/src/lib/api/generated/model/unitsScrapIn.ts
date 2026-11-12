@@ -19,7 +19,7 @@ export interface UnitsScrapIn {
   reason: ScrapReason;
   /**
      * @minItems 1
-     * @maxItems 200
+     * @maxItems 500
      */
   unit_ids: string[];
 }

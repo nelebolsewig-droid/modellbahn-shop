@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { Panel } from "@/components/admin/panel";
@@ -57,8 +57,29 @@ type UnitListDeskProps = {
  * Ticked pieces are stored, moved or taken out of the stock together; this is where a
  * count that is too high is put right.
  */
+const REFRESH_DEBOUNCE_MS = 300;
+
 export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClosed }: UnitListDeskProps) {
   const refresh = useInventoryRefresh();
+  // A burst of stock events (a big move books one per piece) refreshes the lists once.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current !== null) {
+        clearTimeout(refreshTimer.current);
+      }
+    },
+    [],
+  );
+  const refreshSoon = () => {
+    if (refreshTimer.current !== null) {
+      clearTimeout(refreshTimer.current);
+    }
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null;
+      refresh();
+    }, REFRESH_DEBOUNCE_MS);
+  };
   const [filter, setFilter] = useState<Filter>(UNIT_FILTERS.find((entry) => entry.key === initialFilter) ?? DEFAULT_FILTER);
   const units = useListUnits({ ...(variantId !== null && { variant_id: variantId }), status: filter.statuses });
   const stock = useListStock();
@@ -72,7 +93,7 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
     onMessage(data) {
       const event = stockEventOf(data);
       if (event !== null && event.partNumber === null && (variantId === null || event.variantId === null || event.variantId === variantId)) {
-        refresh();
+        refreshSoon();
       }
     },
     onClosed: onStreamClosed,
@@ -122,7 +143,7 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
       {unbooked > 0 && filter.key !== "unverbucht" ? (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-subtle px-5 py-4 text-small">
           <p>
-            <span className="font-medium">{pieces(unbooked)} unverbucht:</span> etikettiert, aber nie eingelagert. Shop und eBay
+            <span className="font-medium">{pieces(unbooked)} unverbucht:</span> etikettiert, aber ohne Platz. Shop und eBay
             zählen sie erst, wenn sie in einem Platz liegen.
           </p>
           <button
@@ -240,7 +261,7 @@ function UnitRows({ units, selection }: { units: readonly UnitOut[]; selection: 
                   {unit.location.code}
                 </Link>
               ) : unit.status === "labeled" ? (
-                <span className="font-sans text-warning">nie eingelagert</span>
+                <span className="font-sans text-warning">ohne Platz</span>
               ) : null}
               {unit.order_number ? ` ${unit.order_number}` : ""}
             </p>

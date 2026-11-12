@@ -114,7 +114,7 @@ describe("UnitListDesk", () => {
     const units = [unit("a1", "in_stock"), unit("a2", "allocated"), unit("a3", "picked")];
     store(units, [line(STELLWERK, { in_stock: 1, allocated: 1, picked: 1 })], {
       [MOVES]: () =>
-        jsonResponse({ moved: 1, already_there: 1, location: { ...(TREE[3] as LocationNodeOut) } }),
+        jsonResponse({ moved: 1, already_there: 1, reserved: 0, location: { ...(TREE[3] as LocationNodeOut) } }),
     });
     const user = userEvent.setup();
     renderWithQueryClient(<UnitListDesk variantId="v1" initialFilter={null} staffRole="packer" onStreamClosed={() => {}} />);
@@ -167,7 +167,7 @@ describe("UnitListDesk", () => {
   it("lists every unbooked piece by article and stores them all in one go", async () => {
     const units = [unit("b1", "labeled"), unit("b2", "labeled", LOKSCHUPPEN), unit("b3", "labeled")];
     store(units, [line(STELLWERK, { labeled: 2, in_stock: 4 }), line(LOKSCHUPPEN, { labeled: 1 })], {
-      [MOVES]: () => jsonResponse({ moved: 3, already_there: 0, location: { ...(TREE[2] as LocationNodeOut) } }),
+      [MOVES]: () => jsonResponse({ moved: 3, already_there: 0, reserved: 0, location: { ...(TREE[2] as LocationNodeOut) } }),
     });
     const user = userEvent.setup();
     renderWithQueryClient(
@@ -176,7 +176,7 @@ describe("UnitListDesk", () => {
 
     const groups = await screen.findAllByRole("region", { name: /Bausatz/ });
     expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([LOKSCHUPPEN.title, STELLWERK.title]);
-    expect(within(groups[1] as HTMLElement).getAllByText("nie eingelagert")).toHaveLength(2);
+    expect(within(groups[1] as HTMLElement).getAllByText("ohne Platz")).toHaveLength(2);
     expect(screen.getByRole("radio", { name: /Unverbucht/ })).toBeChecked();
     expect(listQueries()[0]).toBe("?status=labeled");
 
@@ -185,7 +185,7 @@ describe("UnitListDesk", () => {
     expect(bar).toHaveTextContent("3 Stücke ausgewählt");
     await user.click(within(bar).getByRole("button", { name: "Einlagern …" }));
     const dialog = await screen.findByRole("dialog", { name: "3 Stücke einlagern" });
-    expect(dialog).toHaveTextContent("Danach sind sie im Shop lieferbar.");
+    expect(dialog).toHaveTextContent("Danach sind sie im Shop lieferbar oder gehen gleich an eine wartende Bestellung.");
     await user.click(await within(dialog).findByRole("radio", { name: /R01-F01/ }));
     await user.click(within(dialog).getByRole("button", { name: "Hier einlagern" }));
 
@@ -229,13 +229,13 @@ describe("UnitDesk", () => {
     routeFetch(fetchMock, {
       [`GET ${INVENTORY}/units/${CODE}`]: () => jsonResponse(DETAILS),
       [`GET ${INVENTORY}/locations`]: () => jsonResponse({ items: TREE }),
-      [MOVES]: () => jsonResponse({ moved: 1, already_there: 0, location: { ...(TREE[2] as LocationNodeOut) } }),
+      [MOVES]: () => jsonResponse({ moved: 1, already_there: 0, reserved: 0, location: { ...(TREE[2] as LocationNodeOut) } }),
       [`POST ${INVENTORY}/units/${CODE}/scrap`]: () => jsonResponse({ ...DETAILS, status: "scrapped", scrap_reason: "sold" }),
     });
     const user = userEvent.setup();
     renderWithQueryClient(<UnitDesk code={CODE} staffRole="owner" onStreamClosed={() => {}} />);
 
-    expect(await screen.findByText("nie eingelagert")).toBeInTheDocument();
+    expect(await screen.findByText("ohne Platz")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Einlagern …" }));
     const move = await screen.findByRole("dialog", { name: "7KQ2 X9F4 MZ einlagern" });
     await user.click(await within(move).findByRole("radio", { name: /R01-F01/ }));

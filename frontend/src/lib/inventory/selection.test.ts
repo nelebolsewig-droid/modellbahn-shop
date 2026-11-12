@@ -7,8 +7,8 @@ import { moveMessage, onlyUnbooked, pathLabel, scrapMessage, unitListHref } from
 
 const F02 = { code: "R01-F02" } as LocationOut;
 
-function moved(count: number, there: number): UnitMoveOut {
-  return { moved: count, already_there: there, location: F02 };
+function moved(count: number, there: number, reserved = 0): UnitMoveOut {
+  return { moved: count, already_there: there, reserved, location: F02 };
 }
 
 describe("selection", () => {
@@ -18,6 +18,12 @@ describe("selection", () => {
     expect(moveMessage(moved(0, 1), false)).toBe("Nichts gebucht: Das Stück lag schon in R01-F02.");
     expect(moveMessage(moved(0, 4), true)).toBe("Nichts gebucht: Alle lagen schon in R01-F02.");
     expect(moveMessage(moved(2, 0), true)).toBe("2 Stücke in R01-F02 eingelagert. Sie sind jetzt im Shop lieferbar.");
+    expect(moveMessage(moved(3, 0, 1), true)).toBe(
+      "3 Stücke in R01-F02 eingelagert, 1 davon gleich für eine wartende Bestellung reserviert.",
+    );
+    expect(moveMessage(moved(3, 0, 2), false)).toBe(
+      "3 Stücke nach R01-F02 umgelagert, 2 davon gleich für wartende Bestellungen reserviert.",
+    );
   });
 
   it("says what taking pieces out did", () => {

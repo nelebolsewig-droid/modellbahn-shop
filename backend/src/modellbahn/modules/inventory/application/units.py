@@ -36,7 +36,8 @@ from modellbahn.modules.inventory.domain.model import (
 from modellbahn.modules.manufacturing.contracts.parts import PartInfo
 from modellbahn.platform.clock import Clock
 
-UNITS_LISTED_MAX: Final = 500
+# What one list shows is what one batch may take: "select all" must always be sendable.
+UNITS_LISTED_MAX: Final = UNITS_PER_BATCH_MAX
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +87,8 @@ class UnitMove:
     """Units that went there: labelled ones stored, stored ones moved."""
     already_there: int
     """Units that lay there already and were left alone."""
+    reserved: int
+    """Of the moved ones, those that went straight to a waiting order."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,11 +220,16 @@ class UnitService:
             missing = set(wanted) - {unit.id for unit in units}
             moving = units_to_move(units, location, missing=missing)
             journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
+            reserved = 0
             for unit in moving:
-                await put_away(uow, journal, unit, location)
+                _, allocation = await put_away(uow, journal, unit, location)
+                reserved += allocation is not None
             await uow.commit()
         return UnitMove(
-            location=location, moved=len(moving), already_there=len(units) - len(moving)
+            location=location,
+            moved=len(moving),
+            already_there=len(units) - len(moving),
+            reserved=reserved,
         )
 
     async def details(self, code: str) -> UnitDetails:

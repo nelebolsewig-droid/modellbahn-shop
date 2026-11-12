@@ -187,7 +187,7 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
             {unit.location.code}
           </Link>
         ) : unit.status === "labeled" ? (
-          <span className="text-warning">nie eingelagert</span>
+          <span className="text-warning">ohne Platz</span>
         ) : (
           "—"
         )}

@@ -26,7 +26,7 @@ import { useApiForm } from "@/lib/forms/use-api-form";
 import { formatUnitCode } from "@/lib/inventory/codes";
 import { errorMessage } from "@/lib/i18n/problems";
 import { cn } from "@/lib/utils";
-import { unitsCreateSchema } from "@/lib/validation/inventory";
+import { UNITS_PER_BATCH_MAX, unitsCreateSchema } from "@/lib/validation/inventory";
 
 import { LabelPrinter } from "./label-printer";
 
@@ -131,14 +131,14 @@ function RecordUnits({
         )}
         <div className="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)]">
           <FormField label="Stück" error={errors.quantity?.message}>
-            {(control) => <Input {...control} {...register("quantity")} type="number" inputMode="numeric" min={1} max={200} />}
+            {(control) => <Input {...control} {...register("quantity")} type="number" inputMode="numeric" min={1} max={UNITS_PER_BATCH_MAX} />}
           </FormField>
           <FormField
             label="Platz"
             hint={
               place === ""
                 ? "Ohne Platz bleiben die Stücke „Unverbucht“: Im Shop sind sie erst lieferbar, wenn sie eingelagert sind."
-                : "Die Stücke liegen gleich dort und sind im Shop lieferbar."
+                : "Die Stücke liegen gleich dort und sind im Shop lieferbar oder gehen gleich an eine wartende Bestellung."
             }
             error={errors.location_code?.message}
           >

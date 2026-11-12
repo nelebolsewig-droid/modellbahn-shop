@@ -233,8 +233,13 @@ nicht heran. Und Stücke ließen sich nur einzeln ausbuchen.
     behalten ihre Bestellung.
   - „Ausbuchen …“ mit Grund: `POST /units/scraps`, nur Inhaber und Mitarbeiter, wie das
     Ausbuchen einer Einheit.
-  - Eine Transaktion, alles oder nichts. Die Stücke werden nach ihrer Kennung gesperrt,
-    damit zwei Anfragen einander nicht über Kreuz warten.
+  - Eine Transaktion, alles oder nichts. Alle Wege sperren Stücke nach ihrer Kennung
+    (Sammelbuchungen, Freigeben und Versenden einer Bestellung, Scanner), so dass keine
+    zwei Anfragen einander über Kreuz warten.
+  - Bekannt, nicht behandelt: Wird eine bezahlte Bestellung genau in der Sekunde
+    zugeteilt, in der ein ganzer Platz umgelagert wird, kann sie auf Nachbestellung
+    landen, obwohl Bestand da ist (`skip_locked`). Über den Scanner lässt sie sich
+    trotzdem kommissionieren.
   - Was schon am Ziel liegt oder schon ausgebucht ist, bleibt unberührt. Eine Wiederholung
     nach einem Netzfehler bucht deshalb nichts doppelt.
 - **Was nicht geht:** Kommissionierte und versendete Stücke gehören zu einer Bestellung.

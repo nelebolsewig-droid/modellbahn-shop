@@ -90,7 +90,7 @@ export function MoveUnitsDialog({ units, trigger, onMoved }: MoveUnitsDialogProp
         </DialogTitle>
         <DialogDescription>
           {storing
-            ? "Etikettiert, aber noch in keinem Platz. Danach sind sie im Shop lieferbar."
+            ? "Etikettiert, aber noch in keinem Platz. Danach sind sie im Shop lieferbar oder gehen gleich an eine wartende Bestellung."
             : "Reservierte Stücke behalten ihre Bestellung; was schon dort liegt, bleibt, wie es ist."}
         </DialogDescription>
         <form

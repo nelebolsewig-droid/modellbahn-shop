@@ -654,7 +654,12 @@ class TestMovingSeveralUnits:
             [*ids, labelled.unit.id], location_code="r01-f02", staff_id=staff
         )
 
-        assert (move.location.code, move.moved, move.already_there) == (self.TARGET, 3, 0)
+        assert (move.location.code, move.moved, move.already_there, move.reserved) == (
+            self.TARGET,
+            3,
+            0,
+            0,
+        )
         inside = await locations.contents(self.TARGET)
         assert {u.code for u in inside.units} == {*stored, labelled.unit.code}
         assert (await locations.contents(COMPARTMENT)).units == []
@@ -702,8 +707,9 @@ class TestMovingSeveralUnits:
         before = (await units.details(code)).view.unit
         assert before.status is UnitStatus.ALLOCATED
 
-        await units.move_units([before.id], location_code=self.TARGET, staff_id=staff)
+        move = await units.move_units([before.id], location_code=self.TARGET, staff_id=staff)
 
+        assert (move.moved, move.reserved) == (1, 0)
         after = (await units.details(code)).view
         assert (after.unit.status, after.unit.allocation_id, after.order_id) == (
             UnitStatus.ALLOCATED,
@@ -735,8 +741,9 @@ class TestMovingSeveralUnits:
             variant_id=painted, quantity=1, location_code=None, staff_id=None
         )
 
-        await units.move_units([labelled.unit.id], location_code=self.TARGET, staff_id=staff)
+        move = await units.move_units([labelled.unit.id], location_code=self.TARGET, staff_id=staff)
 
+        assert (move.moved, move.reserved) == (1, 1)
         (item,) = (await allocation.pick_list(waiting)).items
         assert (item.state, item.unit_code) == (PieceState.RESERVED, labelled.unit.code)
 

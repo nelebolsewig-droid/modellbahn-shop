@@ -223,6 +223,7 @@ class TestSeveralUnitsAtOnce:
         assert moved.status_code == 200, moved.text
         assert moved.json()["moved"] == 2
         assert moved.json()["already_there"] == 0
+        assert moved.json()["reserved"] == 0
         assert moved.json()["location"]["code"] == "R01-F01"
         inside = (await staff_client.get(f"{INVENTORY}/locations/R01-F01")).json()["units"]
         assert {u["id"] for u in inside} == {u["id"] for u in labelled}

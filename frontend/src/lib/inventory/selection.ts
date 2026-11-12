@@ -55,8 +55,11 @@ export function moveMessage(result: UnitMoveOut, storing: boolean): string {
   }
   const done = storing ? `${pieces(result.moved)} in ${code} eingelagert` : `${pieces(result.moved)} nach ${code} umgelagert`;
   const skipped = there > 0 ? `, ${there} ${there === 1 ? "lag" : "lagen"} schon dort` : "";
-  const sellable = storing ? (result.moved === 1 ? " Es ist jetzt im Shop lieferbar." : " Sie sind jetzt im Shop lieferbar.") : "";
-  return `${done}${skipped}.${sellable}`;
+  const reserved = result.reserved;
+  const waiting = reserved > 0 ? `, ${reserved} davon gleich für ${reserved === 1 ? "eine wartende Bestellung" : "wartende Bestellungen"} reserviert` : "";
+  // Only pieces that stayed free are sellable; the reserved ones belong to an order now.
+  const sellable = storing && reserved === 0 ? (result.moved === 1 ? " Es ist jetzt im Shop lieferbar." : " Sie sind jetzt im Shop lieferbar.") : "";
+  return `${done}${skipped}${waiting}.${sellable}`;
 }
 
 /** „3 Stücke ausgebucht (Fehlt bei Inventur).“ */

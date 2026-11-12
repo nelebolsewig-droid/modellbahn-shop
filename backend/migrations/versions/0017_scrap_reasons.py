@@ -40,6 +40,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_units_scrap_reason_when_scrapped", "units", schema="inventory")
-    op.drop_constraint("ck_units_scrap_reason", "units", schema="inventory")
+    op.drop_constraint(
+        "ck_units_scrap_reason_when_scrapped", "units", schema="inventory", type_="check"
+    )
+    op.drop_constraint("ck_units_scrap_reason", "units", schema="inventory", type_="check")
     op.drop_column("units", "scrap_reason", schema="inventory")

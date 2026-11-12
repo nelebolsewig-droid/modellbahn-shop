@@ -474,6 +474,9 @@ class UnitMoveIn(_Request):
 class UnitMoveOut(BaseModel):
     moved: int = Field(description="Units that went there (labelled ones are stored).")
     already_there: int = Field(description="Units that lay there already; left alone.")
+    reserved: int = Field(
+        description="Of the moved units, those that went straight to a waiting order."
+    )
     location: LocationOut
 
     @classmethod
@@ -481,6 +484,7 @@ class UnitMoveOut(BaseModel):
         return cls(
             moved=move.moved,
             already_there=move.already_there,
+            reserved=move.reserved,
             location=LocationOut.from_location(move.location),
         )
 

@@ -524,9 +524,11 @@ class _Interpreter:
         item = next((i for i in wanted if i.state is PieceState.BACKORDERED), wanted[0])
         released_code: str | None = None
         if item.state is PieceState.RESERVED:
-            served = await self._uow.units.serving([item.allocation_id], for_update=True)
+            served = await self._uow.units.serving([item.allocation_id])
             reserved = served.get(item.allocation_id)
             if reserved is not None:
+                # Both units are locked in one query, in id order like every other path.
+                await self._uow.units.lock([unit.id, reserved.id])
                 await self._journal.book(reserved, reserved.release(self._now))
                 released_code = reserved.code
         await self._journal.book(unit, unit.allocate(item.allocation_id, self._now))

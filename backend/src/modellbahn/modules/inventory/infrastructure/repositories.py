@@ -219,7 +219,11 @@ class SqlUnitRepository:
         ids = list(set(allocation_ids))
         if not ids:
             return {}
-        statement = _locked(select(Unit).where(units.c.allocation_id.in_(ids)), for_update)
+        statement = select(Unit).where(units.c.allocation_id.in_(ids))
+        if for_update:
+            # Same order as :meth:`lock`, so no two paths wait for each other crosswise.
+            statement = statement.order_by(units.c.id)
+        statement = _locked(statement, for_update)
         found = (await self._session.execute(statement)).scalars()
         return {unit.allocation_id: unit for unit in found if unit.allocation_id is not None}
 

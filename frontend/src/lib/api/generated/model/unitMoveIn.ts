@@ -21,7 +21,7 @@ export interface UnitMoveIn {
   location_code: string;
   /**
      * @minItems 1
-     * @maxItems 200
+     * @maxItems 500
      */
   unit_ids: string[];
 }

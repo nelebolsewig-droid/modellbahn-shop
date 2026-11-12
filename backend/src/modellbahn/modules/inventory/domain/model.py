@@ -41,7 +41,7 @@ from modellbahn.platform.ids import new_id
 
 LOCATION_NAME_MAX_LENGTH: Final = 60
 SCRAP_NOTE_MAX_LENGTH: Final = 200
-UNITS_PER_BATCH_MAX: Final = 200
+UNITS_PER_BATCH_MAX: Final = 500
 UNDO_WINDOW_SECONDS: Final = 600
 
 
