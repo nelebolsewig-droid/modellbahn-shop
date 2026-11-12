@@ -167,10 +167,13 @@ describe("ProductView", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<ProductView product={PRODUCT} />);
 
+    expect(within(screen.getByRole("radiogroup", { name: "Ausführung" })).getAllByRole("radio")).toHaveLength(2);
+
+    // In N the workshop makes only the kit: no choice, no greyed-out ready-made model.
     await user.click(screen.getByRole("radio", { name: /^N/ }));
-    const finishes = screen.getByRole("radiogroup", { name: "Ausführung" });
-    expect(within(finishes).getByRole("radio", { name: "Bausatz" })).toBeChecked();
-    expect(within(finishes).getByRole("radio", { name: "Fertigmodell (in N nicht erhältlich)" })).toBeDisabled();
+    expect(screen.queryByRole("radiogroup", { name: "Ausführung" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /Fertigmodell/ })).toBeNull();
+    expect(screen.getByText("nur als Bausatz")).toBeInTheDocument();
     expect(screen.getByText("MB-000042-N-B")).toBeInTheDocument();
   });
 

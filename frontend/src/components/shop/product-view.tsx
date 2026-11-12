@@ -71,6 +71,8 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
   const scale = product.scales.find((s) => s.code === selection.scale) ?? product.scales[0];
   const variant = variantFor(scale, selection.finish, selection.color);
   const finish = product.finishes.find((f) => f.code === variant?.finish_code);
+  // Only what this scale is made in: a finish the workshop doesn't make here isn't shown.
+  const finishes = product.finishes.filter((f) => scale?.variants.some((v) => v.finish_code === f.code));
   const colors = scale?.variants.filter((v) => v.finish_code === variant?.finish_code && v.color !== "") ?? [];
   const finishName = finish ? finishLabel(finish.name, variant?.color ?? "") : null;
   const items = useMemo(() => galleryFor(product.gallery, selection), [product.gallery, selection]);
@@ -132,27 +134,26 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
               </RadioGroup>
             </div>
 
-            <OptionGroup
-              label="Ausführung"
-              aside={finish?.name}
-              value={variant.finish_code}
-              onValueChange={(code) => setSelection(selectionOf(scale, code, selection.color))}
-            >
-              {product.finishes.map((option) => {
-                const offered = scale.variants.some((v) => v.finish_code === option.code);
-                return (
-                  <OptionPill
-                    key={option.code}
-                    value={option.code}
-                    disabled={!offered}
-                    unavailable={!offered}
-                    aria-label={offered ? option.name : `${option.name} (in ${scale.name} nicht erhältlich)`}
-                  >
+            {finishes.length > 1 ? (
+              <OptionGroup
+                label="Ausführung"
+                aside={finish?.name}
+                value={variant.finish_code}
+                onValueChange={(code) => setSelection(selectionOf(scale, code, selection.color))}
+              >
+                {finishes.map((option) => (
+                  <OptionPill key={option.code} value={option.code}>
                     {option.name}
                   </OptionPill>
-                );
-              })}
-            </OptionGroup>
+                ))}
+              </OptionGroup>
+            ) : finish ? (
+              // Made in one finish only (e.g. only as a ready-made model): nothing to choose.
+              <p className="flex items-baseline justify-between gap-4">
+                <span className="label-caps text-ink-tertiary">Ausführung</span>
+                <span className="text-body">nur als {finish.name}</span>
+              </p>
+            ) : null}
 
             {colors.length > 0 ? (
               <OptionGroup
