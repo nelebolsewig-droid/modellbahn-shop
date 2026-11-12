@@ -213,6 +213,13 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$REPO_DIR/.env"
 DEFAULT_SITE="neu.adp-modelle.de"
 GITHUB_REPO="nelebolsewig-droid/modellbahn-shop"
+# shellcheck source=scripts/gemeinsam.sh
+source "$REPO_DIR/scripts/gemeinsam.sh"
+# Root's SSH configuration, which gets the host alias of the Storage Box (ADR 0025).
+OFFSITE_SSH_CONFIG="/root/.ssh/config"
+# The restic repository's folder on the Storage Box.
+OFFSITE_REPO_PATH="modellbahn"
+MONITOR_CRON="/etc/cron.d/modellbahn-ueberwachung"
 
 # The value of KEY in .env unless it is one of the development placeholders.
 real_value() {
@@ -347,9 +354,227 @@ step "${BOLD}make dhl-check${RESET} mit dem Geschäftskundenkonto. Beides nach d
 pause
 }
 
+# substage "Title" clears the screen for the second part of the current stage.
+substage() {
+  _clear
+  printf '\n%s%s▸ Stage %s/%s · %s%s\n' \
+    "$BOLD" "$BLUE" "$_STAGE_INDEX" "$TOTAL_STAGES" "$1" "$RESET"
+}
+
+# ask_ping_url KEY "Prompt": the ping URL of a check at Healthchecks.io; Enter on an empty
+# value leaves the check out.
+ask_ping_url() {
+  local key="$1"
+  ask "$key" "$2"
+  until [[ -z "${!key}" || "${!key}" =~ ^https://[^[:space:]]+$ ]]; do
+    warn "Die Ping-Adresse beginnt mit https://, z. B. https://hc-ping.com/…"
+    ask "$key" "$2"
+  done
+  if [[ -n "${!key}" ]]; then
+    write_env "$key" "${!key%/}"
+  else
+    SKIPPED+=("$key: ./scripts/einrichten.sh sicherung, sobald der Check angelegt ist")
+  fi
+}
+
+# offsite_sftp runs the sftp commands on stdin on the Storage Box, with the key only.
+offsite_sftp() {
+  sftp -q -b - "$OFFSITE_SSH_ALIAS" >/dev/null 2>&1
+}
+
+# offsite_ssh_alias writes root's SSH host alias for the Storage Box: port 23, its own key,
+# never a password prompt (cron has nobody to answer it), and the host key remembered on
+# first contact. The repository then reads sftp:modellbahn-sicherung:modellbahn. Replaces
+# the block an earlier run wrote.
+offsite_ssh_alias() {
+  install -d -m 700 "$(dirname "$OFFSITE_SSH_CONFIG")"
+  touch "$OFFSITE_SSH_CONFIG"
+  chmod 600 "$OFFSITE_SSH_CONFIG"
+  sed -i "/^# BEGIN $OFFSITE_SSH_ALIAS\$/,/^# END $OFFSITE_SSH_ALIAS\$/d" "$OFFSITE_SSH_CONFIG"
+  if [[ -s "$OFFSITE_SSH_CONFIG" && -n "$(tail -c 1 "$OFFSITE_SSH_CONFIG")" ]]; then
+    printf '\n' >> "$OFFSITE_SSH_CONFIG"
+  fi
+  cat >> "$OFFSITE_SSH_CONFIG" <<EOF
+# BEGIN $OFFSITE_SSH_ALIAS
+# Hetzner Storage Box of the offsite backup (scripts/einrichten.sh sicherung, ADR 0025)
+Host $OFFSITE_SSH_ALIAS
+  HostName $MB_STORAGEBOX_HOST
+  User $MB_STORAGEBOX_USER
+  Port 23
+  IdentityFile $OFFSITE_SSH_KEY
+  IdentitiesOnly yes
+  BatchMode yes
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 60
+# END $OFFSITE_SSH_ALIAS
+EOF
+}
+
+# show_offsite_password_once shows restic's password right after the repository was
+# created: the only time it ever appears. It is not logged, and the screen is cleared after.
+# shellcheck disable=SC1111
+show_offsite_password_once() {
+  _clear
+  printf '\n%s%s  ⚠ Das Passwort der Sicherung außer Haus%s\n\n' "$BOLD" "$YELLOW" "$RESET"
+  say "Die Sicherung auf der Storage Box ist verschlüsselt. Nur dieses Passwort öffnet sie."
+  say "Geht dieser Server verloren, kann ohne das Passwort niemand den Shop wiederherstellen,"
+  say "auch Hetzner nicht."
+  printf '\n      %s%s%s\n\n' "$BOLD" "$(cat "$OFFSITE_PASSWORD_FILE")" "$RESET"
+  step "Jetzt markieren, kopieren (Mac: ⌘C) und in euren Passwort-Manager legen,"
+  step "z. B. als „adp-Modelle: Sicherung außer Haus“."
+  step "In denselben Eintrag: Storage Box ${BOLD}$MB_STORAGEBOX_USER@$MB_STORAGEBOX_HOST${RESET}, Ordner ${BOLD}$OFFSITE_REPO_PATH${RESET}."
+  warn "Dieses Skript zeigt das Passwort nie wieder an."
+  printf '\n'
+  until confirm "Steht das Passwort im Passwort-Manager?"; do
+    [[ -t 0 ]] || break
+    warn "Bitte jetzt speichern. Ohne das Passwort ist die Sicherung außer Haus wertlos."
+  done
+  _clear
+  if [[ -t 1 ]]; then printf '\033[3J'; fi
+}
+
+# offsite_stage sets up the monitoring with Healthchecks.io and the encrypted copy of the
+# nightly backup on a Hetzner Storage Box (ADR 0025). A stage of the wizard, and on its own
+# with `einrichten.sh sicherung`. A second run keeps the ping URLs (Enter), the SSH key, the
+# password and the repository; it never creates them anew.
+# shellcheck disable=SC1111
+offsite_stage() {
+local repo_exists="" fresh_password=""
+stage "Überwachung und Sicherung außer Haus"
+say "Healthchecks.io schickt euch eine Mail, wenn der Shop nicht antwortet oder die nächtliche"
+say "Sicherung fehlschlägt. Das Konto ist kostenlos."
+printf '\n'
+open_url "https://healthchecks.io/accounts/signup/"
+step "Konto anlegen, mit der Mail-Adresse, die die Warnungen bekommen soll."
+step "„Add Check“, Name ${BOLD}Shop${RESET}. Unter „Schedule“: Period ${BOLD}5 minutes${RESET}, Grace Time ${BOLD}10 minutes${RESET}."
+step "Zweiter Check: Name ${BOLD}Sicherung${RESET}, Period ${BOLD}1 day${RESET}, Grace Time ${BOLD}2 hours${RESET}."
+step "Jeder Check zeigt seine Ping-Adresse (https://hc-ping.com/…): kopieren und hier einfügen."
+note "Weitere Empfänger: in Healthchecks.io unter „Integrations“ eine E-Mail-Adresse hinzufügen."
+note "Nur Enter lässt einen Check aus."
+ask_ping_url MB_HEALTHCHECK_SHOP_URL "Ping-Adresse des Checks Shop:"
+ask_ping_url MB_HEALTHCHECK_BACKUP_URL "Ping-Adresse des Checks Sicherung:"
+printf '*/5 * * * * root %s/scripts/ueberwachung.sh >/dev/null 2>>/var/log/modellbahn-ueberwachung.log\n' \
+  "$REPO_DIR" > "$MONITOR_CRON"
+chmod 644 "$MONITOR_CRON"
+say "✓ $MONITOR_CRON: Alle 5 Minuten prüft der Server den Shop."
+if [[ -n "$MB_HEALTHCHECK_SHOP_URL" ]]; then
+  "$REPO_DIR/scripts/ueberwachung.sh" \
+    || warn "Der Shop ist gerade nicht in Ordnung (oben); Healthchecks.io meldet das per Mail."
+fi
+pause "Weiter zur Sicherung außer Haus?"
+
+substage "Sicherung außer Haus: Hetzner Storage Box"
+say "Jede Nacht geht eine verschlüsselte Kopie der Sicherung auf eine Storage Box bei Hetzner"
+say "in Deutschland. Dort bleibt sie 14 Tage, wie hier, und übersteht den Verlust dieses Servers."
+printf '\n'
+step "Bei Hetzner eine Storage Box bestellen; die kleinste reicht."
+step "In der Hetzner-Konsole bei der Box ${BOLD}SSH-Support${RESET} und ${BOLD}Externe Erreichbarkeit${RESET} einschalten."
+step "Den Vertrag zur Auftragsverarbeitung (AVV) mit Hetzner abschließen, auch in der Konsole."
+step "Benutzername (u und Ziffern) und Passwort der Box bereithalten."
+printf '\n'
+if ! confirm "Storage Box jetzt anbinden?"; then
+  SKIPPED+=("Sicherung außer Haus: ./scripts/einrichten.sh sicherung, sobald die Storage Box da ist")
+  pause
+  return
+fi
+if ! command -v restic >/dev/null 2>&1; then
+  say "restic (das Sicherungsprogramm) wird installiert …"
+  apt-get update -q
+  apt-get install -yq restic
+fi
+ask_real MB_STORAGEBOX_USER "Benutzername der Storage Box (z. B. u123456):"
+until [[ "$MB_STORAGEBOX_USER" =~ ^u[0-9]+(-sub[0-9]+)?$ ]]; do
+  warn "Der Benutzername ist ein u mit Ziffern, z. B. u123456."
+  ask MB_STORAGEBOX_USER "Benutzername der Storage Box:"
+done
+write_env MB_STORAGEBOX_USER "$MB_STORAGEBOX_USER"
+ask_real MB_STORAGEBOX_HOST "Adresse der Storage Box:" "$MB_STORAGEBOX_USER.your-storagebox.de"
+write_env MB_STORAGEBOX_HOST "$MB_STORAGEBOX_HOST"
+
+install -d -m 700 "$(dirname "$OFFSITE_SSH_KEY")"
+if [[ -f "$OFFSITE_SSH_KEY" ]]; then
+  note "Der SSH-Schlüssel für die Storage Box ist schon da und bleibt."
+else
+  ssh-keygen -q -t ed25519 -N "" -C "modellbahn-sicherung@$(hostname)" -f "$OFFSITE_SSH_KEY"
+  say "✓ Eigener SSH-Schlüssel für die Storage Box: $OFFSITE_SSH_KEY"
+fi
+offsite_ssh_alias
+if ! offsite_sftp <<<'pwd'; then
+  say "Jetzt kommt der Schlüssel auf die Storage Box. Sie fragt dafür ${BOLD}einmal${RESET} nach ihrem"
+  say "Passwort. Beim Tippen oder Einfügen erscheint nichts, das ist richtig so."
+  ssh -o BatchMode=no -o PubkeyAuthentication=no "$OFFSITE_SSH_ALIAS" install-ssh-key \
+    < "$OFFSITE_SSH_KEY.pub" || true
+fi
+if ! offsite_sftp <<<'pwd'; then
+  warn "Keine Verbindung zur Storage Box mit dem Schlüssel."
+  note "Prüfen: SSH-Support und Externe Erreichbarkeit an? Benutzername, Adresse und Passwort richtig?"
+  SKIPPED+=("Sicherung außer Haus: Verbindung zur Storage Box klären, dann ./scripts/einrichten.sh sicherung")
+  pause
+  return
+fi
+say "✓ Die Storage Box nimmt den Schlüssel an."
+
+write_env MB_RESTIC_REPOSITORY "sftp:$OFFSITE_SSH_ALIAS:$OFFSITE_REPO_PATH"
+install -d -m 700 "$(dirname "$OFFSITE_PASSWORD_FILE")"
+if offsite_sftp <<<"ls $OFFSITE_REPO_PATH/config"; then repo_exists=1; fi
+if [[ -s "$OFFSITE_PASSWORD_FILE" ]]; then
+  note "Das Passwort der Sicherung ist schon gesetzt und bleibt."
+elif [[ -n "$repo_exists" ]]; then
+  say "Auf der Storage Box liegt schon eine Sicherung, etwa vom alten Server. Sie öffnet sich"
+  say "nur mit ihrem Passwort aus eurem Passwort-Manager."
+  ask_secret OFFSITE_PASSWORD_INPUT "Passwort der Sicherung außer Haus (unsichtbar):"
+  (umask 077 && printf '%s\n' "$OFFSITE_PASSWORD_INPUT" > "$OFFSITE_PASSWORD_FILE")
+  fresh_password=1
+else
+  (umask 077 && openssl rand -hex 24 > "$OFFSITE_PASSWORD_FILE")
+fi
+chmod 600 "$OFFSITE_PASSWORD_FILE"
+
+if [[ -n "$repo_exists" ]]; then
+  if offsite_restic cat config >/dev/null 2>&1; then
+    say "✓ Die Sicherung auf der Storage Box öffnet sich mit dem Passwort."
+  else
+    warn "Das Passwort öffnet die Sicherung auf der Storage Box nicht."
+    if [[ -n "$fresh_password" ]]; then
+      rm -f "$OFFSITE_PASSWORD_FILE"
+    else
+      note "Stimmt das Passwort im Passwort-Manager, die Datei $OFFSITE_PASSWORD_FILE löschen"
+      note "und das Skript erneut starten; es fragt dann danach."
+    fi
+    SKIPPED+=("Sicherung außer Haus: Passwort klären, dann ./scripts/einrichten.sh sicherung")
+    pause
+    return
+  fi
+elif offsite_restic init >/dev/null; then
+  say "✓ Neue, verschlüsselte Sicherung auf der Storage Box angelegt."
+  pause "Enter zeigt das Passwort der Sicherung. Den Passwort-Manager schon öffnen."
+  show_offsite_password_once
+else
+  warn "Die Sicherung auf der Storage Box ließ sich nicht anlegen (Meldung oben)."
+  SKIPPED+=("Sicherung außer Haus: ./scripts/einrichten.sh sicherung erneut starten")
+  pause
+  return
+fi
+
+printf '\n'
+say "Ab heute Nacht geht jede Sicherung auch auf die Storage Box und bleibt dort 14 Tage."
+if confirm "Jetzt einmal sichern, mit Kopie außer Haus (die Bilder sind dabei kurz nicht erreichbar)?"; then
+  if "$REPO_DIR/scripts/sicherung.sh"; then
+    if confirm "Und zur Probe wiederherstellen? Der Shop läuft dabei weiter."; then
+      "$REPO_DIR/scripts/sicherung_pruefen.sh" \
+        || SKIPPED+=("Probe-Wiederherstellung: make sicherung-pruefen, Meldung prüfen")
+    fi
+  else
+    warn "Die Sicherung ist fehlgeschlagen (Meldung oben)."
+    SKIPPED+=("Sicherung: ./scripts/sicherung.sh von Hand starten und die Meldung prüfen")
+  fi
+fi
+pause
+}
+
 run_wizard() {
 
-TOTAL_STAGES=13
+TOTAL_STAGES=14
 
 if [[ $EUID -ne 0 ]]; then
   printf 'Bitte als root starten: sudo %s\n' "$0" >&2
@@ -376,6 +601,15 @@ if [[ "${1:-}" == "dhl" ]]; then
   fi
   finish
   say "Prüfen: make dhl-check SANDBOX=1 (Sandbox) · make dhl-check (Geschäftskundenkonto)"
+  return
+fi
+
+if [[ "${1:-}" == "sicherung" ]]; then
+  TOTAL_STAGES=1
+  banner "Überwachung und Sicherung außer Haus einrichten"
+  offsite_stage
+  finish
+  say "Prüfen: make sicherung-pruefen (Probe-Wiederherstellung) · ./scripts/ueberwachung.sh"
   return
 fi
 
@@ -653,11 +887,17 @@ printf '30 3 * * * root %s/scripts/sicherung.sh >> /var/log/modellbahn-sicherung
 chmod 644 /etc/cron.d/modellbahn-sicherung
 say "✓ /etc/cron.d/modellbahn-sicherung"
 if confirm "Jetzt einmal zur Probe sichern (die Bilder sind dabei kurz nicht erreichbar)?"; then
-  "$REPO_DIR/scripts/sicherung.sh"
+  "$REPO_DIR/scripts/sicherung.sh" || {
+    warn "Die Sicherung ist fehlgeschlagen (Meldung oben)."
+    SKIPPED+=("Sicherung: ./scripts/sicherung.sh von Hand starten und die Meldung prüfen")
+  }
 fi
-warn "Sicherungen auf demselben Server überstehen dessen Verlust nicht: regelmäßig herunterladen"
-warn "(docs/BETRIEB.md, „Sicherung“) oder Strato-Backups des Servers einschalten, falls gebucht."
+warn "Sicherungen auf demselben Server überstehen dessen Verlust nicht. Dafür kommt im nächsten"
+warn "Schritt die Sicherung außer Haus."
 pause
+
+# ── 14 ────────────────────────────────────────────────────────────────────
+offsite_stage
 
 finish
 say "Stellwerk: https://$SITE_ADDRESS/admin"
