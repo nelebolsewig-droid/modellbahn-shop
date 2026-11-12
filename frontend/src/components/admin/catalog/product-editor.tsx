@@ -61,13 +61,13 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
   });
 
   if (product.isPending || references.isPending || categories.isPending) {
-    return <PendingNotice>Das Produkt wird geladen …</PendingNotice>;
+    return <PendingNotice>Das Modell wird geladen …</PendingNotice>;
   }
   const failure = product.error ?? references.error ?? categories.error;
   if (failure || !product.data || !references.data || !categories.data) {
     return (
       <div className="space-y-4">
-        <Alert tone="danger" title="Das Produkt konnte nicht geladen werden">
+        <Alert tone="danger" title="Das Modell konnte nicht geladen werden">
           <p>{errorMessage(failure)}</p>
         </Alert>
         <Button asChild variant="secondary">

@@ -51,7 +51,7 @@ export function PartsDesk({ staffRole }: { staffRole: StaffRole }) {
       <h1 className="mt-3 text-heading sm:text-title">Teile &amp; Material</h1>
       <p className="mt-3 max-w-2xl text-ink-secondary">
         Jedes Teil gehört zu einem Maßstab und einer Drucktechnik und trägt seine Druckdaten. Aus den Teilen entstehen
-        die Stücklisten der Bausätze (im Katalog, beim Produkt) und die Platten in der Druckerhalle.
+        die Stücklisten der Bausätze (im Katalog, beim Modell) und die Platten in der Druckerhalle.
       </p>
       <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <PartsPanel mayPlan={mayPlan} />
@@ -219,12 +219,12 @@ function PartRow({
         <span className="block text-hint text-ink-tertiary">{part.material?.name ?? "kein Material"}</span>
       </td>
       <td className="py-3 pr-4 text-right align-top tabular-nums">
-        {part.plate_minutes !== null ? formatMinutes(part.plate_minutes) : "–"}
+        {part.plate_minutes !== null ? formatMinutes(part.plate_minutes) : "unbekannt"}
         <span className="block text-hint text-ink-tertiary">{part.parts_per_plate} Stück</span>
       </td>
       <td className="py-3 pr-4 text-right align-top tabular-nums">
         {part.minutes_per_part === null
-          ? "–"
+          ? "unbekannt"
           : part.minutes_per_part >= 60
             ? formatMinutes(part.minutes_per_part)
             : `${decimal.format(part.minutes_per_part)} min`}

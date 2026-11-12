@@ -55,7 +55,7 @@ describe("parseFeedEntry", () => {
     const parsed = parseFeedEntry(
       message({ type: "catalog.product.published", data: { product_id: "p1", name: "Stellwerk Altenau" } }),
     );
-    expect(parsed?.label).toBe("Produkt veröffentlicht");
+    expect(parsed?.label).toBe("Modell veröffentlicht");
     expect(parsed?.subject).toBe("Stellwerk Altenau");
     expect(parsed?.account).toBeUndefined();
   });

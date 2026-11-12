@@ -23,25 +23,25 @@ export const PROBLEM_MESSAGES: Messages = {
   insufficient_role: "Deine Rolle erlaubt das nicht. Bitte wende dich an den Inhaber.",
 
   // Catalogue
-  product_not_found: "Dieses Produkt gibt es nicht (mehr).",
-  product_scale_not_found: "Diesen Maßstab gibt es an dem Produkt nicht mehr.",
-  variant_not_found: "Diese Variante gibt es nicht mehr.",
+  product_not_found: "Dieses Modell gibt es nicht (mehr).",
+  product_scale_not_found: "Diesen Maßstab gibt es an dem Modell nicht mehr.",
+  variant_not_found: "Diese Ausführung gibt es nicht mehr.",
   category_not_found: "Diese Kategorie gibt es nicht.",
   slug_taken: "Diese Adresse ist schon vergeben. Bitte wähle eine andere.",
-  slug_locked: "Die Adresse eines veröffentlichten Produkts bleibt fest, weil Links darauf zeigen.",
-  scale_exists: "Das Produkt gibt es schon in diesem Maßstab.",
+  slug_locked: "Die Adresse eines veröffentlichten Modells bleibt fest, weil Links darauf zeigen.",
+  scale_exists: "Das Modell gibt es schon in diesem Maßstab.",
   variant_exists: "Diese Ausführung gibt es in dem Maßstab schon, in dieser Farbe.",
   scale_not_found: "Diesen Maßstab gibt es nicht mehr.",
-  scale_in_use: "Der Maßstab wird noch verwendet: Produkte gibt es in ihm, oder Fotos sind ihm zugeordnet.",
-  invalid_product_state: "Das ist im aktuellen Zustand des Produkts nicht möglich.",
+  scale_in_use: "Der Maßstab wird noch verwendet: Modelle gibt es in ihm, oder Fotos sind ihm zugeordnet.",
+  invalid_product_state: "Das ist im aktuellen Zustand des Modells nicht möglich.",
   product_not_deletable: "Das Modell ist im Shop. Archiviere es zuerst, dann lässt es sich löschen.",
   product_in_open_orders:
     "Bestellungen, die noch auf Zahlung oder Versand warten, enthalten dieses Modell, auch eBay-Bestellungen, die der Shop gerade übernimmt. Solange sie offen sind, lässt es sich nicht löschen.",
   product_has_history:
     "Stücke dieses Modells sind verkauft, montiert oder einer Bestellung zugeteilt. Verkaufte und montierte Stücke behalten ihre Geschichte, das Modell bleibt dann archiviert und erscheint nicht im Shop. Kam die Meldung direkt nach einem Storno, gibt das Lager die Stücke gleich frei: in einer Minute noch einmal versuchen.",
   product_on_marketplace:
-    "Das Modell ist noch bei eBay eingestellt. Ist es archiviert, nimmt der Shop das Angebot in ein paar Minuten herunter; versuche es dann noch einmal. Bleibt es online, unter eBay nachsehen, ob die Verbindung steht.",
-  not_publishable: "Das Produkt erfüllt noch nicht alle Regeln für den Shop.",
+    "Das Modell ist noch bei eBay eingestellt. Ist es archiviert, nimmt der Shop das Angebot in ein paar Minuten herunter; versuche es dann noch einmal. Bleibt es online, unter Einstellungen → eBay-Einrichtung nachsehen, ob die Verbindung steht.",
+  not_publishable: "Das Modell erfüllt noch nicht alle Regeln für den Shop.",
 
   // Manufacturing
   printer_not_found: "Diesen Drucker gibt es nicht (mehr).",
@@ -64,7 +64,7 @@ export const PROBLEM_MESSAGES: Messages = {
   receipt_not_found: "Diesen Eingang gibt es nicht (mehr).",
   invalid_receipt_state: "Von diesem Eingang ist nichts mehr offen. Die Ansicht ist gleich aktuell.",
   parts_missing: "Es fehlen Teile in den Boxen. Der Plan zeigt gleich, was noch fehlt.",
-  no_bill_of_materials: "Für diesen Artikel gibt es noch keine Stückliste. Lege sie im Produkt an.",
+  no_bill_of_materials: "Für dieses Modell gibt es noch keine Stückliste. Lege sie im Katalog beim Modell an.",
 
   // Fairs and the fair news
   fair_not_found: "Diese Messe gibt es nicht (mehr).",
@@ -74,7 +74,7 @@ export const PROBLEM_MESSAGES: Messages = {
   fair_news_token_invalid:
     "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt. Melde dich auf der Terminseite einfach noch einmal an.",
   precondition_failed:
-    "Jemand hat das Produkt inzwischen geändert. Lade den aktuellen Stand und übernimm deine Änderung dann erneut.",
+    "Jemand hat das Modell inzwischen geändert. Lade den aktuellen Stand und übernimm deine Änderung dann erneut.",
   precondition_required: "Die Änderung braucht den gelesenen Stand. Bitte lade die Seite neu.",
 
   // Media
@@ -119,38 +119,38 @@ export const PROBLEM_MESSAGES: Messages = {
 
   // eBay
   ebay_off: "eBay ist auf diesem Server ausgeschaltet.",
-  ebay_not_connected: "Der Shop ist nicht mit eBay verbunden. Verbinde ihn auf der eBay-Seite.",
+  ebay_not_connected: "Der Shop ist nicht mit eBay verbunden. Verbinde ihn unter Einstellungen → eBay-Einrichtung.",
   ebay_not_ready:
-    "Für Angebote fehlt noch etwas: Prüfe auf der eBay-Seite Versand, Zahlung, Rücknahme und Versandort.",
+    "Für Angebote fehlt noch etwas: Prüfe unter Einstellungen → eBay-Einrichtung Versand, Zahlung, Rücknahme und Versandort.",
   ebay_state_invalid: "Der Rücksprung von eBay war abgelaufen. Bitte verbinde dich erneut.",
   ebay_unavailable: "eBay ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.",
   ebay_rejected: "eBay hat die Anfrage abgelehnt.",
-  listing_not_found: "Dieses Angebot (oder das Produkt in diesem Maßstab) gibt es nicht.",
+  listing_not_found: "Dieses Angebot (oder das Modell in diesem Maßstab) gibt es nicht.",
   marketplace_order_not_found: "Diese eBay-Bestellung gibt es nicht.",
   test_mode_only: "Das geht nur auf dem Testmarktplatz.",
 
   // Inventory
-  location_not_found: "Diesen Lagerplatz gibt es nicht.",
-  location_code_taken: "Einen Lagerplatz mit diesem Code gibt es schon.",
-  location_not_empty: "Der Lagerplatz ist nicht leer: Es liegt Ware darin oder es gibt Plätze darunter.",
+  location_not_found: "Diesen Platz gibt es nicht.",
+  location_code_taken: "Einen Platz mit diesem Code gibt es schon.",
+  location_not_empty: "Der Platz ist nicht leer: Es liegt Ware darin oder es gibt Plätze darunter.",
   location_in_use:
-    "Hier lag schon einmal Ware. Der Lagerplatz bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist.",
-  unit_not_found: "Diese Einheit gibt es nicht.",
-  invalid_unit_state: "Das ist im aktuellen Zustand der Einheit nicht möglich.",
+    "Hier lag schon einmal Ware. Der Platz bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist.",
+  unit_not_found: "Dieses Stück gibt es nicht.",
+  invalid_unit_state: "Das ist im aktuellen Zustand des Stücks nicht möglich.",
   units_not_movable:
     "Nicht alle Stücke lassen sich verlegen: Kommissionierte, versendete und ausgebuchte bleiben, wo sie sind. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
   units_not_scrappable:
     "Kommissionierte und versendete Stücke gehören zu einer Bestellung und lassen sich hier nicht ausbuchen. Es wurde nichts gebucht; die Liste ist gleich aktuell.",
   variant_has_units:
-    "Von dieser Variante gibt es Einheiten im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
+    "Von dieser Ausführung gibt es Stücke im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
   order_not_allocatable: "Nur bezahlte Bestellungen bekommen Ware zugeteilt.",
   scan_id_reused: "Dieser Scan wurde schon mit anderem Inhalt gesendet. Bitte scanne erneut.",
   scan_not_found: "Diesen Scan gibt es nicht.",
   scan_already_undone: "Dieser Scan ist schon rückgängig gemacht.",
-  scan_too_old: "Rückgängig geht nur zehn Minuten lang. Buche die Einheit stattdessen um.",
+  scan_too_old: "Rückgängig geht nur zehn Minuten lang. Buche das Stück stattdessen um.",
   scan_nothing_booked: "Dieser Scan hat nichts gebucht; es gibt nichts rückgängig zu machen.",
   scan_changed_since:
-    "Die Einheit wurde inzwischen weiter bewegt. Rückgängig ist deshalb nicht mehr möglich.",
+    "Das Stück wurde inzwischen weiter bewegt. Rückgängig ist deshalb nicht mehr möglich.",
 
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",
@@ -205,8 +205,8 @@ export const FIELD_MESSAGES: Messages = {
   too_large: "Die Datei ist größer als 50 MB.",
   invalid_filename: "Der Dateiname ist leer oder zu lang.",
   not_shipped: "Dorthin liefern wir leider nicht.",
-  invalid_parent: "Diese Art von Lagerplatz gehört nicht an diese Stelle.",
-  holds_no_goods: "In diesen Lagerplatz kommt keine Ware: nur Fächer, Boxen und Ablagen nehmen Ware auf.",
+  invalid_parent: "Diese Art von Platz gehört nicht an diese Stelle.",
+  holds_no_goods: "Auf diesen Platz kommt keine Ware: nur Fächer, Boxen und Ablagen nehmen Ware auf.",
   not_colored: "Ein Bausatz kommt ohne Farbe. Farben gibt es nur beim Fertigmodell.",
   not_offered: "Diese Ausführung bieten wir nicht mehr an.",
   wrong_scale: "Das Teil gehört zu einem anderen Maßstab.",
@@ -267,7 +267,7 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
   color: {
     too_long: "Die Farbe darf höchstens 40 Zeichen lang sein.",
     required: "Bitte gib eine Farbe an: Das Fertigmodell gibt es hier schon in Farben.",
-    unnamed_sibling: "Gib zuerst der Variante ohne Farbe ihre Farbe; dann kann eine weitere dazukommen.",
+    unnamed_sibling: "Gib zuerst der Ausführung ohne Farbe ihre Farbe; dann kann eine weitere dazukommen.",
   },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },

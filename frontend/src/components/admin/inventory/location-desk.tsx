@@ -64,12 +64,12 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
   });
 
   if (contents.isPending) {
-    return <PendingNotice>Der Lagerplatz wird geladen …</PendingNotice>;
+    return <PendingNotice>Der Platz wird geladen …</PendingNotice>;
   }
   if (contents.isError) {
     return (
       <div className="space-y-4">
-        <Alert tone="danger" title="Der Lagerplatz konnte nicht geladen werden">
+        <Alert tone="danger" title="Der Platz konnte nicht geladen werden">
           <p>{errorMessage(contents.error)}</p>
         </Alert>
         <Button asChild variant="secondary">
@@ -205,7 +205,7 @@ function UnitTable({
               {unit.display_code}
             </Link>
             <p className="truncate text-small text-ink-secondary">
-              {unit.title ?? "Unbekannter Artikel"}
+              {unit.title ?? "Unbekanntes Modell"}
               {unit.sku ? <span className="ml-2 font-mono text-hint text-ink-tertiary">{unit.sku}</span> : null}
             </p>
           </div>

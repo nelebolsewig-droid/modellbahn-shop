@@ -108,7 +108,7 @@ function RecordUnits({
 
   return (
     <>
-      <DialogTitle>Einheiten erfassen</DialogTitle>
+      <DialogTitle>Stücke erfassen</DialogTitle>
       <DialogDescription>
         Jedes Stück bekommt einen eigenen Code und ein Etikett mit EAN für die Kasse. Danach geht es direkt zum Druck.
       </DialogDescription>
@@ -118,7 +118,7 @@ function RecordUnits({
         {chosen ? (
           <div className="flex items-center justify-between gap-4 rounded-sm border border-line bg-canvas px-4 py-3">
             <div className="min-w-0">
-              <p className="label-caps text-ink-tertiary">Artikel</p>
+              <p className="label-caps text-ink-tertiary">Modell</p>
               <p className="mt-1 truncate text-small font-medium">{chosen.title}</p>
               <p className="font-mono text-hint text-ink-tertiary">{chosen.sku}</p>
             </div>
@@ -177,7 +177,7 @@ export function VariantPicker({ onChoose, error }: { onChoose: (variant: ChosenV
 
   return (
     <div className="space-y-3">
-      <FormField label="Artikel suchen" error={error}>
+      <FormField label="Modell suchen" error={error}>
         {(control) => (
           <Input
             {...control}
@@ -196,7 +196,7 @@ export function VariantPicker({ onChoose, error }: { onChoose: (variant: ChosenV
           {products.isPending ? <li className="px-4 py-3 text-small text-ink-secondary">Wird gesucht …</li> : null}
           {products.isError ? <li className="px-4 py-3 text-small text-danger">{errorMessage(products.error)}</li> : null}
           {products.data?.items.length === 0 ? (
-            <li className="px-4 py-3 text-small text-ink-secondary">Kein Artikel gefunden.</li>
+            <li className="px-4 py-3 text-small text-ink-secondary">Kein Modell gefunden.</li>
           ) : null}
           {products.data?.items.map((product) => (
             <li key={product.id}>
@@ -291,7 +291,7 @@ function PrintNewLabels({ units, variant, onClose }: { units: UnitOut[]; variant
   const stored = units[0]?.location?.code;
   return (
     <>
-      <DialogTitle>{units.length === 1 ? "1 Einheit erfasst" : `${units.length} Einheiten erfasst`}</DialogTitle>
+      <DialogTitle>{units.length === 1 ? "1 Stück erfasst" : `${units.length} Stücke erfasst`}</DialogTitle>
       <DialogDescription>
         {variant.title}.{" "}
         {stored

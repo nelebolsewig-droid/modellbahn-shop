@@ -107,7 +107,7 @@ export function AssemblyDesk({ staffRole, onStreamClosed }: { staffRole: StaffRo
               {chosen ? (
                 <div className="flex items-center justify-between gap-4 rounded-sm border border-line bg-canvas px-4 py-3">
                   <div className="min-w-0">
-                    <p className="label-caps text-ink-tertiary">Artikel</p>
+                    <p className="label-caps text-ink-tertiary">Modell</p>
                     <p className="mt-1 text-small font-medium">{chosen.title}</p>
                     <p className="font-mono text-hint text-ink-tertiary">{chosen.sku}</p>
                   </div>
@@ -169,7 +169,7 @@ export function AssemblyDesk({ staffRole, onStreamClosed }: { staffRole: StaffRo
         <Panel title="Entnahmeliste" code="MT 02">
           {chosen === null && !done ? (
             <p className="text-small text-ink-secondary">
-              Wähle einen Artikel. Hier steht dann, welche Teile er braucht und aus welchen Boxen sie kommen.
+              Wähle ein Modell. Hier steht dann, welche Teile es braucht und aus welchen Boxen sie kommen.
             </p>
           ) : null}
           {chosen !== null && !done && plan.isPending ? <PendingNotice>Der Plan wird berechnet …</PendingNotice> : null}

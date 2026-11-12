@@ -24,7 +24,7 @@ export function LocationPanel({ mayManage }: { mayManage: boolean }) {
   const items = tree.data?.items ?? [];
   return (
     <Panel
-      title="Lagerplätze"
+      title="Plätze"
       code="LG 02"
       actions={
         <div className="flex gap-2">
@@ -42,7 +42,7 @@ export function LocationPanel({ mayManage }: { mayManage: boolean }) {
         </div>
       }
     >
-      {tree.isPending ? <PendingNotice>Die Lagerplätze werden geladen …</PendingNotice> : null}
+      {tree.isPending ? <PendingNotice>Die Plätze werden geladen …</PendingNotice> : null}
       {tree.isError ? <p className="text-small text-danger">{errorMessage(tree.error)}</p> : null}
       {tree.isSuccess && items.length === 0 ? <EmptyStore mayManage={mayManage} /> : null}
       {items.length > 0 ? <LocationTree items={items} /> : null}
@@ -55,7 +55,7 @@ function EmptyStore({ mayManage }: { mayManage: boolean }) {
     <div className="py-6 text-center">
       <LocationGlyph kind="shelf" className="mx-auto size-10 text-ink-disabled" />
       <p className="mt-4 text-small text-ink-secondary">
-        Noch keine Lagerplätze.{" "}
+        Noch keine Plätze.{" "}
         {mayManage ? "Erst ein Lager anlegen, dann Regale und Fächer darin." : "Inhaber oder Mitarbeiter legen sie an."}
       </p>
     </div>

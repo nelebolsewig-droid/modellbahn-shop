@@ -58,7 +58,7 @@ function nextStep(withdrawal: WithdrawalOut): string | null {
     case "refunded":
       return null;
     case "to_check":
-      return "Nur einzelne Artikel oder eine eBay-Bestellung: Was zurückgeht, entscheidest du unter „Erstattung“ (eBay: auf eBay).";
+      return "Nur einzelne Modelle oder eine eBay-Bestellung: Was zurückgeht, entscheidest du unter „Erstattung“ (eBay: auf eBay).";
   }
 }
 

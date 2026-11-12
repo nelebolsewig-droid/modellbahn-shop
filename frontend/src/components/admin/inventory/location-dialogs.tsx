@@ -130,7 +130,11 @@ export function LocationCreateDialog({
           </div>
           <div className="flex items-center gap-4 rounded-sm bg-canvas px-4 py-3">
             <span className="label-caps text-ink-tertiary">Code</span>
-            <span className="font-mono text-body-lg font-medium tracking-wider">{preview ?? "–"}</span>
+            {preview ? (
+              <span className="font-mono text-body-lg font-medium tracking-wider">{preview}</span>
+            ) : (
+              <span className="text-small text-ink-tertiary">noch keiner</span>
+            )}
           </div>
           <div className="flex flex-wrap justify-end gap-3">
             <DialogClose asChild>

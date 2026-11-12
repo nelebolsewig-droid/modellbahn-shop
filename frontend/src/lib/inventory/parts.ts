@@ -49,7 +49,7 @@ export function partMovementText(entry: PartHistoryEntryOut): string {
     case "receive":
       return `${count} aus ${plate(entry.print_job_number)} in ${entry.to_location_code ?? "eine Box"}`;
     case "assemble":
-      return `${count} aus ${entry.from_location_code ?? "einer Box"} in ${entry.unit_code ? formatUnitCode(entry.unit_code) : "eine Einheit"}`;
+      return `${count} aus ${entry.from_location_code ?? "einer Box"} in ${entry.unit_code ? formatUnitCode(entry.unit_code) : "ein Stück"}`;
     case "count":
       return entry.to_location_code
         ? `${count} mehr gezählt in ${entry.to_location_code}`

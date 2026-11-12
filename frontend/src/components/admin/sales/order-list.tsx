@@ -42,10 +42,13 @@ const FILTERS: readonly { value: StatusFilter; label: string }[] = [
   { value: "cancelled", label: "Storniert" },
 ];
 
-/** Every order, newest first: filter by state, search by number or e-mail, live updates. */
+/**
+ * Every order, newest first: filter by state, search by number or e-mail, live updates.
+ * Opens on the paid orders, the ones waiting to be packed.
+ */
 export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("paid");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   // Orders placed while the page is open get a lamp until someone opens them.
@@ -129,13 +132,19 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
           </p>
         ) : items.length === 0 ? (
           <p className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center text-small text-ink-secondary">
-            {query || status !== "all" ? "Keine Bestellungen für diese Auswahl." : "Noch keine Bestellung eingegangen."}
+            {query
+              ? "Keine Bestellungen für diese Auswahl."
+              : status === "paid"
+                ? "Gerade nichts zu versenden."
+                : status !== "all"
+                  ? "Keine Bestellungen für diese Auswahl."
+                  : "Noch keine Bestellung eingegangen."}
           </p>
         ) : (
           <>
             <div aria-hidden="true" className={cn(ROW_GRID, "hidden border-b border-line pb-2 label-caps text-ink-tertiary md:grid")}>
               <span>Bestellung</span>
-              <span>Empfänger und Artikel</span>
+              <span>Empfänger und Modelle</span>
               <span>Zustand</span>
               <span className="text-right">Summe</span>
             </div>
@@ -196,7 +205,7 @@ function OrderRow({ order, fresh }: { order: OrderSummaryOut; fresh: boolean }) 
             ) : null}
           </span>
           <span className="mt-0.5 block truncate text-hint text-ink-tertiary">
-            {order.item_count} Artikel · {order.first_line_title}
+            {order.item_count} Stück · {order.first_line_title}
           </span>
         </span>
         <StatusBadge tone={ORDER_STATUS_TONES[order.status]} className="col-start-2 row-start-1 justify-self-end md:col-start-auto md:row-start-auto md:justify-self-start">

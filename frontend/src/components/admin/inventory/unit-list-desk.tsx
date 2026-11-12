@@ -111,8 +111,8 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
       </Link>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="label-caps text-ink-tertiary">{variantId === null ? "Alle Artikel" : "Stücke eines Artikels"}</p>
-          <h1 className="mt-3 text-heading sm:text-title">{variantId === null ? "Stücke" : (article?.title ?? "Gelöschter Artikel")}</h1>
+          <p className="label-caps text-ink-tertiary">{variantId === null ? "Alle Modelle" : "Stücke eines Modells"}</p>
+          <h1 className="mt-3 text-heading sm:text-title">{variantId === null ? "Stücke" : (article?.title ?? "Gelöschtes Modell")}</h1>
           {article ? (
             <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-hint text-ink-tertiary">
               <span>{article.sku}</span>
@@ -200,7 +200,7 @@ function GroupedUnits({ units, selection }: { units: readonly UnitOut[]; selecti
     <div className="space-y-6">
       {ordered.map((group) => {
         const first = group[0] as UnitOut;
-        const title = first.variant?.title ?? "Gelöschter Artikel";
+        const title = first.variant?.title ?? "Gelöschtes Modell";
         return (
           <section key={first.variant_id} aria-label={title}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">

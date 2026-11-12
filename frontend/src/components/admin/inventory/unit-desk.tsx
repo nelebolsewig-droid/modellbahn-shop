@@ -23,7 +23,7 @@ import {
   scrapUnit,
   useGetUnit,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
-import type { HistoryEntryOut, StaffRole, UnitDetailsOut } from "@/lib/api/generated/model";
+import type { HistoryEntryOut, MovementReason, StaffRole, UnitDetailsOut } from "@/lib/api/generated/model";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { formatClock, formatLongDate } from "@/lib/format";
 import { normalizeUnitCode } from "@/lib/inventory/codes";
@@ -57,12 +57,12 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
   });
 
   if (unit.isPending) {
-    return <PendingNotice>Die Einheit wird geladen …</PendingNotice>;
+    return <PendingNotice>Das Stück wird geladen …</PendingNotice>;
   }
   if (unit.isError) {
     return (
       <div className="space-y-4">
-        <Alert tone="danger" title="Die Einheit konnte nicht geladen werden">
+        <Alert tone="danger" title="Das Stück konnte nicht geladen werden">
           <p>{errorMessage(unit.error)}</p>
         </Alert>
         <Button asChild variant="secondary">
@@ -82,12 +82,12 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="label-caps text-ink-tertiary">Einheit</span>
+            <span className="label-caps text-ink-tertiary">Stück</span>
             <StatusBadge tone={UNIT_STATUS_TONES[data.status]}>{UNIT_STATUS_LABELS[data.status]}</StatusBadge>
           </p>
           <h1 className="mt-3 font-mono text-heading tracking-wider sm:text-title">{data.display_code}</h1>
           <p className="mt-2 text-small text-ink-secondary">
-            {data.variant?.title ?? "Gelöschter Artikel"}
+            {data.variant?.title ?? "Gelöschtes Modell"}
             {data.variant ? <span className="ml-2 font-mono text-hint text-ink-tertiary">{data.variant.sku}</span> : null}
           </p>
         </div>
@@ -174,7 +174,7 @@ function MoveUnit({ unit }: { unit: UnitDetailsOut }) {
 function Facts({ unit }: { unit: UnitDetailsOut }) {
   return (
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-small">
-      <dt className="text-ink-tertiary">Artikel</dt>
+      <dt className="text-ink-tertiary">Modell</dt>
       <dd>
         <Link href={unitListHref({ variantId: unit.variant_id })} className="text-accent hover:underline">
           Alle Stücke
@@ -189,7 +189,7 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
         ) : unit.status === "labeled" ? (
           <span className="text-warning">ohne Platz</span>
         ) : (
-          "—"
+          "keiner"
         )}
         {unit.location?.name ? <span className="ml-2 text-ink-tertiary">{unit.location.name}</span> : null}
       </dd>
@@ -225,6 +225,9 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
   );
 }
 
+/** Bookings that bring a piece to its first place: before them it had none. */
+const ARRIVALS: ReadonlySet<MovementReason> = new Set(["label", "put_away"]);
+
 /** Every booking, oldest first, as stations on a line; reversals are struck through. */
 function History({ entries }: { entries: readonly HistoryEntryOut[] }) {
   const reversed = new Set(entries.map((entry) => entry.reverses_id).filter((id): id is number => id !== null));
@@ -258,7 +261,8 @@ function History({ entries }: { entries: readonly HistoryEntryOut[] }) {
               </p>
               {entry.from_location_code || entry.to_location_code ? (
                 <p className="mt-1 font-mono text-hint text-ink-secondary">
-                  {entry.from_location_code ?? "—"} → {entry.to_location_code ?? "—"}
+                  {entry.from_location_code ?? (ARRIVALS.has(entry.reason) ? "neu" : "ohne Platz")} →{" "}
+                  {entry.to_location_code ?? "ohne Platz"}
                 </p>
               ) : null}
               {entry.order_number ? <p className="mt-1 font-mono text-hint text-ink-secondary">{entry.order_number}</p> : null}

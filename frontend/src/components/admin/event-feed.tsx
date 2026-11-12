@@ -110,7 +110,7 @@ function EmptyFeed() {
       <p className="label-caps text-ink-tertiary">Gleis frei</p>
       <p className="mx-auto mt-3 max-w-sm text-small text-ink-secondary">
         Seit dem Öffnen dieser Seite ist nichts passiert. Neue Registrierungen, bestätigte
-        E-Mail-Adressen und veröffentlichte Produkte erscheinen hier sofort, ohne Neuladen.
+        E-Mail-Adressen und veröffentlichte Modelle erscheinen hier sofort, ohne Neuladen.
       </p>
     </div>
   );

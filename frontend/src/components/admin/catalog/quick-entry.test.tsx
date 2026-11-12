@@ -149,7 +149,7 @@ afterEach(() => {
 });
 
 describe("QuickEntryDesk", () => {
-  it("creates a new model in its colour, with a labelled piece, in one go", async () => {
+  it("creates a new model in its colour, with a labelled piece when asked for, in one go", async () => {
     const created = product({
       scales: [
         {
@@ -189,7 +189,10 @@ describe("QuickEntryDesk", () => {
     expect(screen.queryByRole("radio", { name: "grundiert" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Gelb" }));
     await user.type(screen.getByLabelText("Preis"), "30");
-    expect(screen.getByText("Neues Produkt mit TT · Fertigmodell, Gelb")).toBeInTheDocument();
+    expect(screen.getByText("Neues Modell mit TT · Fertigmodell, Gelb")).toBeInTheDocument();
+    // Pieces only when asked for: one lies there finished.
+    const pieces = screen.getByRole("group", { name: "Wie viele Stücke liegen fertig da?" });
+    await user.click(within(pieces).getByRole("button", { name: "Eins mehr" }));
     await user.click(screen.getByRole("button", { name: "Erfassen · 1 Etikett" }));
 
     const done = await screen.findByRole("region", { name: "Erfasst" });
@@ -205,9 +208,15 @@ describe("QuickEntryDesk", () => {
     });
     expect(requestsTo(fetchMock, UNITS)[0]?.body).toEqual({ variant_id: "v1", quantity: 1, location_code: null });
     expect(within(done).getByText("MB-000007-TT-F")).toBeInTheDocument();
-    expect(within(done).getByText("Neues Produkt")).toBeInTheDocument();
+    expect(within(done).getByText("Neues Modell")).toBeInTheDocument();
     expect(within(done).getByText("7K3M 9QX2 TA")).toBeInTheDocument();
     expect(screen.getByText("1 erfasst · 1 Stück")).toBeInTheDocument();
+
+    // The next model from the crate is asked anew.
+    await user.click(within(done).getByRole("button", { name: "Nächstes Modell" }));
+    expect(
+      within(screen.getByRole("group", { name: "Wie viele Stücke liegen fertig da?" })).getByText("0"),
+    ).toBeInTheDocument();
   });
 
   it("takes a draft from the catalogue and offers the price of a variant that exists", async () => {
@@ -248,7 +257,6 @@ describe("QuickEntryDesk", () => {
 
     await user.clear(price);
     await user.type(price, "69");
-    await user.click(screen.getByRole("button", { name: "Eins weniger" }));
     await user.click(screen.getByRole("button", { name: "Erfassen" }));
 
     await screen.findByRole("region", { name: "Erfasst" });
@@ -262,6 +270,53 @@ describe("QuickEntryDesk", () => {
     await user.click(screen.getByRole("button", { name: "Gleiches Modell, andere Farbe" }));
     await waitFor(() => expect(screen.getByText("ADK III3 Puma Kran-2")).toBeInTheDocument());
   });
+  it("creates no labelled piece unless someone says how many lie there finished", async () => {
+    const created = product({
+      scales: [
+        {
+          id: "s1",
+          scale_code: "H0",
+          length_mm: null,
+          width_mm: null,
+          height_mm: null,
+          weight_g: null,
+          variants: [variant({ finish_code: "unpainted", sku: "MB-000007-H0-B" })],
+        },
+      ],
+    });
+    const answer: QuickEntryOut = {
+      product: created,
+      variant: variant({ finish_code: "unpainted", sku: "MB-000007-H0-B" }),
+      new_product: true,
+      new_variant: true,
+    };
+    desk({
+      "GET /api/v1/admin/products": () => jsonResponse({ items: [], next_cursor: null }),
+      [QUICK]: () => jsonResponse(answer, 201),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<QuickEntryDesk />);
+
+    await user.type(await screen.findByLabelText("Name oder Nummer"), "IFA W50 Kipper");
+    await user.click(await screen.findByRole("button", { name: "„IFA W50 Kipper“ neu anlegen" }));
+    await user.click(screen.getByRole("radio", { name: "H0 · 1:87" }));
+    await user.click(screen.getByRole("radio", { name: "Bausatz" }));
+    await user.type(screen.getByLabelText("Preis"), "25");
+
+    const pieces = screen.getByRole("group", { name: "Wie viele Stücke liegen fertig da?" });
+    expect(within(pieces).getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("Keine: nur das Modell, ohne Etikett.")).toBeInTheDocument();
+    // Without pieces there is no place to choose either.
+    expect(screen.queryByText("Später beim Einlagern scannen")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Erfassen" }));
+
+    const done = await screen.findByRole("region", { name: "Erfasst" });
+    expect(requestsTo(fetchMock, QUICK)).toHaveLength(1);
+    expect(requestsTo(fetchMock, UNITS)).toHaveLength(0);
+    expect(within(done).queryByRole("button", { name: /Etiketten/ })).not.toBeInTheDocument();
+    expect(screen.getByText("1 erfasst")).toBeInTheDocument();
+  });
+
   it("names the colour of a model from the start inventory and brings its price along", async () => {
     const crane = product({
       id: "p17",

@@ -79,7 +79,7 @@ export function ProductList() {
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel title="Produkte" code="KAT 01">
+      <Panel title="Modelle" code="KAT 01">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <OptionGroup
             label="Zustand"
@@ -112,7 +112,7 @@ export function ProductList() {
 
         <div className="mt-6">
           {products.isPending ? (
-            <PendingNotice>Produkte werden geladen …</PendingNotice>
+            <PendingNotice>Modelle werden geladen …</PendingNotice>
           ) : products.isError ? (
             <p role="alert" className="text-small text-danger">
               {errorMessage(products.error)}
@@ -120,8 +120,8 @@ export function ProductList() {
           ) : items.length === 0 ? (
             <p className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center text-small text-ink-secondary">
               {query || status !== "all"
-                ? "Keine Produkte für diese Auswahl."
-                : "Noch kein Produkt angelegt. Rechts geht es los."}
+                ? "Keine Modelle für diese Auswahl."
+                : "Noch kein Modell angelegt. Rechts geht es los."}
             </p>
           ) : (
             <ul className="divide-y divide-line">
@@ -164,8 +164,8 @@ function ProductRow({ item }: { item: ProductListItemOut }) {
           {picture ? (
             <ResponsivePicture image={picture} alt="" sizes="56px" variant="thumb" fit="cover" />
           ) : (
-            <span className="absolute inset-0 flex items-center justify-center font-mono text-[0.625rem] text-ink-tertiary">
-              {item.main_image ? "…" : "—"}
+            <span className="absolute inset-0 flex items-center justify-center text-center text-[0.625rem] leading-tight text-ink-tertiary">
+              {item.main_image ? "…" : "ohne Foto"}
             </span>
           )}
         </span>
@@ -174,7 +174,7 @@ function ProductRow({ item }: { item: ProductListItemOut }) {
           <span className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-hint text-ink-tertiary">
             <span>{formatProductNumber(item.number)}</span>
             {item.scale_codes.length > 0 ? <span>{item.scale_codes.join(" · ")}</span> : null}
-            <span>{item.variant_count === 1 ? "1 Variante" : `${item.variant_count} Varianten`}</span>
+            <span>{item.variant_count === 1 ? "1 Ausführung" : `${item.variant_count} Ausführungen`}</span>
           </span>
         </span>
         <span className="flex flex-col items-end gap-1 text-right">
@@ -204,7 +204,7 @@ function NewProductForm() {
   const fieldError = create.error?.fieldErrors.find((error) => error.field === "name");
 
   return (
-    <Panel title="Neues Produkt" code="KAT 02">
+    <Panel title="Neuer Entwurf" code="KAT 02">
       <form
         noValidate
         onSubmit={(event) => {
@@ -252,12 +252,12 @@ function DraftsPanel() {
   return (
     <Panel title="Entwürfe" code="KAT 03">
       <p className="text-small text-ink-secondary">
-        Modelle aus der Kiste erfasst? Entwürfe mit Kategorie, aktiver Variante und fertigem Hauptbild gehen hier in einem
+        Modelle aus der Kiste erfasst? Entwürfe mit Kategorie, aktiver Ausführung und fertigem Hauptbild gehen hier in einem
         Schritt in den Shop; die anderen bleiben, bis sie vollständig sind.
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <Button asChild variant="secondary" size="sm">
-          <Link href="/admin/erfassen">Schnellerfassung</Link>
+          <Link href="/admin/erfassen">Neues Modell</Link>
         </Button>
         <Button
           type="button"
@@ -281,7 +281,7 @@ function DraftsPanel() {
           ) : (
             <>
               <p className="font-medium text-success">
-                {published.length === 1 ? "1 Produkt ist jetzt im Shop:" : `${published.length} Produkte sind jetzt im Shop:`}
+                {published.length === 1 ? "1 Modell ist jetzt im Shop:" : `${published.length} Modelle sind jetzt im Shop:`}
               </p>
               <ul className="mt-2 space-y-1">
                 {published.map((item) => (

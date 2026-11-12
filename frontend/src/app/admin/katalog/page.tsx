@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProductList } from "@/components/admin/catalog/product-list";
@@ -13,13 +14,19 @@ export default function AdminCatalogPage() {
       <>
         <p className="label-caps text-ink-tertiary">Katalog</p>
         <div className="mt-4 mb-8 flex flex-wrap items-end justify-between gap-4">
-          <h1 className="text-heading sm:text-title">Produkte</h1>
-          <Button asChild size="sm" variant="ghost">
-            {/* Every variant with EAN and price, to import into the till (SumUp). */}
-            <a href={getExportArticlesUrl()} download>
-              Artikelliste für die Kasse (CSV)
-            </a>
-          </Button>
+          <h1 className="text-heading sm:text-title">Modelle</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="ghost">
+              {/* Every variant with EAN and price, to import into the till (SumUp). */}
+              <a href={getExportArticlesUrl()} download>
+                Liste für die Kasse (CSV)
+              </a>
+            </Button>
+            {/* The quick capture: one model off the shelf in one go, made for the phone. */}
+            <Button asChild size="sm">
+              <Link href="/admin/erfassen">Neues Modell</Link>
+            </Button>
+          </div>
         </div>
         <ProductList />
       </>

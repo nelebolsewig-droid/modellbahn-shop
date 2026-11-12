@@ -5,7 +5,6 @@ import Link from "next/link";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { Button } from "@/components/ui/button";
-import { getExportArticlesUrl } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import { getListLocationsQueryKey, getListStockQueryKey } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { StaffRole } from "@/lib/api/generated/model";
 import { unitListHref } from "@/lib/inventory/selection";
@@ -60,7 +59,7 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
           <UnitsDialog
             trigger={
               <Button type="button" size="sm">
-                Einheiten erfassen
+                Stücke erfassen
               </Button>
             }
           />
@@ -76,18 +75,12 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
         <Button asChild size="sm" variant="secondary">
           <Link href={unitListHref({})}>Stücke</Link>
         </Button>
-        <Button asChild size="sm" variant="ghost">
-          {/* A plain download: the browser sends the staff cookie along. */}
-          <a href={getExportArticlesUrl()} download>
-            Artikelliste für die Kasse (CSV)
-          </a>
-        </Button>
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-6">
           <ReceivingPanel mayManage={mayManage} />
-          <StockPanel />
+          <StockPanel mayManage={mayManage} />
           <PartStockPanel />
         </div>
         <LocationPanel mayManage={mayManage} />

@@ -86,7 +86,7 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
           ? byTransfer
             ? "Ist die Ware zurück (oder hat der Kunde die Rücksendung nachgewiesen), hier erstatten. Bezahlt wurde per Überweisung: Ihr überweist zurück, der Kunde bekommt eine E-Mail."
             : "Ist die Ware zurück (oder hat der Kunde die Rücksendung nachgewiesen), hier erstatten. SumUp zahlt sofort zurück, der Kunde bekommt eine E-Mail."
-          : "Einzelne Artikel erstatten, die nicht verschickt werden. Für die ganze Bestellung: stornieren."}
+          : "Einzelne Modelle erstatten, die nicht verschickt werden. Für die ganze Bestellung: stornieren."}
         {refunded > 0 ? ` Schon erstattet: ${formatPrice(refunded)}.` : ""}
       </p>
       {shipped ? (
@@ -94,7 +94,7 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
           {(
             [
               ["whole", `Alles Offene (${formatPrice(refundable)})`],
-              ["lines", "Einzelne Artikel"],
+              ["lines", "Einzelne Modelle"],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -117,7 +117,7 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
       ) : null}
       {mode === "lines" ? (
         <fieldset>
-          <legend className="sr-only">Artikel, die zurückgekommen sind</legend>
+          <legend className="sr-only">Modelle, die zurückgekommen sind</legend>
           <ul className="space-y-2">
             {order.lines.map((line, index) => (
               <li key={`${line.sku}-${index}`}>

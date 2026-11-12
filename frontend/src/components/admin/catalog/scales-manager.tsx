@@ -110,7 +110,7 @@ function ScaleRow({ scale, longest }: { scale: AdminScaleOut; longest: number })
           values={[
             scale.ratio,
             scale.track_gauge_mm === null ? "ohne Gleis" : `Gleis ${formatMillimetres(scale.track_gauge_mm)}`,
-            used ? (scale.product_count === 1 ? "1 Produkt" : `${scale.product_count} Produkte`) : "unbenutzt",
+            used ? (scale.product_count === 1 ? "1 Modell" : `${scale.product_count} Modelle`) : "unbenutzt",
           ]}
           size="small"
         />
@@ -126,7 +126,7 @@ function ScaleRow({ scale, longest }: { scale: AdminScaleOut; longest: number })
           size="sm"
           className="text-danger hover:bg-danger-subtle hover:text-danger"
           disabled={used || remove.isPending}
-          title={used ? "Produkte gibt es in diesem Maßstab; er bleibt." : undefined}
+          title={used ? "Modelle gibt es in diesem Maßstab; er bleibt." : undefined}
           onClick={() => {
             if (window.confirm(`Maßstab ${scaleLabel(scale)} löschen?`)) {
               remove.mutate();
@@ -186,7 +186,7 @@ function ScaleForm({ scale, longest, onDone, onCancel }: ScaleFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           label="Code"
-          hint={scale ? "Steht in Artikelnummern und Adressen und bleibt." : "Steht in Artikelnummern und Adressen, z. B. 124; später nicht änderbar."}
+          hint={scale ? "Steht in SKUs und Adressen und bleibt." : "Steht in SKUs und Adressen, z. B. 124; später nicht änderbar."}
           error={errors.code?.message}
         >
           {/* Read-only, not disabled: a disabled field would send no value at all. */}

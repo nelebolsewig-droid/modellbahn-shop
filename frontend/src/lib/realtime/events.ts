@@ -13,8 +13,8 @@ export const ADMIN_EVENTS_URL = "/api/v1/admin/events";
 export const STAFF_EVENT_LABELS = {
   "identity.customer.registered": "Neue Registrierung",
   "identity.account.email_verified": "E-Mail-Adresse bestätigt",
-  "catalog.product.published": "Produkt veröffentlicht",
-  "catalog.product.archived": "Produkt archiviert",
+  "catalog.product.published": "Modell veröffentlicht",
+  "catalog.product.archived": "Modell archiviert",
   "media.asset.ready": "Foto verarbeitet",
   "media.asset.failed": "Foto unbrauchbar",
   "sales.order.placed": "Neue Bestellung",

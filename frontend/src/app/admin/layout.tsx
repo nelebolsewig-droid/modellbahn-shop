@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { DensityScope } from "@/components/ui/density-scope";
@@ -11,10 +11,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// The page reaches the screen's edges, so the phone's bottom bar can sit on the very bottom;
+// the bar and the sides keep clear of the rounded corners and the notch themselves.
+export const viewport: Viewport = { viewportFit: "cover" };
+
 /** The admin area ("Stellwerk"): the shop's light design, with more compact controls. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <DensityScope density="werkstatt" className="min-h-dvh">
+    <DensityScope
+      density="werkstatt"
+      className="min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]"
+    >
       {children}
     </DensityScope>
   );

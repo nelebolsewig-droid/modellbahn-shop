@@ -31,7 +31,7 @@ export const FAILURE_LABELS = {
 
 export const PUBLISH_BLOCKER_LABELS = {
   no_category: "Eine Kategorie ist gewählt",
-  no_active_variant: "Mindestens eine Variante ist aktiv",
+  no_active_variant: "Mindestens eine Ausführung ist aktiv",
   no_main_image: "Ein Hauptbild ist in der Galerie",
   main_image_not_ready: "Das Hauptbild ist fertig verarbeitet",
 } as const satisfies Record<PublishBlocker, string>;
