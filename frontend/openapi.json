@@ -10485,7 +10485,7 @@
             "title": "Location Code"
           },
           "quantity": {
-            "maximum": 500.0,
+            "maximum": 200.0,
             "minimum": 1.0,
             "title": "Quantity",
             "type": "integer"

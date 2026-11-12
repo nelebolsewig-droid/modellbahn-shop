@@ -22,6 +22,7 @@ from modellbahn.modules.inventory.domain.errors import (
 from modellbahn.modules.inventory.domain.events import AllocationBackordered
 from modellbahn.modules.inventory.domain.model import (
     UNITS_PER_BATCH_MAX,
+    UNITS_SELECTED_MAX,
     Allocation,
     AllocationStatus,
     LedgerEntry,
@@ -37,7 +38,7 @@ from modellbahn.modules.manufacturing.contracts.parts import PartInfo
 from modellbahn.platform.clock import Clock
 
 # What one list shows is what one batch may take: "select all" must always be sendable.
-UNITS_LISTED_MAX: Final = UNITS_PER_BATCH_MAX
+UNITS_LISTED_MAX: Final = UNITS_SELECTED_MAX
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,9 +211,9 @@ class UnitService:
         unknown refuses the whole request (:class:`UnitsNotMovableError`).
         """
         wanted = list(dict.fromkeys(unit_ids))
-        if not 1 <= len(wanted) <= UNITS_PER_BATCH_MAX:
+        if not 1 <= len(wanted) <= UNITS_SELECTED_MAX:
             raise InvalidFieldError(
-                "unit_ids", "out_of_range", f"between 1 and {UNITS_PER_BATCH_MAX} units"
+                "unit_ids", "out_of_range", f"between 1 and {UNITS_SELECTED_MAX} units"
             )
         async with self._uow() as uow:
             location = await resolve_location(uow, location_code, "location_code")
@@ -322,9 +323,9 @@ class UnitService:
         the same request again is harmless.
         """
         wanted = list(dict.fromkeys(unit_ids))
-        if not 1 <= len(wanted) <= UNITS_PER_BATCH_MAX:
+        if not 1 <= len(wanted) <= UNITS_SELECTED_MAX:
             raise InvalidFieldError(
-                "unit_ids", "out_of_range", f"between 1 and {UNITS_PER_BATCH_MAX} units"
+                "unit_ids", "out_of_range", f"between 1 and {UNITS_SELECTED_MAX} units"
             )
         async with self._uow() as uow:
             units = await uow.units.lock(wanted)

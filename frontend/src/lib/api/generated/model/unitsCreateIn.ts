@@ -17,7 +17,7 @@ export interface UnitsCreateIn {
   location_code?: string | null;
   /**
      * @minimum 1
-     * @maximum 500
+     * @maximum 200
      */
   quantity: number;
   variant_id: string;

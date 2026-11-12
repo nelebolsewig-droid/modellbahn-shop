@@ -41,7 +41,10 @@ from modellbahn.platform.ids import new_id
 
 LOCATION_NAME_MAX_LENGTH: Final = 60
 SCRAP_NOTE_MAX_LENGTH: Final = 200
-UNITS_PER_BATCH_MAX: Final = 500
+UNITS_PER_BATCH_MAX: Final = 200
+"""New pieces labelled at once."""
+UNITS_SELECTED_MAX: Final = 500
+"""Pieces moved or scrapped at once: as many as one list shows."""
 UNDO_WINDOW_SECONDS: Final = 600
 
 

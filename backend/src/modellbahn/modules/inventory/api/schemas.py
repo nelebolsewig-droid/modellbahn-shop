@@ -43,6 +43,7 @@ from modellbahn.modules.inventory.domain.model import (
     LOCATION_NAME_MAX_LENGTH,
     SCRAP_NOTE_MAX_LENGTH,
     UNITS_PER_BATCH_MAX,
+    UNITS_SELECTED_MAX,
     Location,
     LocationKind,
     MovementReason,
@@ -449,7 +450,7 @@ class ScrapIn(_Request):
 
 
 class UnitsScrapIn(ScrapIn):
-    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_PER_BATCH_MAX)
+    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_SELECTED_MAX)
 
 
 class UnitScrapOut(BaseModel):
@@ -462,7 +463,7 @@ class UnitScrapOut(BaseModel):
 
 
 class UnitMoveIn(_Request):
-    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_PER_BATCH_MAX)
+    unit_ids: list[UUID] = Field(min_length=1, max_length=UNITS_SELECTED_MAX)
     location_code: str = Field(
         min_length=1,
         max_length=44,

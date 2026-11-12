@@ -42,7 +42,7 @@ from modellbahn.modules.inventory.domain.errors import (
 )
 from modellbahn.modules.inventory.domain.model import (
     UNDO_WINDOW_SECONDS,
-    UNITS_PER_BATCH_MAX,
+    UNITS_SELECTED_MAX,
     LocationKind,
     MovementReason,
     ScanMode,
@@ -827,7 +827,7 @@ class TestMovingSeveralUnits:
         with pytest.raises(InvalidFieldError) as shelf:
             await units.move_units([unit_id], location_code="R01", staff_id=staff)
         assert (shelf.value.field, shelf.value.code) == ("location_code", "holds_no_goods")
-        for count in (0, UNITS_PER_BATCH_MAX + 1):
+        for count in (0, UNITS_SELECTED_MAX + 1):
             with pytest.raises(InvalidFieldError) as size:
                 await units.move_units(
                     [uuid4() for _ in range(count)], location_code=COMPARTMENT, staff_id=staff

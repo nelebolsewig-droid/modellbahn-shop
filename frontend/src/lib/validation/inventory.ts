@@ -23,7 +23,7 @@ export type LocationCreateValues = z.input<typeof locationCreateSchema>;
 export const locationRenameSchema = z.object({ name });
 export type LocationRenameValues = z.input<typeof locationRenameSchema>;
 
-export const UNITS_PER_BATCH_MAX = 500;
+export const UNITS_PER_BATCH_MAX = 200;
 
 export const unitsCreateSchema = z.object({
   variant_id: z.string().min(1, "Bitte eine Ausführung wählen."),
