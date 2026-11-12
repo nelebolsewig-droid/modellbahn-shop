@@ -5,6 +5,7 @@ from dataclasses import replace
 
 from reportlab.lib.units import mm
 
+from modellbahn.modules.inventory.application.labels import document_name, file_name
 from modellbahn.modules.inventory.application.ports import Label, LabelSheet
 from modellbahn.modules.inventory.infrastructure.labels import (
     ReportLabLabelRenderer,
@@ -95,3 +96,22 @@ class TestRenderer:
             location_plain = plain.render([LOCATION], sheet=sheet, skip=0)
             location_maker = with_maker.render([LOCATION], sheet=sheet, skip=0)
             assert len(location_maker) == len(location_plain)
+
+
+class TestFileNames:
+    def test_a_variant_title_becomes_a_plain_file_name(self) -> None:
+        assert (
+            file_name("IFA ADK 70 Autokran · H0 · Fertigmodell, Gelb")
+            == "IFA ADK 70 Autokran H0 Fertigmodell Gelb"
+        )
+        assert file_name('Kran 1:87 / "Spezial" <neu>?') == "Kran 1 87 Spezial neu"
+        assert file_name("  ") == "Etiketten"
+        assert len(file_name("A" * 300)) == 100
+
+    def test_a_print_is_named_after_what_its_labels_are_for(self) -> None:
+        same = ["IFA ADK 70 Autokran H0 Fertigmodell Gelb"] * 3
+        assert document_name(same) == "IFA ADK 70 Autokran H0 Fertigmodell Gelb"
+        assert document_name([*same, "Platz R01-F01"]) == (
+            "IFA ADK 70 Autokran H0 Fertigmodell Gelb und 1 weitere"
+        )
+        assert document_name([]) == "Etiketten"

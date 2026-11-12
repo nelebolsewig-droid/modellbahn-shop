@@ -355,6 +355,9 @@ class Label:
 class LabelRenderer(Protocol):
     """Turns label contents into a printable document (PDF)."""
 
-    def render(self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int) -> bytes:
-        """``skip`` leaves that many labels of a started A4 sheet empty."""
+    def render(
+        self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int, title: str = ""
+    ) -> bytes:
+        """``skip`` leaves that many labels of a started A4 sheet empty; ``title`` names
+        the document (what "Save as PDF" proposes)."""
         ...

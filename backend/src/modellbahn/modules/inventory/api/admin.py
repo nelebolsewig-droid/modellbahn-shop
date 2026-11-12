@@ -1,7 +1,10 @@
 """The workshop's stock in the admin area (``/api/v1/admin/inventory``)."""
 
+from collections.abc import Sequence
 from io import BytesIO
 from typing import Annotated, Final
+from unicodedata import normalize
+from urllib.parse import quote
 from uuid import UUID
 from zipfile import ZIP_STORED, ZipFile
 
@@ -467,7 +470,7 @@ async def allocate_order(
     },
 )
 async def print_labels(body: LabelsIn, _: StockWorker, service: LabelServiceDep) -> Response:
-    pdf = await service.render(
+    printed = await service.render(
         LabelRequest(
             unit_codes=body.unit_codes,
             location_codes=body.location_codes,
@@ -477,28 +480,38 @@ async def print_labels(body: LabelsIn, _: StockWorker, service: LabelServiceDep)
         )
     )
     if body.format is LabelFormat.PDF:
-        return _download(pdf, _PDF, "etiketten.pdf")
-    pictures = await run_in_threadpool(pdf_to_pngs, pdf)
+        return _download(printed.pdf, _PDF, f"{printed.name}.pdf")
+    pictures = await run_in_threadpool(pdf_to_pngs, printed.pdf)
+    names = printed.names if len(printed.names) == len(pictures) else ()
     if len(pictures) == 1:
-        return _download(pictures[0], _PNG, "etikett.png")
-    return _download(_zipped(pictures), _ZIP, "etiketten.zip")
+        return _download(pictures[0], _PNG, f"{names[0] if names else printed.name}.png")
+    return _download(_zipped(pictures, names), _ZIP, f"{printed.name}.zip")
+
+
+# Umlauts spelled out for the plain ASCII name that old clients read.
+_ASCII_SPELLING: Final = str.maketrans(
+    {"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss"}
+)
 
 
 def _download(content: bytes, media_type: str, filename: str) -> Response:
+    """Named after the labels' model and variant: browsers take ``filename*`` (UTF-8,
+    RFC 6266), older clients the ASCII spelling."""
+    plain = normalize("NFKD", filename.translate(_ASCII_SPELLING))
+    plain = plain.encode("ascii", "ignore").decode().replace('"', "")
+    disposition = f"inline; filename=\"{plain}\"; filename*=UTF-8''{quote(filename)}"
     return Response(
         content=content,
         media_type=media_type,
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-            "Cache-Control": "no-store",
-        },
+        headers={"Content-Disposition": disposition, "Cache-Control": "no-store"},
     )
 
 
-def _zipped(pictures: list[bytes]) -> bytes:
-    """``etikett-01.png``, ``etikett-02.png`` … in print order."""
+def _zipped(pictures: list[bytes], names: Sequence[str]) -> bytes:
+    """``01 IFA ADK 70 Autokran H0 Fertigmodell Gelb 7KQ2X9F4MZ.png`` … in print order."""
     buffer = BytesIO()
     with ZipFile(buffer, "w", ZIP_STORED) as archive:
         for number, picture in enumerate(pictures, start=1):
-            archive.writestr(f"etikett-{number:02d}.png", picture)
+            name = names[number - 1] if names else "Etikett"
+            archive.writestr(f"{number:02d} {name}.png", picture)
     return buffer.getvalue()

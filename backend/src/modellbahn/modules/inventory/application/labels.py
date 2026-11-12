@@ -8,6 +8,7 @@ box its parts lie in, the same with the part number. The workshop's scanner read
 of them.
 """
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
@@ -34,6 +35,37 @@ _KIND_NAMES: Final = {
 
 _TECHNOLOGY_NAMES: Final = {Technology.FDM: "Filament", Technology.RESIN: "Resin"}
 
+FILE_NAME_MAX_LENGTH: Final = 100
+# Characters no file system takes (or Windows doesn't), and control characters.
+_NOT_IN_FILE_NAMES: Final = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+
+
+def file_name(text: str) -> str:
+    """``IFA ADK 70 Autokran · H0 · Fertigmodell, Gelb`` → ``IFA ADK 70 Autokran H0
+    Fertigmodell Gelb``: a name every system saves as it is (without extension)."""
+    cleaned = _NOT_IN_FILE_NAMES.sub(" ", text.replace("·", " ").replace(",", " "))
+    return " ".join(cleaned.split())[:FILE_NAME_MAX_LENGTH].strip(" .") or "Etiketten"
+
+
+def document_name(subjects: Sequence[str]) -> str:
+    """What a print of these labels is called: the one model (or place, or part) they
+    are for, or the first and how many others."""
+    distinct = list(dict.fromkeys(subjects))
+    if not distinct:
+        return "Etiketten"
+    if len(distinct) == 1:
+        return file_name(distinct[0])
+    return file_name(f"{distinct[0]} und {len(distinct) - 1} weitere")
+
+
+@dataclass(frozen=True, slots=True)
+class PrintedLabels:
+    pdf: bytes
+    name: str
+    """The file name without extension, after what the labels are for (:func:`document_name`)."""
+    names: tuple[str, ...]
+    """One file name per label, with its code: for one picture per label."""
+
 
 @dataclass(frozen=True, slots=True)
 class LabelRequest:
@@ -50,8 +82,10 @@ class LabelService:
         self._uow = uow_factory
         self._renderer = renderer
 
-    async def render(self, request: LabelRequest) -> bytes:
-        """A PDF with the labels in the order asked for; unknown codes are an error."""
+    async def render(self, request: LabelRequest) -> PrintedLabels:
+        """A PDF with the labels in the order asked for, named after what they are for
+        (model and variant, e.g. ``IFA ADK 70 Autokran H0 Fertigmodell Gelb``); unknown
+        codes are an error."""
         count = len(request.unit_codes) + len(request.location_codes) + len(request.part_numbers)
         if not 0 < count <= LABELS_PER_PRINT_MAX:
             raise InvalidFieldError(
@@ -60,12 +94,17 @@ class LabelService:
         if not 0 <= request.skip < A4_LABELS_PER_SHEET:
             raise InvalidFieldError("skip", "out_of_range", "0 to 23 labels")
         labels: list[Label] = []
+        subjects: list[str] = []
+        names: list[str] = []
         async with self._uow() as uow:
             for index, raw in enumerate(request.unit_codes):
                 unit = await uow.units.get_by_code(normalize_unit_code(raw))
                 if unit is None:
                     raise InvalidFieldError(f"unit_codes.{index}", "unknown", f"no unit {raw!r}")
                 variant = (await uow.catalog.variants([unit.variant_id])).get(unit.variant_id)
+                subject = file_name(variant.title) if variant else "Etikett"
+                subjects.append(subject)
+                names.append(file_name(f"{subject} {unit.code}"))
                 labels.append(
                     Label(
                         caption="Einheit",
@@ -87,6 +126,8 @@ class LabelService:
                         f"location_codes.{index}", "unknown", f"no location {raw!r}"
                     )
                 kind = _KIND_NAMES[location.kind]
+                subjects.append(file_name(f"Platz {location.code}"))
+                names.append(subjects[-1])
                 labels.append(
                     Label(
                         caption="Lagerplatz",
@@ -101,6 +142,8 @@ class LabelService:
                 part = await uow.manufacturing.part_by_number(raw.strip().upper())
                 if part is None:
                     raise InvalidFieldError(f"part_numbers.{index}", "unknown", f"no part {raw!r}")
+                subjects.append(file_name(f"Teil {part.part_number} {part.name}"))
+                names.append(subjects[-1])
                 labels.append(
                     Label(
                         caption="Teil",
@@ -112,4 +155,6 @@ class LabelService:
                     )
                 )
         skip = request.skip if request.sheet is LabelSheet.A4_70X37 else 0
-        return self._renderer.render(labels, sheet=request.sheet, skip=skip)
+        name = document_name(subjects)
+        pdf = self._renderer.render(labels, sheet=request.sheet, skip=skip, title=name)
+        return PrintedLabels(pdf=pdf, name=name, names=tuple(names))

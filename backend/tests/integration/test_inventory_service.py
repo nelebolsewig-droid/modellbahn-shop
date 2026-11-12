@@ -78,9 +78,13 @@ class CapturingRenderer:
 
     def __init__(self) -> None:
         self.labels: list[Label] = []
+        self.title = ""
 
-    def render(self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int) -> bytes:
+    def render(
+        self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int, title: str = ""
+    ) -> bytes:
         self.labels = list(labels)
+        self.title = title
         return b"%PDF"
 
 

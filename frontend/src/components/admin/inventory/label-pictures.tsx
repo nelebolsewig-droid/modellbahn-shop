@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { savedName } from "@/lib/api/fetcher";
 import { printLabels } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import {
   LabelFormat,
@@ -60,7 +61,7 @@ export function LabelPictures({
 }: Codes) {
   const count = unitCodes.length + locationCodes.length + partNumbers.length;
   const [pictures, setPictures] = useState<Picture[] | null>(null);
-  const [zip, setZip] = useState<string | null>(null);
+  const [zip, setZip] = useState<{ url: string; name: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -73,7 +74,7 @@ export function LabelPictures({
   useEffect(
     () => () => {
       if (zip) {
-        URL.revokeObjectURL(zip);
+        URL.revokeObjectURL(zip.url);
       }
     },
     [zip],
@@ -93,7 +94,7 @@ export function LabelPictures({
           const blob = await printLabels(body);
           made.push({
             url: URL.createObjectURL(blob),
-            name: fileName(code),
+            name: savedName(blob) ?? fileName(code),
             code,
           });
         }
@@ -107,7 +108,7 @@ export function LabelPictures({
           location_codes: [...locationCodes],
           part_numbers: [...partNumbers],
         });
-        setZip(URL.createObjectURL(all));
+        setZip({ url: URL.createObjectURL(all), name: savedName(all) ?? "etiketten.zip" });
       }
     } catch (error) {
       setProblem(errorMessage(error));
@@ -179,7 +180,7 @@ export function LabelPictures({
       )}
       {zip ? (
         <Button asChild size="sm">
-          <a href={zip} download="etiketten.zip">
+          <a href={zip.url} download={zip.name}>
             Alle Bilder als ZIP
           </a>
         </Button>
