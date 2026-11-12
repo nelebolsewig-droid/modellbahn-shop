@@ -162,3 +162,9 @@ eine **Schnellerfassung** fürs Handy; die bekannten Modelle als Startbestand, d
   - eine Schnellerfassung mit Foto und eine zweite Farbe mit `-F2`;
   - „Fertige veröffentlichen“ mit beiden Farben im Shop.
 - **Noch offen:** die übrigen Preise und Farben aus den Kisten, Modell für Modell.
+
+## Nachtrag 12.11.2026
+
+Der Shop zeigt je Maßstab nur die Ausführungen, in denen das Modell dort angeboten wird. Was
+die Werkstatt nicht herstellt, erscheint nicht mehr ausgegraut. Gibt es nur eine Ausführung,
+steht sie ohne Auswahl da („nur als Fertigmodell“).
