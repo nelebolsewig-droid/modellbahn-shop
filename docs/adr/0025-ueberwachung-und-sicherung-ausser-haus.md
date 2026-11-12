@@ -124,3 +124,11 @@ Die Datenschutzerklärung sagt zu: Was ein Kunde löschen lässt, verschwindet s
   ist das unkritisch. Wächst sie stark, die Bilder ungepackt sichern.
 - Offen: eine Prüfung von außerhalb des Servers und eine Warnung vor dem Ablauf des
   Zertifikats (Caddy erneuert es lange vor dem Ablauf selbst).
+
+## Nachtrag 12.11.2026
+
+Hetzner hat den Ausweis-Abgleich für das Kundenkonto abgelehnt. Die Sicherung außer Haus ist
+deshalb zurückgestellt; die Überwachung mit Healthchecks.io läuft ohne sie
+(`./scripts/einrichten.sh sicherung`, bei „Storage Box jetzt anbinden?“ Enter). Die
+Datenschutzerklärung nennt einen Speicheranbieter erst wieder, wenn eine Kopie außer Haus
+eingerichtet ist.
