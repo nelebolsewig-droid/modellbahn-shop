@@ -128,10 +128,11 @@ export function UnitSelectionBar<T extends SelectedUnit>({ selection, mayScrap }
       <p role="status" className="text-small font-medium text-success not-empty:mt-4">
         {message}
       </p>
+      {/* On the phone the bar rests on the Stellwerk's bottom bar, which keeps the safe area. */}
       {selected.length > 0 ? (
         <section
           aria-label="Auswahl"
-          className="sticky bottom-0 z-10 -mx-5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line bg-surface/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:mx-0 sm:rounded-md sm:border"
+          className="sticky bottom-[var(--stellwerk-bar,0px)] z-10 -mx-5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-line bg-surface/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-sm:pb-3 sm:mx-0 sm:rounded-md sm:border"
         >
           <p className="mr-auto text-small font-medium" aria-live="polite">
             {pieces(selected.length)} ausgewählt

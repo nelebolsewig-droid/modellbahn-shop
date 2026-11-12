@@ -54,9 +54,9 @@ const MODES = [ScanMode.put_away, ScanMode.pick, ScanMode.lookup] as const;
 
 const MODE_HINTS: Readonly<Record<ScanMode, string>> = {
   put_away:
-    "Erst den Lagerplatz scannen, dann jedes Stück, das dort hineinkommt. Ein Teileetikett bringt die Teile aus dem Wareneingang hinein.",
+    "Erst den Platz scannen, dann jedes Stück, das dort hineinkommt. Ein Teileetikett bringt die Teile aus dem Wareneingang hinein.",
   pick: "Bestellung wählen, dann jedes Stück der Pickliste scannen.",
-  lookup: "Etikett, Platz, Artikel oder Teil scannen: zeigt, was dazu im Lager steht. Bucht nichts.",
+  lookup: "Etikett, Platz, Modell oder Teil scannen: zeigt, was dazu im Lager steht. Bucht nichts.",
 };
 
 const ENTRY_DOTS: Readonly<Record<ScanEntry["state"], string>> = {
@@ -466,7 +466,7 @@ function PlaceBar({ code, name, onLeave }: { code: string | null; name: string |
     return (
       <div className="flex items-center gap-3 rounded-md border border-dashed border-line-control px-4 py-3">
         <span aria-hidden="true" className="font-mono text-heading text-ink-disabled">
-          ––––
+          leer
         </span>
         <p className="text-small text-ink-secondary">Noch kein Platz gewählt: zuerst das Etikett am Fach scannen.</p>
       </div>

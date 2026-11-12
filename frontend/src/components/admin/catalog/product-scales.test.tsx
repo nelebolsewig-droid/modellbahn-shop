@@ -91,7 +91,7 @@ describe("ProductScales", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<ProductScales product={product([variant({})])} references={REFERENCES} />);
 
-    const finishes = screen.getByLabelText("Neue Variante");
+    const finishes = screen.getByLabelText("Neue Ausführung");
     expect(
       within(finishes)
         .getAllByRole("option")
@@ -100,7 +100,7 @@ describe("ProductScales", () => {
     await user.selectOptions(finishes, "painted");
     await user.type(screen.getByPlaceholderText("z. B. Gelb"), "Elfenbein");
     await user.type(screen.getByPlaceholderText("49,90"), "89,90");
-    await user.click(screen.getByRole("button", { name: "Variante anlegen" }));
+    await user.click(screen.getByRole("button", { name: "Ausführung anlegen" }));
 
     expect(screen.getByText("Gib zuerst MB-000012-H0-F eine Farbe; dann kann Elfenbein dazukommen.")).toHaveRole(
       "alert",

@@ -196,8 +196,8 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
       <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-small">
         {unit ? (
           <>
-            <Line label="Artikel">
-              {unit.title ?? "Unbekannter Artikel"}
+            <Line label="Modell">
+              {unit.title ?? "Unbekanntes Modell"}
               {unit.sku ? <span className="ml-2 font-mono text-hint whitespace-nowrap text-ink-tertiary">{unit.sku}</span> : null}
             </Line>
             <Line label="Zustand">{UNIT_STATUS_LABELS[unit.status]}</Line>
@@ -207,7 +207,7 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
         ) : null}
         {variant ? (
           <>
-            <Line label="Artikel">
+            <Line label="Modell">
               {variant.title}
               <span className="ml-2 font-mono text-hint whitespace-nowrap text-ink-tertiary">{variant.sku}</span>
             </Line>

@@ -44,6 +44,27 @@ export function DialogContent({ className, children, ...props }: ComponentProps<
   );
 }
 
+/** A dialog that rises from the bottom edge, for a menu on the phone. */
+export function SheetContent({ className, children, ...props }: ComponentProps<typeof Content>) {
+  const density = useDensity();
+  return (
+    <Portal>
+      <Overlay className="fixed inset-0 z-40 bg-scrim backdrop-blur-[2px]" />
+      <Content
+        data-density={density}
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto rounded-t-lg bg-surface text-ink shadow-overlay",
+          "pt-6 pr-[max(1.25rem,env(safe-area-inset-right))] pb-[max(1.25rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))]",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </Content>
+    </Portal>
+  );
+}
+
 export function DialogTitle({ className, ...props }: ComponentProps<typeof Title>) {
   return <Title className={cn("text-heading", className)} {...props} />;
 }

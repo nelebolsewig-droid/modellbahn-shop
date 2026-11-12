@@ -58,7 +58,7 @@ export function ProductScales({ product, references }: Props) {
   });
 
   return (
-    <Panel title="Maßstäbe und Varianten" code="PRD 03">
+    <Panel title="Maßstäbe und Ausführungen" code="PRD 03">
       <datalist id={PAINT_LIST}>
         {PAINT_SUGGESTIONS.map((name) => (
           <option key={name} value={name} />
@@ -145,7 +145,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
           size="sm"
           disabled={remove.isPending}
           onClick={() => {
-            if (window.confirm(`Maßstab ${scaleLabel(scale)} mit allen Varianten entfernen?`)) {
+            if (window.confirm(`Maßstab ${scaleLabel(scale)} mit allen Ausführungen entfernen?`)) {
               remove.mutate(() => deleteProductScale(productScale.id, ifMatch(product.version)));
             }
           }}
@@ -162,7 +162,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
           // relative: the visually hidden headers (position: absolute) stay in the scroll box.
           <div className="relative overflow-x-auto">
             <table className="w-full min-w-[46rem] text-small">
-              <caption className="sr-only">Varianten in {scale.name}</caption>
+              <caption className="sr-only">Ausführungen in {scale.name}</caption>
               <thead>
                 <tr className="text-left text-hint whitespace-nowrap text-ink-tertiary [&>th]:pr-3">
                   <th scope="col" className="pb-2 font-medium">Ausführung</th>
@@ -182,7 +182,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
             </table>
           </div>
         ) : (
-          <p className="text-small text-ink-secondary">Noch keine Variante in {scale.name}.</p>
+          <p className="text-small text-ink-secondary">Noch keine Ausführung in {scale.name}.</p>
         )}
         {addable.length > 0 ? (
           <NewVariantForm product={product} productScale={productScale} finishes={addable} />
@@ -373,7 +373,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
             aria-label={`Früherer Preis ${label} in Euro`}
             inputMode="decimal"
             value={former}
-            placeholder="–"
+            placeholder="kein"
             onChange={(event) => setFormer(event.target.value)}
             onBlur={savePrices}
             className="w-24"
@@ -439,7 +439,7 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
             size="sm"
             disabled={command.isPending}
             onClick={() => {
-              if (window.confirm(`Variante ${variant.sku} (${label}) entfernen?`)) {
+              if (window.confirm(`Ausführung ${variant.sku} (${label}) entfernen?`)) {
                 command.mutate(() => deleteVariant(variant.id, ifMatch(product.version)));
               }
             }}
@@ -528,7 +528,7 @@ function NewVariantForm({
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
       <label className="w-44">
-        <span className="block text-hint text-ink-tertiary">Neue Variante</span>
+        <span className="block text-hint text-ink-tertiary">Neue Ausführung</span>
         <Select value={finish?.code ?? ""} onChange={(event) => setFinishCode(event.target.value)} className="mt-1">
           {finishes.map((option) => (
             <option key={option.code} value={option.code}>
@@ -557,7 +557,7 @@ function NewVariantForm({
         <Input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="49,90" className="mt-1" />
       </label>
       <Button type="submit" size="sm" disabled={command.isPending}>
-        {command.isPending ? "Legt an …" : "Variante anlegen"}
+        {command.isPending ? "Legt an …" : "Ausführung anlegen"}
       </Button>
       <p role="alert" className="w-full text-hint text-danger empty:hidden">
         {error ?? (command.isError ? errorMessage(command.error) : null)}

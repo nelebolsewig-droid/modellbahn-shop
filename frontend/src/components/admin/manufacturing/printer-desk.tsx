@@ -94,12 +94,12 @@ export function PrinterDesk({ printerId, staffRole, onStreamClosed }: PrinterDes
               <dt className="text-ink-tertiary">Drucktechnik</dt>
               <dd>{TECHNOLOGY_LABELS[printer.technology]}</dd>
               <dt className="text-ink-tertiary">Modell</dt>
-              <dd>{printer.model || "–"}</dd>
+              <dd>{printer.model || "keine Angabe"}</dd>
               <dt className="text-ink-tertiary">Bauraum</dt>
               <dd className="tabular-nums">
                 {printer.build_x_mm !== null
                   ? `${printer.build_x_mm} × ${printer.build_y_mm} × ${printer.build_z_mm} mm`
-                  : "–"}
+                  : "keine Angabe"}
               </dd>
               <dt className="text-ink-tertiary">Dabei seit</dt>
               <dd>{formatLongDate(new Date(printer.created_at))}</dd>

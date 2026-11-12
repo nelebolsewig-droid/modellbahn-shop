@@ -89,7 +89,7 @@ export function FairsManager() {
           ) : (
             <>
               <p className="flex items-baseline gap-3">
-                <span className="text-title font-extralight tabular-nums">{counts.data?.confirmed ?? "–"}</span>
+                <span className="text-title font-extralight tabular-nums">{counts.data?.confirmed ?? "…"}</span>
                 <span className="text-small text-ink-secondary">bestätigte Empfänger</span>
               </p>
               <p className="mt-2 text-hint text-ink-tertiary">

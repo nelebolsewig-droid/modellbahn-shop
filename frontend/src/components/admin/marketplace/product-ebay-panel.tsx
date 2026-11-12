@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import type { Route } from "next";
 import Link from "next/link";
 
 import { Panel } from "@/components/admin/panel";
@@ -10,7 +9,7 @@ import { setProductEbayListing } from "@/lib/api/generated/admin-marketplace/adm
 import type { ListingOut, ProductOut } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { errorMessage } from "@/lib/i18n/problems";
-import { isReady, MODE_LABELS } from "@/lib/marketplace/labels";
+import { EBAY_SETUP_HREF, isReady, MODE_LABELS } from "@/lib/marketplace/labels";
 
 import { ListingRow } from "./ebay-desk";
 import { useEbayRefresh, useEbayStatus, useProductListings } from "./use-ebay";
@@ -34,7 +33,7 @@ export function ProductEbayPanel({ product }: { product: ProductOut }) {
       actions={<span className="text-hint text-ink-tertiary">{MODE_LABELS[status.data.mode]}</span>}
     >
       {product.scales.length === 0 ? (
-        <p className="text-small text-ink-secondary">Leg zuerst einen Maßstab mit Varianten an.</p>
+        <p className="text-small text-ink-secondary">Leg zuerst einen Maßstab mit Ausführungen an.</p>
       ) : listings.isPending ? (
         <PendingNotice>eBay-Angebote werden geladen …</PendingNotice>
       ) : listings.isError ? (
@@ -57,8 +56,8 @@ export function ProductEbayPanel({ product }: { product: ProductOut }) {
       {!ready ? (
         <p className="mt-3 text-hint text-ink-tertiary">
           Angebote gehen online, sobald eBay eingerichtet ist:{" "}
-          <Link href={"/admin/ebay" as Route} className="text-accent hover:underline">
-            zur eBay-Seite
+          <Link href={EBAY_SETUP_HREF} className="text-accent hover:underline">
+            zur eBay-Einrichtung
           </Link>
           .
         </p>

@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 import type { StatusTone } from "@/components/ui/status-badge";
 import type { Blocker, EbayMode, EbayStatusOut, ListingOut, MarketplaceOrderStatus } from "@/lib/api/generated/model";
 
@@ -35,11 +37,11 @@ export const ORDER_STATUS_TONES = {
 
 /** Why the shop keeps a listing off eBay; eBay's own refusals come with eBay's words. */
 const HELD_BACK_LABELS: Readonly<Record<string, string>> = {
-  not_in_shop: "Das Produkt ist nicht im Shop veröffentlicht.",
-  no_variant: "In diesem Maßstab ist keine Variante im Shop.",
+  not_in_shop: "Das Modell ist nicht im Shop veröffentlicht.",
+  no_variant: "In diesem Maßstab ist keine Ausführung im Shop.",
   no_category: "Der Kategorie ist noch keine eBay-Kategorie zugeordnet.",
   no_photo: "In diesem Maßstab gibt es noch kein fertiges Foto.",
-  product_missing: "Das Produkt gibt es in diesem Maßstab nicht mehr.",
+  product_missing: "Das Modell gibt es in diesem Maßstab nicht mehr.",
 };
 
 export type ListingState = { label: string; tone: StatusTone; busy: boolean; detail: string | null };
@@ -88,6 +90,9 @@ export function isReady(status: EbayStatusOut): boolean {
 export function priceWithMarkup(cents: number, percent: number): number {
   return Math.floor((cents * (100 + percent) + 50) / 100);
 }
+
+/** Where eBay is set up (connection, settings, categories), under Einstellungen. */
+export const EBAY_SETUP_HREF = "/admin/einstellungen/ebay" satisfies Route;
 
 /** Where the owner returns from eBay's consent page: ?ebay=verbunden and friends. */
 export const CALLBACK_OUTCOMES: Readonly<Record<string, { tone: "info" | "success" | "danger"; text: string }>> = {

@@ -388,7 +388,7 @@ describe("OrderDesk", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
 
-    await user.click(await screen.findByRole("radio", { name: "Einzelne Artikel" }));
+    await user.click(await screen.findByRole("radio", { name: "Einzelne Modelle" }));
     expect(screen.getByRole("button", { name: /^Rücksendung erhalten – 0,00\s€ erstatten$/ })).toBeDisabled();
     await user.click(screen.getByRole("checkbox", { name: /Stellwerk Altenau/ }));
     expect(screen.getByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ })).toBeEnabled();

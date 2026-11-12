@@ -64,10 +64,13 @@ type Done = { entry: QuickEntryOut; units: UnitOut[]; unitsError: string | null 
 /** How many suggestions the colour row shows besides the product's own colours. */
 const QUICK_PAINTS = 8;
 
+const PIECES_QUESTION = "Wie viele Stücke liegen fertig da?";
+
 /**
- * The quick entry for the phone: one model off the shelf in one go. Photo, model,
- * scale, finish, colour and price, optionally the pieces with their labels; the
- * product stays a draft until it is complete and published.
+ * The quick entry for the phone ("Neues Modell"): one model off the shelf in one go.
+ * Photo, model, scale, finish, colour and price; pieces with labels only when someone
+ * says how many lie there finished. The product stays a draft until it is complete and
+ * published.
  */
 export function QuickEntryDesk() {
   const queryClient = useQueryClient();
@@ -80,7 +83,8 @@ export function QuickEntryDesk() {
   const [color, setColor] = useState("");
   // Empty until typed: then a variant that exists offers its price.
   const [price, setPrice] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  // No pieces unless asked for: a model from the crate is not always a finished piece.
+  const [quantity, setQuantity] = useState(0);
   const [location, setLocation] = useState("");
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -194,7 +198,7 @@ export function QuickEntryDesk() {
     }
   }
 
-  /** The next model from the crate: scale, finish and category stay, like the shelf. */
+  /** The next model from the crate: scale, finish and category stay, like the shelf; the pieces are asked anew. */
   function next({ sameModel }: { sameModel: boolean }) {
     if (done && sameModel) {
       const entry = done.entry;
@@ -204,6 +208,7 @@ export function QuickEntryDesk() {
       setPrice(null);
     }
     setColor("");
+    setQuantity(0);
     setPhoto(null);
     setProblem(null);
     setDone(null);
@@ -218,7 +223,7 @@ export function QuickEntryDesk() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-caps text-ink-tertiary">Katalog</p>
-          <h1 className="mt-3 text-heading sm:text-title">Schnellerfassung</h1>
+          <h1 className="mt-3 text-heading sm:text-title">Neues Modell</h1>
           <p className="mt-2 text-small text-ink-secondary">
             Ein Modell aus der Kiste: Foto, Ausführung, Preis – fertig. Neues bleibt Entwurf, bis es vollständig ist.
           </p>
@@ -292,22 +297,26 @@ export function QuickEntryDesk() {
               </div>
               <div>
                 <span aria-hidden="true" className="block text-hint text-ink-tertiary">
-                  Stück mit Etikett
+                  {PIECES_QUESTION}
                 </span>
                 <QuantityStepper
                   value={quantity}
                   onChange={setQuantity}
                   min={0}
                   max={200}
-                  label="Stück mit Etikett"
+                  label={PIECES_QUESTION}
                   className="mt-1"
                 />
+                <p className="mt-1 text-hint text-ink-tertiary">
+                  {quantity === 0 ? "Keine: nur das Modell, ohne Etikett." : "Jedes Stück bekommt ein Etikett."}
+                </p>
               </div>
               {quantity > 0 ? <LocationField value={location} onChange={setLocation} /> : null}
             </div>
           </Step>
 
-          <div className="sticky bottom-0 z-10 -mx-5 border-t border-line bg-surface/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:mx-0 sm:rounded-md sm:border">
+          {/* On the phone it rests on the Stellwerk's bottom bar, which keeps the safe area. */}
+          <div className="sticky bottom-[var(--stellwerk-bar,0px)] z-10 -mx-5 border-t border-line bg-surface/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur max-sm:pb-3 sm:mx-0 sm:rounded-md sm:border">
             <PlanLine
               plan={plan}
               model={model}
@@ -548,7 +557,7 @@ function ModelField({ model, onChange }: { model: Model | null; onChange: (model
         <span className="min-w-0 flex-1">
           <span className="block truncate text-small font-medium">{model.name}</span>
           <Badge tone="accent" className="mt-1">
-            Neues Produkt
+            Neues Modell
           </Badge>
         </span>
         <Button type="button" size="sm" variant="ghost" aria-label="Modell ändern" onClick={() => onChange(null)}>
@@ -735,9 +744,9 @@ const PLAN_TONES = {
 function planText(plan: EntryPlan, what: string, scale: string): string {
   switch (plan.kind) {
     case "new-product":
-      return `Neues Produkt mit ${what}`;
+      return `Neues Modell mit ${what}`;
     case "new-variant":
-      return `Neue Variante ${what}${plan.newScale ? `, erster Artikel in ${scale}` : ""}`;
+      return `Neue Ausführung ${what}${plan.newScale ? `, die erste in ${scale}` : ""}`;
     case "existing":
       return `${what} gibt es schon (${plan.variant.sku}) · Preis bisher ${formatPrice(plan.variant.price_cents)}`;
     case "names":
@@ -812,8 +821,8 @@ function DoneCard({ done, finishes, onNext }: DoneCardProps) {
           </p>
           <p className="mt-1 font-mono text-hint text-ink-tertiary">{entry.variant.sku}</p>
           <p className="mt-3 flex flex-wrap gap-2">
-            {entry.new_product ? <Badge tone="accent">Neues Produkt</Badge> : null}
-            {entry.new_variant ? <Badge tone="success">Neue Variante</Badge> : <Badge>Preis gesetzt</Badge>}
+            {entry.new_product ? <Badge tone="accent">Neues Modell</Badge> : null}
+            {entry.new_variant ? <Badge tone="success">Neue Ausführung</Badge> : <Badge>Preis gesetzt</Badge>}
             <StatusBadge tone={STATUS_TONES[entry.product.status]}>
               {PRODUCT_STATUS_LABELS[entry.product.status]}
             </StatusBadge>

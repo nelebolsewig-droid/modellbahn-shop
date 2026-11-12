@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ScannerPage } from "@/components/admin/inventory/inventory-pages";
 
-export const metadata: Metadata = { title: "Scanner" };
+export const metadata: Metadata = { title: "Scannen" };
 
 /** `?bestellung=<id>` opens the scanner ready to pick that order (link on the order desk). */
 export default async function AdminScannerPage({ searchParams }: PageProps<"/admin/scanner">) {

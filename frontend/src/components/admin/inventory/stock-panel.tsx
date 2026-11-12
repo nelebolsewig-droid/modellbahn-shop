@@ -23,7 +23,7 @@ const PARTS: readonly Part[] = [
   { key: "allocated", label: "Reserviert", bar: "bg-accent" },
   { key: "picked", label: "Kommissioniert", bar: "bg-ink-secondary" },
   { key: "labeled", label: "Unverbucht", bar: "border border-warning bg-warning-subtle" },
-  { key: "backordered", label: "In Fertigung", bar: "bg-warning" },
+  { key: "backordered", label: "Wartet auf Fertigung", bar: "bg-warning" },
 ];
 
 function matches(line: StockLineOut, query: string): boolean {
@@ -35,8 +35,11 @@ function matches(line: StockLineOut, query: string): boolean {
   return haystack.includes(query.toLowerCase());
 }
 
-/** Stock per article, live: what is free, promised, packed, waiting or still to make. */
-export function StockPanel() {
+/**
+ * Stock per article, live: what is free, promised, packed, waiting or still to make.
+ * `mayManage`: owner and staff label new pieces right from a line.
+ */
+export function StockPanel({ mayManage }: { mayManage: boolean }) {
   const stock = useListStock();
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim());
@@ -61,19 +64,21 @@ export function StockPanel() {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, Artikelnummer oder EAN"
+                placeholder="Name, SKU oder EAN"
                 autoComplete="off"
               />
             </div>
           ) : null}
           {lines.length === 0 ? (
             <p className="mt-6 text-small text-ink-secondary">
-              Noch nichts im Lager. „Einheiten erfassen“ legt die ersten Stücke mit Etikett an.
+              {mayManage
+                ? "Noch nichts im Lager. „Stücke erfassen“ legt die ersten Stücke mit Etikett an."
+                : "Noch nichts im Lager."}
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-line border-y border-line">
               {shown.map((line) => (
-                <StockRow key={line.variant_id} line={line} />
+                <StockRow key={line.variant_id} line={line} mayManage={mayManage} />
               ))}
               {shown.length === 0 ? <li className="py-4 text-small text-ink-secondary">Nichts gefunden.</li> : null}
             </ul>
@@ -109,7 +114,7 @@ function Totals({ lines }: { lines: readonly StockLineOut[] }) {
     { label: "Frei verkäuflich", value: sum("in_stock"), tone: "text-success" },
     { label: "Für Bestellungen", value: sum("allocated") + sum("picked"), tone: "text-accent" },
     { label: "Noch einzulagern", value: sum("labeled"), tone: "text-warning" },
-    { label: "In Fertigung", value: sum("backordered"), tone: "text-warning" },
+    { label: "Wartet auf Fertigung", value: sum("backordered"), tone: "text-warning" },
   ];
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-4">
@@ -125,10 +130,10 @@ function Totals({ lines }: { lines: readonly StockLineOut[] }) {
   );
 }
 
-function StockRow({ line }: { line: StockLineOut }) {
+function StockRow({ line, mayManage }: { line: StockLineOut; mayManage: boolean }) {
   const variant = line.variant;
   const total = PARTS.reduce((sum, part) => sum + line[part.key], 0);
-  const title = variant?.title ?? "Gelöschter Artikel";
+  const title = variant?.title ?? "Gelöschtes Modell";
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3">
       <div className="min-w-0">
@@ -153,11 +158,11 @@ function StockRow({ line }: { line: StockLineOut }) {
           </span>
           <span className="block text-hint text-ink-tertiary">frei</span>
         </p>
-        {variant ? (
+        {variant && mayManage ? (
           <UnitsDialog
             variant={{ variantId: variant.variant_id, title: variant.title, sku: variant.sku }}
             trigger={
-              <Button type="button" size="sm" variant="ghost" aria-label={`Einheiten erfassen: ${title}`}>
+              <Button type="button" size="sm" variant="ghost" aria-label={`Stücke erfassen: ${title}`}>
                 + Stück
               </Button>
             }

@@ -76,7 +76,9 @@ Das Skript führt durch vierzehn Schritte und sagt bei jedem, was zu tun ist:
    - Dazu kommen der echte Betrieb (`MB_ENVIRONMENT=production`), das Zertifikat von
      Let's Encrypt und HSTS.
 7. **eBay** (überspringbar): Johanns Schlüssel und die zwei Adressen, die im
-   eBay-Entwicklerkonto eingetragen werden.
+   eBay-Entwicklerkonto eingetragen werden. Verbunden wird danach im Stellwerk unter
+   Einstellungen → eBay-Einrichtung; dort stehen auch Versand, Zahlung, eBay-Kategorien
+   und die Adresse für die Löschmeldungen.
 8. **SumUp** (überspringbar): API-Schlüssel (`sup_sk_…`, verdeckt) und Händlercode des
    SumUp-Kontos. Ohne sie nimmt der Shop keine Bestellungen an (`MB_PAYMENT_PROVIDER=off`).
 9. **Vorkasse** (überspringbar): die Bankverbindung für Überweisungen.
@@ -223,15 +225,17 @@ Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
 
 ### Etiketten der Modelle
 
-- **Neue Stücke erfassen:** Lager → „Einheiten erfassen“, Artikel suchen, Anzahl „Stück“
+- **Neue Stücke erfassen:** Lager → „Stücke erfassen“, Modell suchen, Anzahl „Stück“
   und Platz eintragen, „Erfassen und Etiketten drucken“. Unterwegs geht es mit dem Handy
-  unter „Erfassen“ (neues Modell mit „Stück mit Etikett“).
+  unter Mehr → „Neues Modell“ (am Schreibtisch: Katalog → „Neues Modell“). Dort bei „Wie
+  viele Stücke liegen fertig da?“ die Anzahl eintragen; bei 0 entsteht nur das Modell,
+  ohne Etikett.
 - **Drucken:** A4-Bogen oder Brother-Rolle 62 mm wählen. Für die Brother-App „Als Bilder
   für die Brother-App“: jedes Etikett als Bild, einzeln oder als ZIP.
 - Auf jedem Etikett stehen der Preis (oben rechts) sowie Hersteller, Anschrift und E-Mail
   aus dem Impressum.
-- **Preis geändert?** Die gedruckten Etiketten zeigen den alten Preis: auf der Seite der
-  Einheit (Code scannen oder im Lager öffnen) das Etikett neu drucken.
+- **Preis geändert?** Die gedruckten Etiketten zeigen den alten Preis: auf der Seite des
+  Stücks (Code scannen oder im Lager öffnen) das Etikett neu drucken.
 - **Ohne Platz erfasst?** Dann bleiben die Stücke „Unverbucht“ und sind im Shop und bei eBay
   nicht lieferbar, bis sie eingelagert sind (nächster Abschnitt).
 
@@ -241,21 +245,22 @@ Shop und eBay zählen nur Stücke, die in einem Platz liegen. Ein Stück mit Eti
 eingelagert wurde, liegt vielleicht im Regal, ist online aber nicht zu haben.
 
 - **Finden:** Lager → im Bestand der gelbe Hinweis „… unverbucht“ → „Unverbuchte
-  einlagern“. Die Liste zeigt alle unverbuchten Stücke, nach Artikel geordnet.
+  einlagern“. Die Liste zeigt alle unverbuchten Stücke, nach Modell geordnet.
 - **Einlagern:** die Stücke ankreuzen, die im Regal liegen („Alle auswählen“ oder „Alle“ je
-  Artikel), „Einlagern …“, den Platz suchen (Code oder Name) und „Hier einlagern“. Danach
-  sind sie im Shop lieferbar; wartet eine Bestellung auf den Artikel, bekommt sie das Stück.
+  Modell), „Einlagern …“, den Platz suchen (Code oder Name) und „Hier einlagern“. Danach
+  sind sie im Shop lieferbar; wartet eine Bestellung auf das Modell, bekommt sie das Stück.
 - **Etikett doppelt gedruckt?** Das überzählige Stück ankreuzen, „Ausbuchen …“, Grund
   „Falsch erfasst“.
 - Ein einzelnes Stück geht auch auf seiner Seite: „Einlagern …“ im Steckbrief.
 
 ### Stücke umlagern
 
-- **Mehrere auf einmal:** Lager → Platz öffnen (oder unter „Stücke“ den Artikel), die Stücke
+- **Mehrere auf einmal:** Lager → Platz öffnen (oder unter „Stücke“ das Modell), die Stücke
   ankreuzen, „Umlagern …“, Zielplatz wählen, „Hierher umlagern“. Reservierte Stücke behalten
   ihre Bestellung; was schon dort liegt, bleibt, wie es ist.
-- **Ein Stück:** auf seiner Seite „Umlagern …“. Mit dem Scanner geht es wie bisher:
-  „Einlagern“, Zielplatz scannen, dann die Stücke.
+- **Ein Stück:** auf seiner Seite „Umlagern …“. Mit „Scannen“ (Knopf oben rechts, auf dem
+  Handy in der Mitte der unteren Leiste) geht es wie bisher: „Einlagern“, Zielplatz
+  scannen, dann die Stücke.
 - Kommissionierte, versendete und ausgebuchte Stücke lassen sich nicht ankreuzen. Ist eins
   inzwischen kommissioniert worden, bucht der Shop nichts und sagt es im Dialog.
 
@@ -264,7 +269,7 @@ eingelagert wurde, liegt vielleicht im Regal, ist online aber nicht zu haben.
 Zeigt das Stellwerk mehr Stücke, als im Regal liegen:
 
 1. Zählen, was wirklich da ist.
-2. Lager → beim Artikel „Stücke“. Die Liste zeigt jedes Stück mit Code, Zustand, Platz und
+2. Lager → beim Modell „Stücke“. Die Liste zeigt jedes Stück mit Code, Zustand, Platz und
    Erfassungsdatum; „Unverbucht“ ist gelb markiert (oft doppelt gedruckte Etiketten).
 3. Die fehlenden Stücke ankreuzen, „Ausbuchen …“, Grund „Fehlt bei Inventur“, optional eine
    Notiz („Inventur November“), „Ausbuchen“.
@@ -285,7 +290,7 @@ Zeigt das Stellwerk mehr Stücke, als im Regal liegen:
   erstattet eine eingegangene Zahlung über SumUp.
 - **Schon versendet:** Ist die Ware zurück (oder die Rücksendung nachgewiesen), am
   Bestellpult unter „Erstattung“ auf „Rücksendung erhalten – erstatten“. SumUp zahlt sofort
-  zurück, der Kunde bekommt eine Mail. Nur einzelne Artikel zurück: „Einzelne Artikel“
+  zurück, der Kunde bekommt eine Mail. Nur einzelne Modelle zurück: „Einzelne Modelle“
   wählen.
 - **Frist:** 14 Tage nach Eingang des Widerrufs. Vier Tage vorher kommt täglich eine
   Erinnerung an `MB_IMPRINT_EMAIL`, bis erstattet ist.

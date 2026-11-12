@@ -95,7 +95,7 @@ export function DeleteProduct({ product }: { product: ProductOut }) {
       <DialogContent>
         <DialogTitle>„{product.name}“ endgültig löschen?</DialogTitle>
         <DialogDescription>
-          Gelöscht werden das Modell mit allen Maßstäben, Varianten und der Galerie, seine nie verkauften Stücke im
+          Gelöscht werden das Modell mit allen Maßstäben, Ausführungen und der Galerie, seine nie verkauften Stücke im
           Lager samt Journal und seine eBay-Angebote, die nicht mehr online sind; die Etiketten dieser Stücke gelten
           dann nicht mehr. Bestellungen behalten Name und Preis, die Fotos bleiben in der Medienbibliothek. Das lässt
           sich nicht rückgängig machen.

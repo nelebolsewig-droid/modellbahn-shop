@@ -116,7 +116,7 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
           label="Adresse im Shop"
           hint={
             slugLocked
-              ? "Fest, seit das Produkt veröffentlicht wurde: Links zeigen darauf."
+              ? "Fest, seit das Modell veröffentlicht wurde: Links zeigen darauf."
               : `/produkte/${slug || "…"}`
           }
           error={errors.slug?.message}

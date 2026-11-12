@@ -160,22 +160,24 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="space-y-6">
+        {/* In one column (the phone, where the packer works) the pick list comes first; with
+            two columns it goes below history and items. */}
+        <div className="flex min-w-0 flex-col gap-6">
           <OrderWithdrawals orderId={orderId} />
+          {hasPickList(data) ? (
+            <Panel title="Kommissionieren" code="VK 16" className="lg:order-last">
+              <Picking order={data} list={pickList.data} error={pickList.error} mayAllocate={MAY_CANCEL.has(staffRole)} />
+            </Panel>
+          ) : null}
           <Panel title="Verlauf" code="VK 11">
             <OrderTimeline order={data} />
             <StateNote order={data} />
             {data.payments.length > 0 ? <Payments order={data} /> : null}
           </Panel>
-          <Panel title="Artikel" code="VK 12">
+          <Panel title="Modelle" code="VK 12">
             <OrderLines lines={data.lines} linkToProducts={false} />
             <OrderTotals totals={data.totals} countryName={data.shipping_address.country_name} className="mt-5 sm:ml-auto sm:max-w-sm" />
           </Panel>
-          {hasPickList(data) ? (
-            <Panel title="Kommissionieren" code="VK 16">
-              <Picking order={data} list={pickList.data} error={pickList.error} mayAllocate={MAY_CANCEL.has(staffRole)} />
-            </Panel>
-          ) : null}
         </div>
 
         <div className="space-y-6">
@@ -398,9 +400,9 @@ function Shipped({ order }: { order: AdminOrderOut }) {
           {formatLongDate(shippedAt)}, {formatClock(shippedAt)} Uhr
         </dd>
         <dt className="text-ink-secondary">Versand mit</dt>
-        <dd>{order.carrier || "—"}</dd>
+        <dd>{order.carrier || "keine Angabe"}</dd>
         <dt className="text-ink-secondary">Sendung</dt>
-        <dd className="font-mono break-all">{order.tracking_number || "—"}</dd>
+        <dd className={order.tracking_number ? "font-mono break-all" : undefined}>{order.tracking_number || "keine Nummer"}</dd>
       </dl>
       {label.data ? (
         <p className="mt-4">

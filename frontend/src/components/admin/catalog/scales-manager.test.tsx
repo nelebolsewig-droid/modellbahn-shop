@@ -40,7 +40,7 @@ describe("ScalesManager", () => {
 
     const rows = await screen.findAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Gleis 16,5 mm");
-    expect(rows[0]).toHaveTextContent("4 Produkte");
+    expect(rows[0]).toHaveTextContent("4 Modelle");
     expect(within(rows[0] as HTMLElement).getByRole("button", { name: "Löschen" })).toBeDisabled();
     expect(rows[1]).toHaveTextContent("ohne Gleis");
     expect(within(rows[1] as HTMLElement).getByRole("button", { name: "Löschen" })).toBeEnabled();
