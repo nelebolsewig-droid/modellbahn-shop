@@ -266,11 +266,15 @@ Mit „Scannen“ (Knopf oben rechts, auf dem Handy in der Mitte der unteren Lei
 1. Modus „Einlagern“, das Etikett am Fach scannen. Oben steht „Einlagern nach R01-F01“.
 2. Bei **Anzahl** eintragen, wie viele Stücke es sind (oder mit + und −), dann ein
    Etikett des Modells scannen. Die Antwort sagt etwa „+7 · jetzt 9 hier“.
-3. Die Anzahl springt danach auf 1 zurück: Das nächste Etikett zählt ein Stück, bis man
-   wieder eine Zahl einträgt.
+3. Die Anzahl springt beim Scannen auf 1 zurück: Das nächste Etikett zählt ein Stück, bis
+   man wieder eine Zahl einträgt.
 
 - Liegen noch unverbuchte Stücke des Modells (von früher), bucht der Scan zuerst diese
   ein, den Rest neu. Gezählt wird nur, was eingetragen ist.
+- Neue Stücke einbuchen dürfen nur Inhaber und Mitarbeiter. Ein Packer lagert per Scan nur
+  unverbuchte Stücke ein; reichen sie nicht, bucht der Scan nichts und sagt es.
+- Die Anzahl gilt für das nächste Etikett eines Modells und steht gleich danach wieder
+  auf 1. Das Platz-Etikett darf vorher oder nachher gescannt werden.
 - Ein Etikett eines Stücks, das schon im Lager liegt, zählt ebenso als „+1“ (bzw. „+N“) am
   gewählten Platz. Umlagern per Scan gibt es nicht mehr, dafür „Umlagern …“ in den Listen.
 - Vertippt? „Rückgängig“ auf der Antwortkarte (10 Sekunden angeboten, 10 Minuten möglich)
@@ -290,7 +294,7 @@ Auf der Messe, im Laden oder privat verkauft (Inhaber und Mitarbeiter):
 
 - Es gehen nur freie Stücke, nie für eine Bestellung reservierte. Sind weniger frei als
   angegeben, bucht der Scan nichts und sagt, wie viele frei sind.
-- „Rückgängig“ legt die Stücke wieder dorthin, wo sie lagen.
+- „Rückgängig“ legt die Stücke wieder dorthin, wo sie lagen (Inhaber und Mitarbeiter).
 - Die Kasse (SumUp) kennt dieselben Etiketten. Ein Verkauf an der Kasse bucht im Shop noch
   nichts aus: dafür dieser Scan.
 

@@ -30,7 +30,7 @@ keep both. Pieces the scan made leave the stock again, as recorded by mistake.
 Every scan locks the units it books in one go, by id, as every other path does.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
@@ -63,6 +63,7 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanIdReusedError,
     ScanNotFoundError,
     ScanNotUndoableError,
+    ScanUndoForbiddenError,
 )
 from modellbahn.modules.inventory.domain.model import (
     SCAN_QUANTITY_MAX,
@@ -106,6 +107,9 @@ class ScanRequest:
     quantity: int = 1
     """Pieces a model's label stands for when putting away or booking out (1 to 200);
     the other modes book one piece, or every part waiting for a box."""
+    may_add_units: bool = False
+    """Whether putting away may make new pieces (owner and staff): without it a scan
+    only stores labelled pieces, and refuses when it would need more."""
 
 
 def _check(request: ScanRequest) -> None:
@@ -227,18 +231,23 @@ class ScanService:
             scan, dict(scan.response), can_undo=scan.can_undo(self._clock.now())
         )
 
-    async def undo(self, scan_id: UUID, *, staff_id: UUID) -> JsonObject:
+    async def undo(
+        self, scan_id: UUID, *, staff_id: UUID, may_book_out: bool = False
+    ) -> JsonObject:
         """Book the scan's movements backwards; the journal keeps both directions.
 
         A piece the scan made (put away with a quantity, more than lay labelled) cannot
         go back to before its label: it leaves the stock as recorded by mistake, so the
         count is what it was. Pieces booked out are free again where they lay, and the
-        order waiting longest for their variant gets them, as with any piece put away.
+        order waiting longest for their variant gets them, as with any piece put away;
+        that is booking in, so it needs ``may_book_out`` (owner and staff) like booking out.
         """
         async with self._uow() as uow:
             scan = await uow.scans.get(scan_id, for_update=True)
             if scan is None:
                 raise ScanNotFoundError
+            if scan.mode is ScanMode.SCRAP and not may_book_out:
+                raise ScanUndoForbiddenError
             now = self._clock.now()
             if scan.undone_at is not None:
                 raise ScanNotUndoableError("already_undone")
@@ -450,22 +459,39 @@ class _Interpreter:
         self, variant_id: UUID, status: UnitStatus, *, limit: int, location: Location | None
     ) -> list[Unit]:
         """Up to ``limit`` units of the variant in ``status`` (lying in ``location``, if
-        given), oldest first. They are locked in one go, by id; a unit that changed
-        between the first look and the lock is left out."""
-        ids = await self._uow.units.oldest(
-            variant_id,
-            status,
-            location_id=location.id if location is not None else None,
-            limit=limit,
-        )
-        locked = [
-            unit
-            for unit in await self._uow.units.lock(ids)
-            if unit.variant_id == variant_id
-            and unit.status is status
-            and (location is None or unit.location_id == location.id)
-        ]
-        return sorted(locked, key=lambda unit: (unit.created_at, unit.id))
+        given), oldest first, locked.
+
+        The first ones are locked in one go, by id, as on every path. A unit that changed
+        between the first look and the lock is left out, and the next oldest are looked
+        for until ``limit`` is reached or none is left. Those later ones are locked only
+        if nobody else holds them: waiting for them while holding others could wait
+        crosswise.
+        """
+        location_id = location.id if location is not None else None
+        found: list[Unit] = []
+        seen: set[UUID] = set()
+        first = True
+        while len(found) < limit:
+            ids = await self._uow.units.oldest(
+                variant_id,
+                status,
+                location_id=location_id,
+                limit=limit - len(found),
+                exclude=seen,
+            )
+            if not ids:
+                break
+            seen.update(ids)
+            locked = await self._uow.units.lock(ids, skip_locked=not first)
+            first = False
+            found.extend(
+                unit
+                for unit in locked
+                if unit.variant_id == variant_id
+                and unit.status is status
+                and (location is None or unit.location_id == location.id)
+            )
+        return sorted(found, key=lambda unit: (unit.created_at, unit.id))
 
     async def _pieces_in(self, variant_id: UUID, location: Location) -> int:
         """Pieces of the variant lying in the location (free and reserved)."""
@@ -524,6 +550,13 @@ class _Interpreter:
         labelled = await self._lock_oldest(
             variant_id, UnitStatus.LABELED, limit=wanted, location=None
         )
+        if len(labelled) < wanted and not self._request.may_add_units:
+            # All or nothing: not even the labelled pieces go in.
+            return _Answer(
+                ScanOutcome.REJECTED,
+                "book_in_not_allowed",
+                location=await self._location_info(location),
+            )
         for unit in labelled:
             await put_away(self._uow, self._journal, unit, location)
         made = (
@@ -628,23 +661,15 @@ class _Interpreter:
             return _Answer(ScanOutcome.REJECTED, "order_not_pickable")
         items = [item for item in pick_list.items if item.variant_id == variant_id]
         reserved = [item for item in items if item.state is PieceState.RESERVED]
-        own = next(
-            (
-                item
-                for item in reserved
-                if scanned is not None and item.allocation_id == scanned.allocation_id
-            ),
-            reserved[0] if reserved else None,
+        # The pick list was read without locks: another scan may have picked some of its
+        # reserved pieces since. All of them are locked in one go, by id, and looked at again.
+        served = await self._uow.units.serving(
+            [item.allocation_id for item in reserved], for_update=True
         )
+        own = still_reserved(reserved, served, scanned)
         backordered = next((i for i in items if i.state is PieceState.BACKORDERED), None)
         if own is not None:
-            served = await self._uow.units.serving([own.allocation_id], for_update=True)
-            unit = served.get(own.allocation_id)
-            answer = (
-                await self._pick_own(unit)
-                if unit is not None
-                else _Answer(ScanOutcome.REJECTED, "variant_not_in_stock")
-            )
+            answer = await self._pick_own(own)
         elif backordered is not None:
             free = await self._uow.units.oldest_free(variant_id, limit=1)
             answer = (
@@ -775,6 +800,27 @@ class _Interpreter:
             "free_units": free,
             "free_here": here,
         }
+
+
+def still_reserved(
+    reserved: Sequence[PickItem], served: Mapping[UUID, Unit], scanned: Unit | None
+) -> Unit | None:
+    """The unit to pick for one of the order's ``reserved`` pieces (in walking order):
+    the scanned one if it is among them, else the first; a unit that is no longer
+    reserved for its piece (picked meanwhile) does not count. ``served``: the locked unit
+    of each allocation."""
+    units = [
+        unit
+        for item in reserved
+        if (unit := served.get(item.allocation_id)) is not None
+        and unit.status is UnitStatus.ALLOCATED
+        and unit.allocation_id == item.allocation_id
+    ]
+    if scanned is not None:
+        mine = next((unit for unit in units if unit.id == scanned.id), None)
+        if mine is not None:
+            return mine
+    return units[0] if units else None
 
 
 def _stock_effect(

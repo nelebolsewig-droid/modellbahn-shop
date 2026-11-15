@@ -15,7 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.identity.application.services import IdentityService
-from modellbahn.modules.inventory.application.allocation import AllocationService, PieceState
+from modellbahn.modules.inventory.application import scanning
+from modellbahn.modules.inventory.application.allocation import (
+    AllocationService,
+    PieceState,
+    load_pick_list,
+)
 from modellbahn.modules.inventory.application.common import (
     UnitOfWorkFactory as InventoryUnitOfWorkFactory,
 )
@@ -32,6 +37,7 @@ from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
     ScanIdReusedError,
     ScanNotUndoableError,
+    ScanUndoForbiddenError,
 )
 from modellbahn.modules.inventory.domain.model import (
     LocationKind,
@@ -40,6 +46,7 @@ from modellbahn.modules.inventory.domain.model import (
     ScrapReason,
     UnitStatus,
 )
+from modellbahn.modules.inventory.infrastructure.repositories import SqlUnitRepository
 from modellbahn.modules.inventory.infrastructure.tables import stock_ledger
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.cart import CartService
@@ -271,6 +278,62 @@ class TestPuttingAwayWithAQuantity:
                 scans, staff, gtin, ScanMode.PUT_AWAY, context=context, quantity=5, scan_id=scan_id
             )
 
+    async def test_without_the_right_to_add_pieces_only_labelled_ones_go_in(
+        self,
+        units: UnitService,
+        scans: ScanService,
+        two_places: None,
+        painted: UUID,
+        gtin: str,
+        staff: UUID,
+    ) -> None:
+        (older,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+        context = {"location_code": COMPARTMENT}
+        # A packer's scan: three would need two new pieces, so none goes in.
+        refused = await scan(
+            scans, staff, gtin, ScanMode.PUT_AWAY, context=context, quantity=3, may_add_units=False
+        )
+        assert (refused["outcome"], refused["message"]) == ("rejected", "book_in_not_allowed")
+        assert refused["undoable"] is False
+        assert await statuses(units, painted) == [(UnitStatus.LABELED, None)]
+        stored = await scan(
+            scans, staff, gtin, ScanMode.PUT_AWAY, context=context, may_add_units=False
+        )
+        assert (stored["message"], effect(stored)["stored"]) == ("booked_in", 1)
+        assert (await units.details(older.unit.code)).view.unit.status is UnitStatus.IN_STOCK
+
+    async def test_a_labelled_piece_taken_meanwhile_is_replaced_by_the_next_one(
+        self,
+        units: UnitService,
+        scans: ScanService,
+        two_places: None,
+        painted: UUID,
+        gtin: str,
+        staff: UUID,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        gone, first, second = await units.label_units(
+            variant_id=painted, quantity=3, location_code=None, staff_id=None
+        )
+        await units.scrap(gone.unit.code, note="", staff_id=None, reason=ScrapReason.MISTAKE)
+        stale_first_look(monkeypatch, [gone.unit.id, first.unit.id])
+
+        answer = await scan(
+            scans,
+            staff,
+            gtin,
+            ScanMode.PUT_AWAY,
+            context={"location_code": COMPARTMENT},
+            quantity=2,
+        )
+
+        # Not a new piece while a labelled one is left: both labelled ones went in.
+        assert (effect(answer)["stored"], effect(answer)["created"]) == (2, 0)
+        for view in (first, second):
+            assert (await units.details(view.unit.code)).view.unit.status is UnitStatus.IN_STOCK
+
     @pytest.mark.parametrize("quantity", [0, 201])
     async def test_the_quantity_has_bounds(
         self, scans: ScanService, two_places: None, gtin: str, staff: UUID, quantity: int
@@ -284,6 +347,19 @@ class TestPuttingAwayWithAQuantity:
                 context={"location_code": COMPARTMENT},
                 quantity=quantity,
             )
+
+
+def stale_first_look(monkeypatch: pytest.MonkeyPatch, ids: list[UUID]) -> None:
+    """The first search for units finds ``ids``, as it would have a moment earlier."""
+    real = SqlUnitRepository.oldest
+    calls = 0
+
+    async def oldest(self: SqlUnitRepository, *args: object, **kwargs: object) -> list[UUID]:
+        nonlocal calls
+        calls += 1
+        return list(ids) if calls == 1 else await real(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(SqlUnitRepository, "oldest", oldest)
 
 
 class TestUndoingAPutAway:
@@ -510,6 +586,32 @@ class TestBookingOut:
             [UnitStatus.IN_STOCK, UnitStatus.IN_STOCK, UnitStatus.ALLOCATED]
         )
 
+    async def test_a_piece_taken_meanwhile_is_replaced_by_the_next_free_one(
+        self,
+        units: UnitService,
+        scans: ScanService,
+        clock: FixedClock,
+        two_places: None,
+        painted: UUID,
+        gtin: str,
+        staff: UUID,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        (sold,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=COMPARTMENT, staff_id=None
+        )
+        clock.advance(timedelta(minutes=1))
+        older, _newer = await units.label_units(
+            variant_id=painted, quantity=2, location_code=COMPARTMENT, staff_id=None
+        )
+        await units.scrap(sold.unit.code, note="", staff_id=None, reason=ScrapReason.SOLD)
+        stale_first_look(monkeypatch, [sold.unit.id, older.unit.id])
+
+        answer = await scan(scans, staff, gtin, ScanMode.SCRAP, quantity=2)
+
+        assert (answer["message"], effect(answer)["quantity"]) == ("booked_out", 2)
+        assert await statuses(units, painted) == [(UnitStatus.SCRAPPED, None)] * 3
+
     async def test_undo_brings_them_back_where_they_lay(
         self,
         units: UnitService,
@@ -533,7 +635,10 @@ class TestBookingOut:
         waiting = await paid_order(carts, checkout, painted, 1)
         await deliver()
 
-        await scans.undo(UUID(str(answer["scan_id"])), staff_id=staff)
+        # Undoing it books pieces in again: owner and staff only, like booking out.
+        with pytest.raises(ScanUndoForbiddenError):
+            await scans.undo(UUID(str(answer["scan_id"])), staff_id=staff)
+        await scans.undo(UUID(str(answer["scan_id"])), staff_id=staff, may_book_out=True)
 
         assert sorted(await statuses(units, painted), key=str) == sorted(
             [(UnitStatus.IN_STOCK, SHELF_TWO), (UnitStatus.ALLOCATED, SHELF_TWO)], key=str
@@ -570,6 +675,49 @@ class TestBookingOut:
         assert (out["message"], effect(out)["quantity"]) == ("booked_out", 1)
         with pytest.raises(InvalidFieldError, match="reason"):
             await scan(scans, staff, gtin, ScanMode.SCRAP, context={"reason": "verschenkt"})
+
+
+class TestPicking:
+    async def test_a_pick_list_read_before_another_pick_takes_the_next_piece(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        scans: ScanService,
+        carts: CartService,
+        checkout: CheckoutService,
+        allocation: AllocationService,
+        deliver: Deliver,
+        two_places: None,
+        painted: UUID,
+        gtin: str,
+        staff: UUID,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        await stock_up(locations, units, painted, quantity=2)
+        order_id = await paid_order(carts, checkout, painted, 2)
+        await deliver()
+        context = {"order_id": str(order_id)}
+        before = await allocation.pick_list(order_id)
+        first = await scan(scans, staff, gtin, ScanMode.PICK, context=context)
+        assert first["message"] == "picked"
+
+        # The second scan reads the pick list as it was before the first one booked.
+        real = load_pick_list
+        calls = 0
+
+        async def stale(*args: object, **kwargs: object) -> object:
+            nonlocal calls
+            calls += 1
+            return before if calls == 1 else await real(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(scanning, "load_pick_list", stale)
+        second = await scan(scans, staff, gtin, ScanMode.PICK, context=context)
+
+        assert second["message"] == "picked"
+        assert second["unit"]["code"] != first["unit"]["code"]  # type: ignore[index,call-overload]
+        assert {i.state for i in (await allocation.pick_list(order_id)).items} == {
+            PieceState.PICKED
+        }
 
 
 class TestModelLabels:

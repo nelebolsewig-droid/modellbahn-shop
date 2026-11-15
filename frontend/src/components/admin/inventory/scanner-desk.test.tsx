@@ -220,13 +220,46 @@ describe("ScannerDesk", () => {
     await user.click(screen.getByRole("button", { name: "Eins mehr" }));
     await scanByHand(user, EAN);
     expect(await screen.findByText("Nur 2 frei, 3 verlangt. Nichts ausgebucht.")).toBeInTheDocument();
-    // Refused: the Anzahl stays for another try.
-    expect(screen.getByLabelText("Anzahl")).toHaveValue("3");
+    // The scan took the Anzahl along: the field is back at 1.
+    expect(screen.getByLabelText("Anzahl")).toHaveValue("1");
     const sent = requestsTo(fetchMock, SCANS).map((request) => request.body as ScanIn);
     expect(sent.map((scan) => [scan.mode, scan.quantity, scan.context])).toEqual([
       ["scrap", 1, { reason: "damaged" }],
       ["scrap", 3, { reason: "damaged" }],
     ]);
+  });
+
+  it("sends a label scanned before the last answer came with one piece, not the Anzahl again", async () => {
+    let answerFirst: (() => void) | null = null;
+    routeFetch(fetchMock, {
+      [SCANS]: (request) => {
+        const scan = request.body as ScanIn;
+        if (scan.raw === EAN && scan.quantity === 7) {
+          // The first label's answer is slow; the second label is scanned meanwhile.
+          return new Promise<Response>((resolve) => {
+            answerFirst = () => resolve(counted(request));
+          });
+        }
+        return counted(request);
+      },
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<ScannerDesk staffRole="staff" initialOrderId={null} onStreamClosed={vi.fn()} />);
+    await scanByHand(user, "R01-F01");
+    await screen.findByText("Einlagern nach");
+    const count = screen.getByLabelText("Anzahl");
+    await user.clear(count);
+    await user.type(count, "7{Enter}");
+
+    await scanByHand(user, EAN);
+    await waitFor(() => expect(screen.getByLabelText("Anzahl")).toHaveValue("1"));
+    await scanByHand(user, EAN);
+    await waitFor(() => expect(answerFirst).not.toBeNull());
+    (answerFirst as unknown as () => void)();
+
+    expect(await screen.findByText("+1 · jetzt 3 hier")).toBeInTheDocument();
+    const sent = requestsTo(fetchMock, SCANS).map((request) => (request.body as ScanIn).quantity);
+    expect(sent).toEqual([1, 7, 1]);
   });
 
   it("offers booking out only to owner and staff", () => {

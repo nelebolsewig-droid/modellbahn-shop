@@ -836,6 +836,7 @@ ScanMessage = Literal[
     "booked_in",
     "booked_out",
     "not_enough_free",
+    "book_in_not_allowed",
 ]
 
 

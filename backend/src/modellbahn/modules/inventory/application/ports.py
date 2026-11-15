@@ -75,9 +75,11 @@ class UnitRepository(Protocol):
 
     async def get_by_code(self, code: str, *, for_update: bool = False) -> Unit | None: ...
 
-    async def lock(self, unit_ids: Collection[UUID]) -> list[Unit]:
+    async def lock(self, unit_ids: Collection[UUID], *, skip_locked: bool = False) -> list[Unit]:
         """The units with these ids (unknown ids are missing), locked one after the other
-        by id, so two requests over the same units never wait for each other crosswise."""
+        by id, so two requests over the same units never wait for each other crosswise.
+        With ``skip_locked`` the units another transaction holds are left out instead of
+        waited for."""
         ...
 
     async def existing_codes(self, codes: Collection[str]) -> set[str]: ...
@@ -105,10 +107,11 @@ class UnitRepository(Protocol):
         *,
         location_id: UUID | None = None,
         limit: int,
+        exclude: Collection[UUID] = (),
     ) -> list[UUID]:
         """Ids of up to ``limit`` units of the variant in ``status`` (lying in the location,
-        if one is given), oldest first. Nothing is locked: callers lock them with
-        :meth:`lock` and look again."""
+        if one is given), oldest first, leaving out the ids in ``exclude``. Nothing is
+        locked: callers lock them with :meth:`lock` and look again."""
         ...
 
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:

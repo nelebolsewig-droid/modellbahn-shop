@@ -30,7 +30,7 @@ import {
   COUNTING_MODES,
   initialSession,
   latestAnswer,
-  quantityFor,
+  quantityOf,
   SCAN_QUANTITY_MAX,
   scanSession,
   type ScanEntry,
@@ -209,10 +209,9 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
         return;
       }
       const scanId = crypto.randomUUID();
-      // The Anzahl shown when the label was scanned, even if the answer to an earlier scan
-      // sets it back to 1 before this one goes out.
-      const quantity = quantityFor(sessionRef.current);
+      // The scan takes the Anzahl along now, and the field is back at 1 for the next one.
       dispatch({ type: "scanned", scanId, raw: text, source, at: Date.now() });
+      const quantity = quantityOf(sessionRef.current, scanId);
       if (interpretations(text).length === 0) {
         dispatch({ type: "failed", scanId, error: "Das ist kein Code aus dem Lager." });
         feedback("error");

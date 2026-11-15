@@ -65,6 +65,9 @@ Code einer Einheit, und das Lager zählte ein Stück je Einheiten-Code (ADR 0011
     und welche Bestellungen sie bekamen. Das Stellwerk zeigt „+7 · jetzt 9 hier“.
   - Der Code eines Stücks, das schon im Lager liegt, zählt ebenso als „+N“ seines
     Modells. Umlagern per Scan gibt es nicht mehr; dafür bleibt „Umlagern …“ in den Listen.
+  - **Neue Stücke legen nur Inhaber und Mitarbeiter an**, wie beim Einbuchen
+    (`ScanRequest.may_add_units`). Ein Packer lagert per Scan nur unverbuchte Stücke ein;
+    bräuchte der Scan neue, bucht er nichts (`book_in_not_allowed`), alles oder nichts.
 - **Ausbuchen** (neuer Modus `scrap`, nur Inhaber und Mitarbeiter wie jedes Ausbuchen):
   - Kontext `reason` (die Gründe des Ausbuchens, ohne Angabe `sold`) und optional der
     Platz; ein Platz-Scan wählt ihn wie beim Einlagern.
@@ -80,9 +83,13 @@ Code einer Einheit, und das Lager zählte ein Stück je Einheiten-Code (ADR 0011
   Tauschen „gescanntes freies Stück statt reserviertem“ entfällt.
 - **Eine Buchung je Scan:** Ein Scan hält alle seine Bewegungen (Journal mit `scan_id`),
   alles oder nichts. Die gebuchten Stücke werden auf einmal nach Kennung gesperrt, wie auf
-  allen anderen Wegen; ein Stück, das sich zwischen Suche und Sperre ändert, bleibt
-  außen vor. `inventory.stock.changed` geht je Bewegung hinaus, wie beim Einlagern und
-  Ausbuchen von Hand.
+  allen anderen Wegen. Ändert sich eins zwischen Suche und Sperre, sucht der Scan die
+  nächsten ältesten, bis die Anzahl erreicht ist oder keins mehr da ist; diese sperrt er
+  nur, wenn niemand sonst sie hält (`SKIP LOCKED`), damit nichts über Kreuz wartet.
+  Beim Kommissionieren sperrt er alle reservierten Stücke der Ausführung für die
+  Bestellung und nimmt das erste, das noch reserviert ist: Zwei gleichzeitige Scans
+  derselben EAN nehmen zwei Stücke. `inventory.stock.changed` geht je Bewegung hinaus, wie
+  beim Einlagern und Ausbuchen von Hand.
 
 ### Rückgängig
 
@@ -97,13 +104,17 @@ Code einer Einheit, und das Lager zählte ein Stück je Einheiten-Code (ADR 0011
   Bestellung auf das Modell, bekommt sie eins.
 - Wie bisher zehn Minuten lang, und nur, solange keins der Stücke weiter gebucht wurde
   (`scan_changed_since`). Rückgängig sperrt zuerst alle Stücke des Scans, nach Kennung.
+- Einen Ausbuch-Scan nehmen nur Inhaber und Mitarbeiter zurück (403
+  `insufficient_role`): Das bucht Stücke wieder ein.
 
 ### Stellwerk
 
 - **Scanner:** Modus „Ausbuchen“ mit dem Feld „Grund“, nur für Inhaber und Mitarbeiter.
   Ohne Platz steht dort „alle“: die ältesten freien Stücke.
-- **Anzahl** bei Einlagern und Ausbuchen (−, Zahl, +). Nach jedem gebuchten Scan steht sie
-  wieder auf 1; ein abgelehnter Scan lässt sie stehen.
+- **Anzahl** bei Einlagern und Ausbuchen (−, Zahl, +). Ein Modell-Etikett nimmt sie beim
+  Scannen mit, und das Feld steht sofort wieder auf 1: Ein zweites Etikett, gescannt bevor
+  die Antwort kam oder ohne Netz, zählt ein Stück. Ein Platz- oder Teileetikett lässt sie
+  stehen.
   - Tippt ein Handscanner in das Feld, erkennt das Stellwerk den Code am Rhythmus und
     scannt ihn mit der Zahl, die vorher getippt war. Das Feld „Grund“ gibt den Fokus nach
     der Wahl ab, damit der nächste Code keinen anderen Grund wählt.
@@ -131,8 +142,8 @@ Code einer Einheit, und das Lager zählte ein Stück je Einheiten-Code (ADR 0011
   Platz. Nimmt der Packer ein Stück aus einem anderen Fach als dem auf der Pickliste, bucht
   der Scan das Stück der Pickliste; beide Fächer weichen dann um eins ab, bis eine Inventur
   sie richtigstellt.
-- Packer legen beim Einlagern neue Stücke an: Einlagern heißt jetzt einbuchen. Ausbuchen
-  bleibt bei Inhaber und Mitarbeiter.
+- Packer lagern per Scan nur ein, was unverbucht da ist; neue Stücke einbuchen und
+  ausbuchen bleiben bei Inhaber und Mitarbeiter.
 - **Noch nicht umgestellt:** Die Inventur je Platz zählt weiter Stück für Stück und erkennt
   Modell-Etiketten nicht; dort hakt man ab. Seite und Listen der Stücke zeigen weiter
   Einheiten-Codes.

@@ -153,6 +153,8 @@ const MESSAGES: Readonly<Record<ScanOutMessage, string>> = {
   booked_in: "Eingebucht.",
   booked_out: "Ausgebucht.",
   not_enough_free: "Nicht genug freie Stücke. Nichts ausgebucht.",
+  book_in_not_allowed:
+    "Neue Stücke einbuchen dürfen nur Inhaber und Mitarbeiter. Es liegen nicht genug unverbuchte Stücke vor; nichts gebucht.",
 };
 
 /** The reasons as one word, for the answer to a scan. */

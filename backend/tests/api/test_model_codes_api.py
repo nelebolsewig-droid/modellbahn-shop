@@ -8,6 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from tests.api.helpers import assert_problem
 from tests.conftest import Deliver
@@ -76,11 +77,11 @@ async def stock_of(client: AsyncClient, variant: UUID) -> tuple[int, int]:
 
 class TestPuttingAway:
     async def test_seven_pieces_with_one_label_and_back(
-        self, packer_client: AsyncClient, shelf: None, painted: UUID, gtin: str
+        self, staff_client: AsyncClient, shelf: None, painted: UUID, gtin: str
     ) -> None:
-        # Packers put away, as before; a model's label books as many as they say.
+        # A model's label books as many as the scan says.
         answer = await scan(
-            packer_client, body(gtin, "put_away", quantity=7, location_code="R01-F01")
+            staff_client, body(gtin, "put_away", quantity=7, location_code="R01-F01")
         )
         assert (answer["outcome"], answer["message"], answer["quantity"]) == (
             "applied",
@@ -100,16 +101,42 @@ class TestPuttingAway:
         }
         assert (answer["variant"]["free_units"], answer["variant"]["free_here"]) == (7, 7)
         assert answer["resolved"] == {"kind": "variant", "code": gtin}
-        assert await stock_of(packer_client, painted) == (0, 7)
+        assert await stock_of(staff_client, painted) == (0, 7)
 
-        undone = await packer_client.post(f"{INVENTORY}/scans/{answer['scan_id']}/undo")
+        undone = await staff_client.post(f"{INVENTORY}/scans/{answer['scan_id']}/undo")
         assert undone.status_code == 200, undone.text
         assert undone.json()["undone"] is True
-        assert await stock_of(packer_client, painted) == (0, 0)
-        out = await packer_client.get(
+        assert await stock_of(staff_client, painted) == (0, 0)
+        out = await staff_client.get(
             f"{INVENTORY}/units", params={"variant_id": str(painted), "status": "scrapped"}
         )
         assert {u["scrap_reason"] for u in out.json()["items"]} == {"mistake"}
+
+    async def test_packers_store_labelled_pieces_but_make_none(
+        self,
+        packer_client: AsyncClient,
+        staff_client: AsyncClient,
+        units: UnitService,
+        shelf: None,
+        painted: UUID,
+        gtin: str,
+    ) -> None:
+        await units.label_units(variant_id=painted, quantity=1, location_code=None, staff_id=None)
+        refused = await scan(
+            packer_client, body(gtin, "put_away", quantity=2, location_code="R01-F01")
+        )
+        assert (refused["outcome"], refused["message"]) == ("rejected", "book_in_not_allowed")
+        assert await stock_of(staff_client, painted) == (1, 0)
+        stored = await scan(packer_client, body(gtin, "put_away", location_code="R01-F01"))
+        assert (stored["message"], stored["stock_effect"]["stored"]) == ("booked_in", 1)
+        assert_problem(
+            await packer_client.post(
+                f"{INVENTORY}/units",
+                json={"variant_id": str(painted), "quantity": 1, "location_code": "R01-F01"},
+            ),
+            403,
+            "insufficient_role",
+        )
 
     @pytest.mark.parametrize(
         ("change", "field"),
@@ -132,7 +159,12 @@ class TestPuttingAway:
 
 class TestBookingOut:
     async def test_sold_at_the_fair_by_scan(
-        self, staff_client: AsyncClient, shelf: None, painted: UUID, gtin: str
+        self,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        shelf: None,
+        painted: UUID,
+        gtin: str,
     ) -> None:
         booked = await staff_client.post(
             f"{INVENTORY}/units",
@@ -155,6 +187,12 @@ class TestBookingOut:
         assert too_many["stock_effect"] is None
         assert await stock_of(staff_client, painted) == (0, 2)
 
+        # Undoing a booking out books pieces in again: not for packers.
+        assert_problem(
+            await packer_client.post(f"{INVENTORY}/scans/{sold['scan_id']}/undo"),
+            403,
+            "insufficient_role",
+        )
         undone = await staff_client.post(f"{INVENTORY}/scans/{sold['scan_id']}/undo")
         assert undone.json()["undone"] is True
         assert await stock_of(staff_client, painted) == (0, 5)

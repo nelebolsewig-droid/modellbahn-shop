@@ -1571,7 +1571,7 @@ export const useWriteOffReceipt = <TError = ErrorType<Problem | ValidationProble
 }
 
 /**
- * A label names a model (its EAN-13, or an older unit code standing for its unit's model), never a piece. Putting away books `quantity` pieces of it into the chosen location (labelled pieces first, then new ones); booking out takes `quantity` free pieces out with a reason, from the chosen location or the oldest anywhere, or none (`not_enough_free`). Booking out is for owner and staff.
+ * A label names a model (its EAN-13, or an older unit code standing for its unit's model), never a piece. Putting away books `quantity` pieces of it into the chosen location (labelled pieces first, then new ones; packers store labelled pieces only, else `book_in_not_allowed`); booking out takes `quantity` free pieces out with a reason, from the chosen location or the oldest anywhere, or none (`not_enough_free`). Booking out is for owner and staff.
  * @summary The central scan command: put away, pick, book out or look up; idempotent by scan id
  */
 export const recordScan = async (scanIn: ScanIn, options?: Parameters<typeof apiFetch>[1]): Promise<ScanOut> => {
@@ -1659,6 +1659,7 @@ export const useRecordScan = <TError = ErrorType<Problem | ValidationProblem>,
 }
 
 /**
+ * Undoing a scan that booked pieces out is for owner and staff.
  * @summary Book a scan backwards (within ten minutes, while its units have not moved on)
  */
 export const undoScan = async (scanId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ScanOut> => {

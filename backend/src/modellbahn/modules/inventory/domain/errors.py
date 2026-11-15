@@ -131,3 +131,7 @@ class ScanNotUndoableError(InventoryError):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class ScanUndoForbiddenError(InventoryError):
+    """Undoing a scan that booked pieces out books them in again: owner and staff only."""

@@ -2,18 +2,21 @@
  * The scan session as a state machine: which mode, which location or order it works
  * on, how many pieces the next model label stands for, and what became of each scan.
  * Pure, so the whole flow is tested without a browser; the scanner page dispatches
- * events and sends what `contextFor` and `quantityFor` say.
+ * events and sends what `contextFor` and `quantityOf` say.
  *
  *   Einlagern:        Platz scannen ─▶ Anzahl, Modell scannen, beliebig oft ─▶ nächster Platz
  *   Kommissionieren:  Bestellung wählen ─▶ jede Ware gegen die Pickliste
  *   Ausbuchen:        Grund, Platz (wenn er zählt), Anzahl ─▶ Modell scannen
  *   Auskunft:         irgendetwas scannen, nichts wird gebucht
  *
- * The Anzahl goes back to 1 once a scan with it was booked, so the next label counts
- * one piece unless someone says otherwise.
+ * A model label takes the Anzahl along the moment it is scanned, and the Anzahl goes
+ * back to 1 right then: the next label, scanned before the answer came or kept offline,
+ * counts one piece unless someone says otherwise. A place or part label leaves it be.
  */
 
 import type { ScanMode, ScanOut, ScrapReason } from "@/lib/api/generated/model";
+
+import { interpretations } from "./codes";
 
 export type ScanSource = "camera" | "scanner" | "keyboard";
 
@@ -97,29 +100,28 @@ export function scanSession(session: ScanSession, event: ScanEvent): ScanSession
     case "reason":
       return { ...session, reason: event.reason };
     case "scanned": {
+      const counts = COUNTING_MODES.has(session.mode) && namesModel(event.raw);
       const entry: ScanEntry = {
         scanId: event.scanId,
         raw: event.raw,
         source: event.source,
         mode: session.mode,
-        quantity: quantityFor(session),
+        quantity: counts ? session.quantity : 1,
         at: event.at,
         state: "sending",
       };
-      return { ...session, entries: [entry, ...session.entries].slice(0, HISTORY_LENGTH) };
+      return {
+        ...session,
+        quantity: counts ? 1 : session.quantity,
+        entries: [entry, ...session.entries].slice(0, HISTORY_LENGTH),
+      };
     }
     case "answered": {
       const { answer } = event;
-      const entry = session.entries.find((item) => item.scanId === answer.scan_id);
       const entries = updateEntry(session, answer.scan_id, { state: "answered", answer });
       // A location scanned while putting away or booking out becomes the place for what follows.
       if (answer.outcome === "selected" && answer.location !== null) {
         return { ...session, entries, locationCode: answer.location.code, locationName: answer.location.name };
-      }
-      // Booked with the Anzahl that is still set: the next label counts one piece again.
-      const booked = answer.outcome === "applied" && !answer.undone && answer.mode === session.mode;
-      if (booked && entry !== undefined && entry.quantity === session.quantity) {
-        return { ...session, entries, quantity: 1 };
       }
       return { ...session, entries };
     }
@@ -146,9 +148,20 @@ export function contextFor(session: ScanSession): Partial<Record<"location_code"
   return {};
 }
 
-/** How many pieces the next scan books: the Anzahl when it counts, else one. */
+/** How many pieces the next model label books: the Anzahl when it counts, else one. */
 export function quantityFor(session: ScanSession): number {
   return COUNTING_MODES.has(session.mode) ? session.quantity : 1;
+}
+
+/** Whether a scanned code reads first of all as a model's label (EAN or an old piece's code). */
+function namesModel(raw: string): boolean {
+  const kind = interpretations(raw)[0]?.kind;
+  return kind === "variant" || kind === "unit";
+}
+
+/** The Anzahl a scan took along when it was scanned (1 for anything but a model label). */
+export function quantityOf(session: ScanSession, scanId: string): number {
+  return session.entries.find((entry) => entry.scanId === scanId)?.quantity ?? 1;
 }
 
 /** The newest answered entry, to show large; null before the first answer. */

@@ -50,4 +50,5 @@ export const ScanOutMessage = {
   booked_in: 'booked_in',
   booked_out: 'booked_out',
   not_enough_free: 'not_enough_free',
+  book_in_not_allowed: 'book_in_not_allowed',
 } as const;

@@ -1387,8 +1387,8 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/units/{code}` | Einheit mit Lebenslauf |
 | | POST | `/units/{code}/scrap` | eine Einheit mit Grund ausbuchen; ihre Bestellung bekommt eine andere |
 | | POST | `/units/{code}/correction` | Ausführung eines falsch etikettierten Stücks ändern, danach Etikett neu drucken (Inhaber, Mitarbeiter; 409 `unit_not_correctable`) |
-| | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` (mit `quantity`). Ein Code nennt das Modell: einlagern bucht `quantity` Stücke ein (unverbuchte zuerst, dann neue), ausbuchen (`mode: scrap`, Kontext `reason`, optional Platz; Inhaber, Mitarbeiter) nimmt so viele freie hinaus oder keins (`not_enough_free`), kommissionieren nimmt ein Stück der Bestellung (ADR 0027) |
-| | POST | `/scans/{id}/undo` | einen Scan zehn Minuten lang zurückbuchen; Stücke, die er angelegt hat, gehen als „Versehen“ hinaus (409 `scan_changed_since` u. a.) |
+| | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` (mit `quantity`). Ein Code nennt das Modell: einlagern bucht `quantity` Stücke ein (unverbuchte zuerst, dann neue; neue nur Inhaber und Mitarbeiter, sonst `book_in_not_allowed`), ausbuchen (`mode: scrap`, Kontext `reason`, optional Platz; Inhaber, Mitarbeiter) nimmt so viele freie hinaus oder keins (`not_enough_free`), kommissionieren nimmt ein Stück der Bestellung (ADR 0027) |
+| | POST | `/scans/{id}/undo` | einen Scan zehn Minuten lang zurückbuchen; Stücke, die er angelegt hat, gehen als „Versehen“ hinaus; einen Ausbuch-Scan nur Inhaber und Mitarbeiter (409 `scan_changed_since` u. a.) |
 | | GET | `/parts` · `/parts/{Teilenummer}` | Teilelager; ein Teil mit Boxen, Wareneingang und Journal (ADR 0018) |
 | | POST | `/parts/{Teilenummer}/count` | Gezählt: Menge in einem Platz setzen, das Journal bucht den Unterschied |
 | | GET | `/receiving` | Wareneingang: gute Teile fertiger Platten, die auf eine Box warten |

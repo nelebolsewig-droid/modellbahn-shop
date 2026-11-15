@@ -8,6 +8,7 @@ import {
   initialSession,
   latestAnswer,
   quantityFor,
+  quantityOf,
   SCAN_QUANTITY_MAX,
   scanSession,
   type ScanSession,
@@ -86,16 +87,18 @@ describe("scan session", () => {
     expect(latestAnswer(session)?.scanId).toBe("c");
   });
 
-  it("counts the next model label as the Anzahl, and one again once it was booked", () => {
+  it("gives the Anzahl to the next model label and is back at 1 right away", () => {
     let session = scanSession(initialSession(), { type: "quantity", quantity: 7 });
     expect(quantityFor(session)).toBe(7);
+    // A place label leaves the Anzahl for the model label that follows it.
+    session = scanned(session, "place", "R01-F01");
+    expect([quantityOf(session, "place"), session.quantity]).toEqual([1, 7]);
     session = scanned(session, "a", "2000000000428");
-    expect(session.entries[0]?.quantity).toBe(7);
-    // Refused (no place yet): the Anzahl stays for the next try.
-    session = scanSession(session, { type: "answered", answer: answer("a", { outcome: "rejected", message: "location_required" }) });
-    expect(session.quantity).toBe(7);
+    expect([quantityOf(session, "a"), session.quantity]).toEqual([7, 1]);
+    // Scanned before the first answer came (or kept offline): one piece, not seven again.
     session = scanned(session, "b", "2000000000428");
-    session = scanSession(session, { type: "answered", answer: answer("b", { message: "booked_in" }) });
+    expect(quantityOf(session, "b")).toBe(1);
+    session = scanSession(session, { type: "answered", answer: answer("a", { message: "booked_in" }) });
     expect(session.quantity).toBe(1);
   });
 
@@ -104,6 +107,14 @@ describe("scan session", () => {
     session = scanSession(session, { type: "quantity", quantity: 3 });
     session = scanSession(session, { type: "answered", answer: answer("a", { message: "booked_in" }) });
     expect(session.quantity).toBe(3);
+  });
+
+  it("counts an old piece's code like the model's EAN, while booking out too", () => {
+    let session = scanSession(scanSession(initialSession(), { type: "mode", mode: "scrap" }), { type: "quantity", quantity: 4 });
+    session = scanned(session, "a", "7KQ2X9F4MZ");
+    expect([quantityOf(session, "a"), session.quantity]).toEqual([4, 1]);
+    const picking = scanned(scanSession(initialSession("pick", "o-1"), { type: "quantity", quantity: 4 }), "p", "2000000000428");
+    expect(quantityOf(picking, "p")).toBe(1);
   });
 
   it("takes whole numbers from 1 to the most one scan books, and only where they count", () => {
