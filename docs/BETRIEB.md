@@ -241,6 +241,8 @@ Modelle → „Neues Modell“ (auf dem Handy: Modelle, dann der große Knopf). 
 Danach steht die Seite des Modells offen. Alles Weitere (mehr Fotos, Beschreibung, eBay)
 steht dort unten in den zugeklappten Abschnitten.
 
+Ein neues Modell wird nachgefertigt, in der Standard-Lieferzeit (siehe „Nachfertigen“).
+
 ### Die Seite eines Modells
 
 Oben: Foto, Name, ob es im Shop ist, Preis. Darunter der **Bestand**: jede Ausführung mit
@@ -255,6 +257,34 @@ den Böden, auf denen sie liegt, und wie viele dort frei oder reserviert sind. G
 - **Zählen:** je Boden die Zahl eintragen, die wirklich daliegt. Fehlende werden ausgebucht,
   zusätzliche eingebucht. Sind weniger da, als für Bestellungen reserviert sind, bucht das
   Stellwerk nichts und sagt es; dann erst die Bestellung klären.
+
+### Nachfertigen
+
+Jedes Modell bleibt bestellbar, auch wenn das Regal leer ist: Was fehlt, fertigt die
+Werkstatt nach. Der Shop sagt es ehrlich, etwa „Nur noch 3 Stück sofort lieferbar – weitere
+fertigen wir für dich (Lieferzeit 2–4 Wochen)“. Das Paket geht komplett, wenn alles da ist.
+
+- **Lieferzeit für alle:** Einstellungen → Lieferzeit. Ändern kann sie nur der Inhaber.
+  Sie gilt sofort für jedes Modell ohne eigene.
+- **Für eine Ausführung anders:** Modell → „Maßstäbe, Ausführungen und Preise“ aufklappen,
+  bei „Nachfertigen“ wählen:
+  - „Standard-Lieferzeit“: wie eingestellt;
+  - „eigene Lieferzeit“: von–bis in Wochen eintragen;
+  - „nicht nachfertigen“: für Einzelstücke und Modelle, die es nicht mehr gibt. Ist das Regal
+    leer, ist es ausverkauft.
+- **eBay** verkauft nur, was im Regal liegt. Ausnahme: Ausführungen mit eigener Lieferzeit
+  (so wie früher „auf Bestellung“).
+
+### Zu fertigen
+
+Bestellungen → „Zu fertigen“ (nur Inhaber und Mitarbeiter). Die Zahl steht auch oben im
+Menü neben „Bestellungen“.
+
+- Je Zeile: Modell, Ausführung und Farbe, wie viele, für welche Bestellungen, seit wann.
+  Die längste wartende steht oben.
+- Fertig gebaut? Auf das Modell tippen, „Einbuchen“, Anzahl und Boden. Die Stücke gehen an
+  die älteste Bestellung; die Zeile wird kürzer und verschwindet.
+- Danach steht die Bestellung unter „Zu versenden“.
 
 ### Etiketten
 

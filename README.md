@@ -90,10 +90,12 @@ Was sich vorführen lässt:
   eingelagert. Beim Kommissionieren wählt man die Bestellung und scannt die Pickliste ab; das
   Bestellpult am Rechner zieht mit. Jeder Scan gibt Ton, Vibration und eine große Antwort,
   lässt sich zehn Sekunden lang zurücknehmen und wartet ohne Netz auf dem Gerät.
-- **Lieferbarkeit.** Jede Ausführung ist vorrätig oder wird auf Bestellung gefertigt. Die
-  Produktseite sagt „Sofort lieferbar“, „Wird für dich gefertigt · Lieferzeit 1–2 Wochen“
-  oder „Derzeit nicht lieferbar“; Warenkorb und Kasse nehmen nicht mehr an, als lieferbar
-  ist, und nennen die Lieferzeit vor dem Kauf.
+- **Lieferbarkeit.** Was im Regal fehlt, wird nachgefertigt, in der Lieferzeit des Shops
+  (Einstellungen → Lieferzeit) oder einer eigenen je Ausführung; Einzelstücke stehen auf
+  „nicht nachfertigen“ (ADR 0029). Die Produktseite sagt etwa „Nur noch 3 Stück sofort
+  lieferbar – weitere fertigen wir für dich (Lieferzeit 2–4 Wochen)“, der Warenkorb
+  „3 sofort lieferbar, 2 werden für dich gefertigt“; Kasse und Mails nennen den Versand.
+  Unter Bestellungen → „Zu fertigen“ steht, was bezahlte Bestellungen noch brauchen.
 - **Fertigung.** Unter „Fertigung“ steht die **Druckerhalle**: eine Anzeigetafel (in Betrieb,
   drucken, warten, Nachbearbeitung, defekt, in Reparatur) und je Drucker eine Karte mit
   Lampe, laufender Platte und Warteschlange. In der Zeichnung des Druckers wächst das Teil

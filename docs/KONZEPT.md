@@ -454,7 +454,8 @@ erDiagram
         text sku UK
         text gtin UK "EAN-13"
         int price_cents
-        bool allow_backorder
+        bool allow_backorder "nachfertigen, Vorgabe an"
+        int lead_time_min_weeks "eigene Lieferzeit, sonst die des Shops"
     }
     PART {
         uuid id PK
@@ -817,8 +818,10 @@ bedient wird:
 2. **Montage** möglich → Teile liegen in Boxen, ein Bausatz wird beim Packen montiert.
 3. **Rückstand** → die Planung erfährt davon und plant den Druck ein.
 
-Daraus ergibt sich die Lieferzeit, die der Shop anzeigt: *sofort lieferbar*, *Versand
-in 2 Tagen* oder *wird für dich gedruckt, 5 bis 7 Tage*.
+Daraus ergibt sich die Lieferzeit, die der Shop anzeigt: *sofort lieferbar*, *Nur noch 3
+Stück sofort lieferbar – weitere fertigen wir für dich (Lieferzeit 2–4 Wochen)* oder *wird
+für dich gefertigt*. Nachgefertigt wird jede Ausführung, in der Lieferzeit des Shops oder
+ihrer eigenen, außer sie ist als „nicht nachfertigen“ markiert (ADR 0029).
 
 ### 5.6 Identität und Kundenkonten
 
@@ -1347,6 +1350,7 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/auth/me` | eigene Rolle und Rechte |
 | | POST | `/auth/password` | Passwort ändern |
 | Katalog | GET | `/catalog/references` | Maßstäbe, Ausführungen, Epochen für die Formulare |
+| | GET · PUT | `/catalog/production` | Lieferzeit des Shops fürs Nachfertigen, für jede Ausführung ohne eigene; lesen Inhaber und Mitarbeiter, ändern nur der Inhaber (ADR 0029) |
 | | GET · POST | `/scales` | Maßstäbe mit Produktzahl; anlegen (Code, Name, Verhältnis, Gleis optional) |
 | | PATCH · DELETE | `/scales/{code}` | Name, Verhältnis, Gleis ändern (der Code bleibt); löschen nur ungenutzt (ADR 0010) |
 | | GET · POST | `/products` | Liste mit Zustand, Suche und Cursor; anlegen |
@@ -1355,7 +1359,7 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | POST | `/products/{id}/scales` | Maßstab mit Maßen hinzufügen |
 | | PATCH · DELETE | `/product-scales/{id}` | Maße und Gewicht ändern, Maßstab entfernen |
 | | POST | `/product-scales/{id}/variants` | Variante (Ausführung, beim Fertigmodell mit Farbe) hinzufügen; SKU und interne EAN vergibt das System |
-| | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Farbe, Rückstand erlaubt, aktiv |
+| | PATCH · DELETE | `/variants/{id}` | Preis, Streichpreis, Farbe, aktiv; nachfertigen (`allow_backorder`, Vorgabe an) mit Lieferzeit des Shops oder eigener (`lead_time_*`, ADR 0029) |
 | | POST | `/catalog/quick-entries` | Schnellerfassung: Produkt, Maßstab, Variante, Preis und Foto in einem Schritt (ADR 0013) |
 | | POST | `/catalog/publish-ready` | alle Entwürfe veröffentlichen, denen nichts mehr fehlt |
 | | POST | `/products/{id}/media` | hochgeladenes Bild anhängen, auch während der Verarbeitung; ohne `If-Match`, damit parallele Uploads sich nicht blockieren |
@@ -1382,6 +1386,7 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/stock/products` | je Modell frei, reserviert, unverbucht, wartend und die Plätze mit Anzahl (ADR 0028) |
 | | GET | `/stock/places` | je Ausführung und Platz frei und reserviert, für ein Modell (`product_id`) oder einen Platz (`location_code`) |
 | | GET | `/stock/history` | Verlauf eines Modells, Journalzeilen gleicher Buchung zusammengefasst |
+| | GET | `/stock/to-make` | Zu fertigen: je Ausführung die Stücke, auf die bezahlte Bestellungen warten, mit Bestellungen und Datum, älteste zuerst, und die Summe (Inhaber, Mitarbeiter; ADR 0029) |
 | | POST | `/stock/moves` | Anzahl einer Ausführung umlagern, älteste zuerst, reservierte behalten ihre Bestellung (Inhaber, Mitarbeiter; 409 `not_enough_pieces`) |
 | | POST | `/stock/scraps` | Anzahl freier Stücke mit Grund ausbuchen, optional nur an einem Platz (Inhaber, Mitarbeiter; 409 `not_enough_free`) |
 | | POST | `/stock/counts` | Zählung je Ausführung und Platz: fehlende freie gehen als „Fehlt“ hinaus, zusätzliche werden eingebucht, alles oder nichts (Inhaber, Mitarbeiter; 409 `count_takes_reserved`, `stocktake_outdated`) |
@@ -1625,7 +1630,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 6 | Wie sieht der Shop aus? (22.10.2026) | Hell und präzise: mattes Lichtgrau, Preußischblau, Mattschwarz, dünne serifenlose Schrift; Shop und Stellwerk hell, kein dunkler Modus (§11, ADR 0007) |
 | 7 | Wie ist der Katalog geordnet? (25.10.2026) | Erst nach **Maßstab** (Z bis G, dazu 1:24 und 1:25 für Straßenfahrzeuge), dann nach Kategorie und Unterkategorie, etwa Straßenfahrzeuge → LKW → Feuerwehr. Maßstäbe pflegt der Shop selbst (ADR 0010) |
 | 8 | Etiketten und Kasse (26.10.2026) | A4-Bögen 70 × 37 mm und Brother QL 62 mm. **Strichcodes statt QR**, weil die Kasse (SumUp) nur Strichcodes liest: EAN-13 je Variante, Code 128 je Stück und Platz. Der Shop liefert die Artikelliste als CSV für die Kasse (ADR 0011) |
-| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe zunächst 4 bis 6 Wochen, seit Entscheidung 15 1 bis 2 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011) |
+| 9 | Vorrätig oder auf Bestellung? (26.10.2026) | Je Variante. Auf Bestellung mit Lieferzeit von–bis in Wochen, ohne Angabe zunächst 4 bis 6 Wochen, seit Entscheidung 15 1 bis 2 Wochen; vorrätige Artikel sind ausverkauft, wenn das Lager leer ist (ADR 0011); seit 27 wird jede Ausführung nachgefertigt |
 | 10 | Name und Impressum (28.10.2026) | Der Shop heißt **adp-Modelle**, konfigurierbar über `MB_SMTP_FROM` und `NEXT_PUBLIC_SHOP_NAME`. Die Anbieterangaben stehen in `MB_IMPRINT_*`, nie im Code (ADR 0012) |
 | 11 | Wohin wird geliefert? (28.10.2026) | Nach Deutschland für 5,90 € und in alle übrigen EU-Länder für 16,90 €; versandkostenfrei nie (ADR 0012) |
 | 12 | Messen (28.10.2026) | Termine im Shop und als Kalender, Messe-Post mit Double-Opt-in, Hinweis auf die nächste Messe in Bestell- und Versandmails (ADR 0012) |
@@ -1643,6 +1648,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 24 | Navigation im Stellwerk (12.11.2026) | **Jede Rolle sieht nur, was sie benutzen kann:** Packer Übersicht, Bestellungen, Lager, Fertigung und Scannen; Inhaber und Mitarbeiter dazu Katalog, Messen, eBay und Einstellungen. Kategorien, Maßstäbe und die eBay-Einrichtung stehen unter Einstellungen. Scannen ist ein Knopf, auf dem Handy in der Mitte einer Leiste am unteren Rand. Ein Wortschatz: Modell, Ausführung, Stück, Platz, Teil (ADR 0026) |
 | 25 | Ein Code pro Modell (15.11.2026) | **Ein Etikett nennt die Ausführung, nie ein Stück:** EAN-13 ohne Code 128 der Einheit, so oft gedruckt wie nötig, ohne Stücke anzulegen. Stücke kommen mit Anzahl und Platz in den Bestand (Einbuchen, Einlager-Scan mit Anzahl); der Scanner bucht auch aus (Verkauf auf der Messe). Intern bleibt jedes Stück eine Einheit (ADR 0027) |
 | 26 | Das Modell im Mittelpunkt (15.11.2026) | **Ein Modell ist eine Seite:** Bestand je Ausführung und Platz mit Einbuchen, Ausbuchen, Umlagern, Etiketten und Zählen nach Anzahl, darunter Bearbeiten und Verlauf. „Neues Modell“ in vier Schritten ersetzt Erfassen. Täglich: Modelle, Bestellungen, Scannen, Lager. Ein Regal mit seinen Böden entsteht in einem Schritt, alle Etiketten gleich dazu. Versendet wird ohne Scannen, „Versandlabel drucken“ bucht Label und Versand zusammen (ADR 0028) |
+| 27 | Nachfertigen für alle Modelle (15.11.2026) | **Jedes Modell bleibt bestellbar, was fehlt, wird gefertigt:** eine Lieferzeit für den Shop (zu Beginn 2–4 Wochen, ändert nur der Inhaber), beim Lesen eingesetzt; je Ausführung eine eigene oder „nicht nachfertigen“. Der Shop sagt, wie viele sofort gehen und wie viele gefertigt werden; die Mails nennen den Versand. „Zu fertigen“ unter Bestellungen. eBay bleibt beim Bestand, außer bei eigener Lieferzeit. Ersetzt die Vorgaben aus 9 und 15 (ADR 0029) |
 
 Noch offen:
 

@@ -15,7 +15,7 @@ convention of ``modellbahn.platform.db``.
 
 Revision ID: 0020
 Revises: 0019
-Create Date: 2026-11-16
+Create Date: 2026-11-15
 """
 
 from collections.abc import Sequence
