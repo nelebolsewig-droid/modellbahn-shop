@@ -45,6 +45,7 @@ from modellbahn.modules.inventory.application.stock import (
     PlaceTotal,
     ProductStock,
     ScrapResult,
+    ToMake,
 )
 from modellbahn.modules.inventory.application.units import (
     AssembledPart,
@@ -721,6 +722,53 @@ class ProductStockOut(BaseModel):
 
 class ProductStockListOut(BaseModel):
     items: list[ProductStockOut]
+
+
+class WaitingOrderOut(BaseModel):
+    order_id: UUID
+    number: str = Field(examples=["MB-2026-00042"])
+    placed_at: datetime
+    quantity: int = Field(description="Pieces of this Ausführung the order waits for.")
+
+
+class ToMakeOut(BaseModel):
+    """An Ausführung the workshop must make for paid orders (*Zu fertigen*, ADR 0029)."""
+
+    variant_id: UUID
+    product_id: UUID | None = Field(description="Null if the model was deleted since.")
+    model: str = Field(examples=["Stellwerk Altenau"])
+    finish: str = Field(examples=["H0 · Fertigmodell, Rot"], description="Ausführung and colour.")
+    sku: str
+    quantity: int
+    oldest_at: datetime = Field(description="When the oldest of the orders was placed.")
+    orders: list[WaitingOrderOut] = Field(description="Oldest first.")
+
+    @classmethod
+    def from_row(cls, row: ToMake) -> Self:
+        variant = row.variant
+        return cls(
+            variant_id=row.variant_id,
+            product_id=variant.product_id if variant else None,
+            model=variant.product_name if variant else "Gelöschtes Modell",
+            finish=variant.variant_name if variant else "",
+            sku=variant.sku if variant else "",
+            quantity=row.quantity,
+            oldest_at=row.oldest_at,
+            orders=[
+                WaitingOrderOut(
+                    order_id=order.order_id,
+                    number=order.number,
+                    placed_at=order.placed_at,
+                    quantity=order.quantity,
+                )
+                for order in row.orders
+            ],
+        )
+
+
+class ToMakeListOut(BaseModel):
+    items: list[ToMakeOut] = Field(description="The longest waiting first.")
+    quantity: int = Field(description="Pieces to make in all, for the count in the menu.")
 
 
 class StockMoveIn(_Request):

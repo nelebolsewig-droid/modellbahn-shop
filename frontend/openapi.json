@@ -511,6 +511,29 @@
             "title": "Id",
             "type": "string"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves.",
+            "title": "Lead Time Min Weeks"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/OrderLineOut"
@@ -4718,6 +4741,29 @@
           "email": {
             "title": "Email",
             "type": "string"
+          },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves.",
+            "title": "Lead Time Min Weeks"
           },
           "lines": {
             "items": {
@@ -10822,6 +10868,101 @@
         "title": "TestSaleOut",
         "type": "object"
       },
+      "ToMakeListOut": {
+        "properties": {
+          "items": {
+            "description": "The longest waiting first.",
+            "items": {
+              "$ref": "#/components/schemas/ToMakeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "quantity": {
+            "description": "Pieces to make in all, for the count in the menu.",
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "quantity"
+        ],
+        "title": "ToMakeListOut",
+        "type": "object"
+      },
+      "ToMakeOut": {
+        "description": "An Ausführung the workshop must make for paid orders (*Zu fertigen*, ADR 0029).",
+        "properties": {
+          "finish": {
+            "description": "Ausführung and colour.",
+            "examples": [
+              "H0 · Fertigmodell, Rot"
+            ],
+            "title": "Finish",
+            "type": "string"
+          },
+          "model": {
+            "examples": [
+              "Stellwerk Altenau"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "oldest_at": {
+            "description": "When the oldest of the orders was placed.",
+            "format": "date-time",
+            "title": "Oldest At",
+            "type": "string"
+          },
+          "orders": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/WaitingOrderOut"
+            },
+            "title": "Orders",
+            "type": "array"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null if the model was deleted since.",
+            "title": "Product Id"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_id",
+          "model",
+          "finish",
+          "sku",
+          "quantity",
+          "oldest_at",
+          "orders"
+        ],
+        "title": "ToMakeOut",
+        "type": "object"
+      },
       "TokenIn": {
         "additionalProperties": false,
         "properties": {
@@ -11983,6 +12124,40 @@
           "allow_backorder"
         ],
         "title": "VariantRefOut",
+        "type": "object"
+      },
+      "WaitingOrderOut": {
+        "properties": {
+          "number": {
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "title": "Number",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Pieces of this Ausführung the order waits for.",
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "number",
+          "placed_at",
+          "quantity"
+        ],
+        "title": "WaitingOrderOut",
         "type": "object"
       },
       "WantIn": {
@@ -16137,6 +16312,62 @@
           }
         ],
         "summary": "Take a number of free pieces of a variant out with a reason (Ausbuchen)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/to-make": {
+      "get": {
+        "operationId": "listToMake",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToMakeListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What the workshop must make for paid orders, per Ausführung (Zu fertigen)",
         "tags": [
           "admin-inventory"
         ]

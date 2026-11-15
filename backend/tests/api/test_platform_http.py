@@ -233,6 +233,7 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/admin/inventory/stock/products"): ("listProductStock", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/stock/places"): ("listPlaceStock", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/stock/history"): ("getStockHistory", "admin-inventory"),
+    ("GET", "/api/v1/admin/inventory/stock/to-make"): ("listToMake", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/stock/moves"): ("moveStock", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/stock/scraps"): ("scrapStock", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/stock/counts"): ("countStock", "admin-inventory"),

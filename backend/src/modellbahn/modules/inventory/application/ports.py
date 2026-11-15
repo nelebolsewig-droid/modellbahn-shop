@@ -27,7 +27,7 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     PrintJobInfo,
     PrintJobYield,
 )
-from modellbahn.modules.sales.contracts.orders import OrderStatus, OrderSummary
+from modellbahn.modules.sales.contracts.orders import OrderRef, OrderStatus, OrderSummary
 from modellbahn.platform.events import DomainEvent
 
 
@@ -167,6 +167,10 @@ class AllocationRepository(Protocol):
         """Open allocations without a unit, per variant."""
         ...
 
+    async def backorders(self) -> list[Allocation]:
+        """Every open allocation without a unit (what the workshop must make), oldest first."""
+        ...
+
     def add(self, allocation: Allocation) -> None: ...
 
 
@@ -278,6 +282,8 @@ class Orders(Protocol):
     async def summary(self, order_id: UUID) -> OrderSummary | None: ...
 
     async def status(self, order_id: UUID) -> OrderStatus | None: ...
+
+    async def refs(self, order_ids: Collection[UUID]) -> dict[UUID, OrderRef]: ...
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]: ...
 

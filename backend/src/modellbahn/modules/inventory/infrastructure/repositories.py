@@ -54,9 +54,11 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     load_print_jobs,
 )
 from modellbahn.modules.sales.contracts.orders import (
+    OrderRef,
     OrderStatus,
     OrderSummary,
     load_order_numbers,
+    load_order_refs,
     load_order_status,
     load_order_summary,
 )
@@ -330,6 +332,14 @@ class SqlAllocationRepository:
         rows = await self._session.execute(statement)
         return {row[0]: int(row[1]) for row in rows}
 
+    async def backorders(self) -> list[Allocation]:
+        statement = (
+            select(Allocation)
+            .where(allocations.c.status == AllocationStatus.OPEN, _unserved())
+            .order_by(allocations.c.created_at, allocations.c.id)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
     def add(self, allocation: Allocation) -> None:
         self._session.add(allocation)
 
@@ -544,6 +554,9 @@ class SqlOrders:
 
     async def status(self, order_id: UUID) -> OrderStatus | None:
         return await load_order_status(self._uow, order_id)
+
+    async def refs(self, order_ids: Collection[UUID]) -> dict[UUID, OrderRef]:
+        return await load_order_refs(self._uow, order_ids)
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]:
         return await load_order_numbers(self._uow, order_ids)
