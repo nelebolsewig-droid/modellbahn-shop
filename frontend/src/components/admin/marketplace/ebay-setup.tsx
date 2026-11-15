@@ -17,10 +17,11 @@ import {
   changeEbaySettings,
   connectEbay,
   disconnectEbay,
+  enableEbayPolicies,
   setEbayCategories,
 } from "@/lib/api/generated/admin-marketplace/admin-marketplace";
 import type { CategoryMappingOut, EbayStatusOut, PoliciesOut, PolicyOptionOut } from "@/lib/api/generated/model";
-import type { ApiProblem } from "@/lib/api/problem";
+import { isApiProblem, type ApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatLongDate } from "@/lib/format";
 import { errorMessage } from "@/lib/i18n/problems";
@@ -267,6 +268,52 @@ function SettingsPanel({ account }: { account: EbayStatusOut }) {
   );
 }
 
+/**
+ * eBay answers "not eligible" (20403) while the account hasn't turned on business
+ * policies: say so, and turn them on through the API. The policies themselves are then
+ * created on eBay.
+ */
+function PoliciesOptIn({ editable }: { editable: boolean }) {
+  const refresh = useEbayRefresh();
+  const enable = useMutation<void, ApiProblem>({
+    mutationFn: () => enableEbayPolicies(),
+    onSuccess: refresh,
+  });
+  return (
+    <Alert tone="info" title="Euer eBay-Konto nutzt noch keine Grundsätze für Angebote.">
+      <p className="mt-1 text-ink-secondary">
+        Ohne sie stellt der Shop nichts bei eBay ein. Schaltet sie hier ein und legt danach auf eBay je einen Grundsatz
+        für Versand, Zahlung und Rücknahme an (Verkäufer-Cockpit → Konto → Grundsätze). eBay braucht dafür manchmal ein
+        paar Minuten; dann hier „Neu laden“.
+      </p>
+      {enable.isSuccess ? (
+        <p className="mt-2 font-medium text-success">Eingeschaltet. Jetzt die drei Grundsätze auf eBay anlegen.</p>
+      ) : null}
+      {enable.isError ? <p className="mt-2 text-danger">{errorMessage(enable.error)}</p> : null}
+      {editable ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {enable.isSuccess ? null : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => enable.mutate()}
+              disabled={enable.isPending}
+              aria-busy={enable.isPending || undefined}
+            >
+              {enable.isPending ? "Wird eingeschaltet …" : "Grundsätze bei eBay einschalten"}
+            </Button>
+          )}
+          <Button type="button" size="sm" variant="secondary" onClick={refresh}>
+            Neu laden
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-2 text-ink-secondary">Einschalten kann nur der Inhaber.</p>
+      )}
+    </Alert>
+  );
+}
+
 function SettingsForm({
   account,
   policies,
@@ -305,9 +352,13 @@ function SettingsForm({
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       {policiesError ? (
-        <p role="alert" className="text-small text-danger">
-          {errorMessage(policiesError)}
-        </p>
+        isApiProblem(policiesError) && policiesError.code === "ebay_policies_not_enabled" ? (
+          <PoliciesOptIn editable={editable} />
+        ) : (
+          <p role="alert" className="text-small text-danger">
+            {errorMessage(policiesError)}
+          </p>
+        )
       ) : null}
       <PolicySelect
         label="Versand"

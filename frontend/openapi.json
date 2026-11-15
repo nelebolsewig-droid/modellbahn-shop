@@ -18646,7 +18646,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`."
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`, `ebay_policies_not_enabled`, `ebay_rejected`."
           },
           "503": {
             "content": {
@@ -18665,6 +18665,76 @@
           }
         ],
         "summary": "The business policies of the eBay account",
+        "tags": [
+          "admin-marketplace"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/ebay/policies/opt-in": {
+      "post": {
+        "description": "Opts the seller in to eBay's business policies; the shipping, payment and return policies themselves are then created on eBay.",
+        "operationId": "enableEbayPolicies",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `ebay_not_connected`, `ebay_off`, `ebay_rejected`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`, `ebay_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Turn on business policies for the eBay account",
         "tags": [
           "admin-marketplace"
         ]

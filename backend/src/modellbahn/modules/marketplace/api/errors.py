@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from modellbahn.modules.marketplace.application.ports import (
     MarketplaceRejectedError,
     MarketplaceUnavailableError,
+    PoliciesNotEnabledError,
 )
 from modellbahn.modules.marketplace.domain.errors import (
     AccountNotReadyError,
@@ -82,6 +83,10 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     ),
     MarketplaceUnavailableError: lambda _: ServiceUnavailableError(
         "eBay cannot be reached right now; please try again shortly.", code="ebay_unavailable"
+    ),
+    PoliciesNotEnabledError: lambda _: ConflictError(
+        "The eBay account has not turned on business policies yet.",
+        code="ebay_policies_not_enabled",
     ),
     MarketplaceRejectedError: lambda error: ConflictError(
         f"eBay refused: {error.message or error.code}", code="ebay_rejected"
