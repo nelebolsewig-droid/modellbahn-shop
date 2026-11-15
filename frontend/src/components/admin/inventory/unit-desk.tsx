@@ -38,6 +38,7 @@ import { scrapSchema } from "@/lib/validation/inventory";
 import { MAY_MANAGE_STOCK } from "./inventory-overview";
 import { LabelPrinter } from "./label-printer";
 import { partHref } from "./parts-panels";
+import { CorrectVariantDialog, mayCorrect } from "./unit-correction";
 import { MoveUnitsDialog, ScrapReasonChoice } from "./unit-dialogs";
 
 /** One piece: what it is, where it lies, and every step it took through the workshop. */
@@ -73,6 +74,7 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
   }
   const data = unit.data;
   const gone = data.status === "shipped" || data.status === "scrapped";
+  const mayManage = MAY_MANAGE_STOCK.has(staffRole);
 
   return (
     <>
@@ -101,8 +103,23 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
         <div className="space-y-6">
           <Panel title="Steckbrief" code="LG 22">
             <Facts unit={data} />
-            {SELECTABLE_STATUSES.has(data.status) ? <MoveUnit unit={data} /> : null}
+            {SELECTABLE_STATUSES.has(data.status) || (data.status === "scrapped" && mayManage) ? <MoveUnit unit={data} /> : null}
           </Panel>
+          {mayManage && mayCorrect(data) ? (
+            <Panel title="Ausführung" code="LG 26">
+              <p className="text-small text-ink-secondary">
+                Falsch etikettiert, etwa als Bausatz statt Fertigmodell? Die Ausführung ändern und das Etikett neu drucken.
+              </p>
+              <CorrectVariantDialog
+                unit={data}
+                trigger={
+                  <Button type="button" size="sm" variant="secondary" className="mt-4">
+                    Ausführung ändern …
+                  </Button>
+                }
+              />
+            </Panel>
+          ) : null}
           {data.parts.length > 0 ? (
             <Panel title="Aus diesen Teilen" code="LG 25">
               <AssembledFrom unit={data} />
@@ -114,7 +131,7 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
               <ReprintDialog code={data.code} />
             </Panel>
           ) : null}
-          {MAY_MANAGE_STOCK.has(staffRole) && !gone ? (
+          {mayManage && !gone ? (
             <Panel title="Ausbuchen" code="LG 24">
               <ScrapUnit unit={data} />
             </Panel>
@@ -150,17 +167,28 @@ function AssembledFrom({ unit }: { unit: UnitDetailsOut }) {
   );
 }
 
-/** Into another place without the scanner; a labelled piece is stored for the first time. */
+const MOVE_LABELS: Readonly<Partial<Record<UnitDetailsOut["status"], string>>> = {
+  labeled: "Einlagern …",
+  scrapped: "Wieder einbuchen …",
+};
+
+/**
+ * Into another place without the scanner; a labelled piece is stored for the first time,
+ * a scrapped one booked in again.
+ */
 function MoveUnit({ unit }: { unit: UnitDetailsOut }) {
   const [message, setMessage] = useState("");
   return (
     <div className="mt-4 border-t border-line pt-4">
+      {unit.status === "scrapped" ? (
+        <p className="mb-3 text-small text-ink-secondary">Falsch ausgebucht oder doch gefunden? Dann wieder in einen Platz buchen.</p>
+      ) : null}
       <MoveUnitsDialog
         units={[unit]}
         onMoved={setMessage}
         trigger={
           <Button type="button" size="sm" variant="secondary">
-            {unit.status === "labeled" ? "Einlagern …" : "Umlagern …"}
+            {MOVE_LABELS[unit.status] ?? "Umlagern …"}
           </Button>
         }
       />
@@ -225,8 +253,8 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
   );
 }
 
-/** Bookings that bring a piece to its first place: before them it had none. */
-const ARRIVALS: ReadonlySet<MovementReason> = new Set(["label", "put_away"]);
+/** Where a piece came from when a booking brought it to a place from none. */
+const ARRIVALS: Readonly<Partial<Record<MovementReason, string>>> = { label: "neu", put_away: "neu", restore: "ausgebucht" };
 
 /** Every booking, oldest first, as stations on a line; reversals are struck through. */
 function History({ entries }: { entries: readonly HistoryEntryOut[] }) {
@@ -261,11 +289,16 @@ function History({ entries }: { entries: readonly HistoryEntryOut[] }) {
               </p>
               {entry.from_location_code || entry.to_location_code ? (
                 <p className="mt-1 font-mono text-hint text-ink-secondary">
-                  {entry.from_location_code ?? (ARRIVALS.has(entry.reason) ? "neu" : "ohne Platz")} →{" "}
+                  {entry.from_location_code ?? ARRIVALS[entry.reason] ?? "ohne Platz"} →{" "}
                   {entry.to_location_code ?? "ohne Platz"}
                 </p>
               ) : null}
               {entry.order_number ? <p className="mt-1 font-mono text-hint text-ink-secondary">{entry.order_number}</p> : null}
+              {entry.from_variant || entry.to_variant ? (
+                <p className="mt-1 text-hint text-ink-secondary">
+                  {entry.from_variant?.title ?? "Gelöschtes Modell"} → {entry.to_variant?.title ?? "Gelöschtes Modell"}
+                </p>
+              ) : null}
             </div>
           </li>
         );
@@ -334,7 +367,7 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
         </DialogTrigger>
         <DialogContent>
           <DialogTitle>{unit.display_code} ausbuchen?</DialogTitle>
-          <DialogDescription>Das lässt sich nicht rückgängig machen.</DialogDescription>
+          <DialogDescription>Taucht es wieder auf, lässt es sich auf dieser Seite wieder einbuchen.</DialogDescription>
           <form noValidate onSubmit={onSubmit} className="mt-6">
             <FormError message={formError?.message} />
             <ScrapReasonChoice

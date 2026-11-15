@@ -53,12 +53,17 @@ import type {
   ScanOut,
   ScrapIn,
   StockOut,
+  StocktakeIn,
+  StocktakeOut,
   UnitBatchOut,
+  UnitCorrectionIn,
   UnitDetailsOut,
   UnitListOut,
   UnitMoveIn,
   UnitMoveOut,
   UnitOut,
+  UnitRestoreIn,
+  UnitRestoreOut,
   UnitScrapOut,
   UnitsCreateIn,
   UnitsScrapIn,
@@ -818,6 +823,95 @@ export const useRenameLocation = <TError = ErrorType<Problem | ValidationProblem
         TContext
       > => {
       return useMutation(getRenameLocationMutationOptions(options), queryClient);
+    }
+    export const getTakeStockUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/locations/${code}/stocktakes`
+}
+
+/**
+ * Every unit lying in the location is named as present or missing; units scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing units are scrapped as missing (an order they were reserved for gets another unit or waits), found ones are put away there. If the location changed during the count, nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated request books nothing twice.
+ * @summary Book the count of a location: missing units out, found units in, all or none
+ */
+export const takeStock = async (code: string,
+    stocktakeIn: StocktakeIn, options?: Parameters<typeof apiFetch>[1]): Promise<StocktakeOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StocktakeOut>(getTakeStockUrl(code),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stocktakeIn)
+  }
+);}
+
+
+
+
+
+export const getTakeStockMutationKey = () => ['takeStock'] as const;
+
+export const getTakeStockMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext> => {
+
+const mutationKey = getTakeStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeStock>>, TakeStockMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  takeStock(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeStockMutationResult = NonNullable<Awaited<ReturnType<typeof takeStock>>>
+    export type TakeStockMutationBody = StocktakeIn
+    export type TakeStockMutationError = ErrorType<Problem | ValidationProblem>
+    export type TakeStockMutationVariables = {code: string;data: StocktakeIn}
+
+    /**
+ * @summary Book the count of a location: missing units out, found units in, all or none
+ */
+export const useTakeStock = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeStock>>,
+        TError,
+        TakeStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeStockMutationOptions(options), queryClient);
     }
     export const getAllocateOrderUrl = (orderId: string,) => {
 
@@ -2019,6 +2113,94 @@ export const useMoveUnits = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getMoveUnitsMutationOptions(options), queryClient);
     }
+    export const getRestoreUnitsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/units/restores`
+}
+
+/**
+ * Scrapped by mistake or turned up again: the units are free stock there, without reason and note of the scrap, and go to waiting orders like units put away. Units lying there already are left alone; a unit that is not scrapped, or an unknown one, refuses the whole request and `detail` names them.
+ * @summary Book scrapped units in again into one location, all or none
+ */
+export const restoreUnits = async (unitRestoreIn: UnitRestoreIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitRestoreOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<UnitRestoreOut>(getRestoreUnitsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unitRestoreIn)
+  }
+);}
+
+
+
+
+
+export const getRestoreUnitsMutationKey = () => ['restoreUnits'] as const;
+
+export const getRestoreUnitsMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreUnits>>, TError,RestoreUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreUnits>>, TError,RestoreUnitsMutationVariables, TContext> => {
+
+const mutationKey = getRestoreUnitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreUnits>>, RestoreUnitsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  restoreUnits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreUnitsMutationResult = NonNullable<Awaited<ReturnType<typeof restoreUnits>>>
+    export type RestoreUnitsMutationBody = UnitRestoreIn
+    export type RestoreUnitsMutationError = ErrorType<Problem | ValidationProblem>
+    export type RestoreUnitsMutationVariables = {data: UnitRestoreIn}
+
+    /**
+ * @summary Book scrapped units in again into one location, all or none
+ */
+export const useRestoreUnits = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreUnits>>, TError,RestoreUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreUnits>>,
+        TError,
+        RestoreUnitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreUnitsMutationOptions(options), queryClient);
+    }
     export const getScrapUnitsUrl = () => {
 
 
@@ -2207,7 +2389,96 @@ export function useGetUnit<TData = Awaited<ReturnType<typeof getUnit>>, TError =
 
 
 
-export const getScrapUnitUrl = (code: string,) => {
+export const getCorrectUnitUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/units/${code}/correction`
+}
+
+/**
+ * Only for a labelled or free unit that was never picked for an order. It stays where it lies; the journal entry carries the new variant, the entry before it the old one. The EAN on the label is the variant's, so the label must be printed again.
+ * @summary The unit is another variant than its label says: change it (reprint the label)
+ */
+export const correctUnit = async (code: string,
+    unitCorrectionIn: UnitCorrectionIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<UnitOut>(getCorrectUnitUrl(code),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(unitCorrectionIn)
+  }
+);}
+
+
+
+
+
+export const getCorrectUnitMutationKey = () => ['correctUnit'] as const;
+
+export const getCorrectUnitMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctUnit>>, TError,CorrectUnitMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof correctUnit>>, TError,CorrectUnitMutationVariables, TContext> => {
+
+const mutationKey = getCorrectUnitMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof correctUnit>>, CorrectUnitMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  correctUnit(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CorrectUnitMutationResult = NonNullable<Awaited<ReturnType<typeof correctUnit>>>
+    export type CorrectUnitMutationBody = UnitCorrectionIn
+    export type CorrectUnitMutationError = ErrorType<Problem | ValidationProblem>
+    export type CorrectUnitMutationVariables = {code: string;data: UnitCorrectionIn}
+
+    /**
+ * @summary The unit is another variant than its label says: change it (reprint the label)
+ */
+export const useCorrectUnit = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof correctUnit>>, TError,CorrectUnitMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof correctUnit>>,
+        TError,
+        CorrectUnitMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCorrectUnitMutationOptions(options), queryClient);
+    }
+    export const getScrapUnitUrl = (code: string,) => {
 
 
 

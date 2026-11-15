@@ -63,6 +63,24 @@ class UnitsNotScrappableError(UnitsRefusedError):
     """Units to take out by hand that belong to an order already (picked, shipped); none went."""
 
 
+class UnitsNotRestorableError(UnitsRefusedError):
+    """Units to book in again that are not scrapped (or do not exist); none was booked."""
+
+
+class StocktakeOutdatedError(UnitsRefusedError):
+    """The location changed while it was counted: a unit counted there is gone, or one came
+    that the count does not name. Nothing was booked."""
+
+
+class UnitNotCorrectableError(InventoryError):
+    """The unit is reserved, packed, gone or was picked once: its variant stays as it is."""
+
+    def __init__(self, code: str, status: str) -> None:
+        super().__init__(f"{code} ({status})")
+        self.code = code
+        self.status = status
+
+
 class VariantNotFoundError(InventoryError):
     """The catalogue knows no such variant."""
 

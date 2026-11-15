@@ -13,10 +13,13 @@
  */
 import type { MovementReason } from './movementReason';
 import type { UnitStatus } from './unitStatus';
+import type { VariantRefOut } from './variantRefOut';
 
 export interface HistoryEntryOut {
   from_location_code: string | null;
   from_status: UnitStatus | null;
+  /** Of a correction: the variant the unit was recorded as; else empty. */
+  from_variant: VariantRefOut | null;
   id: number;
   occurred_at: string;
   order_number: string | null;
@@ -26,4 +29,6 @@ export interface HistoryEntryOut {
   staff_name: string | null;
   to_location_code: string | null;
   to_status: UnitStatus;
+  /** Of a correction: the variant the unit is; else empty. */
+  to_variant: VariantRefOut | null;
 }

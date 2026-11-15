@@ -25,4 +25,6 @@ export const MovementReason = {
   ship: 'ship',
   scrap: 'scrap',
   undo: 'undo',
+  restore: 'restore',
+  correct: 'correct',
 } as const;

@@ -47,12 +47,17 @@ from modellbahn.modules.inventory.api.schemas import (
     ScrapIn,
     StockLineOut,
     StockOut,
+    StocktakeIn,
+    StocktakeOut,
     UnitBatchOut,
+    UnitCorrectionIn,
     UnitDetailsOut,
     UnitListOut,
     UnitMoveIn,
     UnitMoveOut,
     UnitOut,
+    UnitRestoreIn,
+    UnitRestoreOut,
     UnitScrapOut,
     UnitsCreateIn,
     UnitsScrapIn,
@@ -150,6 +155,37 @@ async def delete_location(code: str, _: StockManager, service: LocationServiceDe
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post(
+    "/locations/{code}/stocktakes",
+    operation_id="takeStock",
+    summary="Book the count of a location: missing units out, found units in, all or none",
+    description="Every unit lying in the location is named as present or missing; units "
+    "scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing "
+    "units are scrapped as missing (an order they were reserved for gets another unit or "
+    "waits), found ones are put away there. If the location changed during the count, "
+    "nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated "
+    "request books nothing twice.",
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            **_LOCATION_NOT_FOUND,
+            409: ["stocktake_outdated", "units_not_movable"],
+        }
+    ),
+)
+async def take_stock(
+    code: str, body: StocktakeIn, staff: StockManager, service: UnitServiceDep
+) -> StocktakeOut:
+    result = await service.take_stock(
+        code,
+        present=body.present_unit_ids,
+        missing=body.missing_unit_ids,
+        found=body.found_unit_ids,
+        staff_id=staff.id,
+    )
+    return StocktakeOut.from_result(result)
+
+
 # --- Units ----------------------------------------------------------------------------
 
 
@@ -235,6 +271,25 @@ async def scrap_units(
     return UnitScrapOut.from_scrap(scrap)
 
 
+@router.post(
+    "/units/restores",
+    operation_id="restoreUnits",
+    summary="Book scrapped units in again into one location, all or none",
+    description="Scrapped by mistake or turned up again: the units are free stock there, "
+    "without reason and note of the scrap, and go to waiting orders like units put away. "
+    "Units lying there already are left alone; a unit that is not scrapped, or an unknown "
+    "one, refuses the whole request and `detail` names them.",
+    responses=problems({**STAFF_ACCESS, **_LOCATION_NOT_FOUND, 409: ["units_not_restorable"]}),
+)
+async def restore_units(
+    body: UnitRestoreIn, staff: StockManager, service: UnitServiceDep
+) -> UnitRestoreOut:
+    restore = await service.restore_units(
+        body.unit_ids, location_code=body.location_code, staff_id=staff.id
+    )
+    return UnitRestoreOut.from_restore(restore)
+
+
 @router.get(
     "/units/{code}",
     operation_id="getUnit",
@@ -255,6 +310,28 @@ async def scrap_unit(
     code: str, body: ScrapIn, staff: StockManager, service: UnitServiceDep
 ) -> UnitOut:
     view = await service.scrap(code, note=body.note, reason=body.reason, staff_id=staff.id)
+    return UnitOut.from_view(view)
+
+
+@router.post(
+    "/units/{code}/correction",
+    operation_id="correctUnit",
+    summary="The unit is another variant than its label says: change it (reprint the label)",
+    description="Only for a labelled or free unit that was never picked for an order. It "
+    "stays where it lies; the journal entry carries the new variant, the entry before it "
+    "the old one. The EAN on the label is the variant's, so the label must be printed again.",
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            404: ["unit_not_found", "variant_not_found"],
+            409: ["unit_not_correctable"],
+        }
+    ),
+)
+async def correct_unit(
+    code: str, body: UnitCorrectionIn, staff: StockManager, service: UnitServiceDep
+) -> UnitOut:
+    view = await service.correct(code, variant_id=body.variant_id, staff_id=staff.id)
     return UnitOut.from_view(view)
 
 

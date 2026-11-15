@@ -227,13 +227,22 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/admin/inventory/locations/{code}"): ("getLocation", "admin-inventory"),
     ("PATCH", "/api/v1/admin/inventory/locations/{code}"): ("renameLocation", "admin-inventory"),
     ("DELETE", "/api/v1/admin/inventory/locations/{code}"): ("deleteLocation", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/locations/{code}/stocktakes"): (
+        "takeStock",
+        "admin-inventory",
+    ),
     ("GET", "/api/v1/admin/inventory/stock"): ("listStock", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/units"): ("listUnits", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units"): ("labelUnits", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/moves"): ("moveUnits", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/scraps"): ("scrapUnits", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/units/restores"): ("restoreUnits", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/units/{code}"): ("getUnit", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/{code}/scrap"): ("scrapUnit", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/units/{code}/correction"): (
+        "correctUnit",
+        "admin-inventory",
+    ),
     ("GET", "/api/v1/admin/inventory/parts"): ("listPartStock", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/parts/{part_number}"): ("getPartStock", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/parts/{part_number}/count"): (

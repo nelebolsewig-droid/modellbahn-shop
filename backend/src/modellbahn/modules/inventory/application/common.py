@@ -82,19 +82,25 @@ class Journal:
         self._uow.ledger.add(entry)
         self.booked.append(entry)
         allocation = await self._allocation(movement.allocation_id)
-        self._uow.publish(
-            StockChanged(
-                aggregate_id=unit.id,
-                occurred_at=self._now,
-                unit_code=unit.code,
-                variant_id=unit.variant_id,
-                reason=movement.reason.value,
-                status=unit.status.value,
-                location_code=await self._code(movement.to_location_id),
-                previous_location_code=await self._code(movement.from_location_id),
-                order_id=allocation.order_id if allocation is not None else None,
+        # A correction changes the stock of two variants: both hear of it.
+        variant_ids = [movement.variant_id]
+        previous = movement.previous_variant_id
+        if previous is not None and previous != movement.variant_id:
+            variant_ids.append(previous)
+        for variant_id in variant_ids:
+            self._uow.publish(
+                StockChanged(
+                    aggregate_id=unit.id,
+                    occurred_at=self._now,
+                    unit_code=unit.code,
+                    variant_id=variant_id,
+                    reason=movement.reason.value,
+                    status=unit.status.value,
+                    location_code=await self._code(movement.to_location_id),
+                    previous_location_code=await self._code(movement.from_location_id),
+                    order_id=allocation.order_id if allocation is not None else None,
+                )
             )
-        )
         return entry
 
     async def _code(self, location_id: UUID | None) -> str | None:

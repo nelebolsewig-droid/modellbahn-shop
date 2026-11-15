@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LocationOut, UnitMoveOut } from "@/lib/api/generated/model";
 
-import { moveMessage, onlyUnbooked, pathLabel, scrapMessage, unitListHref } from "./selection";
+import { moveMessage, onlyScrapped, onlyUnbooked, pathLabel, restoreMessage, scrapMessage, unitListHref } from "./selection";
 
 const F02 = { code: "R01-F02" } as LocationOut;
 
@@ -33,6 +33,21 @@ describe("selection", () => {
     expect(scrapMessage({ scrapped: 0, already_scrapped: 2 }, "Beschädigt")).toBe(
       "Nichts gebucht: Die Stücke waren schon ausgebucht.",
     );
+  });
+
+  it("says what booking pieces in again did", () => {
+    expect(restoreMessage({ restored: 2, already_there: 0, reserved: 0, location: F02 })).toBe(
+      "2 Stücke in R01-F02 wieder eingebucht.",
+    );
+    expect(restoreMessage({ restored: 1, already_there: 1, reserved: 1, location: F02 })).toBe(
+      "1 Stück in R01-F02 wieder eingebucht, 1 lag schon dort, 1 davon gleich für eine wartende Bestellung reserviert.",
+    );
+    expect(restoreMessage({ restored: 0, already_there: 1, reserved: 0, location: F02 })).toBe(
+      "Nichts gebucht: Das Stück lag schon in R01-F02.",
+    );
+    expect(onlyScrapped(["scrapped"])).toBe(true);
+    expect(onlyScrapped(["scrapped", "in_stock"])).toBe(false);
+    expect(onlyScrapped([])).toBe(false);
   });
 
   it("reads paths, tells unbooked selections and links to the lists", () => {
