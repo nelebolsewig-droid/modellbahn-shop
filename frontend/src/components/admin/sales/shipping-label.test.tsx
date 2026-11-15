@@ -81,21 +81,40 @@ afterEach(() => {
 });
 
 describe("shipping label at the order desk", () => {
-  it("books the label with the weight and puts its number into the dispatch", async () => {
+  it("prints the label and ships the order in one go, with the number for the mail", async () => {
+    let booked = false;
     routeFetch(fetchMock, {
-      [ORDER]: () => jsonResponse(adminOrder()),
+      [ORDER]: () =>
+        jsonResponse(
+          booked
+            ? adminOrder({
+                status: "shipped",
+                shipped_at: "2026-10-25T13:40:00Z",
+                carrier: "DHL",
+                tracking_number: BOOKED.shipment_number,
+              })
+            : adminOrder(),
+        ),
       [PICK_LIST]: () => jsonResponse(PACKED),
       [SETUP]: () => jsonResponse(DHL_SETUP),
-      [LABEL]: () => problemResponse(404, "label_not_found"),
-      [BOOK]: () => jsonResponse(BOOKED, 201),
+      [LABEL]: () =>
+        booked
+          ? jsonResponse(BOOKED)
+          : problemResponse(404, "label_not_found"),
+      [BOOK]: () => {
+        booked = true;
+        return jsonResponse(BOOKED, 201);
+      },
     });
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
     const user = userEvent.setup();
     renderWithQueryClient(
       <OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />,
     );
 
     const booking = await screen.findByRole("form", {
-      name: "DHL-Label buchen",
+      name: "Versandlabel drucken",
     });
     expect(within(booking).getByText("DHL Paket")).toBeInTheDocument();
     const weight = within(booking).getByLabelText("Gewicht in Gramm");
@@ -103,26 +122,24 @@ describe("shipping label at the order desk", () => {
     await user.clear(weight);
     await user.type(weight, "850");
     await user.click(
-      within(booking).getByRole("button", { name: "DHL-Label buchen" }),
+      within(booking).getByRole("button", { name: "Versandlabel drucken" }),
     );
 
     expect(
-      await screen.findByText("0034 0434 1610 9404 2557"),
+      await screen.findByText("00340434161094042557"),
     ).toBeInTheDocument();
-    expect(requestsTo(fetchMock, BOOK)[0]?.body).toEqual({ weight_g: 850 });
-    expect(screen.getByRole("link", { name: "Label drucken" })).toHaveAttribute(
-      "href",
+    expect(
+      screen.queryByRole("form", { name: "Versand melden" }),
+    ).not.toBeInTheDocument();
+    expect(requestsTo(fetchMock, BOOK)[0]?.body).toEqual({
+      weight_g: 850,
+      ship: true,
+    });
+    expect(open).toHaveBeenCalledWith(
       "/api/v1/admin/orders/o1/shipping-label.pdf",
+      "_blank",
+      "noopener",
     );
-    expect(screen.getByRole("link", { name: "Als Bild" })).toHaveAttribute(
-      "href",
-      "/api/v1/admin/orders/o1/shipping-label.png",
-    );
-    const dispatch = screen.getByRole("form", { name: "Versand melden" });
-    expect(within(dispatch).getByLabelText("Sendungsnummer")).toHaveValue(
-      "00340434161094042557",
-    );
-    expect(within(dispatch).getByLabelText("Versanddienst")).toHaveValue("DHL");
   });
 
   it("refuses a weight DHL does not carry before asking DHL", async () => {
@@ -138,13 +155,13 @@ describe("shipping label at the order desk", () => {
     );
 
     const booking = await screen.findByRole("form", {
-      name: "DHL-Label buchen",
+      name: "Versandlabel drucken",
     });
     const weight = within(booking).getByLabelText("Gewicht in Gramm");
     await user.clear(weight);
     await user.type(weight, "40000");
     await user.click(
-      within(booking).getByRole("button", { name: "DHL-Label buchen" }),
+      within(booking).getByRole("button", { name: "Versandlabel drucken" }),
     );
 
     expect(await within(booking).findByText(/31,5 kg/)).toBeInTheDocument();
@@ -176,10 +193,10 @@ describe("shipping label at the order desk", () => {
     );
 
     const booking = await screen.findByRole("form", {
-      name: "DHL-Label buchen",
+      name: "Versandlabel drucken",
     });
     await user.click(
-      within(booking).getByRole("button", { name: "DHL-Label buchen" }),
+      within(booking).getByRole("button", { name: "Versandlabel drucken" }),
     );
 
     expect(
@@ -219,7 +236,7 @@ describe("shipping label at the order desk", () => {
     );
 
     expect(
-      await screen.findByRole("form", { name: "DHL-Label buchen" }),
+      await screen.findByRole("form", { name: "Versandlabel drucken" }),
     ).toBeInTheDocument();
     expect(requestsTo(fetchMock, CANCEL)).toHaveLength(1);
     expect(
@@ -242,7 +259,7 @@ describe("shipping label at the order desk", () => {
     expect(
       await screen.findByRole("form", { name: "Versand melden" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("form", { name: "DHL-Label buchen" })).toBeNull();
+    expect(screen.queryByRole("form", { name: "Versandlabel drucken" })).toBeNull();
     expect(requestsTo(fetchMock, LABEL)).toHaveLength(0);
   });
 

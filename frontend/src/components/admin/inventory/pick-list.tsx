@@ -132,9 +132,13 @@ function PlaceTag({ item }: { item: PickItemOut }) {
       </span>
     );
   }
+  // "Regal 2, Boden 3" as people say it; the code where the place has no name.
   return (
-    <span className="inline-flex h-7 min-w-0 items-center justify-center rounded-xs bg-selected px-2 font-mono text-hint font-medium tracking-wide text-on-selected">
-      <span className="truncate">{item.location.code}</span>
+    <span
+      title={item.location.code}
+      className="inline-flex min-h-7 min-w-0 items-center justify-center rounded-xs bg-selected px-2 py-0.5 text-center text-hint leading-tight font-medium text-on-selected"
+    >
+      {item.place ?? item.location.code}
     </span>
   );
 }

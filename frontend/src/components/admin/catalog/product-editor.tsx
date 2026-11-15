@@ -12,11 +12,13 @@ import { Panel } from "@/components/admin/panel";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
+import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { archiveProduct, publishProduct } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import { getListStockQueryKey } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { ProductOut } from "@/lib/api/generated/model";
-import { formatProductNumber } from "@/lib/catalog/format";
+import { formatPrice, formatProductNumber } from "@/lib/catalog/format";
+import { readyPicture } from "@/lib/catalog/images";
 import { PRODUCT_STATUS_LABELS, PUBLISH_BLOCKER_LABELS, PUBLISH_RULES } from "@/lib/catalog/labels";
 import { ifMatch } from "@/lib/catalog/versions";
 import { formatEventTime } from "@/lib/format";
@@ -29,7 +31,7 @@ import { STATUS_TONES } from "./product-list";
 import { ProductDetailsForm } from "./product-details-form";
 import { ProductGallery } from "./product-gallery";
 import { ProductScales } from "./product-scales";
-import { ProductStockPanel } from "./product-stock-panel";
+import { ModelHistory, ModelStock } from "./model-stock";
 import {
   isVersionConflict,
   productQueryKey,
@@ -41,7 +43,10 @@ import {
 
 type ProductEditorProps = { productId: string; onStreamClosed: () => void };
 
-/** Everything about one product: master data, scales and variants, gallery, life cycle. */
+/**
+ * One model (ADR 0028): what it is and where it stands at the top, its stock with the
+ * day's actions, the editor's sections closed below, and its history at the end.
+ */
 export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps) {
   const queryClient = useQueryClient();
   const product = useProduct(productId);
@@ -79,7 +84,7 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
           <p>{errorMessage(failure)}</p>
         </Alert>
         <Button asChild variant="secondary">
-          <Link href="/admin/katalog">Zurück zum Katalog</Link>
+          <Link href="/admin/modelle">Zurück zu den Modellen</Link>
         </Button>
       </div>
     );
@@ -89,37 +94,87 @@ export function ProductEditor({ productId, onStreamClosed }: ProductEditorProps)
   return (
     <div className="space-y-6">
       <EditorHeader product={data} stream={<ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />} />
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-6">
+      <ModelStock product={data} references={references.data} />
+      <div className="space-y-3">
+        <Section title="Fotos">
           <ProductGallery product={data} references={references.data} />
+        </Section>
+        <Section title="Maßstäbe, Ausführungen und Preise">
           <ProductScales product={data} references={references.data} />
-          <ProductBomPanel product={data} />
+        </Section>
+        <Section title="Beschreibung und Kategorie">
           <ProductDetailsForm product={data} categories={categories.data} epochs={references.data.epochs} />
-        </div>
-        <div className="space-y-6">
+        </Section>
+        <Section title="Shop: veröffentlichen, archivieren, löschen">
           <PublishPanel product={data} />
-          <ProductStockPanel product={data} references={references.data} />
+        </Section>
+        <Section title="eBay">
           <ProductEbayPanel product={data} />
-        </div>
+        </Section>
+        <Section title="Stückliste für die Fertigung">
+          <ProductBomPanel product={data} />
+        </Section>
       </div>
+      <ModelHistory productId={data.id} />
     </div>
   );
 }
 
-function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactNode }) {
+/** An editor section, closed until someone needs it. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <Link href="/admin/katalog" className="text-hint text-ink-tertiary hover:text-ink">
-          ← Katalog
-        </Link>
-        <h1 className="mt-3 text-heading break-words sm:text-title">{product.name}</h1>
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-hint text-ink-tertiary">
-          <span>{formatProductNumber(product.number)}</span>
-          <StatusBadge tone={STATUS_TONES[product.status]}>{PRODUCT_STATUS_LABELS[product.status]}</StatusBadge>
-          <span>Version {product.version}</span>
-          <span>geändert {formatEventTime(new Date(product.updated_at))}</span>
-        </p>
+    <details className="group rounded-md border border-line bg-surface">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-medium">
+        {title}
+        <span aria-hidden="true" className="text-ink-tertiary transition-transform group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="border-t border-line p-3 sm:p-5">{children}</div>
+    </details>
+  );
+}
+
+function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactNode }) {
+  // The first picture of the gallery is the model's main picture, as in the shop.
+  const main = [...product.media].sort((a, b) => a.position - b.position)[0];
+  const picture = readyPicture(main?.image);
+  const prices = product.scales.flatMap((scale) => scale.variants.map((variant) => variant.price_cents)).filter((cents) => cents > 0);
+  const lowest = prices.length > 0 ? Math.min(...prices) : null;
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex min-w-0 items-start gap-5">
+        <span className="relative block size-24 shrink-0 overflow-hidden rounded-md bg-stage sm:size-28">
+          {picture ? (
+            <ResponsivePicture image={picture} alt="" sizes="112px" variant="thumb" fit="cover" />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-hint text-ink-tertiary">ohne Foto</span>
+          )}
+        </span>
+        <div className="min-w-0">
+          <Link href="/admin/modelle" className="text-hint text-ink-tertiary hover:text-ink">
+            ← Modelle
+          </Link>
+          <h1 className="mt-2 text-heading break-words sm:text-title">{product.name}</h1>
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
+            <StatusBadge tone={STATUS_TONES[product.status]}>{PRODUCT_STATUS_LABELS[product.status]}</StatusBadge>
+            {lowest !== null ? (
+              <span className="tabular-nums">
+                {prices.some((cents) => cents !== lowest) ? "ab " : ""}
+                {formatPrice(lowest)}
+              </span>
+            ) : null}
+            <span className="font-mono text-hint text-ink-tertiary">{formatProductNumber(product.number)}</span>
+            <span className="text-hint text-ink-tertiary">geändert {formatEventTime(new Date(product.updated_at))}</span>
+          </p>
+          {product.status === "active" ? (
+            <Button asChild size="sm" variant="secondary" className="mt-3">
+              <Link href={`/produkte/${product.slug}` as Route} target="_blank" rel="noopener">
+                Im Shop ansehen
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
       {stream}
     </header>

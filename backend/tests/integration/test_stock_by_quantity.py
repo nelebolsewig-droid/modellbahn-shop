@@ -1,6 +1,7 @@
 """Stock by quantity (ADR 0028) against a real PostgreSQL: shelves with Böden in one step,
 what lies where, and moving, taking out and counting pieces by number."""
 
+from collections.abc import Sequence
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,7 +9,12 @@ import pytest
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.identity.application.services import IdentityService
 from modellbahn.modules.inventory.application.allocation import AllocationService, PieceState
+from modellbahn.modules.inventory.application.common import (
+    UnitOfWorkFactory as InventoryUnitOfWorkFactory,
+)
+from modellbahn.modules.inventory.application.labels import LabelRequest, LabelService
 from modellbahn.modules.inventory.application.locations import LocationService
+from modellbahn.modules.inventory.application.ports import Label, LabelSheet
 from modellbahn.modules.inventory.application.stock import CountLine, StockService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.domain.errors import (
@@ -91,6 +97,17 @@ async def here(stock: StockService, code: str) -> dict[UUID, tuple[int, int]]:
     }
 
 
+class _Capturing:
+    def __init__(self) -> None:
+        self.labels: list[Label] = []
+
+    def render(
+        self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int, title: str = ""
+    ) -> bytes:
+        self.labels = list(labels)
+        return b"%PDF"
+
+
 class TestShelves:
     async def test_a_shelf_with_its_boeden_in_one_step(self, locations: LocationService) -> None:
         first = await locations.create_shelf(name="Regal am Fenster", levels=3)
@@ -112,6 +129,16 @@ class TestShelves:
         # A shelf with Böden holds no goods itself; one without does.
         assert (tree["R01"].takes_goods, tree["R02"].takes_goods) == (False, True)
         assert tree["R01-B01"].takes_goods
+
+    async def test_a_bodens_label_names_its_shelf(
+        self, locations: LocationService, inventory_uow: InventoryUnitOfWorkFactory
+    ) -> None:
+        await locations.create_shelf(name="Regal 1", levels=2)
+        renderer = _Capturing()
+        await LabelService(uow_factory=inventory_uow, renderer=renderer).render(
+            LabelRequest(unit_codes=[], location_codes=["R01-B02"], sheet=LabelSheet.A4_70X37)
+        )
+        assert [label.title for label in renderer.labels] == ["Regal 1 · Boden 2"]
 
     async def test_goods_on_a_shelf_without_boeden_and_the_limits(
         self, locations: LocationService, units: UnitService, painted: UUID

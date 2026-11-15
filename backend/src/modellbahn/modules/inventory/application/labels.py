@@ -21,7 +21,7 @@ from modellbahn.modules.inventory.application.common import UnitOfWorkFactory
 from modellbahn.modules.inventory.application.ports import Label, LabelRenderer, LabelSheet
 from modellbahn.modules.inventory.domain.codes import normalize_unit_code
 from modellbahn.modules.inventory.domain.errors import InvalidFieldError
-from modellbahn.modules.inventory.domain.model import LocationKind
+from modellbahn.modules.inventory.domain.model import Location, LocationKind
 from modellbahn.modules.manufacturing.contracts.parts import Technology
 from modellbahn.platform.money import format_euro
 
@@ -90,6 +90,22 @@ class LabelRequest:
     part_numbers: Sequence[str] = ()
     variants: Sequence[VariantLabels] = ()
     """Model labels, printed after the units' in the order asked for."""
+
+
+def location_label(location: Location, parent: Location | None) -> Label:
+    """What a place's label shows; a Boden names its shelf: ``Regal 1 · Boden 3``."""
+    kind = _KIND_NAMES[location.kind]
+    title = location.name or kind
+    if location.name and parent and parent.name and parent.kind is not LocationKind.SITE:
+        title = f"{parent.name} · {location.name}"
+    return Label(
+        caption="Lagerplatz",
+        code128=location.code,
+        code_text=location.code,
+        title=title,
+        detail=kind,
+        reference=location.path.replace(".", " / "),
+    )
 
 
 def model_label(variant: SaleVariant) -> Label:
@@ -171,19 +187,10 @@ class LabelService:
                     raise InvalidFieldError(
                         f"location_codes.{index}", "unknown", f"no location {raw!r}"
                     )
-                kind = _KIND_NAMES[location.kind]
+                parent = await uow.locations.get(location.parent_id) if location.parent_id else None
                 subjects.append(file_name(f"Platz {location.code}"))
                 names.append(subjects[-1])
-                labels.append(
-                    Label(
-                        caption="Lagerplatz",
-                        code128=location.code,
-                        code_text=location.code,
-                        title=location.name or kind,
-                        detail=kind,
-                        reference=location.path.replace(".", " / "),
-                    )
-                )
+                labels.append(location_label(location, parent))
             for index, raw in enumerate(request.part_numbers):
                 part = await uow.manufacturing.part_by_number(raw.strip().upper())
                 if part is None:

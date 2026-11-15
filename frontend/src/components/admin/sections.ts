@@ -7,13 +7,12 @@ const EVERYONE: ReadonlySet<StaffRole> = new Set(["owner", "staff", "packer"]);
 
 /** The places of the Stellwerk that the navigation leads to. */
 export type SectionKey =
-  | "overview"
+  | "models"
   | "orders"
-  | "stock"
-  | "manufacturing"
   | "scan"
-  | "catalog"
-  | "newModel"
+  | "stock"
+  | "overview"
+  | "manufacturing"
   | "fairs"
   | "ebay"
   | "settings";
@@ -21,36 +20,29 @@ export type SectionKey =
 export type Section = { key: SectionKey; href: Route; label: string };
 
 const SECTIONS = {
-  overview: { href: "/admin", label: "Übersicht", roles: EVERYONE },
+  models: { href: "/admin/modelle", label: "Modelle", roles: OFFICE_ROLES },
   orders: { href: "/admin/bestellungen", label: "Bestellungen", roles: EVERYONE },
-  stock: { href: "/admin/lager", label: "Lager", roles: EVERYONE },
-  manufacturing: { href: "/admin/fertigung", label: "Fertigung", roles: EVERYONE },
   scan: { href: "/admin/scanner", label: "Scannen", roles: EVERYONE },
-  catalog: { href: "/admin/katalog", label: "Katalog", roles: OFFICE_ROLES },
-  newModel: { href: "/admin/erfassen", label: "Neues Modell", roles: OFFICE_ROLES },
+  stock: { href: "/admin/lager", label: "Lager", roles: EVERYONE },
+  overview: { href: "/admin", label: "Übersicht", roles: EVERYONE },
+  manufacturing: { href: "/admin/fertigung", label: "Fertigung", roles: EVERYONE },
   fairs: { href: "/admin/messen", label: "Messen", roles: OFFICE_ROLES },
   ebay: { href: "/admin/ebay", label: "eBay", roles: OFFICE_ROLES },
   settings: { href: "/admin/einstellungen", label: "Einstellungen", roles: OFFICE_ROLES },
 } as const satisfies Record<SectionKey, { href: Route; label: string; roles: ReadonlySet<StaffRole> }>;
 
-/** The header on a desk: the day's work first, the settings last. Scannen is a button beside it. */
-const HEADER_KEYS: readonly SectionKey[] = [
-  "overview",
-  "orders",
-  "stock",
-  "manufacturing",
-  "catalog",
-  "fairs",
-  "ebay",
-  "settings",
-];
+/**
+ * The header on a desk: the day's work (Modelle, Bestellungen, Lager) first, the rest
+ * after it. Scannen is a button beside it, the Übersicht behind the Stellwerk's name.
+ */
+const HEADER_KEYS: readonly SectionKey[] = ["models", "orders", "stock", "manufacturing", "fairs", "ebay", "settings"];
 
-/** The phone's bottom bar, with Scannen in the middle; the rest is behind "Mehr". */
-const BAR_KEYS: readonly SectionKey[] = ["overview", "orders", "scan", "stock"];
-const MORE_KEYS: readonly SectionKey[] = ["manufacturing", "catalog", "newModel", "fairs", "ebay", "settings"];
+/** The phone's bottom bar: the day's work, Scannen in the middle; the rest is behind "Mehr". */
+const BAR_KEYS: readonly SectionKey[] = ["models", "orders", "scan", "stock"];
+const MORE_KEYS: readonly SectionKey[] = ["overview", "manufacturing", "fairs", "ebay", "settings"];
 
 /** Pages that live under another entry's address but belong to the settings. */
-const SETTINGS_PATHS = ["/admin/einstellungen", "/admin/katalog/kategorien", "/admin/katalog/massstaebe"];
+const SETTINGS_PATHS = ["/admin/einstellungen"];
 
 export function mayOpen(role: StaffRole, key: SectionKey): boolean {
   return SECTIONS[key].roles.has(role);

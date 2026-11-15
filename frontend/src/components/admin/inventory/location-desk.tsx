@@ -18,6 +18,7 @@ import {
   getListLocationsQueryKey,
   useGetLocation,
   useListLocations,
+  useListPlaceStock,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { LocatedPartsOut, LocatedUnitOut, LocationContentsOut, StaffRole } from "@/lib/api/generated/model";
 import { LOCATION_KIND_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
@@ -28,11 +29,11 @@ import { useEventStream } from "@/lib/realtime/use-event-stream";
 
 import { MAY_MANAGE_STOCK } from "./inventory-overview";
 import { LabelPrinter } from "./label-printer";
-import { LocationCreateDialog, LocationDeleteDialog, LocationRenameDialog } from "./location-dialogs";
+import { LocationDeleteDialog, LocationRenameDialog } from "./location-dialogs";
 import { LocationGlyph } from "./location-glyph";
 import { LocationTree } from "./location-panel";
 import { partHref } from "./parts-panels";
-import { StocktakePanel } from "./stocktake-panel";
+import { CountDialog } from "./stock-dialogs";
 import { SelectAllCheckbox, UnitCheckbox, UnitSelectionBar, useUnitSelection, type UnitSelection } from "./unit-selection";
 
 /** Whether a stock event touched this location or a place below it. */
@@ -52,8 +53,7 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
   const tree = useListLocations();
   const mayManage = MAY_MANAGE_STOCK.has(staffRole);
   const selection = useUnitSelection(contents.data?.units ?? []);
-  // The count of a stocktake lives here until it is booked or given up.
-  const [counting, setCounting] = useState(false);
+  const stock = useListPlaceStock({ location_code: code });
   const [booked, setBooked] = useState("");
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
@@ -120,25 +120,20 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
 
       <div className="mt-6 flex flex-wrap gap-2">
         {location.kind !== "site" ? <LabelsDialog codes={labelCodes(below)} title={location.code} /> : null}
-        {mayManage && location.holds_goods && !counting ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setBooked("");
-              setCounting(true);
-            }}
-          >
-            Inventur …
-          </Button>
-        ) : null}
-        {mayManage && canHaveChildren ? (
-          <LocationCreateDialog
-            parent={location}
+        {mayManage && location.holds_goods && (stock.data?.items.length ?? 0) > 0 ? (
+          <CountDialog
+            title={location.name || location.code}
+            rows={(stock.data?.items ?? []).map((line) => ({
+              variantId: line.variant_id,
+              locationCode: line.location.code,
+              expected: line.free + line.reserved,
+              counted: line.free + line.reserved,
+              label: line.variant?.title ?? line.variant_id,
+            }))}
+            onDone={setBooked}
             trigger={
               <Button type="button" size="sm" variant="secondary">
-                Platz darin anlegen
+                Zählen …
               </Button>
             }
           />
@@ -172,17 +167,7 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
-          {counting ? (
-            <StocktakePanel
-              here={location.code}
-              units={units}
-              onDone={(message) => {
-                setCounting(false);
-                setBooked(message ?? "");
-              }}
-            />
-          ) : (
-            <Panel
+          <Panel
               title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`}
               code="LG 11"
               actions={units.length > 0 ? <SelectAllCheckbox units={units} selection={selection} /> : null}
@@ -196,7 +181,6 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
               )}
               <UnitSelectionBar selection={selection} mayScrap={mayManage} />
             </Panel>
-          )}
           {parts.length > 0 ? (
             <Panel title={`Teile · ${parts.reduce((sum, entry) => sum + entry.quantity, 0)}`} code="LG 13">
               <PartTable parts={parts} here={location.code} />

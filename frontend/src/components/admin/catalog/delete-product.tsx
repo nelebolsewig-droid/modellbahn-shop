@@ -66,7 +66,7 @@ export function DeleteProduct({ product }: { product: ProductOut }) {
     mutationFn: () => deleteProduct(product.id, ifMatch(product.version)),
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
-      router.replace("/admin/katalog");
+      router.replace("/admin/modelle");
     },
   });
 

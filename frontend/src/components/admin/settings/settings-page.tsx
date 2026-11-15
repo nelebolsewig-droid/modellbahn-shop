@@ -12,13 +12,13 @@ const SETTINGS_HREF = "/admin/einstellungen" satisfies Route;
 const ENTRIES = [
   {
     code: "EIN 01",
-    href: "/admin/katalog/kategorien",
+    href: "/admin/einstellungen/kategorien",
     title: "Kategorien",
     text: "Wie der Katalog geordnet ist, z. B. Straßenfahrzeuge, LKW, Feuerwehr.",
   },
   {
     code: "EIN 02",
-    href: "/admin/katalog/massstaebe",
+    href: "/admin/einstellungen/massstaebe",
     title: "Maßstäbe",
     text: "Welche Maßstäbe der Shop führt, mit Verhältnis und Spurweite.",
   },

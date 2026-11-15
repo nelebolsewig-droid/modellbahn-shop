@@ -107,8 +107,8 @@ export const PROBLEM_MESSAGES: Messages = {
   address_book_full: "Dein Adressbuch ist voll. Lösche bitte zuerst eine Adresse.",
   insufficient_stock:
     "So viele haben wir gerade nicht vorrätig. Bitte verringere die Menge oder sieh später noch einmal nach.",
-  order_not_picked:
-    "Die Bestellung ist noch nicht vollständig kommissioniert. Scanne zuerst alle Stücke.",
+  order_pieces_missing:
+    "Noch nicht alles da: Mindestens ein Stück wartet auf die Fertigung. Es wurde nichts verschickt; im Lager steht, was fehlt.",
   marketplace_order:
     "Diese Bestellung kam über eBay. Storniere sie auf eBay; der Shop übernimmt die Stornierung dann selbst.",
   carrier_unavailable:
@@ -148,7 +148,12 @@ export const PROBLEM_MESSAGES: Messages = {
   unit_not_correctable:
     "Die Ausführung lässt sich nur bei unverbuchten oder freien Stücken ändern, die nie für eine Bestellung kommissioniert waren. Reservierte, kommissionierte, versendete und ausgebuchte Stücke bleiben, was sie sind.",
   stocktake_outdated:
-    "Während der Inventur hat sich der Platz geändert: Ein Stück kam hinzu oder wurde weggebucht. Es wurde nichts gebucht. Die Liste ist jetzt aktuell; bitte die neuen Stücke prüfen und noch einmal abschließen.",
+    "Während des Zählens wurde hier gebucht. Es wurde nichts gebucht; die Zahlen sind jetzt aktuell, bitte noch einmal zählen.",
+  count_takes_reserved:
+    "Es wurden weniger Stücke gezählt, als für Bestellungen reserviert sind. Es wurde nichts gebucht. Erst die Bestellung klären (Stück suchen oder stornieren), dann zählen.",
+  not_enough_pieces: "So viele Stücke liegen dort nicht. Es wurde nichts umgelagert.",
+  not_enough_free:
+    "So viele freie Stücke gibt es nicht; reservierte gehören zu Bestellungen. Es wurde nichts ausgebucht.",
   variant_has_units:
     "Von dieser Ausführung gibt es Stücke im Lager. Sie lässt sich nur noch deaktivieren, nicht löschen.",
   order_not_allocatable: "Nur bezahlte Bestellungen bekommen Ware zugeteilt.",

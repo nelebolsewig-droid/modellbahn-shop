@@ -49,48 +49,40 @@ afterEach(() => {
 });
 
 describe("AdminShell", () => {
-  it("shows a packer only Übersicht, Bestellungen, Lager, Fertigung and Scannen", async () => {
+  it("shows a packer Bestellungen, Lager and Scannen, the rest behind Mehr", async () => {
+    const user = userEvent.setup();
     const { header, bar } = await openShell("packer", "/admin/lager");
 
-    expect(linkNames(header)).toEqual(["Übersicht", "Bestellungen", "Lager", "Fertigung"]);
+    expect(linkNames(header)).toEqual(["Bestellungen", "Lager", "Fertigung"]);
     expect(within(header).getByRole("link", { name: "Lager" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByRole("link", { name: "Scannen" })[0]).toHaveAttribute("href", "/admin/scanner");
-    for (const hidden of ["Katalog", "Messen", "eBay", "Einstellungen", "Neues Modell"]) {
+    for (const hidden of ["Modelle", "Messen", "eBay", "Einstellungen"]) {
       expect(screen.queryByRole("link", { name: hidden })).not.toBeInTheDocument();
     }
-    // On the phone a single remaining entry needs no "Mehr".
-    expect(linkNames(bar)).toEqual(["Übersicht", "Bestellungen", "Scannen", "Lager", "Fertigung"]);
-    expect(within(bar).queryByRole("button", { name: "Mehr" })).not.toBeInTheDocument();
+    expect(linkNames(bar)).toEqual(["Bestellungen", "Scannen", "Lager"]);
+    await user.click(within(bar).getByRole("button", { name: "Mehr" }));
+    expect(linkNames(screen.getByRole("dialog", { name: "Mehr" }))).toEqual(["Übersicht", "Fertigung"]);
   });
 
-  it("shows owner and staff every entry and lights up Einstellungen on the categories", async () => {
-    const { header } = await openShell("staff", "/admin/katalog/kategorien");
+  it("shows owner and staff Modelle first and lights up Einstellungen on the categories", async () => {
+    const { header } = await openShell("staff", "/admin/einstellungen/kategorien");
 
-    expect(linkNames(header)).toEqual([
-      "Übersicht",
-      "Bestellungen",
-      "Lager",
-      "Fertigung",
-      "Katalog",
-      "Messen",
-      "eBay",
-      "Einstellungen",
-    ]);
+    expect(linkNames(header)).toEqual(["Modelle", "Bestellungen", "Lager", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     expect(within(header).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("aria-current", "page");
-    expect(within(header).getByRole("link", { name: "Katalog" })).not.toHaveAttribute("aria-current");
+    expect(within(header).getByRole("link", { name: "Modelle" })).not.toHaveAttribute("aria-current");
   });
 
-  it("puts Scannen in the middle of the phone bar and the rest behind Mehr", async () => {
+  it("puts the day's work on the phone bar, Scannen in the middle, the rest behind Mehr", async () => {
     const user = userEvent.setup();
-    const { bar } = await openShell("owner", "/admin/erfassen");
+    const { bar } = await openShell("owner", "/admin/modelle/neu");
 
-    expect(linkNames(bar)).toEqual(["Übersicht", "Bestellungen", "Scannen", "Lager"]);
+    expect(linkNames(bar)).toEqual(["Modelle", "Bestellungen", "Scannen", "Lager"]);
+    // The wizard belongs to Modelle.
+    expect(within(bar).getByRole("link", { name: "Modelle" })).toHaveAttribute("aria-current", "page");
     await user.click(within(bar).getByRole("button", { name: "Mehr" }));
 
     const sheet = screen.getByRole("dialog", { name: "Mehr" });
-    expect(linkNames(sheet)).toEqual(["Fertigung", "Katalog", "Neues Modell", "Messen", "eBay", "Einstellungen"]);
-    expect(within(sheet).getByRole("link", { name: "Neues Modell" })).toHaveAttribute("href", "/admin/erfassen");
-    expect(within(sheet).getByRole("link", { name: "Neues Modell" })).toHaveAttribute("aria-current", "page");
+    expect(linkNames(sheet)).toEqual(["Übersicht", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     expect(within(sheet).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("href", "/admin/einstellungen");
 
     await user.keyboard("{Escape}");

@@ -30,6 +30,7 @@ function piece(position: number, state: PickItemOut["state"]): PickItemOut {
       state === "backordered"
         ? null
         : { id: "loc", code: "R01-F02", name: "", kind: "compartment", depth: 2, holds_goods: true, parent_id: null, path: "L.R01.F02" },
+    place: state === "backordered" ? null : "Regal 1, Boden 2",
   };
 }
 
@@ -213,31 +214,42 @@ describe("OrderDesk", () => {
     ]);
   });
 
-  it("ships only once every piece is picked, and offers the scanner until then", async () => {
+  it("ships without scanning once every piece has a place, but not while one waits", async () => {
     routeFetch(fetchMock, {
       [ORDER]: () => jsonResponse(adminOrder()),
       [PICK_LIST]: () => jsonResponse(pickList("picked", "reserved", "backordered")),
     });
     renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
 
-    expect(await screen.findByText(/noch 2 von 3 Stück/)).toBeInTheDocument();
+    expect(await screen.findByText(/es wartet auf die Fertigung: Stellwerk Altenau · H0 · bemalt/)).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Versand melden" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Mit dem Scanner kommissionieren" })).toHaveAttribute(
+    // Scanning is optional; the packing view names the place as people say it.
+    expect(screen.getByRole("link", { name: "Mit dem Scanner abhaken (optional)" })).toHaveAttribute(
       "href",
       "/admin/scanner?bestellung=o1",
     );
-    expect(screen.getByText("Als Nächstes")).toBeInTheDocument();
+    expect(screen.getByText("Regal 1, Boden 2")).toBeInTheDocument();
     expect(screen.getByText("Fertigung")).toBeInTheDocument();
     expect(screen.getByText("Entnommen")).toBeInTheDocument();
+  });
+
+  it("offers dispatch for reserved pieces nobody scanned", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder()),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved", "reserved")),
+      "GET /api/v1/admin/shipping/setup": () => jsonResponse({ books_labels: false, carrier: "DHL", default_weight_g: 1000 }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
+    expect(await screen.findByRole("form", { name: "Versand melden" })).toBeInTheDocument();
   });
 
   it("refreshes the pick list when a piece of this order is picked", async () => {
     routeFetch(fetchMock, {
       [ORDER]: () => jsonResponse(adminOrder()),
-      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved", "backordered")),
     });
     renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
-    await screen.findByText(/noch 1 von 1 Stück/);
+    await screen.findByText(/wartet auf die Fertigung/);
 
     act(() =>
       latestSource().emit("inventory.stock.changed", {

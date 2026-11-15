@@ -17,6 +17,7 @@ function node(code: string, path: string, kind: LocationKind): LocationNodeOut {
     unit_count: 0,
     total_count: 0,
     part_count: 0,
+    place: code,
   };
 }
 

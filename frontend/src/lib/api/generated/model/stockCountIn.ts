@@ -11,16 +11,12 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { LocationOut } from './locationOut';
+import type { CountLineIn } from './countLineIn';
 
-export interface StocktakeOut {
-  /** Units found where the journal has them. */
-  confirmed: number;
-  /** Units put away there now. */
-  found: number;
-  location: LocationOut;
-  /** Of the found units, those that went straight to a waiting order. */
-  reserved: number;
-  /** Missing units scrapped now. */
-  scrapped: number;
+export interface StockCountIn {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  lines: CountLineIn[];
 }

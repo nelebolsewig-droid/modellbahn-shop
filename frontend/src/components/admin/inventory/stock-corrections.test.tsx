@@ -4,8 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   HistoryEntryOut,
-  LocatedUnitOut,
-  LocationContentsOut,
   LocationNodeOut,
   ProductListItemOut,
   ProductOut,
@@ -16,12 +14,10 @@ import type {
   VariantRefOut,
 } from "@/lib/api/generated/model";
 import { checkCharacter, formatUnitCode } from "@/lib/inventory/codes";
-import { PROBLEM_MESSAGES } from "@/lib/i18n/problems";
 import { FakeEventSource } from "@/test/event-source";
 import { requestsTo, routeFetch, type RouteHandler } from "@/test/fetch-routes";
-import { jsonResponse, problemResponse, renderWithQueryClient } from "@/test/render";
+import { jsonResponse, renderWithQueryClient } from "@/test/render";
 
-import { LocationDesk } from "./location-desk";
 import { UnitDesk } from "./unit-desk";
 import { UnitListDesk } from "./unit-list-desk";
 
@@ -30,7 +26,6 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const fetchMock = vi.fn<typeof fetch>();
 const INVENTORY = "/api/v1/admin/inventory";
 const RESTORES = `POST ${INVENTORY}/units/restores`;
-const STOCKTAKE = `POST ${INVENTORY}/locations/R01-F01/stocktakes`;
 
 const STELLWERK: VariantRefOut = {
   variant_id: "v1",
@@ -55,6 +50,7 @@ function place(code: string, path: string, kind: LocationNodeOut["kind"], name =
     unit_count: 0,
     total_count: 0,
     part_count: 0,
+    place: code,
   };
 }
 
@@ -290,124 +286,5 @@ describe("Ausführung ändern", () => {
     renderWithQueryClient(<UnitDesk code={free.code} staffRole="packer" onStreamClosed={() => {}} />);
     expect(await screen.findByRole("button", { name: "Umlagern …" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ausführung ändern …" })).not.toBeInTheDocument();
-  });
-});
-
-describe("Inventur", () => {
-  function located(of: UnitOut): LocatedUnitOut {
-    return {
-      id: of.id,
-      code: of.code,
-      display_code: of.display_code,
-      status: of.status,
-      variant_id: of.variant_id,
-      title: STELLWERK.title,
-      sku: STELLWERK.sku,
-      location_code: of.location?.code ?? null,
-      order_number: of.order_number,
-    };
-  }
-
-  const A = unit("a1", "in_stock", F01);
-  const B = unit("b1", "allocated", F01);
-  const C = unit("c1", "in_stock", F01);
-  const STRAY = unit("e1", "in_stock", F02);
-  const PACKED = unit("f1", "picked");
-  const UNKNOWN = unitCode("G10000000");
-  const CONTENTS: LocationContentsOut = {
-    location: F01,
-    ancestors: [],
-    children: [],
-    units: [A, B, C].map(located),
-    parts: [],
-  };
-
-  function place_(extra: Record<string, RouteHandler> = {}) {
-    routeFetch(fetchMock, {
-      [`GET ${INVENTORY}/locations/R01-F01`]: () => jsonResponse(CONTENTS),
-      [`GET ${INVENTORY}/locations`]: () => jsonResponse({ items: TREE }),
-      [`GET ${INVENTORY}/units/${STRAY.code}`]: () => jsonResponse(details(STRAY)),
-      [`GET ${INVENTORY}/units/${PACKED.code}`]: () => jsonResponse(details(PACKED)),
-      [`GET ${INVENTORY}/units/${UNKNOWN}`]: () => problemResponse(404, "unit_not_found"),
-      ...extra,
-    });
-  }
-
-  async function scanCode(user: ReturnType<typeof userEvent.setup>, code: string) {
-    await user.type(screen.getByRole("textbox", { name: "Code scannen oder eintippen" }), `${code}{Enter}`);
-  }
-
-  it("ticks, scans, notes what turned up and books it all in one go", async () => {
-    place_({
-      [STOCKTAKE]: () => jsonResponse({ confirmed: 2, scrapped: 1, found: 1, reserved: 0, location: F01 }),
-    });
-    const user = userEvent.setup();
-    renderWithQueryClient(<LocationDesk code="R01-F01" staffRole="owner" onStreamClosed={() => {}} />);
-
-    await user.click(await screen.findByRole("button", { name: "Inventur …" }));
-    const panel = screen.getByRole("region", { name: "Inventur · R01-F01" });
-    expect(screen.queryByRole("region", { name: /Inhalt/ })).not.toBeInTheDocument();
-    expect(panel).toHaveTextContent("0 von 3 gezählt");
-
-    await user.click(within(panel).getByRole("checkbox", { name: new RegExp(A.display_code) }));
-    await scanCode(user, B.code.toLowerCase());
-    expect(within(panel).getByRole("status")).toHaveTextContent(`${B.display_code} gezählt.`);
-    await scanCode(user, STRAY.code);
-    expect(await within(panel).findByText(`${STRAY.display_code} gefunden (gebucht in R01-F02): wird hier eingelagert.`)).toBeInTheDocument();
-    await scanCode(user, PACKED.code);
-    expect(await within(panel).findByText(/gehört zu einer Bestellung \(MB-2026-0007\)/)).toBeInTheDocument();
-    await scanCode(user, UNKNOWN);
-    expect(await within(panel).findByText("Diesen Stück-Code kennt das Lager nicht.")).toBeInTheDocument();
-    await scanCode(user, "R01-F02");
-    expect(within(panel).getByRole("status")).toHaveTextContent("Das ist ein Platz.");
-    expect(panel).toHaveTextContent("2 von 3 gezählt");
-    expect(panel).toHaveTextContent("Gefunden · 1 Stück");
-
-    await user.click(within(panel).getByRole("button", { name: "Abschließen …" }));
-    const summary = await screen.findByRole("dialog", { name: "Inventur R01-F01 abschließen" });
-    expect(summary).toHaveTextContent("2 bestätigt");
-    expect(summary).toHaveTextContent("1 fehlen → werden ausgebucht mit Grund „Fehlt bei Inventur“.");
-    expect(summary).toHaveTextContent(C.display_code);
-    expect(summary).toHaveTextContent("1 gefunden → werden hier eingelagert.");
-    expect(requestsTo(fetchMock, STOCKTAKE)).toHaveLength(0);
-    await user.click(within(summary).getByRole("button", { name: "Inventur buchen" }));
-
-    await waitFor(() =>
-      expect(requestsTo(fetchMock, STOCKTAKE)[0]?.body).toEqual({
-        present_unit_ids: ["a1", "b1"],
-        missing_unit_ids: ["c1"],
-        found_unit_ids: ["e1"],
-      }),
-    );
-    expect(await screen.findByText("Inventur R01-F01 gebucht: 2 bestätigt, 1 Stück ausgebucht, 1 Stück hier eingelagert.")).toHaveAttribute(
-      "role",
-      "status",
-    );
-    expect(screen.queryByRole("region", { name: "Inventur · R01-F01" })).not.toBeInTheDocument();
-  });
-
-  it("says that a missing reserved piece frees its order, and keeps the count when the place changed", async () => {
-    place_({ [STOCKTAKE]: () => problemResponse(409, "stocktake_outdated") });
-    const user = userEvent.setup();
-    renderWithQueryClient(<LocationDesk code="R01-F01" staffRole="staff" onStreamClosed={() => {}} />);
-
-    await user.click(await screen.findByRole("button", { name: "Inventur …" }));
-    const panel = screen.getByRole("region", { name: "Inventur · R01-F01" });
-    await user.click(within(panel).getByRole("checkbox", { name: new RegExp(A.display_code) }));
-    await user.click(within(panel).getByRole("button", { name: "Abschließen …" }));
-    const summary = await screen.findByRole("dialog", { name: "Inventur R01-F01 abschließen" });
-    expect(summary).toHaveTextContent("Eins davon ist reserviert: Die Bestellung bekommt ein anderes Stück oder wartet auf die Fertigung.");
-    await user.click(within(summary).getByRole("button", { name: "Inventur buchen" }));
-
-    expect(await within(summary).findByRole("alert")).toHaveTextContent(PROBLEM_MESSAGES.stocktake_outdated as string);
-    await user.click(within(summary).getByRole("button", { name: "Weiter zählen" }));
-    expect(within(panel).getByRole("checkbox", { name: new RegExp(A.display_code) })).toBeChecked();
-  });
-
-  it("is for owner and staff only", async () => {
-    place_();
-    renderWithQueryClient(<LocationDesk code="R01-F01" staffRole="packer" onStreamClosed={() => {}} />);
-    expect(await screen.findByRole("region", { name: /Inhalt/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Inventur …" })).not.toBeInTheDocument();
   });
 });

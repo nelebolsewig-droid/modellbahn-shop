@@ -12,12 +12,11 @@ import { activeSection, barSections, headerSections, moreSections, section, type
 type NavProps = { role: StaffRole; pathname: string };
 
 /**
- * The entries in the header on a desk, only those the role can use. The quick capture
- * has no entry of its own there (it is a button in the catalogue), so it lights up Katalog.
+ * The entries in the header on a desk, only those the role can use. "Neues Modell" lives
+ * under Modelle, so it lights up Modelle.
  */
 export function HeaderNav({ role, pathname }: NavProps) {
-  const active = activeSection(pathname);
-  const current = active === "newModel" ? "catalog" : active;
+  const current = activeSection(pathname);
   return (
     <nav aria-label="Stellwerk" className="max-sm:hidden sm:flex-1">
       <ul className="flex flex-wrap gap-1">
@@ -62,13 +61,14 @@ export function PhoneBar({ role, pathname }: NavProps) {
   const active = activeSection(pathname);
   const more = moreSections(role);
   const [single] = more;
+  const tabs = barSections(role);
   return (
     <nav
       aria-label="Stellwerk"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur sm:hidden"
     >
-      <ul className="grid h-16 grid-cols-5">
-        {barSections(role).map((entry) => (
+      <ul className={cn("grid h-16", tabs.length + (more.length > 0 ? 1 : 0) > 4 ? "grid-cols-5" : "grid-cols-4")}>
+        {tabs.map((entry) => (
           <li key={entry.key} className="min-w-0">
             {entry.key === "scan" ? (
               <ScanTab entry={entry} current={active === "scan"} />
@@ -177,8 +177,7 @@ const GLYPHS: Readonly<Record<SectionKey | "more", string>> = {
   stock: "M4 3v14 M16 3v14 M4 7h12 M4 11.5h12 M4 16h12",
   manufacturing: "M3.5 3.5h13v13h-13Z M3.5 6.5h13 M8 6.5v3h4v-3 M10 9.5v2 M6.5 16.5v-2.5h7v2.5",
   scan: "M3 7V3h4 M13 3h4v4 M17 13v4h-4 M7 17H3v-4 M6 10h8",
-  catalog: "M4 3.5h12v13H4Z M7 7h6 M7 10h6 M7 13h3",
-  newModel: "M10 4v12 M4 10h12",
+  models: "M4 3.5h12v13H4Z M7 7h6 M7 10h6 M7 13h3",
   fairs: "M3.5 5.5h13v11h-13Z M3.5 9h13 M7 3.5v4 M13 3.5v4",
   ebay: "M4 7.5h12l-1 9H5Z M7.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5",
   settings: "M4 6h12 M4 14h12 M7.5 4v4 M12.5 12v4",

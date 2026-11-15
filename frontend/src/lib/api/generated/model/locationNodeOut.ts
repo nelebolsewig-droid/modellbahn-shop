@@ -24,6 +24,8 @@ export interface LocationNodeOut {
   /** Printed parts lying in this location itself. */
   part_count: number;
   path: string;
+  /** How people call it; the code if unnamed. */
+  place: string;
   /** Units in this location and everything below it. */
   total_count: number;
   /** Units lying in this location itself. */

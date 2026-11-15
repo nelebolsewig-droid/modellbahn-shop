@@ -12,23 +12,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * A location as counted: every unit expected there is present or missing.
- */
-export interface StocktakeIn {
+export interface ShelfIn {
   /**
-     * Found there, though booked elsewhere, unbooked or scrapped: put away there (scrapped ones booked in again).
-     * @maxItems 2000
+     * Böden; 0: the shelf holds goods.
+     * @minimum 0
+     * @maximum 20
      */
-  found_unit_ids?: string[];
+  levels: number;
   /**
-     * Expected there, not found: scrapped as missing.
-     * @maxItems 2000
+     * Empty: Regal N.
+     * @maxLength 60
      */
-  missing_unit_ids?: string[];
-  /**
-     * Expected there and found there.
-     * @maxItems 2000
-     */
-  present_unit_ids?: string[];
+  name?: string;
 }

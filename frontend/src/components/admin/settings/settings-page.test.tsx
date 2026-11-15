@@ -34,8 +34,8 @@ describe("SettingsPage", () => {
     openAs("owner");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Einstellungen" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Kategorien/ })).toHaveAttribute("href", "/admin/katalog/kategorien");
-    expect(screen.getByRole("link", { name: /^Maßstäbe/ })).toHaveAttribute("href", "/admin/katalog/massstaebe");
+    expect(screen.getByRole("link", { name: /^Kategorien/ })).toHaveAttribute("href", "/admin/einstellungen/kategorien");
+    expect(screen.getByRole("link", { name: /^Maßstäbe/ })).toHaveAttribute("href", "/admin/einstellungen/massstaebe");
     expect(screen.getByRole("link", { name: /^eBay-Einrichtung/ })).toHaveAttribute("href", "/admin/einstellungen/ebay");
   });
 

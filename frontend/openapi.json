@@ -1857,6 +1857,42 @@
         "title": "ConnectionStatus",
         "type": "string"
       },
+      "CountLineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "counted": {
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Counted",
+            "type": "integer"
+          },
+          "expected": {
+            "description": "Free and reserved pieces the Stellwerk showed.",
+            "minimum": 0.0,
+            "title": "Expected",
+            "type": "integer"
+          },
+          "location_code": {
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "location_code",
+          "expected",
+          "counted"
+        ],
+        "title": "CountLineIn",
+        "type": "object"
+      },
       "CustomerAddressIn": {
         "additionalProperties": false,
         "properties": {
@@ -3199,6 +3235,12 @@
       "LabelIn": {
         "additionalProperties": false,
         "properties": {
+          "ship": {
+            "default": false,
+            "description": "Ship the order in the same go, with the label's number for the customer's e-mail; refused (`order_pieces_missing`) before the carrier is asked.",
+            "title": "Ship",
+            "type": "boolean"
+          },
           "weight_g": {
             "anyOf": [
               {
@@ -3878,6 +3920,14 @@
             "title": "Path",
             "type": "string"
           },
+          "place": {
+            "description": "How people call it; the code if unnamed.",
+            "examples": [
+              "Regal 2, Boden 3"
+            ],
+            "title": "Place",
+            "type": "string"
+          },
           "total_count": {
             "description": "Units in this location and everything below it.",
             "title": "Total Count",
@@ -3900,7 +3950,8 @@
           "depth",
           "unit_count",
           "total_count",
-          "part_count"
+          "part_count",
+          "place"
         ],
         "title": "LocationNodeOut",
         "type": "object"
@@ -5957,6 +6008,20 @@
             "title": "Piece",
             "type": "integer"
           },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "Regal 2, Boden 3"
+            ],
+            "title": "Place"
+          },
           "position": {
             "title": "Position",
             "type": "integer"
@@ -6074,6 +6139,94 @@
         ],
         "title": "PieceState",
         "type": "string"
+      },
+      "PlaceStockListOut": {
+        "properties": {
+          "items": {
+            "description": "Walking order of the places, then by model.",
+            "items": {
+              "$ref": "#/components/schemas/PlaceStockOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PlaceStockListOut",
+        "type": "object"
+      },
+      "PlaceStockOut": {
+        "properties": {
+          "free": {
+            "title": "Free",
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationOut"
+          },
+          "place": {
+            "description": "How people call it.",
+            "examples": [
+              "Regal 2, Boden 3"
+            ],
+            "title": "Place",
+            "type": "string"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location",
+          "place",
+          "variant_id",
+          "variant",
+          "free",
+          "reserved"
+        ],
+        "title": "PlaceStockOut",
+        "type": "object"
+      },
+      "PlaceTotalOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "place",
+          "quantity"
+        ],
+        "title": "PlaceTotalOut",
+        "type": "object"
       },
       "PoliciesOut": {
         "description": "The business policies of the eBay account, to choose from.",
@@ -7823,6 +7976,67 @@
         "title": "ProductStatus",
         "type": "string"
       },
+      "ProductStockListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductStockOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ProductStockListOut",
+        "type": "object"
+      },
+      "ProductStockOut": {
+        "properties": {
+          "backordered": {
+            "description": "Ordered pieces waiting for the workshop.",
+            "title": "Backordered",
+            "type": "integer"
+          },
+          "free": {
+            "title": "Free",
+            "type": "integer"
+          },
+          "labeled": {
+            "description": "Labelled the old way and never put away.",
+            "title": "Labeled",
+            "type": "integer"
+          },
+          "places": {
+            "description": "Where its pieces lie, most first.",
+            "items": {
+              "$ref": "#/components/schemas/PlaceTotalOut"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "reserved": {
+            "title": "Reserved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "free",
+          "reserved",
+          "labeled",
+          "backordered",
+          "places"
+        ],
+        "title": "ProductStockOut",
+        "type": "object"
+      },
       "PublishBlocker": {
         "description": "Why a product cannot be (or stay) in the shop.",
         "enum": [
@@ -9363,6 +9577,54 @@
         "title": "SettingsIn",
         "type": "object"
       },
+      "ShelfIn": {
+        "additionalProperties": false,
+        "properties": {
+          "levels": {
+            "description": "Böden; 0: the shelf holds goods.",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Levels",
+            "type": "integer"
+          },
+          "name": {
+            "default": "",
+            "description": "Empty: Regal N.",
+            "examples": [
+              "Regal 2"
+            ],
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "levels"
+        ],
+        "title": "ShelfIn",
+        "type": "object"
+      },
+      "ShelfOut": {
+        "properties": {
+          "levels": {
+            "description": "Boden 1 … N.",
+            "items": {
+              "$ref": "#/components/schemas/LocationOut"
+            },
+            "title": "Levels",
+            "type": "array"
+          },
+          "shelf": {
+            "$ref": "#/components/schemas/LocationOut"
+          }
+        },
+        "required": [
+          "shelf",
+          "levels"
+        ],
+        "title": "ShelfOut",
+        "type": "object"
+      },
       "ShipIn": {
         "additionalProperties": false,
         "properties": {
@@ -9615,6 +9877,175 @@
         "title": "StatusReportOut",
         "type": "object"
       },
+      "StockCountIn": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CountLineIn"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "StockCountIn",
+        "type": "object"
+      },
+      "StockCountOut": {
+        "properties": {
+          "added": {
+            "description": "New pieces booked in where more lay.",
+            "title": "Added",
+            "type": "integer"
+          },
+          "missing": {
+            "description": "Pieces taken out as missing.",
+            "title": "Missing",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Of the added ones, those a waiting order got.",
+            "title": "Reserved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "missing",
+          "added",
+          "reserved"
+        ],
+        "title": "StockCountOut",
+        "type": "object"
+      },
+      "StockHistoryOut": {
+        "properties": {
+          "items": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/StockHistoryRowOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StockHistoryOut",
+        "type": "object"
+      },
+      "StockHistoryRowOut": {
+        "properties": {
+          "from_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Location"
+          },
+          "from_place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Place"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Pieces this booking moved.",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MovementReason"
+          },
+          "scan": {
+            "description": "Booked by the scanner.",
+            "title": "Scan",
+            "type": "boolean"
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Name"
+          },
+          "to_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Location"
+          },
+          "to_place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Place"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurred_at",
+          "staff_name",
+          "reason",
+          "variant_id",
+          "variant",
+          "quantity",
+          "from_location",
+          "from_place",
+          "to_location",
+          "to_place",
+          "scan"
+        ],
+        "title": "StockHistoryRowOut",
+        "type": "object"
+      },
       "StockLineOut": {
         "properties": {
           "allocated": {
@@ -9668,6 +10099,69 @@
           "backordered"
         ],
         "title": "StockLineOut",
+        "type": "object"
+      },
+      "StockMoveIn": {
+        "additionalProperties": false,
+        "properties": {
+          "from_location": {
+            "examples": [
+              "R01-B02"
+            ],
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "From Location",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "to_location": {
+            "examples": [
+              "R02-B01"
+            ],
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "To Location",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "from_location",
+          "to_location",
+          "quantity"
+        ],
+        "title": "StockMoveIn",
+        "type": "object"
+      },
+      "StockMoveOut": {
+        "properties": {
+          "from_location": {
+            "$ref": "#/components/schemas/LocationOut"
+          },
+          "moved": {
+            "title": "Moved",
+            "type": "integer"
+          },
+          "to_location": {
+            "$ref": "#/components/schemas/LocationOut"
+          }
+        },
+        "required": [
+          "moved",
+          "from_location",
+          "to_location"
+        ],
+        "title": "StockMoveOut",
         "type": "object"
       },
       "StockOut": {
@@ -9728,78 +10222,70 @@
         "title": "StockPartOut",
         "type": "object"
       },
-      "StocktakeIn": {
+      "StockScrapIn": {
         "additionalProperties": false,
-        "description": "A location as counted: every unit expected there is present or missing.",
         "properties": {
-          "found_unit_ids": {
-            "description": "Found there, though booked elsewhere, unbooked or scrapped: put away there (scrapped ones booked in again).",
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 2000,
-            "title": "Found Unit Ids",
-            "type": "array"
+          "location_code": {
+            "anyOf": [
+              {
+                "maxLength": 44,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From this place; without one the oldest anywhere.",
+            "title": "Location Code"
           },
-          "missing_unit_ids": {
-            "description": "Expected there, not found: scrapped as missing.",
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 2000,
-            "title": "Missing Unit Ids",
-            "type": "array"
+          "note": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
           },
-          "present_unit_ids": {
-            "description": "Expected there and found there.",
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 2000,
-            "title": "Present Unit Ids",
-            "type": "array"
-          }
-        },
-        "title": "StocktakeIn",
-        "type": "object"
-      },
-      "StocktakeOut": {
-        "properties": {
-          "confirmed": {
-            "description": "Units found where the journal has them.",
-            "title": "Confirmed",
+          "quantity": {
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Quantity",
             "type": "integer"
           },
-          "found": {
-            "description": "Units put away there now.",
-            "title": "Found",
-            "type": "integer"
+          "reason": {
+            "$ref": "#/components/schemas/ScrapReason"
           },
-          "location": {
-            "$ref": "#/components/schemas/LocationOut"
-          },
-          "reserved": {
-            "description": "Of the found units, those that went straight to a waiting order.",
-            "title": "Reserved",
-            "type": "integer"
-          },
-          "scrapped": {
-            "description": "Missing units scrapped now.",
-            "title": "Scrapped",
-            "type": "integer"
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
           }
         },
         "required": [
-          "confirmed",
-          "scrapped",
-          "found",
-          "reserved",
-          "location"
+          "variant_id",
+          "quantity",
+          "reason"
         ],
-        "title": "StocktakeOut",
+        "title": "StockScrapIn",
+        "type": "object"
+      },
+      "StockScrapOut": {
+        "properties": {
+          "scrapped": {
+            "title": "Scrapped",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceTotalOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scrapped",
+          "sources"
+        ],
+        "title": "StockScrapOut",
         "type": "object"
       },
       "StoreGalleryItemOut": {
@@ -13624,6 +14110,103 @@
         ]
       }
     },
+    "/api/v1/admin/inventory/locations/shelves": {
+      "post": {
+        "description": "Goes into the first site, which is made if there is none. The shelf gets the next free code (R01, R02 …), its Böden the names Boden 1 … N. A shelf without Böden holds goods itself.",
+        "operationId": "createShelf",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShelfIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShelfOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `location_code_taken`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A shelf with its Böden in one go (Neues Regal)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
     "/api/v1/admin/inventory/locations/{code}": {
       "delete": {
         "operationId": "deleteLocation",
@@ -13909,124 +14492,6 @@
           }
         ],
         "summary": "Rename a location (its code stays: it is on the label)",
-        "tags": [
-          "admin-inventory"
-        ]
-      }
-    },
-    "/api/v1/admin/inventory/locations/{code}/stocktakes": {
-      "post": {
-        "description": "Every unit lying in the location is named as present or missing; units scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing units are scrapped as missing (an order they were reserved for gets another unit or waits), found ones are put away there. If the location changed during the count, nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated request books nothing twice.",
-        "operationId": "takeStock",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "title": "Code",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StocktakeIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StocktakeOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Unauthorized. Problem codes: `not_authenticated`."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Not Found. Problem codes: `location_not_found`."
-          },
-          "409": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Conflict. Problem codes: `stocktake_outdated`, `units_not_movable`."
-          },
-          "415": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblem"
-                }
-              }
-            },
-            "description": "Unprocessable Content. Problem codes: `validation_failed`."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Service Unavailable. Problem codes: `database_unavailable`."
-          }
-        },
-        "security": [
-          {
-            "staffSession": []
-          }
-        ],
-        "summary": "Book the count of a location: missing units out, found units in, all or none",
         "tags": [
           "admin-inventory"
         ]
@@ -14909,6 +15374,573 @@
           }
         ],
         "summary": "Units per variant and state, with backorders",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/counts": {
+      "post": {
+        "description": "Each line names the pieces the Stellwerk showed (`expected`) and those counted. Fewer: free pieces go out as missing; if that would take reserved ones, nothing is booked (`count_takes_reserved`, `detail` names the lines). More: new pieces are booked in there and serve waiting orders. A place that changed meanwhile refuses the count (`stocktake_outdated`).",
+        "operationId": "countStock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `count_takes_reserved`, `stocktake_outdated`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Set places to what was counted there, all lines or none (Zählen)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/history": {
+      "get": {
+        "operationId": "getStockHistory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockHistoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `product_not_found`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A model's latest bookings, grouped: when, who, what, how many, where",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/moves": {
+      "post": {
+        "description": "Oldest first; reserved pieces keep their order. Fewer there: nothing moves.",
+        "operationId": "moveStock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockMoveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockMoveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`, `variant_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `not_enough_pieces`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Move a number of pieces of a variant from one place to another",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/places": {
+      "get": {
+        "operationId": "listPlaceStock",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 44,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceStockListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Pieces per variant and place, free and reserved: of a model, in a place, or all",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/products": {
+      "get": {
+        "operationId": "listProductStock",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductStockListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Per model: free, reserved, unbooked and waiting pieces, and where they lie",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/scraps": {
+      "post": {
+        "description": "From the place, else the oldest anywhere. Reserved pieces stay with their order; fewer free ones: nothing is booked.",
+        "operationId": "scrapStock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockScrapIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockScrapOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `location_not_found`, `variant_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `not_enough_free`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Take a number of free pieces of a variant out with a reason (Ausbuchen)",
         "tags": [
           "admin-inventory"
         ]
@@ -21175,7 +22207,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `invalid_order_state`, `order_not_picked`."
+            "description": "Conflict. Problem codes: `invalid_order_state`, `order_pieces_missing`."
           },
           "415": {
             "content": {
@@ -21406,7 +22438,7 @@
         ]
       },
       "post": {
-        "description": "Packers too: whoever packs the parcel prints its label.",
+        "description": "Packers too: whoever packs the parcel prints its label. With `ship` the order is shipped in the same go (ADR 0028).",
         "operationId": "bookShippingLabel",
         "parameters": [
           {
@@ -21479,7 +22511,7 @@
                 }
               }
             },
-            "description": "Conflict. Problem codes: `carrier_rejected`, `invalid_order_state`, `label_exists`."
+            "description": "Conflict. Problem codes: `carrier_rejected`, `invalid_order_state`, `label_exists`, `order_pieces_missing`."
           },
           "415": {
             "content": {
@@ -21517,7 +22549,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Book the parcel's label with the carrier (ADR 0023)",
+        "summary": "Book the parcel's label with the carrier (ADR 0023), and ship if asked",
         "tags": [
           "admin-sales"
         ]

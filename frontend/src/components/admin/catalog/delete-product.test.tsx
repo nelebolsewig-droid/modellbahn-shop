@@ -66,7 +66,7 @@ describe("DeleteProduct", () => {
 
     await user.click(within(dialog).getByRole("button", { name: "Endgültig löschen" }));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/katalog"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/modelle"));
     expect(requestsTo(fetchMock, DELETE).map((request) => request.headers.get("If-Match"))).toEqual(['"9"']);
   });
 
