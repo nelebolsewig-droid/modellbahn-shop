@@ -21,9 +21,12 @@ function staff(role: StaffRole): StaffOut {
   return { id: "s1", email: "jana@example.de", display_name: "Jana", role };
 }
 
-async function openShell(role: StaffRole, pathname: string) {
+async function openShell(role: StaffRole, pathname: string, toMake = 0) {
   navigation.pathname = pathname;
-  routeFetch(fetchMock, { "GET /api/v1/admin/auth/me": () => jsonResponse(staff(role)) });
+  routeFetch(fetchMock, {
+    "GET /api/v1/admin/auth/me": () => jsonResponse(staff(role)),
+    "GET /api/v1/admin/inventory/stock/to-make": () => jsonResponse({ items: [], quantity: toMake }),
+  });
   renderWithQueryClient(
     <AdminShell>
       <p>Seiteninhalt</p>
@@ -62,6 +65,22 @@ describe("AdminShell", () => {
     expect(linkNames(bar)).toEqual(["Bestellungen", "Scannen", "Lager"]);
     await user.click(within(bar).getByRole("button", { name: "Mehr" }));
     expect(linkNames(screen.getByRole("dialog", { name: "Mehr" }))).toEqual(["Übersicht", "Fertigung"]);
+  });
+
+  it("counts beside Bestellungen the pieces paid orders wait for, for owner and staff", async () => {
+    const { header, bar } = await openShell("owner", "/admin", 3);
+
+    expect(await within(header).findByRole("link", { name: "Bestellungen, 3 Stücke zu fertigen" })).toHaveAttribute(
+      "href",
+      "/admin/bestellungen",
+    );
+    expect(within(bar).getByRole("link", { name: /^Bestellungen, 3 Stücke zu fertigen/ })).toBeInTheDocument();
+  });
+
+  it("asks nothing about making for a packer", async () => {
+    await openShell("packer", "/admin", 3);
+
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/stock/to-make"))).toBe(false);
   });
 
   it("shows owner and staff Modelle first and lights up Einstellungen on the categories", async () => {

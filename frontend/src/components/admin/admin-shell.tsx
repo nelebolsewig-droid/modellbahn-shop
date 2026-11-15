@@ -15,7 +15,9 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { STAFF_AREA } from "@/lib/navigation";
 import { useStaffSession, useStaffSessionCache } from "@/lib/session/staff";
 import { useProtectedArea } from "@/lib/session/use-session-redirects";
+import { OFFICE_ROLES } from "@/lib/staff";
 
+import { useToMakeCount } from "./sales/to-make-list";
 import { StaffPasswordDialog } from "./staff-password-dialog";
 import { HeaderNav, PhoneBar, ScanButton } from "./stellwerk-nav";
 
@@ -44,6 +46,9 @@ export function AdminShell({ children }: AdminShellProps) {
   const { leave } = useProtectedArea(session, cache, STAFF_AREA);
   const logout = useStaffLogout();
   const pathname = usePathname();
+  // Owner and staff see beside Bestellungen how many pieces wait for the workshop.
+  const toMake = useToMakeCount(session.status === "authenticated" && OFFICE_ROLES.has(session.account.role));
+  const counts = toMake ? { orders: toMake } : undefined;
 
   if (session.status === "loading" || session.status === "anonymous") {
     return (
@@ -83,7 +88,7 @@ export function AdminShell({ children }: AdminShellProps) {
               </span>
             </span>
           </Link>
-          <HeaderNav role={role} pathname={pathname} />
+          <HeaderNav role={role} pathname={pathname} counts={counts} />
           <div className="flex items-center gap-2">
             <ScanButton pathname={pathname} />
             <StaffPasswordDialog />
@@ -108,7 +113,7 @@ export function AdminShell({ children }: AdminShellProps) {
           ? children({ staff: session.account, revalidate: () => void cache.revalidate() })
           : children}
       </main>
-      <PhoneBar role={role} pathname={pathname} />
+      <PhoneBar role={role} pathname={pathname} counts={counts} />
     </div>
   );
 }

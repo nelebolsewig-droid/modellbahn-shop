@@ -11,12 +11,12 @@ import { WithdrawalsPanel } from "./withdrawals";
 export function OrderListPage() {
   return (
     <AdminShell>
-      {({ revalidate }) => (
+      {({ staff, revalidate }) => (
         <>
           <p className="label-caps text-ink-tertiary">Verkauf</p>
           <h1 className="mt-4 mb-8 text-heading sm:text-title">Bestellungen</h1>
           <WithdrawalsPanel />
-          <OrderList onStreamClosed={revalidate} />
+          <OrderList staffRole={staff.role} onStreamClosed={revalidate} />
         </>
       )}
     </AdminShell>

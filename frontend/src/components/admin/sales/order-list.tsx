@@ -8,6 +8,7 @@ import { useState, type FormEvent } from "react";
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
+import { ToMakeList, useToMakeCount } from "@/components/admin/sales/to-make-list";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import {
   getListWithdrawalsQueryKey,
   listOrders,
 } from "@/lib/api/generated/admin-sales/admin-sales";
-import type { OrderPageOut, OrderStatus, OrderSummaryOut } from "@/lib/api/generated/model";
+import { getListToMakeQueryKey } from "@/lib/api/generated/admin-inventory/admin-inventory";
+import type { OrderPageOut, OrderStatus, OrderSummaryOut, StaffRole } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatEventTime } from "@/lib/format";
@@ -28,11 +30,16 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, ORDER_EVENT_TYPES, orderEventOf, withdrawalEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES } from "@/lib/sales/labels";
+import { OFFICE_ROLES } from "@/lib/staff";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 
-type StatusFilter = OrderStatus | "all";
+/** Pieces paid for, booked in or no longer wanted change what waits for the workshop. */
+const TO_MAKE_EVENT_TYPES = ["inventory.stock.changed", "inventory.allocation.backordered"] as const;
+
+/** An order state, all of them, or what paid orders wait for the workshop to make. */
+type StatusFilter = OrderStatus | "all" | "to_make";
 
 const FILTERS: readonly { value: StatusFilter; label: string }[] = [
   { value: "all", label: "Alle" },
@@ -44,10 +51,20 @@ const FILTERS: readonly { value: StatusFilter; label: string }[] = [
 
 /**
  * Every order, newest first: filter by state, search by number or e-mail, live updates.
- * Opens on the paid orders, the ones waiting to be packed.
+ * Opens on the paid orders, the ones waiting to be packed. Owner and staff also find
+ * "Zu fertigen" there: what paid orders wait for the workshop to make (ADR 0029).
  */
-export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
+export function OrderList({ staffRole, onStreamClosed }: { staffRole: StaffRole; onStreamClosed: () => void }) {
   const queryClient = useQueryClient();
+  const mayMake = OFFICE_ROLES.has(staffRole);
+  const toMakeCount = useToMakeCount(mayMake);
+  const filters = mayMake
+    ? FILTERS.flatMap((filter) =>
+        filter.value === "paid"
+          ? [filter, { value: "to_make" as const, label: toMakeCount ? `Zu fertigen (${toMakeCount})` : "Zu fertigen" }]
+          : [filter],
+      )
+    : FILTERS;
   const [status, setStatus] = useState<StatusFilter>("paid");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -60,7 +77,7 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
       listOrders(
         {
           limit: PAGE_SIZE,
-          ...(status !== "all" && { status: [status] }),
+          ...(status !== "all" && status !== "to_make" && { status: [status] }),
           ...(query && { q: query }),
           ...(typeof pageParam === "string" && { cursor: pageParam }),
         },
@@ -68,11 +85,16 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
       ),
     initialPageParam: null,
     getNextPageParam: (page) => page.next_cursor,
+    enabled: status !== "to_make",
   });
   const stream = useEventStream({
     url: ADMIN_EVENTS_URL,
-    eventTypes: ORDER_EVENT_TYPES,
+    eventTypes: mayMake ? [...ORDER_EVENT_TYPES, ...TO_MAKE_EVENT_TYPES] : ORDER_EVENT_TYPES,
     onMessage(data) {
+      if (mayMake) {
+        // Paid, cancelled or booked in: what waits for the workshop may have changed.
+        void queryClient.invalidateQueries({ queryKey: getListToMakeQueryKey() });
+      }
       if (withdrawalEventOf(data) !== null) {
         void queryClient.invalidateQueries({ queryKey: getListWithdrawalsQueryKey() });
         return;
@@ -99,7 +121,7 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
     <Panel title="Bestellungen" code="VK 01" actions={<ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <OptionGroup label="Zustand" value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-          {FILTERS.map((filter) => (
+          {filters.map((filter) => (
             <OptionPill key={filter.value} value={filter.value} tone="accent">
               {filter.label}
             </OptionPill>
@@ -124,7 +146,9 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
       </div>
 
       <div className="mt-6">
-        {orders.isPending ? (
+        {status === "to_make" ? (
+          <ToMakeList />
+        ) : orders.isPending ? (
           <PendingNotice>Bestellungen werden geladen …</PendingNotice>
         ) : orders.isError ? (
           <p role="alert" className="text-small text-danger">
@@ -155,7 +179,7 @@ export function OrderList({ onStreamClosed }: { onStreamClosed: () => void }) {
             </ul>
           </>
         )}
-        {orders.hasNextPage ? (
+        {status !== "to_make" && orders.hasNextPage ? (
           <Button
             type="button"
             variant="secondary"
