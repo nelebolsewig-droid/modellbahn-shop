@@ -71,6 +71,32 @@ describe("Modelle", () => {
     expect(screen.getByText("Lokschuppen")).toBeInTheDocument();
   });
 
+  it("knows eBay offers beyond the first page of listings", async () => {
+    let pages = 0;
+    routeFetch(fetchMock, {
+      "GET /api/v1/admin/products": () =>
+        jsonResponse({ items: [item("p1", "Stellwerk Altenau"), item("p2", "Lokschuppen")], next_cursor: null }),
+      "GET /api/v1/admin/inventory/stock/products": () => jsonResponse({ items: [] }),
+      "GET /api/v1/admin/marketplace/ebay/listings": () => {
+        pages += 1;
+        return pages === 1
+          ? jsonResponse({ items: [{ product_id: "p1", status: "ended" }], next_cursor: "seite-2" })
+          : jsonResponse({ items: [{ product_id: "p2", status: "active" }], next_cursor: null });
+      },
+    });
+    renderWithQueryClient(<ProductList />);
+
+    const schuppen = (await screen.findByText("Lokschuppen")).closest("a") as HTMLElement;
+    expect(await within(schuppen).findByText("eBay")).toBeInTheDocument();
+    const stellwerk = screen.getByText("Stellwerk Altenau").closest("a") as HTMLElement;
+    expect(within(stellwerk).queryByText("eBay")).toBeNull();
+    const asked = fetchMock.mock.calls
+      .map(([input]) => new URL(String(input), "http://shop.test"))
+      .filter((url) => url.pathname.endsWith("/ebay/listings"))
+      .map((url) => url.searchParams.get("cursor"));
+    expect(asked).toEqual([null, "seite-2"]);
+  });
+
   it("works without eBay", async () => {
     routeFetch(fetchMock, {
       "GET /api/v1/admin/products": () => jsonResponse({ items: [item("p1", "Stellwerk Altenau")], next_cursor: null }),

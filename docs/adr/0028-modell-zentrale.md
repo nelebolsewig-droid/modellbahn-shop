@@ -136,11 +136,15 @@ Neu im Lager-Modul, `StockService`:
   meisten Buchungen sind zwei Taps.
 - Packer sehen keine Modelle-Seite, weil der Katalog Inhabern und Mitarbeitern gehört; sie
   finden die Modelle über das Lager und die Bestellungen.
-- **Bewusst offen:**
-  - Zwischen der Prüfung beim Versand und der Buchung im Lager (der Worker hört
-    `sales.order.shipped`) kann ein reserviertes Stück ausgebucht werden. Dann ist das Paket
-    versendet, das Lager vermerkt das fehlende Stück im Log
-    (`inventory.ship.piece_without_unit`); eine Zählung stellt es richtig.
-  - Die eBay-Marke in der Liste kennt nur die ersten 100 Angebote.
+- **Zwischen Prüfung und Lagerbuchung** (der Worker hört `sales.order.shipped`) kann ein
+  reserviertes Stück ausgebucht werden. Das Paket ist dann versendet; das Lager schließt die
+  Zuteilung ohne Stück und vermerkt es im Log (`inventory.ship.piece_without_unit`). Eine
+  wartende Zuteilung einer versendeten oder stornierten Bestellung bekommt nie ein neues
+  Stück, sie wird beim nächsten Einbuchen geschlossen. Eine Zählung stellt den Bestand richtig.
+- **Label ohne Versand:** Alles, was ablehnen kann, wird vor der Buchung bei DHL geprüft.
+  Scheitert danach dennoch etwas, wird das Label bei DHL wieder storniert
+  (`sales.label.dropped_unused`; misslingt auch das: `sales.label.orphaned`).
+- Die Pickliste nennt Modell, Ausführung und Platz, gleiche Stücke in einer Zeile, keine
+  Codes einzelner Stücke. Die eBay-Marke liest alle Seiten der Angebote.
 - Smoke-Test: Er prüft kein „Versand vor dem Kommissionieren“ mehr; das Kommissionieren
   per Scan bleibt darin.

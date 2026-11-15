@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
@@ -13,7 +13,7 @@ import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listProducts, publishReadyProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import { useListProductStock } from "@/lib/api/generated/admin-inventory/admin-inventory";
-import { useListEbayListings } from "@/lib/api/generated/admin-marketplace/admin-marketplace";
+import { getListEbayListingsQueryKey, listEbayListings } from "@/lib/api/generated/admin-marketplace/admin-marketplace";
 import type {
   ProductListItemOut,
   ProductPageOut,
@@ -45,6 +45,29 @@ export const STATUS_TONES = {
   active: "success",
   archived: "warning",
 } as const satisfies Record<ProductStatus, "neutral" | "success" | "warning">;
+
+/** eBay's listings come in pages of this many; a shop with more pages than this is not expected. */
+const LISTING_PAGE = 100;
+const LISTING_PAGES_MAX = 50;
+
+/** The models with an active offer on eBay, from every page of the listings. */
+export async function activeOnEbay(signal?: AbortSignal): Promise<Set<string>> {
+  const active = new Set<string>();
+  let cursor: string | null = null;
+  for (let page = 0; page < LISTING_PAGES_MAX; page += 1) {
+    const listings = await listEbayListings({ limit: LISTING_PAGE, ...(cursor !== null && { cursor }) }, { signal });
+    for (const listing of listings.items) {
+      if (listing.status === "active") {
+        active.add(listing.product_id);
+      }
+    }
+    cursor = listings.next_cursor;
+    if (cursor === null) {
+      break;
+    }
+  }
+  return active;
+}
 
 /** Models without a free or reserved piece; nothing at all counts as none. */
 export function withoutStock(item: ProductListItemOut, stock: ReadonlyMap<string, ProductStockOut>): boolean {
@@ -79,15 +102,11 @@ export function ProductList() {
     query: { select: (data) => new Map(data.items.map((line) => [line.product_id, line])) },
   });
   // eBay may not be connected: then no model shows the mark, and nothing complains.
-  const ebay = useListEbayListings(
-    { limit: 100 },
-    {
-      query: {
-        retry: false,
-        select: (page) => new Set(page.items.filter((listing) => listing.status === "active").map((listing) => listing.product_id)),
-      },
-    },
-  );
+  const ebay = useQuery({
+    queryKey: [...getListEbayListingsQueryKey(), "active-products"],
+    queryFn: ({ signal }) => activeOnEbay(signal),
+    retry: false,
+  });
   const stockByProduct = stock.data ?? new Map<string, ProductStockOut>();
   const all = products.data?.pages.flatMap((page) => page.items) ?? [];
   const items = filter === "empty" ? all.filter((item) => withoutStock(item, stockByProduct)) : all;
