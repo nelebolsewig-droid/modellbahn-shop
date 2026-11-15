@@ -43,6 +43,7 @@ from modellbahn.modules.marketplace.application.ports import (
     NotificationKey,
     OfferDraft,
     Policies,
+    PoliciesNotEnabledError,
     PolicyOption,
     PublishedListing,
     ShipmentReport,
@@ -63,6 +64,8 @@ SCOPES: Final = (
 CURRENCY: Final = "EUR"
 LANGUAGE: Final = "de-DE"
 _PAGE_SIZE: Final = 50
+# The Account API's answer for a seller without business policies.
+POLICIES_NOT_ENABLED: Final = "20403"
 _TIMEOUT: Final = httpx.Timeout(20.0, connect=10.0)
 # The application token is renewed this long before it runs out.
 _APPLICATION_TOKEN_MARGIN: Final = timedelta(minutes=5)
@@ -230,11 +233,16 @@ class HttpEbayGateway:
 
     async def policies(self, access_token: str) -> Policies:
         async def options(kind: str, plural: str, id_field: str) -> list[PolicyOption]:
-            body = await self._call(
-                "GET",
-                f"{self._hosts.api}/sell/account/v1/{kind}?marketplace_id={EBAY_MARKETPLACE}",
-                access_token,
-            )
+            try:
+                body = await self._call(
+                    "GET",
+                    f"{self._hosts.api}/sell/account/v1/{kind}?marketplace_id={EBAY_MARKETPLACE}",
+                    access_token,
+                )
+            except MarketplaceRejectedError as exc:
+                if exc.code == POLICIES_NOT_ENABLED:
+                    raise PoliciesNotEnabledError(exc.code, exc.message) from exc
+                raise
             return [
                 PolicyOption(id=str(policy[id_field]), name=str(policy.get("name", "")))
                 for policy in body.get(plural, [])
@@ -246,6 +254,14 @@ class HttpEbayGateway:
             ),
             payment=await options("payment_policy", "paymentPolicies", "paymentPolicyId"),
             returns=await options("return_policy", "returnPolicies", "returnPolicyId"),
+        )
+
+    async def enable_policies(self, access_token: str) -> None:
+        await self._call(
+            "POST",
+            f"{self._hosts.api}/sell/account/v1/program/opt_in",
+            access_token,
+            json={"programType": "SELLING_POLICY_MANAGEMENT"},
         )
 
     async def ensure_location(self, access_token: str, key: str, address: LocationAddress) -> None:

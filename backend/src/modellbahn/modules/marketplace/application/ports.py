@@ -50,6 +50,11 @@ class MarketplaceRejectedError(Exception):
         self.message = message
 
 
+class PoliciesNotEnabledError(MarketplaceRejectedError):
+    """The seller has not opted in to business policies (eBay's error 20403), so eBay
+    keeps the shipping, payment and return policies from the API."""
+
+
 class AuthorizationRevokedError(Exception):
     """eBay no longer accepts the refresh token: the owner has to give consent again."""
 
@@ -208,6 +213,10 @@ class EbayGateway(Protocol):
     async def seller_name(self, access_token: str) -> str: ...
 
     async def policies(self, access_token: str) -> Policies: ...
+
+    async def enable_policies(self, access_token: str) -> None:
+        """Opt the seller in to business policies (``SELLING_POLICY_MANAGEMENT``)."""
+        ...
 
     async def ensure_location(
         self, access_token: str, key: str, address: LocationAddress

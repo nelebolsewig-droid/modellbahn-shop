@@ -78,7 +78,9 @@ Das Skript führt durch vierzehn Schritte und sagt bei jedem, was zu tun ist:
 7. **eBay** (überspringbar): Johanns Schlüssel und die zwei Adressen, die im
    eBay-Entwicklerkonto eingetragen werden. Verbunden wird danach im Stellwerk unter
    Einstellungen → eBay-Einrichtung; dort stehen auch Versand, Zahlung, eBay-Kategorien
-   und die Adresse für die Löschmeldungen.
+   und die Adresse für die Löschmeldungen. Nutzt das eBay-Konto noch keine Grundsätze für
+   Angebote (eBay-Fehler 20403), steht dort ein Knopf „Grundsätze bei eBay einschalten“;
+   danach je einen Grundsatz für Versand, Zahlung und Rücknahme auf eBay anlegen.
 8. **SumUp** (überspringbar): API-Schlüssel (`sup_sk_…`, verdeckt) und Händlercode des
    SumUp-Kontos. Ohne sie nimmt der Shop keine Bestellungen an (`MB_PAYMENT_PROVIDER=off`).
 9. **Vorkasse** (überspringbar): die Bankverbindung für Überweisungen.
