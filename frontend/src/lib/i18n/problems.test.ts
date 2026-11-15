@@ -118,6 +118,10 @@ describe("field messages", () => {
     expect(fieldErrorMessage("display_name", "too_long")).toBe(
       "Der Name darf höchstens 80 Zeichen lang sein.",
     );
+    expect(fieldErrorMessage("location_code", "required")).toBe(
+      "Bitte den Platz wählen, in dem die Stücke liegen.",
+    );
+    expect(fieldErrorMessage("context.reason", "invalid")).toMatch(/Grund zum Ausbuchen/);
   });
 
   it("falls back to the generic message for the code, then to 'invalid'", () => {

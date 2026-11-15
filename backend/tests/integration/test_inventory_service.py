@@ -502,7 +502,7 @@ class TestAllocation:
 
 
 class TestPutAwayScans:
-    async def test_location_then_units(
+    async def test_location_then_model_labels(
         self,
         locations: LocationService,
         units: UnitService,
@@ -519,20 +519,34 @@ class TestPutAwayScans:
         )
         chosen = await scan(scans, staff, "https://shop.example/l/r01-f01", ScanMode.PUT_AWAY)
         assert (chosen["outcome"], chosen["message"]) == ("selected", "location_selected")
+        # An older label with a unit code stands for its model: the labelled piece goes first.
         stored = await scan(
             scans, staff, view.unit.code, ScanMode.PUT_AWAY, context={"location_code": COMPARTMENT}
         )
-        assert (stored["outcome"], stored["message"]) == ("applied", "put_away")
-        assert stored["effect"]["to_location"] == COMPARTMENT  # type: ignore[index,call-overload]
+        assert (stored["outcome"], stored["message"]) == ("applied", "booked_in")
+        assert stored["stock_effect"] == {
+            "quantity": 1,
+            "location": COMPARTMENT,
+            "in_location": 1,
+            "stored": 1,
+            "created": 0,
+            "reserved": 0,
+            "reserved_for": [],
+            "reason": None,
+            "from_locations": [],
+        }
         assert stored["undoable"] is True
-        moved = await scan(
-            scans, staff, view.unit.code, ScanMode.PUT_AWAY, context={"location_code": "R01-F02"}
-        )
-        assert (moved["message"], moved["effect"]["from_location"]) == ("move", COMPARTMENT)  # type: ignore[index,call-overload]
+        assert (await units.details(view.unit.code)).view.unit.status is UnitStatus.IN_STOCK
+        # The same label elsewhere is one more piece of the model there, not a move.
         again = await scan(
             scans, staff, view.unit.code, ScanMode.PUT_AWAY, context={"location_code": "R01-F02"}
         )
-        assert (again["outcome"], again["message"]) == ("rejected", "already_there")
+        assert again["message"] == "booked_in"
+        assert again["stock_effect"]["created"] == 1  # type: ignore[index,call-overload]
+        assert again["stock_effect"]["in_location"] == 1  # type: ignore[index,call-overload]
+        lying = (await units.details(view.unit.code)).view.location
+        assert lying is not None
+        assert lying.code == COMPARTMENT
 
     @pytest.mark.parametrize(
         ("raw", "context", "message"),
@@ -570,7 +584,7 @@ class TestPutAwayScans:
         assert answer["message"] == message
         assert answer["undoable"] is False
 
-    async def test_the_articles_ean_stores_its_oldest_labelled_unit(
+    async def test_the_articles_ean_stores_its_labelled_pieces_first(
         self,
         locations: LocationService,
         units: UnitService,
@@ -586,9 +600,13 @@ class TestPutAwayScans:
         gtin = next(v.gtin for s in product.product.scales for v in s.variants if v.id == painted)
         context = {"location_code": COMPARTMENT}
         stored = await scan(scans, staff, gtin, ScanMode.PUT_AWAY, context=context)
-        assert (stored["outcome"], stored["unit"]["code"]) == ("applied", first.unit.code)  # type: ignore[index,call-overload]
-        nothing = await scan(scans, staff, gtin, ScanMode.PUT_AWAY, context=context)
-        assert nothing["message"] == "no_unit_to_store"
+        assert stored["outcome"] == "applied"
+        assert (stored["stock_effect"]["stored"], stored["stock_effect"]["created"]) == (1, 0)  # type: ignore[index,call-overload]
+        assert (await units.details(first.unit.code)).view.unit.status is UnitStatus.IN_STOCK
+        # No labelled piece left: the scan books a new one straight into stock.
+        more = await scan(scans, staff, gtin, ScanMode.PUT_AWAY, context=context)
+        assert (more["stock_effect"]["stored"], more["stock_effect"]["created"]) == (0, 1)  # type: ignore[index,call-overload]
+        assert more["variant"]["free_units"] == 2  # type: ignore[index,call-overload]
 
     async def test_lookups_book_nothing(
         self,
@@ -1045,12 +1063,15 @@ class TestPickScans:
         answer = await scan(scans, staff, str(first.unit_code), ScanMode.PICK, context=context)
         assert (answer["message"], answer["progress"]) == ("picked", {"picked": 1, "total": 2})
         assert answer["next_expected"]["unit_code"] == second.unit_code  # type: ignore[index,call-overload]
+        assert answer["unit"]["code"] == first.unit_code  # type: ignore[index,call-overload]
+        # The same label again names the model: the next reserved piece is picked.
         repeat = await scan(scans, staff, str(first.unit_code), ScanMode.PICK, context=context)
-        assert repeat["message"] == "already_picked"
+        assert (repeat["message"], repeat["unit"]["code"]) == ("picked", second.unit_code)  # type: ignore[index,call-overload]
+        assert (repeat["progress"], repeat["next_expected"]) == ({"picked": 2, "total": 2}, None)
         done = await scan(scans, staff, str(second.unit_code), ScanMode.PICK, context=context)
-        assert (done["progress"], done["next_expected"]) == ({"picked": 2, "total": 2}, None)
+        assert (done["outcome"], done["message"]) == ("rejected", "variant_complete")
 
-    async def test_any_free_unit_of_the_article_will_do(
+    async def test_the_label_of_a_free_piece_picks_the_reserved_one(
         self,
         locations: LocationService,
         units: UnitService,
@@ -1068,11 +1089,9 @@ class TestPickScans:
         (item,) = (await allocation.pick_list(order_id)).items
         spare = next(code for code in codes if code != item.unit_code)
         answer = await scan(scans, staff, spare, ScanMode.PICK, context={"order_id": str(order_id)})
-        assert (answer["message"], answer["effect"]["released_unit"]) == (  # type: ignore[index,call-overload]
-            "picked",
-            item.unit_code,
-        )
-        assert (await units.details(str(item.unit_code))).view.unit.status is UnitStatus.IN_STOCK
+        assert (answer["message"], answer["unit"]["code"]) == ("picked", item.unit_code)  # type: ignore[index,call-overload]
+        assert answer["effect"]["released_unit"] is None  # type: ignore[index,call-overload]
+        assert (await units.details(spare)).view.unit.status is UnitStatus.IN_STOCK
 
         # Undo puts everything back as it was.
         await scans.undo(UUID(str(answer["scan_id"])), staff_id=staff)
@@ -1131,8 +1150,13 @@ class TestPickScans:
         (loose,) = await units.label_units(
             variant_id=painted, quantity=1, location_code=None, staff_id=None
         )
+        # The label of a piece reserved for another order still names the model.
+        mine = await scan(scans, staff, str(others.unit_code), ScanMode.PICK, context=context)
+        assert mine["message"] == "picked"
+        assert (await units.details(str(others.unit_code))).view.unit.status is (
+            UnitStatus.ALLOCATED
+        )
         answers = [
-            await scan(scans, staff, str(others.unit_code), ScanMode.PICK, context=context),
             await scan(scans, staff, wrong, ScanMode.PICK, context=context),
             await scan(scans, staff, loose.unit.code, ScanMode.PICK, context=context),
             await scan(scans, staff, COMPARTMENT, ScanMode.PICK, context=context),
@@ -1140,9 +1164,8 @@ class TestPickScans:
             await scan(scans, staff, wrong, ScanMode.PICK, context={"order_id": str(uuid4())}),
         ]
         assert [a["message"] for a in answers] == [
-            "reserved_for_other_order",
             "not_in_order",
-            "unit_not_stored",
+            "variant_complete",
             "scan_unit_label",
             "order_unknown",
             "order_unknown",
@@ -1222,10 +1245,10 @@ class TestScanRecords:
         with pytest.raises(ScanNotUndoableError, match="too_old"):
             await scans.undo(UUID(str(old["scan_id"])), staff_id=staff)
 
+        # The piece the scan put away moved on since: the scan is no longer the last word.
         moved = await scan(scans, staff, first.unit.code, ScanMode.PUT_AWAY, context=context)
-        await scan(
-            scans, staff, first.unit.code, ScanMode.PUT_AWAY, context={"location_code": "R01-F02"}
-        )
+        both = [view.unit.id for view in (await units.list_units(painted)).views]
+        await units.move_units(both, location_code="R01-F02", staff_id=staff)
         with pytest.raises(ScanNotUndoableError, match="changed_since"):
             await scans.undo(UUID(str(moved["scan_id"])), staff_id=staff)
 

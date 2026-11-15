@@ -74,7 +74,7 @@ export function StockPanel({ mayManage }: { mayManage: boolean }) {
           {lines.length === 0 ? (
             <p className="mt-6 text-small text-ink-secondary">
               {mayManage
-                ? "Noch nichts im Lager. „Stücke erfassen“ legt die ersten Stücke mit Etikett an."
+                ? "Noch nichts im Lager. „Stücke einbuchen“ bucht die ersten Stücke in einen Platz."
                 : "Noch nichts im Lager."}
             </p>
           ) : (
@@ -169,7 +169,7 @@ function StockRow({ line, mayManage }: { line: StockLineOut; mayManage: boolean 
           <UnitsDialog
             variant={{ variantId: variant.variant_id, title: variant.title, sku: variant.sku }}
             trigger={
-              <Button type="button" size="sm" variant="ghost" aria-label={`Stücke erfassen: ${title}`}>
+              <Button type="button" size="sm" variant="ghost" aria-label={`Stücke einbuchen: ${title}`}>
                 + Stück
               </Button>
             }

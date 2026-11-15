@@ -1,7 +1,7 @@
 """SQLAlchemy Core tables of the ``inventory`` schema.
 
 They mirror migrations ``0005_inventory`` and ``0011_part_stock`` (with the later
-changes of ``0017`` and ``0018``) exactly, including constraint names;
+changes of ``0017``, ``0018`` and ``0019``) exactly, including constraint names;
 ``tests/integration/test_migrations.py`` compares both.
 
 Units refer to catalogue variants with a ``RESTRICT`` key: a variant that has ever had a
@@ -34,6 +34,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from modellbahn.modules.catalog.contracts.variants import VARIANT_REFERENCE
 from modellbahn.modules.identity.contracts.accounts import ACCOUNT_REFERENCE
 from modellbahn.modules.inventory.domain.model import (
+    SCAN_QUANTITY_MAX,
     AllocationStatus,
     LocationKind,
     MovementReason,
@@ -151,7 +152,10 @@ scans = Table(
     Column("response", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("undone_at", DateTime(timezone=True)),
-    CheckConstraint("mode IN ('put_away', 'pick', 'lookup')", name="mode"),
+    # Pieces the scanned model label stood for (putting away, booking out).
+    Column("quantity", SmallInteger, nullable=False, server_default=text("1")),
+    CheckConstraint("mode IN ('put_away', 'pick', 'lookup', 'scrap')", name="mode"),
+    CheckConstraint(f"quantity BETWEEN 1 AND {SCAN_QUANTITY_MAX}", name="quantity_range"),
     CheckConstraint(
         "outcome IN ('applied', 'selected', 'info', 'rejected', 'unknown')", name="outcome"
     ),

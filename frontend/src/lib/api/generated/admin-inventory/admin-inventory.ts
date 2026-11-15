@@ -297,8 +297,8 @@ export const getPrintLabelsUrl = () => {
 }
 
 /**
- * With `format: png` (QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.
- * @summary Labels for units and locations as PDF, for A4 sheets or the Brother QL
+ * A model's label (`variants`, or a unit's, which is the same) carries the variant's EAN-13, no code of a piece; printing it makes no unit. With `format: png` (QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.
+ * @summary Labels for models, locations and parts as PDF, for A4 sheets or the Brother QL
  */
 export const printLabels = async (labelsIn: LabelsIn, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
 
@@ -364,7 +364,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type PrintLabelsMutationVariables = {data: LabelsIn}
 
     /**
- * @summary Labels for units and locations as PDF, for A4 sheets or the Brother QL
+ * @summary Labels for models, locations and parts as PDF, for A4 sheets or the Brother QL
  */
 export const usePrintLabels = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof printLabels>>, TError,PrintLabelsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -1571,7 +1571,8 @@ export const useWriteOffReceipt = <TError = ErrorType<Problem | ValidationProble
 }
 
 /**
- * @summary The central scan command: put away, pick or look up; idempotent by scan id
+ * A label names a model (its EAN-13, or an older unit code standing for its unit's model), never a piece. Putting away books `quantity` pieces of it into the chosen location (labelled pieces first, then new ones); booking out takes `quantity` free pieces out with a reason, from the chosen location or the oldest anywhere, or none (`not_enough_free`). Booking out is for owner and staff.
+ * @summary The central scan command: put away, pick, book out or look up; idempotent by scan id
  */
 export const recordScan = async (scanIn: ScanIn, options?: Parameters<typeof apiFetch>[1]): Promise<ScanOut> => {
 
@@ -1637,7 +1638,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RecordScanMutationVariables = {data: ScanIn}
 
     /**
- * @summary The central scan command: put away, pick or look up; idempotent by scan id
+ * @summary The central scan command: put away, pick, book out or look up; idempotent by scan id
  */
 export const useRecordScan = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordScan>>, TError,RecordScanMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -1947,7 +1948,8 @@ export const getLabelUnitsUrl = () => {
 }
 
 /**
- * @summary New units of a variant, ready for their labels (optionally put away at once)
+ * The pieces are in stock there at once; orders waiting for the variant get them first. Their labels are the variant's model labels (`printLabels` with `variants`), which can be printed before or after.
+ * @summary Book new pieces of a variant into a location (Einbuchen)
  */
 export const labelUnits = async (unitsCreateIn: UnitsCreateIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitBatchOut> => {
 
@@ -2013,7 +2015,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type LabelUnitsMutationVariables = {data: UnitsCreateIn}
 
     /**
- * @summary New units of a variant, ready for their labels (optionally put away at once)
+ * @summary Book new pieces of a variant into a location (Einbuchen)
  */
 export const useLabelUnits = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof labelUnits>>, TError,LabelUnitsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

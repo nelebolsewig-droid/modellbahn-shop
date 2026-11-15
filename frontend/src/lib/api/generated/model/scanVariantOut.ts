@@ -13,6 +13,8 @@
  */
 
 export interface ScanVariantOut {
+  /** Free pieces of it in the chosen location, if one is chosen. */
+  free_here?: number | null;
   free_units: number;
   sku: string;
   title: string;

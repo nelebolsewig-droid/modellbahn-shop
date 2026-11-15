@@ -1,8 +1,8 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ScanIn, ScanOut } from "@/lib/api/generated/model";
+import type { ScanIn, ScanOut, ScrapReason } from "@/lib/api/generated/model";
 import { FakeEventSource } from "@/test/event-source";
 import { requestsTo, routeFetch, type RouteRequest } from "@/test/fetch-routes";
 import { jsonResponse, renderWithQueryClient } from "@/test/render";
@@ -74,6 +74,50 @@ function workshop({ body }: RouteRequest): Response {
   );
 }
 
+const EAN = "2000000000428";
+
+/** A model label as the scan service answers it in the counting modes. */
+function counted(request: RouteRequest): Response {
+  const scan = request.body as ScanIn;
+  if (scan.raw === "R01-F01") {
+    return workshop(request);
+  }
+  const quantity = scan.quantity ?? 1;
+  const variant = { variant_id: "v1", title: "Stellwerk Altenau · H0 · bemalt", sku: "MB-000006-H0-B" };
+  if (scan.mode === "scrap" && quantity > 2) {
+    return jsonResponse(
+      answer(scan, {
+        outcome: "rejected",
+        message: "not_enough_free",
+        quantity,
+        resolved: { kind: "variant", code: EAN },
+        variant: { ...variant, free_units: 2, free_here: null },
+      }),
+    );
+  }
+  const booking = {
+    quantity,
+    location: scan.mode === "scrap" ? null : "R01-F01",
+    in_location: scan.mode === "scrap" ? null : quantity + 2,
+    stored: 0,
+    created: scan.mode === "scrap" ? 0 : quantity,
+    reserved: 0,
+    reserved_for: [],
+    reason: scan.mode === "scrap" ? (scan.context?.reason as ScrapReason) : null,
+    from_locations: scan.mode === "scrap" ? [{ code: "R01-F01", quantity }] : [],
+  };
+  return jsonResponse(
+    answer(scan, {
+      message: scan.mode === "scrap" ? "booked_out" : "booked_in",
+      quantity,
+      resolved: { kind: "variant", code: EAN },
+      variant: { ...variant, free_units: scan.mode === "scrap" ? 4 : quantity + 2, free_here: null },
+      stock_effect: booking,
+      undoable: true,
+    }),
+  );
+}
+
 async function scanByHand(user: ReturnType<typeof userEvent.setup>, code: string) {
   const form = screen.getByRole("form", { name: "Code eintippen" });
   await user.type(within(form).getByRole("textbox"), code);
@@ -133,6 +177,89 @@ describe("ScannerDesk", () => {
     const ids = requestsTo(fetchMock, SCANS).map((request) => (request.body as ScanIn).scan_id);
     expect(ids).toHaveLength(2);
     expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("puts away several pieces with one model label, then counts one piece again", async () => {
+    routeFetch(fetchMock, { [SCANS]: counted });
+    const user = userEvent.setup();
+    renderWithQueryClient(<ScannerDesk staffRole="packer" initialOrderId={null} onStreamClosed={vi.fn()} />);
+
+    await scanByHand(user, "R01-F01");
+    expect(await screen.findByText("Einlagern nach")).toBeInTheDocument();
+    const count = screen.getByLabelText("Anzahl");
+    await user.clear(count);
+    await user.type(count, "7{Enter}");
+    await scanByHand(user, EAN);
+
+    expect(await screen.findByText("+7 · jetzt 9 hier")).toBeInTheDocument();
+    expect(screen.getByText("7 neu")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Anzahl")).toHaveValue("1"));
+    await scanByHand(user, EAN);
+    expect(await screen.findByText("+1 · jetzt 3 hier")).toBeInTheDocument();
+    const sent = requestsTo(fetchMock, SCANS).map((request) => request.body as ScanIn);
+    expect(sent.map((scan) => [scan.raw, scan.quantity, scan.context])).toEqual([
+      ["R01-F01", 1, {}],
+      [EAN, 7, { location_code: "R01-F01" }],
+      [EAN, 1, { location_code: "R01-F01" }],
+    ]);
+  });
+
+  it("books out with a reason and says how many are free when too few are", async () => {
+    routeFetch(fetchMock, { [SCANS]: counted });
+    const user = userEvent.setup();
+    renderWithQueryClient(<ScannerDesk staffRole="staff" initialOrderId={null} onStreamClosed={vi.fn()} />);
+
+    await user.click(screen.getByRole("radio", { name: "Ausbuchen" }));
+    expect(screen.getByText(/Ohne Platz: die ältesten freien Stücke/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Grund")).toHaveValue("sold");
+    await user.selectOptions(screen.getByLabelText("Grund"), "damaged");
+    await scanByHand(user, EAN);
+    expect(await screen.findByText("−1 · Beschädigt · noch 4 frei")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Eins mehr" }));
+    await user.click(screen.getByRole("button", { name: "Eins mehr" }));
+    await scanByHand(user, EAN);
+    expect(await screen.findByText("Nur 2 frei, 3 verlangt. Nichts ausgebucht.")).toBeInTheDocument();
+    // Refused: the Anzahl stays for another try.
+    expect(screen.getByLabelText("Anzahl")).toHaveValue("3");
+    const sent = requestsTo(fetchMock, SCANS).map((request) => request.body as ScanIn);
+    expect(sent.map((scan) => [scan.mode, scan.quantity, scan.context])).toEqual([
+      ["scrap", 1, { reason: "damaged" }],
+      ["scrap", 3, { reason: "damaged" }],
+    ]);
+  });
+
+  it("offers booking out only to owner and staff", () => {
+    routeFetch(fetchMock, {});
+    renderWithQueryClient(<ScannerDesk staffRole="packer" initialOrderId={null} onStreamClosed={vi.fn()} />);
+    expect(screen.getByRole("radio", { name: "Einlagern" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Ausbuchen" })).toBeNull();
+  });
+
+  it("scans a code the hand scanner typed into the Anzahl field, with the number typed before it", async () => {
+    routeFetch(fetchMock, { [SCANS]: counted });
+    const user = userEvent.setup();
+    renderWithQueryClient(<ScannerDesk staffRole="packer" initialOrderId={null} onStreamClosed={vi.fn()} />);
+    await scanByHand(user, "R01-F01");
+    await screen.findByText("Einlagern nach");
+
+    const count = screen.getByLabelText("Anzahl");
+    await user.clear(count);
+    await user.type(count, "5");
+    // The scanner's keys come in a burst, long after the person typed.
+    const start = Date.now() + 1000;
+    const key = (value: string, at: number) => {
+      const event = new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true });
+      Object.defineProperty(event, "timeStamp", { value: at });
+      count.dispatchEvent(event);
+    };
+    [...EAN].forEach((digit, index) => key(digit, start + index));
+    fireEvent.change(count, { target: { value: `5${EAN}` } });
+    key("Enter", start + EAN.length);
+
+    expect(await screen.findByText("+5 · jetzt 7 hier")).toBeInTheDocument();
+    const last = requestsTo(fetchMock, SCANS).at(-1)?.body as ScanIn;
+    expect([last.raw, last.quantity]).toEqual([EAN, 5]);
   });
 
   it("refuses what is no store code without asking the server", async () => {

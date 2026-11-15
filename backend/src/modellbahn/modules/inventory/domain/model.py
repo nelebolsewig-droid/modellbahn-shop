@@ -5,7 +5,9 @@ site, such as the packing table). Only compartments, boxes and staging areas hol
 A location's code is printed on its label, so it never changes and the tree is never
 rearranged; the name may change.
 
-A *unit* is one finished piece with its own code, from labelling to shipping:
+A *unit* is one finished piece with its own code, from labelling to shipping. The code
+is the system's: a label names the model (its variant's EAN-13), and the workshop says
+how many pieces it books; which units that are, the system decides (ADR 0027).
 
     labeled ─▶ in_stock ─▶ allocated ─▶ picked ─▶ shipped
                   ▲            │           │
@@ -48,6 +50,8 @@ LOCATION_NAME_MAX_LENGTH: Final = 60
 SCRAP_NOTE_MAX_LENGTH: Final = 200
 UNITS_PER_BATCH_MAX: Final = 200
 """New pieces labelled at once."""
+SCAN_QUANTITY_MAX: Final = UNITS_PER_BATCH_MAX
+"""Pieces one scan of a model's label books in or out at once."""
 UNITS_SELECTED_MAX: Final = 500
 """Pieces moved or scrapped at once: as many as one list shows."""
 UNITS_COUNTED_MAX: Final = 2000
@@ -682,6 +686,8 @@ class ScanMode(StrEnum):
     PUT_AWAY = "put_away"
     PICK = "pick"
     LOOKUP = "lookup"
+    SCRAP = "scrap"
+    """Book free pieces out with a reason (*Ausbuchen*), sold by default."""
 
 
 class ScanOutcome(StrEnum):
@@ -715,10 +721,19 @@ class Scan:
     response: JsonObject
     created_at: datetime
     undone_at: datetime | None = None
+    quantity: int = 1
+    """Pieces the scanned model label stood for (putting away, booking out)."""
 
-    def matches(self, *, mode: ScanMode, raw: str, context: dict[str, str]) -> bool:
+    def matches(
+        self, *, mode: ScanMode, raw: str, context: dict[str, str], quantity: int = 1
+    ) -> bool:
         """True if a repeated request is the same scan (not a reused id)."""
-        return self.mode is mode and self.raw == raw and self.context == context
+        return (
+            self.mode is mode
+            and self.raw == raw
+            and self.context == context
+            and self.quantity == quantity
+        )
 
     def can_undo(self, now: datetime) -> bool:
         return (

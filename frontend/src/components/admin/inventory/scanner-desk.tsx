@@ -20,15 +20,18 @@ import {
   useGetPickList,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import { getListOrdersQueryKey, listOrders } from "@/lib/api/generated/admin-sales/admin-sales";
-import { ScanMode, type ScanIn, type ScanOut, type StaffRole } from "@/lib/api/generated/model";
+import { ScanMode, type ScanIn, type ScanOut, type ScrapReason, type StaffRole } from "@/lib/api/generated/model";
 import { interpretations } from "@/lib/inventory/codes";
 import { signal, unlockSound } from "@/lib/inventory/feedback";
-import { scanFeedback, SCAN_MODE_LABELS } from "@/lib/inventory/labels";
+import { scanFeedback, SCAN_MODE_LABELS, SCRAP_REASON_LABELS } from "@/lib/inventory/labels";
 import { browserScanStore, flushQueue, isUnreachable, type ScanStore } from "@/lib/inventory/scan-queue";
 import {
   contextFor,
+  COUNTING_MODES,
   initialSession,
   latestAnswer,
+  quantityFor,
+  SCAN_QUANTITY_MAX,
   scanSession,
   type ScanEntry,
   type ScanEvent,
@@ -39,23 +42,26 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, ORDER_EVENT_TYPES, orderEventOf, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import { cn } from "@/lib/utils";
+import { SCRAP_REASONS } from "@/lib/validation/inventory";
 
 import { CameraView, type FlashTone } from "./camera-view";
 import { PickList, PickProgress } from "./pick-list";
 import { entrySummary, ScanResult, scanTime } from "./scan-result";
 
-/** Owner and staff may hand out stock to an order; packers pick what was handed out. */
+/** Owner and staff may hand out stock to an order and book it out; packers pick and put away. */
 const MAY_ALLOCATE: ReadonlySet<StaffRole> = new Set(["owner", "staff"]);
 
 /** How often waiting scans try again while the network is gone. */
 const RETRY_MS = 20_000;
 
-const MODES = [ScanMode.put_away, ScanMode.pick, ScanMode.lookup] as const;
+const MODES = [ScanMode.put_away, ScanMode.pick, ScanMode.scrap, ScanMode.lookup] as const;
 
 const MODE_HINTS: Readonly<Record<ScanMode, string>> = {
   put_away:
-    "Erst den Platz scannen, dann jedes Stück, das dort hineinkommt. Ein Teileetikett bringt die Teile aus dem Wareneingang hinein.",
-  pick: "Bestellung wählen, dann jedes Stück der Pickliste scannen.",
+    "Erst den Platz scannen, dann das Etikett des Modells: Die Anzahl sagt, wie viele Stücke es sind. Ein Teileetikett bringt die Teile aus dem Wareneingang hinein.",
+  pick: "Bestellung wählen, dann für jedes Stück der Pickliste das Etikett des Modells scannen.",
+  scrap:
+    "Grund und Anzahl wählen, dann das Etikett des Modells scannen. Mit Platz gehen die Stücke dort hinaus, sonst die ältesten freien.",
   lookup: "Etikett, Platz, Modell oder Teil scannen: zeigt, was dazu im Lager steht. Bucht nichts.",
 };
 
@@ -188,7 +194,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
       setWaiting((count) => count + 1);
       dispatch({ type: "waiting", scanId: scan.scan_id });
       const reading = interpretations(scan.raw)[0];
-      if (scan.mode === ScanMode.put_away && reading?.kind === "location") {
+      if (COUNTING_MODES.has(scan.mode) && reading?.kind === "location") {
         dispatch({ type: "assume_location", code: reading.code });
       }
       feedback("info");
@@ -203,6 +209,9 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
         return;
       }
       const scanId = crypto.randomUUID();
+      // The Anzahl shown when the label was scanned, even if the answer to an earlier scan
+      // sets it back to 1 before this one goes out.
+      const quantity = quantityFor(sessionRef.current);
       dispatch({ type: "scanned", scanId, raw: text, source, at: Date.now() });
       if (interpretations(text).length === 0) {
         dispatch({ type: "failed", scanId, error: "Das ist kein Code aus dem Lager." });
@@ -217,7 +226,14 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
       // One scan after the other: the answer to a location scan sets the context of the next.
       chain.current = chain.current.then(async () => {
         const current = sessionRef.current;
-        const scan: ScanIn = { scan_id: scanId, raw: text, mode: current.mode, source, context: contextFor(current) };
+        const scan: ScanIn = {
+          scan_id: scanId,
+          raw: text,
+          mode: current.mode,
+          source,
+          context: contextFor(current),
+          quantity,
+        };
         // Scans that wait go first, so the server sees them in the order they happened.
         if (waitingRef.current > 0 && (await flush()) > 0) {
           await keepForLater(scan);
@@ -345,6 +361,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
 
   const latest = latestAnswer(session);
   const checking = session.entries.some((entry) => entry.state === "sending");
+  const modes = MODES.filter((mode) => mode !== ScanMode.scrap || MAY_ALLOCATE.has(staffRole));
 
   return (
     <>
@@ -362,7 +379,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
         onValueChange={(value) => dispatch({ type: "mode", mode: value as ScanMode })}
         className="mt-6"
       >
-        {MODES.map((mode) => (
+        {modes.map((mode) => (
           <OptionPill key={mode} value={mode}>
             {SCAN_MODE_LABELS[mode]}
           </OptionPill>
@@ -384,8 +401,24 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="space-y-5">
-          {session.mode === ScanMode.put_away ? (
-            <PlaceBar code={session.locationCode} name={session.locationName} onLeave={() => dispatch({ type: "leave_location" })} />
+          {session.mode === ScanMode.scrap ? (
+            <ReasonChooser reason={session.reason} onChoose={(reason) => dispatch({ type: "reason", reason })} />
+          ) : null}
+          {COUNTING_MODES.has(session.mode) ? (
+            <PlaceBar
+              mode={session.mode === ScanMode.scrap ? "scrap" : "put_away"}
+              code={session.locationCode}
+              name={session.locationName}
+              onLeave={() => dispatch({ type: "leave_location" })}
+            />
+          ) : null}
+          {COUNTING_MODES.has(session.mode) ? (
+            <CountField
+              key={session.quantity}
+              value={session.quantity}
+              onChange={(quantity) => dispatch({ type: "quantity", quantity })}
+              onCode={(code) => submit(code, "scanner")}
+            />
           ) : null}
           {session.mode === ScanMode.pick ? (
             <OrderChooser orderId={session.orderId} onChoose={(orderId) => dispatch({ type: "order", orderId })} />
@@ -460,22 +493,159 @@ function ScanGlyph({ className }: { className?: string }) {
   );
 }
 
-/** Putting away: the place the next pieces go into, like the route display on a platform. */
-function PlaceBar({ code, name, onLeave }: { code: string | null; name: string | null; onLeave: () => void }) {
+/** Booking out: why the pieces leave. The select lets go of the focus at once, so the
+ * hand scanner's next code does not pick another reason by typing. */
+function ReasonChooser({ reason, onChoose }: { reason: ScrapReason; onChoose: (reason: ScrapReason) => void }) {
+  return (
+    <div>
+      <label htmlFor="scrap-reason" className="label-caps text-ink-tertiary">
+        Grund
+      </label>
+      <Select
+        id="scrap-reason"
+        className="mt-2"
+        value={reason}
+        onChange={(event) => {
+          onChoose(event.target.value as ScrapReason);
+          event.target.blur();
+        }}
+      >
+        {SCRAP_REASONS.map((value) => (
+          <option key={value} value={value}>
+            {SCRAP_REASON_LABELS[value]}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
+/**
+ * How many pieces the next model label stands for: minus, number, plus. Taken over with
+ * Enter or when the field is left. A hand scanner that types into the field by mistake is
+ * recognised by its rhythm: its code is scanned, the number typed before it stays.
+ */
+function CountField({
+  value,
+  onChange,
+  onCode,
+}: {
+  value: number;
+  onChange: (quantity: number) => void;
+  onCode: (code: string) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const reader = useRef<{ wedge: WedgeReader; code: string | null } | null>(null);
+  // Set while a scan typed into the field is handled: leaving the field then takes nothing.
+  const scanned = useRef(false);
+  const take = (text: string) => {
+    const quantity = Number.parseInt(text, 10);
+    if (Number.isInteger(quantity) && quantity >= 1 && quantity <= SCAN_QUANTITY_MAX && quantity !== value) {
+      onChange(quantity);
+    } else {
+      setDraft(String(value));
+    }
+  };
+  const step = (delta: number) => onChange(Math.min(SCAN_QUANTITY_MAX, Math.max(1, value + delta)));
+  return (
+    <div>
+      <label htmlFor="scan-quantity" className="label-caps text-ink-tertiary">
+        Anzahl
+      </label>
+      <div className="mt-2 flex items-center gap-2">
+        <Button type="button" variant="secondary" aria-label="Eins weniger" disabled={value <= 1} onClick={() => step(-1)}>
+          −
+        </Button>
+        <Input
+          id="scan-quantity"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value.replace(/\D/g, ""))}
+          onFocus={(event) => event.target.select()}
+          onBlur={() => {
+            if (scanned.current) {
+              scanned.current = false;
+            } else {
+              take(draft);
+            }
+          }}
+          onKeyDown={(event) => {
+            reader.current ??= {
+              code: null,
+              wedge: new WedgeReader((code) => {
+                if (reader.current) {
+                  reader.current.code = code;
+                }
+              }),
+            };
+            if (reader.current.wedge.feed(event.key, event.timeStamp)) {
+              event.preventDefault();
+              const code = reader.current.code ?? "";
+              reader.current.code = null;
+              // The field keeps digits only: what the person typed is what comes before
+              // the code's digits.
+              const digits = code.replace(/\D/g, "");
+              take(draft.endsWith(digits) ? draft.slice(0, draft.length - digits.length) : "");
+              onCode(code);
+              scanned.current = true;
+              event.currentTarget.blur();
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          inputMode="numeric"
+          autoComplete="off"
+          aria-describedby="scan-quantity-hint"
+          className="w-24 text-center font-mono tabular-nums"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          aria-label="Eins mehr"
+          disabled={value >= SCAN_QUANTITY_MAX}
+          onClick={() => step(1)}
+        >
+          +
+        </Button>
+        <p id="scan-quantity-hint" className="min-w-0 text-hint text-ink-tertiary">
+          {value === 1 ? "Stück je Etikett" : "Stücke für das nächste Etikett, danach wieder 1"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Putting away: the place the next pieces go into, like the route display on a platform.
+ * Booking out: the place they leave, or none (the oldest free pieces, wherever they lie). */
+function PlaceBar({
+  mode,
+  code,
+  name,
+  onLeave,
+}: {
+  mode: "put_away" | "scrap";
+  code: string | null;
+  name: string | null;
+  onLeave: () => void;
+}) {
   if (code === null) {
     return (
       <div className="flex items-center gap-3 rounded-md border border-dashed border-line-control px-4 py-3">
         <span aria-hidden="true" className="font-mono text-heading text-ink-disabled">
-          leer
+          {mode === "scrap" ? "alle" : "leer"}
         </span>
-        <p className="text-small text-ink-secondary">Noch kein Platz gewählt: zuerst das Etikett am Fach scannen.</p>
+        <p className="text-small text-ink-secondary">
+          {mode === "scrap"
+            ? "Ohne Platz: die ältesten freien Stücke, wo sie auch liegen. Für einen Platz sein Etikett scannen."
+            : "Noch kein Platz gewählt: zuerst das Etikett am Fach scannen."}
+        </p>
       </div>
     );
   }
   return (
     <div className="flex items-center justify-between gap-4 rounded-md bg-selected px-4 py-3 text-on-selected">
       <div className="min-w-0">
-        <p className="label-caps text-on-selected/60">Einlagern nach</p>
+        <p className="label-caps text-on-selected/60">{mode === "scrap" ? "Ausbuchen aus" : "Einlagern nach"}</p>
         <p className="mt-1 truncate font-mono text-[1.5rem] leading-8 font-medium tracking-wider">{code}</p>
         {name ? <p className="truncate text-small text-on-selected/75">{name}</p> : null}
       </div>
@@ -486,7 +656,7 @@ function PlaceBar({ code, name, onLeave }: { code: string | null; name: string |
         onClick={onLeave}
         className="border-on-selected/40 text-on-selected hover:border-on-selected hover:bg-on-selected/10"
       >
-        Platz wechseln
+        {mode === "scrap" ? "Ohne Platz" : "Platz wechseln"}
       </Button>
     </div>
   );

@@ -195,10 +195,13 @@ class UnitService:
         location_code: str | None,
         staff_id: UUID | None,
     ) -> list[UnitView]:
-        """New units of a variant, ready for their labels.
+        """New pieces of a variant (*Einbuchen*): the workshop counted them, their labels
+        are the variant's model labels.
 
-        With a location they are put away at once, and orders waiting for the variant
-        get them first; without one they wait for the put-away scan.
+        With a location (the API always asks for one) they are put away at once, and
+        orders waiting for the variant get them first. Without one they are labelled
+        pieces, as the workshop made them before model labels: the next put-away scan of
+        the model stores them first.
         """
         if not 1 <= quantity <= UNITS_PER_BATCH_MAX:
             raise InvalidFieldError(

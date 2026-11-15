@@ -227,42 +227,114 @@ Farbe zugeordnet ist. Ohne Zuordnung zeigt er bei jeder Farbe das erste Foto.
 
 ### Etiketten der Modelle
 
-- **Neue Stücke erfassen:** Lager → „Stücke erfassen“, Modell suchen, Anzahl „Stück“
-  und Platz eintragen, „Erfassen und Etiketten drucken“. Unterwegs geht es mit dem Handy
-  unter Mehr → „Neues Modell“ (am Schreibtisch: Katalog → „Neues Modell“). Dort bei „Wie
-  viele Stücke liegen fertig da?“ die Anzahl eintragen; bei 0 entsteht nur das Modell,
-  ohne Etikett.
-- **Drucken:** A4-Bogen oder Brother-Rolle 62 mm wählen. Für die Brother-App „Als Bilder
-  für die Brother-App“: jedes Etikett als Bild, einzeln oder als ZIP.
-- Auf jedem Etikett stehen der Preis (oben rechts) sowie Hersteller, Anschrift und E-Mail
-  aus dem Impressum.
-- **Preis geändert?** Die gedruckten Etiketten zeigen den alten Preis: auf der Seite des
-  Stücks (Code scannen oder im Lager öffnen) das Etikett neu drucken.
-- **Ohne Platz erfasst?** Dann bleiben die Stücke „Unverbucht“ und sind im Shop und bei eBay
-  nicht lieferbar, bis sie eingelagert sind (nächster Abschnitt).
+Ein Etikett nennt das Modell (die Ausführung), nie ein einzelnes Stück: EAN für Kasse und
+Scanner, Name, Ausführung und Farbe, Artikelnummer, Preis (oben rechts) sowie Hersteller,
+Anschrift und E-Mail aus dem Impressum. Dasselbe Etikett passt auf jedes Stück des Modells;
+wie viele Stücke es sind, sagt man beim Einbuchen oder Scannen.
 
-### Unverbuchte Stücke einlagern
+- **Etiketten drucken:** Beim Einbuchen (nächster Abschnitt) ist „Etiketten drucken“
+  vorausgewählt, eins je Stück. Drucken allein bucht nichts.
+- **Drucker:** A4-Bogen oder Brother-Rolle 62 mm wählen. Für die Brother-App „Als Bilder
+  für die Brother-App“: ein Bild je Modell (in der App die Anzahl der Kopien einstellen),
+  alle zusammen als ZIP.
+- **Etikett neu drucken** (abgerissen, Preis geändert, Ausführung korrigiert): auf der
+  Seite des Stücks (Lager → „Stücke“ beim Modell) „Etikett neu drucken“. Es ist dasselbe
+  Etikett wie das des Modells.
+- Alte Etiketten mit einem zweiten, längeren Strichcode (dem Code eines Stücks) gelten
+  weiter; der Scanner liest sie als Etikett ihres Modells.
 
-Shop und eBay zählen nur Stücke, die in einem Platz liegen. Ein Stück mit Etikett, das nie
-eingelagert wurde, liegt vielleicht im Regal, ist online aber nicht zu haben.
+### Stücke einbuchen
+
+Fertige Stücke (von der Werkbank, aus einer Lieferung) kommen mit Platz in den Bestand:
+
+1. Lager → „Stücke einbuchen“ (oder im Bestand „+ Stück“ beim Modell, im Katalog beim
+   Modell „Stücke einbuchen“). Unterwegs mit dem Handy: Mehr → „Neues Modell“, dort bei
+   „Wie viele Stücke liegen fertig da?“ die Anzahl und den Platz.
+2. Ausführung wählen, **Anzahl** eintragen, **Platz** wählen. Vorgeschlagen ist der Platz,
+   in dem das Modell schon liegt, sonst der zuletzt benutzte.
+3. „Einbuchen und Etiketten drucken“. Ohne Haken bei „Etiketten drucken“ heißt der Knopf
+   „Einbuchen“.
+
+- Die Stücke sind sofort im Shop und bei eBay lieferbar. Wartet eine Bestellung auf das
+  Modell, bekommt sie die ersten Stücke gleich.
+- Stücke aus der Montage bucht die Montage selbst, wie bisher.
+
+### Einlagern mit Anzahl
+
+Mit „Scannen“ (Knopf oben rechts, auf dem Handy in der Mitte der unteren Leiste):
+
+1. Modus „Einlagern“, das Etikett am Fach scannen. Oben steht „Einlagern nach R01-F01“.
+2. Bei **Anzahl** eintragen, wie viele Stücke es sind (oder mit + und −), dann ein
+   Etikett des Modells scannen. Die Antwort sagt etwa „+7 · jetzt 9 hier“.
+3. Die Anzahl springt danach auf 1 zurück: Das nächste Etikett zählt ein Stück, bis man
+   wieder eine Zahl einträgt.
+
+- Liegen noch unverbuchte Stücke des Modells (von früher), bucht der Scan zuerst diese
+  ein, den Rest neu. Gezählt wird nur, was eingetragen ist.
+- Ein Etikett eines Stücks, das schon im Lager liegt, zählt ebenso als „+1“ (bzw. „+N“) am
+  gewählten Platz. Umlagern per Scan gibt es nicht mehr, dafür „Umlagern …“ in den Listen.
+- Vertippt? „Rückgängig“ auf der Antwortkarte (10 Sekunden angeboten, 10 Minuten möglich)
+  nimmt den ganzen Scan zurück.
+- Ein Teileetikett lagert wie bisher alle Teile aus dem Wareneingang ein.
+
+### Verkauf per Scan ausbuchen
+
+Auf der Messe, im Laden oder privat verkauft (Inhaber und Mitarbeiter):
+
+1. „Scannen“ → Modus „Ausbuchen“.
+2. **Grund** wählen (vorgewählt: „Verkauft (Messe, Laden, privat)“), bei **Anzahl** die
+   Zahl der verkauften Stücke.
+3. Optional das Etikett des Platzes scannen, aus dem sie kommen („Ausbuchen aus R01-F01“).
+   Ohne Platz („alle“) gehen die ältesten freien Stücke, wo sie auch liegen.
+4. Ein Etikett des Modells scannen. Die Antwort sagt etwa „−3 · Verkauft · noch 2 hier“.
+
+- Es gehen nur freie Stücke, nie für eine Bestellung reservierte. Sind weniger frei als
+  angegeben, bucht der Scan nichts und sagt, wie viele frei sind.
+- „Rückgängig“ legt die Stücke wieder dorthin, wo sie lagen.
+- Die Kasse (SumUp) kennt dieselben Etiketten. Ein Verkauf an der Kasse bucht im Shop noch
+  nichts aus: dafür dieser Scan.
+
+### Bestand auf Modell-Etiketten umstellen
+
+Vor dem 15.11.2026 zählte jedes Etikett als ein Stück: Wer ein Etikett auf sieben Stücke
+geklebt hat, hat im Stellwerk eins. Dazu kommen unverbuchte Stücke von Etiketten, die
+gedruckt, aber nie eingelagert wurden. Einmal je Modell richtigstellen:
+
+1. **Zählen:** am Regal zählen, was wirklich da ist. Lager → beim Modell „Stücke“ zeigt, was
+   das Stellwerk wo hat (gelb: unverbucht).
+2. **Alte unverbuchte ausbuchen:** Lager → gelber Hinweis „… unverbucht“ → „Unverbuchte
+   einlagern“, die Stücke ankreuzen („Alle auswählen“ oder „Alle“ je Modell),
+   „Ausbuchen …“, Grund „Versehen“ (bei unverbuchten vorgewählt), „Ausbuchen“.
+3. **Fehlende einbuchen:** „Scannen“ → „Einlagern“, das Fach scannen, bei **Anzahl** die
+   fehlende Zahl eintragen (gezählt minus im Stellwerk, etwa 7 − 1 = 6), ein Etikett des
+   Modells scannen. Die Antwort zeigt „jetzt 7 hier“. Je Fach, in dem das Modell liegt.
+4. **Zeigt das Stellwerk mehr, als da ist:** die überzähligen ausbuchen wie unter „Bestand
+   korrigieren“, oder per Scan im Modus „Ausbuchen“ mit Platz und Grund „Fehlt bei
+   Inventur“.
+
+- Schritt 2 zuerst: Ein Einlager-Scan bucht vorhandene unverbuchte Stücke des Modells vor
+  neuen ein. Die Zahl stimmt so oder so, nur steht dann ein altes Stück im Lager.
+- Bis ein Modell umgestellt ist, zeigen Shop und eBay davon meist zu wenig an.
+
+### Unverbuchte Stücke
+
+Unverbucht sind Stücke, deren Etikett gedruckt, die aber nie eingelagert wurden: aus der
+Zeit, als Drucken Stücke anlegte. Shop und eBay zählen sie nicht.
 
 - **Finden:** Lager → im Bestand der gelbe Hinweis „… unverbucht“ → „Unverbuchte
   einlagern“. Die Liste zeigt alle unverbuchten Stücke, nach Modell geordnet.
-- **Einlagern:** die Stücke ankreuzen, die im Regal liegen („Alle auswählen“ oder „Alle“ je
-  Modell), „Einlagern …“, den Platz suchen (Code oder Name) und „Hier einlagern“. Danach
-  sind sie im Shop lieferbar; wartet eine Bestellung auf das Modell, bekommt sie das Stück.
-- **Etikett doppelt gedruckt?** Das überzählige Stück ankreuzen, „Ausbuchen …“, Grund
-  „Falsch erfasst“.
-- Ein einzelnes Stück geht auch auf seiner Seite: „Einlagern …“ im Steckbrief.
+- **Liegen sie im Regal:** ankreuzen („Alle auswählen“ oder „Alle“ je Modell),
+  „Einlagern …“, Platz wählen, „Hier einlagern“. Oder per Scan mit Anzahl: Der
+  Einlager-Scan bucht unverbuchte Stücke des Modells zuerst ein.
+- **Gibt es sie nicht** (doppelt gedruckt): ankreuzen, „Ausbuchen …“, Grund „Versehen“.
 
 ### Stücke umlagern
 
 - **Mehrere auf einmal:** Lager → Platz öffnen (oder unter „Stücke“ das Modell), die Stücke
   ankreuzen, „Umlagern …“, Zielplatz wählen, „Hierher umlagern“. Reservierte Stücke behalten
   ihre Bestellung; was schon dort liegt, bleibt, wie es ist.
-- **Ein Stück:** auf seiner Seite „Umlagern …“. Mit „Scannen“ (Knopf oben rechts, auf dem
-  Handy in der Mitte der unteren Leiste) geht es wie bisher: „Einlagern“, Zielplatz
-  scannen, dann die Stücke.
+- **Ein Stück:** auf seiner Seite „Umlagern …“. Mit dem Scanner geht Umlagern nicht mehr:
+  Ein Etikett nennt das Modell, nicht das Stück, und ein Einlager-Scan zählt Stücke dazu.
 - Kommissionierte, versendete und ausgebuchte Stücke lassen sich nicht ankreuzen. Ist eins
   inzwischen kommissioniert worden, bucht der Shop nichts und sagt es im Dialog.
 
@@ -276,8 +348,9 @@ Zeigt das Stellwerk mehr Stücke, als im Regal liegen:
 3. Die fehlenden Stücke ankreuzen, „Ausbuchen …“, Grund „Fehlt bei Inventur“, optional eine
    Notiz („Inventur November“), „Ausbuchen“.
 
-- Weitere Gründe: „Verkauft (Messe, Laden, privat)“, „Beschädigt“, „Falsch erfasst“. Der
-  Grund steht danach auf der Seite des Stücks.
+- Weitere Gründe: „Verkauft (Messe, Laden, privat)“, „Beschädigt“, „Versehen“ (früher
+  „Falsch erfasst“). Der Grund steht danach auf der Seite des Stücks. Verkaufte Stücke bucht
+  der Scanner schneller aus („Verkauf per Scan ausbuchen“).
 - Ausbuchen dürfen Inhaber und Mitarbeiter. War ein Stück für eine Bestellung reserviert,
   bekommt sie ein anderes oder wartet auf die Fertigung.
 - Kommissionierte und versendete Stücke gehören zu einer Bestellung; die Liste bucht sie
@@ -322,9 +395,11 @@ Einen Platz Stück für Stück zählen und das Ergebnis auf einmal buchen:
 
 1. Lager → Platz öffnen (Fach, Box oder Ablage) → „Inventur …“. Die Liste zeigt alle
    Stücke, die laut Lager hier liegen.
-2. Jedes Stück, das da ist, abhaken oder sein Etikett scannen (Handscanner, Kamera-App mit
-   Tastatur oder den Code eintippen und Enter). Liegt hier ein Stück, das anderswo gebucht,
-   unverbucht oder ausgebucht ist: sein Etikett scannen, es erscheint unter „Gefunden“.
+2. Jedes Stück, das da ist, abhaken. Alte Etiketten mit dem Code des Stücks lassen sich
+   auch scannen (Handscanner, Kamera-App mit Tastatur oder den Code eintippen und Enter);
+   Modell-Etiketten tragen keinen Code eines Stücks, die Inventur erkennt sie noch nicht.
+   Liegt hier ein Stück mit altem Etikett, das anderswo gebucht, unverbucht oder
+   ausgebucht ist: sein Etikett scannen, es erscheint unter „Gefunden“.
 3. „Abschließen …“ zeigt, was gebucht wird: wie viele bestätigt sind, welche fehlen
    (werden ausgebucht mit Grund „Fehlt bei Inventur“) und welche gefunden wurden (werden hier
    eingelagert, ausgebuchte wieder eingebucht). „Inventur buchen“ bucht alles zusammen.

@@ -4,18 +4,30 @@ The device gives every scan its own id. A scan that arrives again (the phone los
 connection and retries) gets the answer it got the first time, without a second
 booking. Every scan is kept with its answer, the rejected ones too.
 
-* **Put away** (*Einlagern*): scan the location, then any number of units. A labelled
-  unit is stored there, a stored one moves there. A unit that becomes free goes to the
-  order that has waited longest for its variant. A part's label (its part number) puts
-  every part of it that waits in receiving into the location (*Wareneingang*).
-* **Pick** (*Kommissionieren*): for one paid order. A reserved unit of the order is
-  picked; any free unit of an article the order still lacks is taken instead of the
-  reserved one (that one goes back to free stock). A wrong article is rejected.
-* **Look up** (*Auskunft*): show what a code is, book nothing.
+A label names a model (a variant), never a piece: the variant's EAN-13, and on older
+labels a unit code, which stands for its unit's variant. The workshop sticks the same
+label on every piece of the model and says how many pieces a scan books (``quantity``);
+which units those are, the system decides (ADR 0027).
+
+* **Put away** (*Einlagern*): scan the location, then a model's label: ``quantity``
+  pieces of it go into the location, its labelled pieces first (oldest first), then new
+  pieces straight into stock. A piece that becomes free goes to the order that has
+  waited longest for its variant. A part's label (its part number) puts every part of
+  it that waits in receiving into the location (*Wareneingang*).
+* **Pick** (*Kommissionieren*): for one paid order. A model's label picks a piece of it
+  that is reserved for the order (the scanned one, if an old label named such a piece);
+  for a piece still waiting, the oldest free one is taken. A wrong article is rejected.
+* **Book out** (*Ausbuchen*): ``quantity`` free pieces of the model leave the stock with
+  a reason (sold, unless the context says otherwise): from the chosen location, else
+  the oldest anywhere. If fewer are free, nothing is booked.
+* **Look up** (*Auskunft*): show what a code is (an old unit code: that piece), book
+  nothing.
 
 A booking scan can be undone for ten minutes, as long as its units have not moved on
 and its parts are still in the box: the movements are booked backwards, the journals
-keep both.
+keep both. Pieces the scan made leave the stock again, as recorded by mistake.
+
+Every scan locks the units it books in one go, by id, as every other path does.
 """
 
 from collections.abc import Sequence
@@ -25,6 +37,7 @@ from typing import Final
 from uuid import UUID
 
 from modellbahn.modules.inventory.application.allocation import (
+    Allocator,
     PickItem,
     PickList,
     PieceState,
@@ -37,9 +50,14 @@ from modellbahn.modules.inventory.application.common import (
 )
 from modellbahn.modules.inventory.application.parts import walking_order
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
-from modellbahn.modules.inventory.application.units import put_away, unit_views
+from modellbahn.modules.inventory.application.units import (
+    label_new_units,
+    put_away,
+    unit_views,
+)
 from modellbahn.modules.inventory.domain.errors import (
     InsufficientPartsError,
+    InvalidFieldError,
     InvalidReceiptStateError,
     InvalidUnitStateError,
     ScanIdReusedError,
@@ -47,13 +65,15 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanNotUndoableError,
 )
 from modellbahn.modules.inventory.domain.model import (
-    GONE,
+    SCAN_QUANTITY_MAX,
     LedgerEntry,
     Location,
     Movement,
+    MovementReason,
     Scan,
     ScanMode,
     ScanOutcome,
+    ScrapReason,
     Unit,
     UnitStatus,
 )
@@ -67,8 +87,11 @@ from modellbahn.platform.uow import UniqueViolationError
 
 LOCATION_CONTEXT: Final = "location_code"
 ORDER_CONTEXT: Final = "order_id"
+REASON_CONTEXT: Final = "reason"
 SCAN_SOURCES: Final = frozenset({"camera", "scanner", "keyboard"})
 PART_LOCATIONS_SHOWN: Final = 6
+UNDONE_NOTE: Final = "Scan zurückgenommen"
+"""The note of a piece a scan made, when the scan is undone (reason: mistake)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +101,21 @@ class ScanRequest:
     mode: ScanMode
     source: str
     context: dict[str, str]
-    """``location_code`` when putting away, ``order_id`` when picking."""
+    """``location_code`` when putting away (and booking out from one location),
+    ``order_id`` when picking, ``reason`` (a :class:`ScrapReason`) when booking out."""
+    quantity: int = 1
+    """Pieces a model's label stands for when putting away or booking out (1 to 200);
+    the other modes book one piece, or every part waiting for a box."""
+
+
+def _check(request: ScanRequest) -> None:
+    if not 1 <= request.quantity <= SCAN_QUANTITY_MAX:
+        raise InvalidFieldError(
+            "quantity", "out_of_range", f"between 1 and {SCAN_QUANTITY_MAX} pieces"
+        )
+    reason = request.context.get(REASON_CONTEXT)
+    if reason is not None and reason not in {member.value for member in ScrapReason}:
+        raise InvalidFieldError("context.reason", "invalid", "not a reason for booking out")
 
 
 @dataclass(slots=True)
@@ -94,6 +131,7 @@ class _Answer:
     part: JsonObject | None = None
     effect: JsonObject | None = None
     part_effect: JsonObject | None = None
+    stock_effect: JsonObject | None = None
     progress: JsonObject | None = None
     next_expected: JsonObject | None = None
 
@@ -106,6 +144,7 @@ class _Answer:
         return {
             "scan_id": str(scan.id),
             "mode": scan.mode.value,
+            "quantity": scan.quantity,
             "outcome": self.outcome.value,
             "message": self.message,
             "resolved": resolved,
@@ -115,6 +154,7 @@ class _Answer:
             "part": self.part,
             "effect": self.effect,
             "part_effect": self.part_effect,
+            "stock_effect": self.stock_effect,
             "progress": self.progress,
             "next_expected": self.next_expected,
         }
@@ -131,6 +171,7 @@ class ScanService:
 
     async def scan(self, request: ScanRequest, *, staff_id: UUID) -> JsonObject:
         """Interpret and book the scan; a repeated scan id gets its first answer again."""
+        _check(request)
         try:
             return await self._scan(request, staff_id)
         except UniqueViolationError:
@@ -153,6 +194,7 @@ class ScanService:
                 outcome=ScanOutcome.UNKNOWN,
                 response={},
                 created_at=now,
+                quantity=request.quantity,
             )
             uow.scans.add(scan)
             # The journal entries refer to the scan.
@@ -174,14 +216,25 @@ class ScanService:
             return self._repeat(existing, request)
 
     def _repeat(self, scan: Scan, request: ScanRequest) -> JsonObject:
-        if not scan.matches(mode=request.mode, raw=request.raw, context=request.context):
+        if not scan.matches(
+            mode=request.mode,
+            raw=request.raw,
+            context=request.context,
+            quantity=request.quantity,
+        ):
             raise ScanIdReusedError
         return _with_undo_state(
             scan, dict(scan.response), can_undo=scan.can_undo(self._clock.now())
         )
 
     async def undo(self, scan_id: UUID, *, staff_id: UUID) -> JsonObject:
-        """Book the scan's movements backwards; the journal keeps both directions."""
+        """Book the scan's movements backwards; the journal keeps both directions.
+
+        A piece the scan made (put away with a quantity, more than lay labelled) cannot
+        go back to before its label: it leaves the stock as recorded by mistake, so the
+        count is what it was. Pieces booked out are free again where they lay, and the
+        order waiting longest for their variant gets them, as with any piece put away.
+        """
         async with self._uow() as uow:
             scan = await uow.scans.get(scan_id, for_update=True)
             if scan is None:
@@ -194,17 +247,30 @@ class ScanService:
                 raise ScanNotUndoableError(reason)
             journal = Journal(uow, staff_id=staff_id, now=now)
             entries = await uow.ledger.for_scan(scan.id)
+            units = {unit.id: unit for unit in await uow.units.lock({e.unit_id for e in entries})}
+            freed: list[Unit] = []
             for entry in reversed(entries):
-                unit = await uow.units.get(entry.unit_id, for_update=True)
+                unit = units.get(entry.unit_id)
                 if unit is None:  # pragma: no cover - units are never deleted
                     raise ScanNotUndoableError("changed_since")
                 if await _booked_since(uow, entry, entries):
                     raise ScanNotUndoableError("changed_since")
+                if entry.reason is MovementReason.LABEL:
+                    # Made by the scan: it never existed.
+                    if not unit.is_in(entry.movement()):
+                        raise ScanNotUndoableError("changed_since")
+                    await journal.book(unit, unit.scrap(UNDONE_NOTE, now, ScrapReason.MISTAKE))
+                    continue
                 try:
                     movement = unit.revert(entry.movement(), now)
                 except InvalidUnitStateError as exc:
                     raise ScanNotUndoableError("changed_since") from exc
                 await journal.book(unit, movement, reverses=entry)
+                if entry.reason is MovementReason.SCRAP:
+                    freed.append(unit)
+            allocator = Allocator(uow, journal)
+            for unit in freed:
+                await allocator.serve_backorder(unit)
             await _undo_parts(uow, scan, staff_id=staff_id, now=now)
             scan.mark_undone(now)
             await uow.commit()
@@ -256,19 +322,6 @@ async def _undo_parts(
     await journal.announce()
 
 
-def _put_away_refusal(unit: Unit, location: Location) -> str | None:
-    """Why ``unit`` cannot go into ``location``, if it cannot."""
-    if unit.status in GONE:
-        return "unit_gone"
-    if unit.status is UnitStatus.PICKED:
-        return "unit_picked"
-    if not location.holds_goods:
-        return "holds_no_goods"
-    if unit.location_id == location.id:
-        return "already_there"
-    return None
-
-
 class _Interpreter:
     """Decides what one scan means and books it, inside the scan's unit of work."""
 
@@ -284,15 +337,17 @@ class _Interpreter:
         self._part_journal = part_journal
         self._request = request
         self._now = journal.now
+        self._place: Location | None = None
+        """The location of the context, once it was found and holds goods."""
 
     async def run(self) -> _Answer:
         readings = interpretations(self._request.raw)
         if not readings:
             return _Answer(ScanOutcome.UNKNOWN, "unknown_code")
-        locking = self._request.mode is not ScanMode.LOOKUP
         for reading in readings:
             if reading.kind is CodeKind.UNIT:
-                unit = await self._uow.units.get_by_code(reading.code, for_update=locking)
+                # Not locked: the units a scan books are locked together, by id.
+                unit = await self._uow.units.get_by_code(reading.code)
                 if unit is not None:
                     return await self._on_unit(reading, unit)
             elif reading.kind is CodeKind.LOCATION:
@@ -312,14 +367,11 @@ class _Interpreter:
     # --- What was scanned -----------------------------------------------------------
 
     async def _on_unit(self, reading: Reading, unit: Unit) -> _Answer:
-        match self._request.mode:
-            case ScanMode.PUT_AWAY:
-                answer = await self._put_away(unit)
-            case ScanMode.PICK:
-                answer = await self._pick(unit)
-            case ScanMode.LOOKUP:
-                answer = _Answer(ScanOutcome.INFO, "unit")
-        answer.resolved = reading
+        """An older label with a unit's code: a look-up shows that piece; everywhere
+        else it stands for the piece's model, like the EAN beside it."""
+        if self._request.mode is not ScanMode.LOOKUP:
+            return await self._on_variant(reading, unit.variant_id, scanned=unit)
+        answer = _Answer(ScanOutcome.INFO, "unit", resolved=reading)
         answer.unit = await self._unit_info(unit)
         return answer
 
@@ -332,30 +384,28 @@ class _Interpreter:
             answer.location = info
             await self._add_progress(answer)
             return answer
+        # Putting away and booking out: the location of the scans that follow.
         if not location.holds_goods:
             return _Answer(ScanOutcome.REJECTED, "holds_no_goods", resolved=reading, location=info)
         return _Answer(ScanOutcome.SELECTED, "location_selected", resolved=reading, location=info)
 
-    async def _on_variant(self, reading: Reading, variant_id: UUID) -> _Answer:
-        """The article's EAN-13 (the till's barcode): stands for one piece of the article.
+    async def _on_variant(
+        self, reading: Reading, variant_id: UUID, *, scanned: Unit | None = None
+    ) -> _Answer:
+        """A model's label: its EAN-13 (the till's barcode), or an older unit code.
 
-        Putting away takes the oldest piece of it that is labelled but not stored yet;
-        picking takes the piece of it the order is waiting for.
+        Putting away and booking out take ``quantity`` pieces of it; picking takes the
+        piece of it the order is waiting for.
         """
         match self._request.mode:
             case ScanMode.LOOKUP:
                 answer = _Answer(ScanOutcome.INFO, "variant")
             case ScanMode.PUT_AWAY:
-                labelled = await self._uow.units.oldest_labeled(variant_id)
-                answer = (
-                    await self._put_away(labelled)
-                    if labelled is not None
-                    else _Answer(ScanOutcome.REJECTED, "no_unit_to_store")
-                )
-                if labelled is not None:
-                    answer.unit = await self._unit_info(labelled)
+                answer = await self._book_in(variant_id)
             case ScanMode.PICK:
-                answer = await self._pick_variant(variant_id)
+                answer = await self._pick_variant(variant_id, scanned)
+            case ScanMode.SCRAP:
+                answer = await self._book_out(variant_id)
         answer.resolved = reading
         answer.variant = await self._variant_info(variant_id)
         return answer
@@ -370,18 +420,21 @@ class _Interpreter:
             case ScanMode.PICK:
                 answer = _Answer(ScanOutcome.REJECTED, "scan_unit_label")
                 await self._add_progress(answer)
+            case ScanMode.SCRAP:
+                answer = _Answer(ScanOutcome.REJECTED, "scan_unit_label")
         answer.resolved = reading
         answer.part = await self._part_info(part)
         return answer
 
-    # --- Putting away ---------------------------------------------------------------
+    # --- The location of the context ------------------------------------------------
 
-    async def _store_parts(self, part: PartInfo) -> _Answer:
-        """Every part of it waiting in receiving goes into the chosen location."""
-        code = self._request.context.get(LOCATION_CONTEXT)
+    async def _context_location(self) -> Location | _Answer | None:
+        """The location the scans go into (or out of); ``None`` if none is chosen, the
+        refusal if it is gone or holds no goods."""
+        code = self._request.context.get(LOCATION_CONTEXT, "").strip().upper()
         if not code:
-            return _Answer(ScanOutcome.REJECTED, "location_required")
-        location = await self._uow.locations.get_by_code(code.strip().upper())
+            return None
+        location = await self._uow.locations.get_by_code(code)
         if location is None:
             return _Answer(ScanOutcome.REJECTED, "location_unknown")
         if not location.holds_goods:
@@ -390,6 +443,44 @@ class _Interpreter:
                 "holds_no_goods",
                 location=await self._location_info(location),
             )
+        self._place = location
+        return location
+
+    async def _lock_oldest(
+        self, variant_id: UUID, status: UnitStatus, *, limit: int, location: Location | None
+    ) -> list[Unit]:
+        """Up to ``limit`` units of the variant in ``status`` (lying in ``location``, if
+        given), oldest first. They are locked in one go, by id; a unit that changed
+        between the first look and the lock is left out."""
+        ids = await self._uow.units.oldest(
+            variant_id,
+            status,
+            location_id=location.id if location is not None else None,
+            limit=limit,
+        )
+        locked = [
+            unit
+            for unit in await self._uow.units.lock(ids)
+            if unit.variant_id == variant_id
+            and unit.status is status
+            and (location is None or unit.location_id == location.id)
+        ]
+        return sorted(locked, key=lambda unit: (unit.created_at, unit.id))
+
+    async def _pieces_in(self, variant_id: UUID, location: Location) -> int:
+        """Pieces of the variant lying in the location (free and reserved)."""
+        lying = await self._uow.units.in_locations([location.id])
+        return sum(1 for unit in lying if unit.variant_id == variant_id)
+
+    # --- Putting away ---------------------------------------------------------------
+
+    async def _store_parts(self, part: PartInfo) -> _Answer:
+        """Every part of it waiting in receiving goes into the chosen location."""
+        location = await self._context_location()
+        if location is None:
+            return _Answer(ScanOutcome.REJECTED, "location_required")
+        if isinstance(location, _Answer):
+            return location
         receipts = await self._uow.receipts.open(part.part_id, for_update=True)
         if not receipts:
             return _Answer(
@@ -420,30 +511,98 @@ class _Interpreter:
             },
         )
 
-    async def _put_away(self, unit: Unit) -> _Answer:
-        code = self._request.context.get(LOCATION_CONTEXT)
-        if not code:
-            return _Answer(ScanOutcome.REJECTED, "location_required")
-        location = await self._uow.locations.get_by_code(code.strip().upper())
+    async def _book_in(self, variant_id: UUID) -> _Answer:
+        """``quantity`` pieces of the model into the chosen location: its labelled pieces
+        first, oldest first, then new pieces straight into stock. A piece that is free
+        then goes to the order that has waited longest for the variant."""
+        location = await self._context_location()
         if location is None:
-            return _Answer(ScanOutcome.REJECTED, "location_unknown")
-        refusal = _put_away_refusal(unit, location)
-        if refusal is not None:
-            return _Answer(
-                ScanOutcome.REJECTED, refusal, location=await self._location_info(location)
+            return _Answer(ScanOutcome.REJECTED, "location_required")
+        if isinstance(location, _Answer):
+            return location
+        wanted = self._request.quantity
+        labelled = await self._lock_oldest(
+            variant_id, UnitStatus.LABELED, limit=wanted, location=None
+        )
+        for unit in labelled:
+            await put_away(self._uow, self._journal, unit, location)
+        made = (
+            await label_new_units(
+                self._uow,
+                self._journal,
+                variant_id=variant_id,
+                quantity=wanted - len(labelled),
+                location=location,
             )
-        movement, allocation = await put_away(self._uow, self._journal, unit, location)
-        effect = await self._effect(movement)
-        if allocation is not None:
-            effect["to_status"] = unit.status.value
-            numbers = await self._uow.orders.numbers([allocation.order_id])
-            effect["reserved_for"] = numbers.get(allocation.order_id)
+            if len(labelled) < wanted
+            else []
+        )
         await self._uow.flush()
+        booked = [*labelled, *made]
+        reserved = [unit for unit in booked if unit.allocation_id is not None]
+        allocations = await self._uow.allocations.by_ids(
+            {unit.allocation_id for unit in reserved if unit.allocation_id is not None}
+        )
+        numbers = await self._uow.orders.numbers({a.order_id for a in allocations.values()})
         return _Answer(
             ScanOutcome.APPLIED,
-            movement.reason.value,
+            "booked_in",
             location=await self._location_info(location),
-            effect=effect,
+            stock_effect=_stock_effect(
+                quantity=len(booked),
+                location=location.code,
+                in_location=await self._pieces_in(variant_id, location),
+                stored=len(labelled),
+                created=len(made),
+                reserved=len(reserved),
+                reserved_for=sorted(set(numbers.values())),
+            ),
+        )
+
+    # --- Booking out ----------------------------------------------------------------
+
+    async def _book_out(self, variant_id: UUID) -> _Answer:
+        """``quantity`` free pieces of the model leave the stock with the context's
+        reason: from the chosen location, else the oldest anywhere. All or none."""
+        location = await self._context_location()
+        if isinstance(location, _Answer):
+            return location
+        reason = ScrapReason(self._request.context.get(REASON_CONTEXT, ScrapReason.SOLD))
+        wanted = self._request.quantity
+        free = await self._lock_oldest(
+            variant_id, UnitStatus.IN_STOCK, limit=wanted, location=location
+        )
+        if len(free) < wanted:
+            return _Answer(
+                ScanOutcome.REJECTED,
+                "not_enough_free",
+                location=await self._location_info(location) if location else None,
+            )
+        sources: dict[UUID, int] = {}
+        for unit in free:
+            if unit.location_id is not None:
+                sources[unit.location_id] = sources.get(unit.location_id, 0) + 1
+            # Free pieces serve no order: none has to be served again.
+            await self._journal.book(unit, unit.scrap("", self._now, reason))
+        await self._uow.flush()
+        places = await self._uow.locations.by_ids(sources)
+        from_locations: list[JsonObject] = [
+            {"code": places[place_id].code, "quantity": count}
+            for place_id, count in sources.items()
+            if place_id in places
+        ]
+        from_locations.sort(key=lambda source: str(source["code"]))
+        return _Answer(
+            ScanOutcome.APPLIED,
+            "booked_out",
+            location=await self._location_info(location) if location else None,
+            stock_effect=_stock_effect(
+                quantity=len(free),
+                location=location.code if location else None,
+                in_location=await self._pieces_in(variant_id, location) if location else None,
+                reason=reason.value,
+                from_locations=from_locations,
+            ),
         )
 
     # --- Picking --------------------------------------------------------------------
@@ -459,62 +618,37 @@ class _Interpreter:
             return None
         return await load_pick_list(self._uow, order)
 
-    async def _pick(self, unit: Unit) -> _Answer:
-        pick_list = await self._pick_list()
-        if pick_list is None:
-            return _Answer(ScanOutcome.REJECTED, "order_unknown")
-        if pick_list.order.status is not OrderStatus.PAID or not pick_list.is_allocated:
-            return _Answer(ScanOutcome.REJECTED, "order_not_pickable")
-        answer = await self._pick_unit(unit, pick_list)
-        await self._uow.flush()
-        await self._add_progress(answer)
-        return answer
-
-    async def _pick_unit(self, unit: Unit, pick_list: PickList) -> _Answer:
-        if unit.status in GONE:
-            return _Answer(ScanOutcome.REJECTED, "unit_gone")
-        own = next(
-            (item for item in pick_list.items if item.allocation_id == unit.allocation_id), None
-        )
-        if own is not None:
-            return await self._pick_own(unit, own)
-        if unit.allocation_id is not None:
-            return _Answer(ScanOutcome.REJECTED, "reserved_for_other_order")
-        wanted = [
-            item
-            for item in pick_list.items
-            if item.variant_id == unit.variant_id
-            and item.state in {PieceState.BACKORDERED, PieceState.RESERVED}
-        ]
-        if not wanted:
-            known = any(item.variant_id == unit.variant_id for item in pick_list.items)
-            return _Answer(ScanOutcome.REJECTED, "variant_complete" if known else "not_in_order")
-        if unit.status is not UnitStatus.IN_STOCK:
-            return _Answer(ScanOutcome.REJECTED, "unit_not_stored")
-        return await self._pick_instead(unit, wanted)
-
-    async def _pick_variant(self, variant_id: UUID) -> _Answer:
-        """A piece of the article by its EAN: the reserved one first, else a free one."""
+    async def _pick_variant(self, variant_id: UUID, scanned: Unit | None) -> _Answer:
+        """A piece of the model: one reserved for the order (the scanned one, if an old
+        label named such a piece), else a free one for a piece still waiting."""
         pick_list = await self._pick_list()
         if pick_list is None:
             return _Answer(ScanOutcome.REJECTED, "order_unknown")
         if pick_list.order.status is not OrderStatus.PAID or not pick_list.is_allocated:
             return _Answer(ScanOutcome.REJECTED, "order_not_pickable")
         items = [item for item in pick_list.items if item.variant_id == variant_id]
-        reserved = next((i for i in items if i.state is PieceState.RESERVED), None)
+        reserved = [item for item in items if item.state is PieceState.RESERVED]
+        own = next(
+            (
+                item
+                for item in reserved
+                if scanned is not None and item.allocation_id == scanned.allocation_id
+            ),
+            reserved[0] if reserved else None,
+        )
         backordered = next((i for i in items if i.state is PieceState.BACKORDERED), None)
-        if reserved is not None:
-            served = await self._uow.units.serving([reserved.allocation_id], for_update=True)
-            unit = served.get(reserved.allocation_id)
+        if own is not None:
+            served = await self._uow.units.serving([own.allocation_id], for_update=True)
+            unit = served.get(own.allocation_id)
             answer = (
-                await self._pick_own(unit, reserved)
+                await self._pick_own(unit)
                 if unit is not None
                 else _Answer(ScanOutcome.REJECTED, "variant_not_in_stock")
             )
         elif backordered is not None:
             free = await self._uow.units.oldest_free(variant_id, limit=1)
             answer = (
-                await self._pick_instead(free[0], [backordered])
+                await self._pick_free(free[0], backordered)
                 if free
                 else _Answer(ScanOutcome.REJECTED, "variant_not_in_stock")
             )
@@ -534,32 +668,18 @@ class _Interpreter:
             raise InvalidUnitStateError("the picked unit vanished")
         return unit
 
-    async def _pick_own(self, unit: Unit, item: PickItem) -> _Answer:
-        """A unit reserved for this order: picked, unless it was already."""
-        if item.state is not PieceState.RESERVED:
-            return _Answer(ScanOutcome.REJECTED, "already_picked")
+    async def _pick_own(self, unit: Unit) -> _Answer:
+        """A unit reserved for this order: picked."""
         movement = unit.pick(self._now)
         await self._journal.book(unit, movement)
         return _Answer(ScanOutcome.APPLIED, "picked", effect=await self._effect(movement))
 
-    async def _pick_instead(self, unit: Unit, wanted: list[PickItem]) -> _Answer:
-        """A free unit of a wanted article: it takes a backordered piece, else a reserved one."""
-        item = next((i for i in wanted if i.state is PieceState.BACKORDERED), wanted[0])
-        released_code: str | None = None
-        if item.state is PieceState.RESERVED:
-            served = await self._uow.units.serving([item.allocation_id])
-            reserved = served.get(item.allocation_id)
-            if reserved is not None:
-                # Both units are locked in one query, in id order like every other path.
-                await self._uow.units.lock([unit.id, reserved.id])
-                await self._journal.book(reserved, reserved.release(self._now))
-                released_code = reserved.code
+    async def _pick_free(self, unit: Unit, item: PickItem) -> _Answer:
+        """A free unit for a piece still waiting: reserved for it and picked at once."""
         await self._journal.book(unit, unit.allocate(item.allocation_id, self._now))
         movement = unit.pick(self._now)
         await self._journal.book(unit, movement)
-        effect = await self._effect(movement)
-        effect["released_unit"] = released_code
-        return _Answer(ScanOutcome.APPLIED, "picked", effect=effect)
+        return _Answer(ScanOutcome.APPLIED, "picked", effect=await self._effect(movement))
 
     async def _effect(self, movement: Movement) -> JsonObject:
         unit = await self._uow.units.get(movement.unit_id)
@@ -644,9 +764,42 @@ class _Interpreter:
         variant = (await self._uow.catalog.variants([variant_id]))[variant_id]
         counts = await self._uow.units.counts([variant_id])
         free = sum(count.count for count in counts if count.status is UnitStatus.IN_STOCK)
+        here: JsonValue = None
+        if self._place is not None:
+            lying = await self._uow.units.in_locations([self._place.id])
+            here = sum(1 for unit in lying if unit.variant_id == variant_id and unit.is_free)
         return {
             "variant_id": str(variant_id),
             "title": variant.title,
             "sku": variant.sku,
             "free_units": free,
+            "free_here": here,
         }
+
+
+def _stock_effect(
+    *,
+    quantity: int,
+    location: str | None,
+    in_location: int | None,
+    stored: int = 0,
+    created: int = 0,
+    reserved: int = 0,
+    reserved_for: Sequence[str] = (),
+    reason: str | None = None,
+    from_locations: Sequence[JsonObject] = (),
+) -> JsonObject:
+    """What a scan of a model's label booked in or out, for the answer."""
+    orders: list[JsonValue] = [*reserved_for]
+    sources: list[JsonValue] = [*from_locations]
+    return {
+        "quantity": quantity,
+        "location": location,
+        "in_location": in_location,
+        "stored": stored,
+        "created": created,
+        "reserved": reserved,
+        "reserved_for": orders,
+        "reason": reason,
+        "from_locations": sources,
+    }

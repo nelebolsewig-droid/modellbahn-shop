@@ -90,6 +90,7 @@ beforeEach(() => {
   routeFetch(fetchMock, {
     "GET /api/v1/admin/inventory/stock": () => jsonResponse({ items: [LINE] }),
     "GET /api/v1/admin/inventory/locations": () => jsonResponse({ items: [] }),
+    "GET /api/v1/admin/inventory/units": () => jsonResponse({ items: [], more: false }),
   });
 });
 
@@ -113,8 +114,8 @@ describe("ProductStockPanel", () => {
     expect(painted).toHaveTextContent("H0 · Fertigmodell, Rot");
     expect(painted).toHaveTextContent("Frei0Reserviert0Unverbucht0");
 
-    await user.click(within(painted).getByRole("button", { name: "Stücke erfassen: H0 · Fertigmodell, Rot" }));
-    const dialog = await screen.findByRole("dialog", { name: "Stücke erfassen" });
+    await user.click(within(painted).getByRole("button", { name: "Stücke einbuchen: H0 · Fertigmodell, Rot" }));
+    const dialog = await screen.findByRole("dialog", { name: "Stücke einbuchen" });
     expect(dialog).toHaveTextContent("Stellwerk Altenau · H0 · Fertigmodell, Rot");
     expect(dialog).toHaveTextContent("MB-000001-H0-F");
   });

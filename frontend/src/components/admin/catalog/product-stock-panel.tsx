@@ -75,7 +75,7 @@ export function ProductStockPanel({ product, references }: { product: ProductOut
                     variant={{ variantId: variant.id, title: `${product.name} · ${name}`, sku: variant.sku }}
                     trigger={
                       <Button type="button" size="sm" variant="ghost" className="-ml-2">
-                        Stücke erfassen<span className="sr-only">: {name}</span>
+                        Stücke einbuchen<span className="sr-only">: {name}</span>
                       </Button>
                     }
                   />

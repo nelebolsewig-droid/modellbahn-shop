@@ -112,6 +112,7 @@ ADOPTION_TIMEOUT: Final = 30.0
 # The worker hands out stock to a paid order (sales.order.paid → allocation) and books
 # it out once the order is shipped.
 ALLOCATION_TIMEOUT: Final = 30.0
+# Pieces of the kit booked in with one scan of its model label.
 UNITS_LABELLED: Final = 2
 EVENT_TIMEOUT: Final = 30.0
 # Longer than the API's 15 s heartbeat: a silent stream for this long is broken.
@@ -682,7 +683,7 @@ class Demo:
             ("Veröffentlichen mit If-Match, Ereignis im Stellwerk", self.publish),
             ("Shop: Maßstab-Einstieg, Liste in H0, Produktseite, alte Adressen", self.shop),
             ("Maßstäbe: 1:43,5 anlegen, nach Größe einsortiert, benutzte bleiben", self.scales),
-            ("Lager: Plätze, Einheiten mit Etiketten-PDF, Einlagern per Scan", self.stock),
+            ("Lager: Plätze, Modell-Etiketten als PDF, Einlagern per Scan mit Anzahl", self.stock),
             ("Lieferbarkeit im Shop, Artikelliste für die Kasse (CSV)", self.availability),
             ("Warenkorb: Cookie mb_cart, Preise und Versand vom Server", self.cart),
             ("Kasse: falsche erwartete Summe wird abgelehnt (409 price_changed)", self.price_check),
@@ -1296,7 +1297,12 @@ class Demo:
             )
 
     def _scan(
-        self, mode: str, raw: str, context: Mapping[str, str] | None = None, scan_id: str = ""
+        self,
+        mode: str,
+        raw: str,
+        context: Mapping[str, str] | None = None,
+        scan_id: str = "",
+        quantity: int = 1,
     ) -> dict[str, Any]:
         body = {
             "scan_id": scan_id or str(uuid.uuid4()),
@@ -1304,6 +1310,7 @@ class Demo:
             "mode": mode,
             "source": "scanner",
             "context": dict(context or {}),
+            "quantity": quantity,
         }
         response = self._staff("POST", f"{INVENTORY}/scans", body)
         expect_status(response, 200, f"Scan {raw} ({mode})")
@@ -1372,18 +1379,7 @@ class Demo:
         expect(self._compartment == f"{shelf}-F01", f"Code des Fachs: {self._compartment}")
 
         variant = self._variant("unpainted")
-        batch = self._staff(
-            "POST",
-            f"{INVENTORY}/units",
-            {"variant_id": variant["id"], "quantity": UNITS_LABELLED},
-        )
-        expect_status(batch, 201, "Einheiten erfassen")
-        units = batch.json()["items"]
-        expect(
-            [u["status"] for u in units] == ["labeled"] * UNITS_LABELLED, f"Neue Einheiten: {units}"
-        )
-        self._units = [u["code"] for u in units]
-
+        # Model labels: the variant's EAN, no code of a piece, and no piece made by printing.
         labels = self.staff_browser._send(  # a PDF, not JSON
             "POST",
             f"{INVENTORY}/labels",
@@ -1391,7 +1387,7 @@ class Demo:
             body={
                 "sheet": "a4_70x37",
                 "skip": 3,
-                "unit_codes": self._units,
+                "variants": [{"variant_id": variant["id"], "quantity": UNITS_LABELLED}],
                 "location_codes": [self._compartment],
             },
             headers={CLIENT_HEADER: "web"},
@@ -1402,28 +1398,31 @@ class Demo:
             labels.content_type == "application/pdf" and labels.body.startswith(b"%PDF"),
             f"Etiketten sind kein PDF: {labels.content_type}",
         )
+        expect(self._stock_of(variant["id"]) == {}, "Etiketten drucken hat Stücke angelegt")
 
         place = {"location_code": self._compartment}
         chosen = self._scan("put_away", self._compartment)
         expect(chosen["outcome"] == "selected", f"Platz-Scan: {chosen['outcome']}")
         scan_id = str(uuid.uuid4())
-        stored = self._scan("put_away", self._units[0], place, scan_id)
-        expect(stored["message"] == "put_away", f"Einlagern: {stored['message']}")
-        repeated = self._scan("put_away", self._units[0], place, scan_id)
-        expect(repeated == stored, "Wiederholter Scan bucht anders als der erste")
-        by_ean = self._scan("put_away", variant["gtin"], place)
+        stored = self._scan("put_away", variant["gtin"], place, scan_id, UNITS_LABELLED)
         expect(
-            by_ean["outcome"] == "applied" and by_ean["effect"]["unit_code"] == self._units[1],
-            f"Einlagern per EAN: {by_ean['outcome']} {by_ean['effect']}",
+            (stored["message"], stored["stock_effect"]["in_location"])
+            == ("booked_in", UNITS_LABELLED),
+            f"Einlagern per EAN mit Anzahl: {stored['message']} {stored['stock_effect']}",
         )
+        repeated = self._scan("put_away", variant["gtin"], place, scan_id, UNITS_LABELLED)
+        expect(repeated == stored, "Wiederholter Scan bucht anders als der erste")
         self._wait_for_stock_event(
-            f"{STOCK_CHANGED} für {self._units[1]}",
-            unit_code=self._units[1],
-            location_code=self._compartment,
+            f"{STOCK_CHANGED} nach {self._compartment}", location_code=self._compartment
         )
         line = self._stock_of(variant["id"])
         expect(line.get("in_stock") == UNITS_LABELLED, f"Bestand nach dem Einlagern: {line}")
-        return f"{self._compartment}: 2 Stück, eines per Einheiten-Code, eines per EAN"
+        pieces = self._staff(
+            "GET", f"{INVENTORY}/units?variant_id={variant['id']}&status=in_stock"
+        ).json()["items"]
+        self._units = [unit["code"] for unit in pieces]
+        expect(len(self._units) == UNITS_LABELLED, f"Eingelagerte Stücke: {pieces}")
+        return f"{self._compartment}: {UNITS_LABELLED} Stück mit einem Scan des Modell-Etiketts"
 
     def availability(self) -> str | None:
         slug = self._product["slug"]
@@ -1653,7 +1652,7 @@ class Demo:
         context = {"order_id": order_id}
         wrong = self._scan("pick", self._compartment, context)
         expect(wrong["outcome"] != "applied", f"Ein Platz wurde kommissioniert: {wrong}")
-        picked = self._scan("pick", self._units[0], context)
+        picked = self._scan("pick", self._variant("unpainted")["gtin"], context)
         expect(
             (picked["message"], picked["progress"]) == ("picked", {"picked": 1, "total": 1}),
             f"Kommissionieren: {picked['message']} {picked['progress']}",
@@ -1662,7 +1661,7 @@ class Demo:
             f"{STOCK_CHANGED} für {order_id}", unit_code=self._units[0], order_id=order_id
         )
         again = self._scan("pick", self._units[0], context)
-        expect(again["message"] == "already_picked", f"Zweiter Scan: {again['message']}")
+        expect(again["message"] == "variant_complete", f"Zweiter Scan: {again['message']}")
         pick_list = self._staff("GET", f"{INVENTORY}/orders/{order_id}/pick-list").json()
         expect(pick_list["complete"] is True, f"Pickliste nicht vollständig: {pick_list}")
         return "1 von 1, Paket kann gepackt werden"

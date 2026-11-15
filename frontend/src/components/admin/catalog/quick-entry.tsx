@@ -39,7 +39,6 @@ import { readyPicture } from "@/lib/catalog/images";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalog/labels";
 import { entryPlan, productColors, type EntryPlan } from "@/lib/catalog/quick-entry";
 import { scaleLabel } from "@/lib/catalog/scales";
-import { formatUnitCode } from "@/lib/inventory/codes";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
 import { IMAGE_PICKER_ACCEPT, uploadImage, type UploadProgress } from "@/lib/media/upload";
 import { cn } from "@/lib/utils";
@@ -155,6 +154,10 @@ export function QuickEntryDesk() {
       setProblem("Das Foto lädt noch. Einen Moment, dann noch einmal.");
       return;
     }
+    if (quantity > 0 && location === "") {
+      setProblem("Bitte den Platz wählen, in dem die Stücke liegen: Sie werden dort gleich eingebucht.");
+      return;
+    }
     setProblem(null);
     setPending(true);
     try {
@@ -174,11 +177,7 @@ export function QuickEntryDesk() {
       let unitsError: string | null = null;
       if (quantity > 0) {
         try {
-          const batch = await labelUnits({
-            variant_id: entry.variant.id,
-            quantity,
-            location_code: location === "" ? null : location,
-          });
+          const batch = await labelUnits({ variant_id: entry.variant.id, quantity, location_code: location });
           units = batch.items;
           void queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
           void queryClient.invalidateQueries({ queryKey: getListLocationsQueryKey() });
@@ -308,7 +307,9 @@ export function QuickEntryDesk() {
                   className="mt-1"
                 />
                 <p className="mt-1 text-hint text-ink-tertiary">
-                  {quantity === 0 ? "Keine: nur das Modell, ohne Etikett." : "Jedes Stück bekommt ein Etikett."}
+                  {quantity === 0
+                    ? "Keine: nur das Modell, ohne Etikett."
+                    : "Sie werden im Platz eingebucht; ein Etikett des Modells je Stück."}
                 </p>
               </div>
               {quantity > 0 ? <LocationField value={location} onChange={setLocation} /> : null}
@@ -721,7 +722,7 @@ function LocationField({ value, onChange }: { value: string; onChange: (code: st
         disabled={locations.isPending}
         className="mt-1"
       >
-        <option value="">Später beim Einlagern scannen</option>
+        <option value="">Bitte wählen: Wo liegen die Stücke?</option>
         {(locations.data ?? []).map((item) => (
           <option key={item.id} value={item.code}>
             {item.code}
@@ -838,17 +839,15 @@ function DoneCard({ done, finishes, onNext }: DoneCardProps) {
         {units.length > 0 ? (
           <div>
             <p className="label-caps text-ink-tertiary">{units.length === 1 ? "1 Stück" : `${units.length} Stück`}</p>
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {units.slice(0, 12).map((unit) => (
-                <li key={unit.id} className="rounded-xs bg-sunken px-2 py-1 font-mono text-hint">
-                  {formatUnitCode(unit.code)}
-                </li>
-              ))}
-              {units.length > 12 ? (
-                <li className="px-2 py-1 text-hint text-ink-tertiary">+ {units.length - 12}</li>
-              ) : null}
-            </ul>
-            <LabelPrinter unitCodes={units.map((unit) => unit.code)} className="mt-5" />
+            {units[0]?.location ? (
+              <p className="mt-2 text-small">
+                Eingebucht in <span className="font-mono">{units[0].location.code}</span>
+              </p>
+            ) : null}
+            <LabelPrinter
+              models={[{ variantId: entry.variant.id, quantity: units.length, sku: entry.variant.sku }]}
+              className="mt-5"
+            />
           </div>
         ) : null}
         {entry.product.publish_blockers.length > 0 ? (

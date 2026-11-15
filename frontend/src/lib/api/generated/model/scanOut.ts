@@ -21,6 +21,7 @@ import type { ScanPartEffectOut } from './scanPartEffectOut';
 import type { ScanPartOut } from './scanPartOut';
 import type { ScanProgressOut } from './scanProgressOut';
 import type { ScanResolvedOut } from './scanResolvedOut';
+import type { ScanStockEffectOut } from './scanStockEffectOut';
 import type { ScanUnitOut } from './scanUnitOut';
 import type { ScanVariantOut } from './scanVariantOut';
 
@@ -38,8 +39,11 @@ export interface ScanOut {
   part: ScanPartOut | null;
   part_effect: ScanPartEffectOut | null;
   progress: ScanProgressOut | null;
+  /** Pieces the scan was asked to book. */
+  quantity?: number;
   resolved: ScanResolvedOut | null;
   scan_id: string;
+  stock_effect?: ScanStockEffectOut | null;
   undoable: boolean;
   undone: boolean;
   unit: ScanUnitOut | null;

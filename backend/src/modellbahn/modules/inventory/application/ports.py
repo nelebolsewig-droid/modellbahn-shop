@@ -98,8 +98,17 @@ class UnitRepository(Protocol):
         """Units oldest first, of the variant and in the states (``None``: any)."""
         ...
 
-    async def oldest_labeled(self, variant_id: UUID) -> Unit | None:
-        """The oldest unit of the variant that is labelled but not stored yet, locked."""
+    async def oldest(
+        self,
+        variant_id: UUID,
+        status: UnitStatus,
+        *,
+        location_id: UUID | None = None,
+        limit: int,
+    ) -> list[UUID]:
+        """Ids of up to ``limit`` units of the variant in ``status`` (lying in the location,
+        if one is given), oldest first. Nothing is locked: callers lock them with
+        :meth:`lock` and look again."""
         ...
 
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
@@ -330,24 +339,24 @@ class LabelSheet(StrEnum):
 class Label:
     """What one label shows: barcodes for scanners and tills, and text for people.
 
-    A unit's label carries the variant's EAN-13, which the till (SumUp) knows the
-    article by, and a Code 128 with the unit's own code for the workshop's scanner. A
-    location's label carries only the Code 128 with its code, and so does a part's label
-    (on the box the parts lie in) with the part number.
+    A model's label carries the variant's EAN-13 only: the till (SumUp) knows the
+    article by it, and the workshop's scanner books the model by it. A location's label
+    carries only the Code 128 with its code, and so does a part's label (on the box the
+    parts lie in) with the part number.
     """
 
     caption: str
-    """What the label marks (``Einheit``, ``Lagerplatz``, ``Teil``), set small at the top."""
+    """What the label marks (``Modell``, ``Lagerplatz``, ``Teil``), set small at the top."""
     code_text: str
-    """The code as people read it: ``7KQ2 X9F4 MZ``, ``R02-F04-B12`` or a part number."""
+    """The code as people read it: ``R02-F04-B12`` or a part number (empty for a model)."""
     code128: str
-    """The data of the Code 128: the unit code, the location code or the part number."""
+    """The data of the Code 128: the location code or the part number (empty for a model)."""
     title: str
     detail: str
     reference: str
     """A line in monospace: the article number, or the location's path."""
     ean13: str | None = None
-    """The variant's EAN-13 (units only)."""
+    """The variant's EAN-13 (models only)."""
     price: str = ""
     """What the piece costs, as the till charges it (``79,90 €``); empty if not for sale."""
 

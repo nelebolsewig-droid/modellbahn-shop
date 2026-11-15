@@ -78,10 +78,49 @@ describe("LabelPictures", () => {
       sheet: "ql_62x29",
       format: "png",
       unit_codes: ["J4WZXRT2S2"],
+      variants: [],
       location_codes: [],
       part_numbers: [],
     });
     expect(sent).toHaveLength(4);
+  });
+
+  it("shows one picture per model, however many of its labels there are", async () => {
+    routeFetch(fetchMock, {
+      [LABELS]: ({ body }) =>
+        (body as { variants: { quantity: number }[] }).variants[0]?.quantity === 1
+          ? picture()
+          : picture("application/zip"),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(
+      <LabelPictures
+        unitCodes={[]}
+        models={[{ variantId: "v1", quantity: 3, sku: "MB-000006-H0-B" }]}
+        locationCodes={[]}
+        partNumbers={[]}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Als Bilder für die Brother-App" }),
+    );
+
+    const shown = await screen.findByRole("region", {
+      name: "Etiketten als Bilder",
+    });
+    expect(within(shown).getAllByRole("img")).toHaveLength(1);
+    expect(within(shown).getByText("3 × MB-000006-H0-B")).toBeInTheDocument();
+    expect(
+      within(shown).getByRole("link", { name: "Alle Bilder als ZIP" }),
+    ).toBeInTheDocument();
+    const sent = requestsTo(fetchMock, LABELS).map(
+      (request) => (request.body as { variants: unknown }).variants,
+    );
+    expect(sent).toEqual([
+      [{ variant_id: "v1", quantity: 1 }],
+      [{ variant_id: "v1", quantity: 3 }],
+    ]);
   });
 
   it("brings a single label without a ZIP", async () => {

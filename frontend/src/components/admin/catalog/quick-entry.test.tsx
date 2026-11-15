@@ -111,14 +111,25 @@ const PUMA = product({
   ],
 });
 
+const PLACE = {
+  id: "l1",
+  parent_id: "l0",
+  code: "R01-F01",
+  path: "LAGER.R01.F01",
+  kind: "compartment",
+  name: "Fenster",
+  depth: 2,
+  holds_goods: true,
+} as const;
+
 const UNIT: UnitOut = {
   id: "u1",
   code: "7K3M9QX2TA",
   display_code: "7K3M 9QX2 TA",
-  status: "labeled",
+  status: "in_stock",
   variant_id: "v1",
   variant: null,
-  location: null,
+  location: PLACE,
   order_id: null,
   order_number: null,
   scrap_note: "",
@@ -135,7 +146,8 @@ function desk(routes: Record<string, RouteHandler>) {
         { id: "c1", name: "Lkw", parent_id: null, position: 0, slug: "lkw" },
         { id: "c2", name: "Kipper", parent_id: "c1", position: 0, slug: "kipper" },
       ]),
-    "GET /api/v1/admin/inventory/locations": () => jsonResponse({ items: [] }),
+    "GET /api/v1/admin/inventory/locations": () =>
+      jsonResponse({ items: [{ ...PLACE, unit_count: 0, total_count: 0, part_count: 0 }] }),
     ...routes,
   });
 }
@@ -193,6 +205,11 @@ describe("QuickEntryDesk", () => {
     // Pieces only when asked for: one lies there finished.
     const pieces = screen.getByRole("group", { name: "Wie viele Stücke liegen fertig da?" });
     await user.click(within(pieces).getByRole("button", { name: "Eins mehr" }));
+    // Pieces are booked in where they lie: without a place nothing is sent.
+    await user.click(screen.getByRole("button", { name: "Erfassen · 1 Etikett" }));
+    expect(await screen.findByText(/Bitte den Platz wählen/)).toBeInTheDocument();
+    expect(requestsTo(fetchMock, QUICK)).toHaveLength(0);
+    await user.selectOptions(await screen.findByLabelText("Platz"), "R01-F01");
     await user.click(screen.getByRole("button", { name: "Erfassen · 1 Etikett" }));
 
     const done = await screen.findByRole("region", { name: "Erfasst" });
@@ -206,10 +223,12 @@ describe("QuickEntryDesk", () => {
       price_cents: 3000,
       asset_id: null,
     });
-    expect(requestsTo(fetchMock, UNITS)[0]?.body).toEqual({ variant_id: "v1", quantity: 1, location_code: null });
+    expect(requestsTo(fetchMock, UNITS)[0]?.body).toEqual({ variant_id: "v1", quantity: 1, location_code: "R01-F01" });
     expect(within(done).getByText("MB-000007-TT-F")).toBeInTheDocument();
     expect(within(done).getByText("Neues Modell")).toBeInTheDocument();
-    expect(within(done).getByText("7K3M 9QX2 TA")).toBeInTheDocument();
+    // The label names the model, not the piece: no piece's code is shown.
+    expect(within(done).getByText(/Eingebucht in/)).toHaveTextContent("Eingebucht in R01-F01");
+    expect(within(done).queryByText("7K3M 9QX2 TA")).not.toBeInTheDocument();
     expect(screen.getByText("1 erfasst · 1 Stück")).toBeInTheDocument();
 
     // The next model from the crate is asked anew.
@@ -307,7 +326,7 @@ describe("QuickEntryDesk", () => {
     expect(within(pieces).getByText("0")).toBeInTheDocument();
     expect(screen.getByText("Keine: nur das Modell, ohne Etikett.")).toBeInTheDocument();
     // Without pieces there is no place to choose either.
-    expect(screen.queryByText("Später beim Einlagern scannen")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Platz")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Erfassen" }));
 
     const done = await screen.findByRole("region", { name: "Erfasst" });

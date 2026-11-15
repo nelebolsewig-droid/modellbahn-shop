@@ -14,6 +14,7 @@ from modellbahn.modules.inventory.application.availability import VariantAvailab
 from modellbahn.modules.inventory.application.labels import (
     A4_LABELS_PER_SHEET,
     LABELS_PER_PRINT_MAX,
+    VariantLabels,
 )
 from modellbahn.modules.inventory.application.locations import LocationContents, LocationNode
 from modellbahn.modules.inventory.application.parts import (
@@ -26,6 +27,7 @@ from modellbahn.modules.inventory.application.ports import LabelSheet
 from modellbahn.modules.inventory.application.scanning import (
     LOCATION_CONTEXT,
     ORDER_CONTEXT,
+    REASON_CONTEXT,
 )
 from modellbahn.modules.inventory.application.units import (
     AssembledPart,
@@ -43,6 +45,7 @@ from modellbahn.modules.inventory.domain.availability import Availability
 from modellbahn.modules.inventory.domain.codes import format_unit_code
 from modellbahn.modules.inventory.domain.model import (
     LOCATION_NAME_MAX_LENGTH,
+    SCAN_QUANTITY_MAX,
     SCRAP_NOTE_MAX_LENGTH,
     UNITS_COUNTED_MAX,
     UNITS_PER_BATCH_MAX,
@@ -450,10 +453,11 @@ class UnitDetailsOut(UnitOut):
 class UnitsCreateIn(_Request):
     variant_id: UUID
     quantity: int = Field(ge=1, le=UNITS_PER_BATCH_MAX)
-    location_code: str | None = Field(
-        default=None,
+    location_code: str = Field(
+        min_length=1,
         max_length=44,
-        description="Put the units away here at once; otherwise they wait for a scan.",
+        examples=["R01-F02"],
+        description="Where the pieces lie: they are booked in there at once (Einbuchen).",
     )
 
 
@@ -675,14 +679,21 @@ class StockOut(BaseModel):
 
 class ScanIn(_Request):
     scan_id: UUID = Field(description="Generated on the device; repeat it when retrying.")
-    raw: str = Field(
-        min_length=1, max_length=MAX_RAW_LENGTH, examples=["https://shop/u/7KQ2X9F4MZ"]
-    )
+    raw: str = Field(min_length=1, max_length=MAX_RAW_LENGTH, examples=["2000000000428"])
     mode: ScanMode
     source: Literal["camera", "scanner", "keyboard"]
-    context: dict[Literal["location_code", "order_id"], str] = Field(
+    context: dict[Literal["location_code", "order_id", "reason"], str] = Field(
         default_factory=dict,
-        description=f"`{LOCATION_CONTEXT}` when putting away, `{ORDER_CONTEXT}` when picking.",
+        description=f"`{LOCATION_CONTEXT}` when putting away (and, optionally, booking out), "
+        f"`{ORDER_CONTEXT}` when picking, `{REASON_CONTEXT}` when booking out "
+        "(`sold`, `damaged`, `missing`, `mistake`; default `sold`).",
+    )
+    quantity: int = Field(
+        default=1,
+        ge=1,
+        le=SCAN_QUANTITY_MAX,
+        description="Pieces a model's label stands for when putting away or booking out; "
+        "the other modes book one piece.",
     )
 
 
@@ -738,6 +749,9 @@ class ScanVariantOut(BaseModel):
     title: str
     sku: str
     free_units: int
+    free_here: int | None = Field(
+        default=None, description="Free pieces of it in the chosen location, if one is chosen."
+    )
 
 
 class ScanEffectOut(BaseModel):
@@ -748,6 +762,29 @@ class ScanEffectOut(BaseModel):
     to_location: str | None
     reserved_for: str | None = Field(description="Order number a stored unit went to at once.")
     released_unit: str | None = Field(description="Unit given back when another one was picked.")
+
+
+class ScanPlaceOut(BaseModel):
+    code: str
+    quantity: int
+
+
+class ScanStockEffectOut(BaseModel):
+    """What a model's label booked in or out: several pieces in one scan."""
+
+    quantity: int = Field(description="Pieces booked in or out.")
+    location: str | None = Field(
+        description="Where they went (putting away) or came from (booking out from one place)."
+    )
+    in_location: int | None = Field(description="Pieces of the model lying there now.")
+    stored: int = Field(description="Putting away: labelled pieces that were put away.")
+    created: int = Field(description="Putting away: new pieces booked straight into stock.")
+    reserved: int = Field(description="Putting away: of them, pieces a waiting order got.")
+    reserved_for: list[str] = Field(description="Numbers of the orders that got them.")
+    reason: ScrapReason | None = Field(description="Booking out: why they left the stock.")
+    from_locations: list[ScanPlaceOut] = Field(
+        description="Booking out: where they came from, by code."
+    )
 
 
 class ScanProgressOut(BaseModel):
@@ -763,6 +800,10 @@ class ScanExpectedOut(BaseModel):
     location_name: str | None
 
 
+# Since one code names a model (ADR 0027), scans no longer answer "already_there",
+# "unit_gone", "unit_picked", "put_away", "move", "already_picked",
+# "reserved_for_other_order", "unit_not_stored" or "no_unit_to_store"; they stay for the
+# answers stored before, which a repeated scan id gets again.
 ScanMessage = Literal[
     "unknown_code",
     "not_found",
@@ -792,6 +833,9 @@ ScanMessage = Literal[
     "part",
     "parts_stored",
     "no_parts_to_store",
+    "booked_in",
+    "booked_out",
+    "not_enough_free",
 ]
 
 
@@ -800,6 +844,7 @@ class ScanOut(BaseModel):
 
     scan_id: UUID
     mode: ScanMode
+    quantity: int = Field(default=1, description="Pieces the scan was asked to book.")
     outcome: ScanOutcome
     message: ScanMessage = Field(description="Stable code the client turns into text.")
     resolved: ScanResolvedOut | None
@@ -809,6 +854,7 @@ class ScanOut(BaseModel):
     part: ScanPartOut | None
     effect: ScanEffectOut | None
     part_effect: ScanPartEffectOut | None
+    stock_effect: ScanStockEffectOut | None = None
     progress: ScanProgressOut | None
     next_expected: ScanExpectedOut | None
     undoable: bool
@@ -883,9 +929,24 @@ class LabelFormat(StrEnum):
     """Pictures at 300 dpi, for the Brother apps (iPrint&Label, P-touch Editor)."""
 
 
+class VariantLabelsIn(_Request):
+    variant_id: UUID
+    quantity: int = Field(ge=1, le=LABELS_PER_PRINT_MAX, description="How many labels.")
+
+    def to_request(self) -> VariantLabels:
+        return VariantLabels(variant_id=self.variant_id, quantity=self.quantity)
+
+
 class LabelsIn(_Request):
     unit_codes: list[Annotated[str, Field(max_length=20)]] = Field(
-        default_factory=list, max_length=LABELS_PER_PRINT_MAX
+        default_factory=list,
+        max_length=LABELS_PER_PRINT_MAX,
+        description="A unit's label is its model's label.",
+    )
+    variants: list[VariantLabelsIn] = Field(
+        default_factory=list,
+        max_length=LABELS_PER_PRINT_MAX,
+        description="Model labels, without making a unit; printed after the units' labels.",
     )
     location_codes: list[Annotated[str, Field(max_length=44)]] = Field(
         default_factory=list, max_length=LABELS_PER_PRINT_MAX

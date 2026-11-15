@@ -165,8 +165,8 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
       ) : null}
       {filter.key === "unverbucht" && items.length > 0 ? (
         <p className="mt-6 text-small text-ink-secondary">
-          Die Stücke ankreuzen, die im Regal liegen, dann „Einlagern …“ und den Platz wählen. Doppelt gedruckte Etiketten
-          bucht „Ausbuchen …“ mit dem Grund „Falsch erfasst“ aus.
+          Die Stücke ankreuzen, die im Regal liegen, dann „Einlagern …“ und den Platz wählen. Was nicht im Regal liegt (etwa doppelt
+          gedruckte Etiketten), buchen „Alle auswählen“ und „Ausbuchen …“ mit dem Grund „Versehen“ aus.
         </p>
       ) : null}
       {restoring && mayManage && items.length > 0 ? (

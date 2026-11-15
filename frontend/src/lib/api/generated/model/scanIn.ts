@@ -15,9 +15,15 @@ import type { ScanInSource } from './scanInSource';
 import type { ScanMode } from './scanMode';
 
 export interface ScanIn {
-  /** `location_code` when putting away, `order_id` when picking. */
-  context?: Partial<Record<'location_code' | 'order_id', string>>;
+  /** `location_code` when putting away (and, optionally, booking out), `order_id` when picking, `reason` when booking out (`sold`, `damaged`, `missing`, `mistake`; default `sold`). */
+  context?: Partial<Record<'location_code' | 'order_id' | 'reason', string>>;
   mode: ScanMode;
+  /**
+     * Pieces a model's label stands for when putting away or booking out; the other modes book one piece.
+     * @minimum 1
+     * @maximum 200
+     */
+  quantity?: number;
   /**
      * @minLength 1
      * @maxLength 300

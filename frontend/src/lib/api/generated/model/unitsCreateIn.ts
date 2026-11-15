@@ -13,8 +13,12 @@
  */
 
 export interface UnitsCreateIn {
-  /** Put the units away here at once; otherwise they wait for a scan. */
-  location_code?: string | null;
+  /**
+     * Where the pieces lie: they are booked in there at once (Einbuchen).
+     * @minLength 1
+     * @maxLength 44
+     */
+  location_code: string;
   /**
      * @minimum 1
      * @maximum 200
