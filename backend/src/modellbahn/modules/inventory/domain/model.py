@@ -149,6 +149,10 @@ class Location:
         checks."""
         return self.kind in _HOLDS_GOODS
 
+    def takes_goods(self, *, has_children: bool) -> bool:
+        """Whether goods may go in: by its kind, and a shelf only while it has no Böden."""
+        return self.holds_goods and not (self.kind is LocationKind.SHELF and has_children)
+
     @property
     def depth(self) -> int:
         return self.path.count(".")

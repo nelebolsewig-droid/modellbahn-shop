@@ -11,7 +11,7 @@ from uuid import UUID
 import structlog
 
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
-from modellbahn.modules.sales.application.orders import check_shippable, dispatch
+from modellbahn.modules.sales.application.orders import check_shippable
 from modellbahn.modules.sales.application.ports import Carrier, LabelRequest, SalesUnitOfWork
 from modellbahn.modules.sales.domain.errors import (
     CarrierRejectedError,
@@ -71,9 +71,10 @@ class ShippingLabelService:
         """Book the label of a paid order; one in force per order.
 
         With ``ship`` the order is shipped in the same go, with the label's shipment
-        number for the customer's e-mail (ADR 0028). Pieces still waiting for the
-        workshop refuse it before the carrier is asked; if the carrier refuses, nothing
-        ships.
+        number for the customer's e-mail (ADR 0028). Everything that can refuse is checked
+        before the carrier is asked: pieces still waiting for the workshop, a label in
+        force, the weight. Should anything fail once the label is booked, it is cancelled
+        at the carrier again, so no paid label is left without an order.
         """
         if self._shipper is None or not self._carrier.books_labels:
             raise CarrierUnavailableError
@@ -95,26 +96,31 @@ class ShippingLabelService:
                     weight_g=weight,
                 )
             )
-            label = ShippingLabel.book(
-                order=order,
-                carrier=self._carrier.name,
-                product=product,
-                shipment_number=booked.shipment_number,
-                weight_g=weight,
-                print_format=booked.print_format,
-                document=booked.document,
-                now=self._clock.now(),
-            )
-            uow.labels.add(label)
-            if ship:
-                await dispatch(
-                    uow,
-                    order,
-                    carrier=label.carrier,
-                    tracking_number=label.shipment_number,
+            try:
+                label = ShippingLabel.book(
+                    order=order,
+                    carrier=self._carrier.name,
+                    product=product,
+                    shipment_number=booked.shipment_number,
+                    weight_g=weight,
+                    print_format=booked.print_format,
+                    document=booked.document,
                     now=self._clock.now(),
                 )
-            await uow.commit()
+                uow.labels.add(label)
+                if ship:
+                    # Checked above, with the order locked: no second look at the stock.
+                    uow.publish(
+                        order.ship(
+                            carrier=label.carrier,
+                            tracking_number=label.shipment_number,
+                            now=self._clock.now(),
+                        )
+                    )
+                await uow.commit()
+            except BaseException:
+                await self._drop_unused(booked.shipment_number, order=order.number)
+                raise
         _logger.info(
             "sales.label.booked",
             order=order.number,
@@ -122,6 +128,17 @@ class ShippingLabelService:
             product=product.value,
         )
         return label
+
+    async def _drop_unused(self, shipment_number: str, *, order: str) -> None:
+        """Cancel a label the shop could not keep; best effort, the original error wins."""
+        try:
+            await self._carrier.cancel(shipment_number)
+        except Exception as error:
+            _logger.error(
+                "sales.label.orphaned", order=order, shipment=shipment_number, error=repr(error)
+            )
+        else:
+            _logger.warning("sales.label.dropped_unused", order=order, shipment=shipment_number)
 
     async def active(self, order_id: UUID) -> ShippingLabel:
         async with self._uow() as uow:

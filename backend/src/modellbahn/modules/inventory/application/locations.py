@@ -39,15 +39,21 @@ class LocationNode:
     @property
     def takes_goods(self) -> bool:
         """Goods may go in: a shelf only while nothing lies below it."""
-        return self.location.holds_goods and not (
-            self.location.kind is LocationKind.SHELF and self.has_children
-        )
+        return self.location.takes_goods(has_children=self.has_children)
 
 
 SHELF_LEVELS_MAX: Final = 20
 """Böden one new shelf gets at most."""
 DEFAULT_SITE: Final = "LAGER"
 """The site new shelves go into when there is none yet; the Stellwerk does not show it."""
+
+
+@dataclass(frozen=True, slots=True)
+class NamedLocation:
+    """A location just renamed, with what decides whether goods may go in."""
+
+    location: Location
+    has_children: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,25 +164,25 @@ class LocationService:
                 for index in range(1, levels + 1)
             ]
             created += [shelf, *boards]
-            # Parents first: a child refers to its parent by key.
-            for location in created:
-                uow.locations.add(location)
-                await uow.flush()
-                uow.publish(
-                    LocationChanged(
-                        aggregate_id=location.id,
-                        occurred_at=now,
-                        code=location.code,
-                        change="created",
-                    )
-                )
             try:
+                # Parents first: a child refers to its parent by key.
+                for location in created:
+                    uow.locations.add(location)
+                    await uow.flush()
+                    uow.publish(
+                        LocationChanged(
+                            aggregate_id=location.id,
+                            occurred_at=now,
+                            code=location.code,
+                            change="created",
+                        )
+                    )
                 await uow.commit()
             except UniqueViolationError as exc:  # made at the same moment elsewhere
                 raise LocationCodeTakenError from exc
             return NewShelf(shelf=shelf, levels=boards)
 
-    async def rename(self, code: str, *, name: str) -> Location:
+    async def rename(self, code: str, *, name: str) -> NamedLocation:
         async with self._uow() as uow:
             location = await uow.locations.get_by_code(code, for_update=True)
             if location is None:
@@ -188,8 +194,9 @@ class LocationService:
                     aggregate_id=location.id, occurred_at=now, code=location.code, change="renamed"
                 )
             )
+            has_children = await uow.locations.has_children(location.id)
             await uow.commit()
-            return location
+            return NamedLocation(location, has_children=has_children)
 
     async def remove(self, code: str) -> None:
         """Remove an empty location that never held anything (its label is thrown away)."""

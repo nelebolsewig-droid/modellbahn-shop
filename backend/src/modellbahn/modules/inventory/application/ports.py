@@ -27,7 +27,7 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     PrintJobInfo,
     PrintJobYield,
 )
-from modellbahn.modules.sales.contracts.orders import OrderSummary
+from modellbahn.modules.sales.contracts.orders import OrderStatus, OrderSummary
 from modellbahn.platform.events import DomainEvent
 
 
@@ -276,6 +276,8 @@ class Orders(Protocol):
     """What inventory may ask the sales module."""
 
     async def summary(self, order_id: UUID) -> OrderSummary | None: ...
+
+    async def status(self, order_id: UUID) -> OrderStatus | None: ...
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]: ...
 

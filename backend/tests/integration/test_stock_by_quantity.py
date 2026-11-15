@@ -21,17 +21,20 @@ from modellbahn.modules.inventory.domain.errors import (
     CountOutdatedError,
     CountTakesReservedError,
     InvalidFieldError,
+    LocationCodeTakenError,
     LocationNotEmptyError,
     NotEnoughFreeError,
     NotEnoughPiecesError,
     ProductNotFoundError,
 )
 from modellbahn.modules.inventory.domain.model import (
+    Location,
     LocationKind,
     MovementReason,
     ScrapReason,
     UnitStatus,
 )
+from modellbahn.modules.inventory.infrastructure.repositories import SqlLocationRepository
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
@@ -129,6 +132,20 @@ class TestShelves:
         # A shelf with Böden holds no goods itself; one without does.
         assert (tree["R01"].takes_goods, tree["R02"].takes_goods) == (False, True)
         assert tree["R01-B01"].takes_goods
+
+    async def test_a_shelf_made_at_the_same_moment_elsewhere_is_a_taken_code(
+        self, locations: LocationService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        await locations.create_shelf(name="Regal 1", levels=2)
+        read_tree = SqlLocationRepository.tree
+
+        async def before_the_other_commit(self: SqlLocationRepository) -> list[Location]:
+            return [loc for loc in await read_tree(self) if loc.kind is LocationKind.SITE]
+
+        # The tree was read before the other shelf was committed: R01 looks free.
+        monkeypatch.setattr(SqlLocationRepository, "tree", before_the_other_commit)
+        with pytest.raises(LocationCodeTakenError):
+            await locations.create_shelf(name="Regal 2", levels=2)
 
     async def test_a_bodens_label_names_its_shelf(
         self, locations: LocationService, inventory_uow: InventoryUnitOfWorkFactory

@@ -51,12 +51,39 @@ class Allocator:
         """Give a unit that just became free to the order waiting longest for its variant."""
         if not unit.is_free:
             return None
-        allocation = await self._uow.allocations.oldest_backorder(unit.variant_id)
-        if allocation is None:
-            return None
+        while True:
+            allocation = await self._uow.allocations.oldest_backorder(unit.variant_id)
+            if allocation is None:
+                return None
+            if await self._still_owed(allocation):
+                break
         self._journal.know(allocation)
         await self._journal.book(unit, unit.allocate(allocation.id, self._journal.now))
         return allocation
+
+    async def _still_owed(self, allocation: Allocation) -> bool:
+        """A backorder of an order that has left or was cancelled is closed, not served.
+
+        Sales ships only orders whose pieces all have a unit, and a cancellation releases
+        the rest; such a backorder is left over from a race (a reserved piece scrapped
+        while the parcel left) or from an event not handled yet.
+        """
+        status = await self._uow.orders.status(allocation.order_id)
+        if status is OrderStatus.PAID:
+            return True
+        now = self._journal.now
+        if status is OrderStatus.SHIPPED:
+            allocation.ship(now)
+        else:
+            allocation.release(now)
+        await self._uow.flush()
+        _logger.warning(
+            "inventory.backorder.closed",
+            order_id=str(allocation.order_id),
+            allocation_id=str(allocation.id),
+            order_status=str(status),
+        )
+        return False
 
     async def reserve(self, allocations: list[Allocation]) -> list[Allocation]:
         """Give each allocation the oldest free unit of its variant; the backordered rest."""
@@ -291,17 +318,20 @@ class AllocationService:
             for allocation in open_ones:
                 journal.know(allocation)
                 unit = units.get(allocation.id)
-                if unit is not None and unit.status is UnitStatus.ALLOCATED:
-                    await journal.book(unit, unit.pick(now))
-                if unit is None or unit.status is not UnitStatus.PICKED:
-                    # Sales ships only orders whose pieces all have a unit; a piece lost
-                    # its unit between that check and now (scrapped meanwhile).
+                if unit is None:
+                    # Sales ships only orders whose pieces all have a unit; this piece lost
+                    # its unit between that check and now (scrapped meanwhile). The parcel
+                    # has left all the same: the allocation is done, so no new piece is
+                    # ever reserved for it. A count puts the stock right.
                     _logger.warning(
                         "inventory.ship.piece_without_unit",
                         order_id=str(order_id),
                         allocation_id=str(allocation.id),
                     )
+                    allocation.ship(now)
                     continue
+                if unit.status is UnitStatus.ALLOCATED:
+                    await journal.book(unit, unit.pick(now))
                 await journal.book(unit, unit.ship(now))
                 allocation.ship(now)
             await uow.commit()

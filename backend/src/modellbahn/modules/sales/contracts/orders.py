@@ -23,6 +23,7 @@ __all__ = [
     "Shipment",
     "load_open_order_numbers",
     "load_order_numbers",
+    "load_order_status",
     "load_order_summary",
     "load_shipment",
 ]
@@ -102,6 +103,13 @@ async def load_order_summary(uow: UnitOfWork, order_id: UUID) -> OrderSummary | 
             for line in lines
         ],
     )
+
+
+async def load_order_status(uow: UnitOfWork, order_id: UUID) -> OrderStatus | None:
+    """Where the order stands, without its lines; ``None`` if there is no such order."""
+    row = await uow.session.execute(select(orders.c.status).where(orders.c.id == order_id))
+    status: OrderStatus | None = row.scalar_one_or_none()
+    return status
 
 
 async def load_order_numbers(uow: UnitOfWork, order_ids: Collection[UUID]) -> dict[UUID, str]:

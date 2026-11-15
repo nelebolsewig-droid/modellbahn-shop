@@ -63,10 +63,16 @@ class TestShelves:
         body = created.json()
         assert body["shelf"]["code"] == "R01"
         assert [level["code"] for level in body["levels"]] == ["R01-B01", "R01-B02"]
+        # Everywhere the same answer: goods go onto the Böden, not onto the shelf.
+        assert (body["shelf"]["holds_goods"], body["levels"][0]["holds_goods"]) == (False, True)
         tree = (await staff_client.get(f"{INVENTORY}/locations")).json()["items"]
         by_code = {node["code"]: node for node in tree}
         assert (by_code["R01"]["holds_goods"], by_code["R01-B02"]["holds_goods"]) == (False, True)
         assert by_code["R01-B02"]["place"] == "Regal 1, Boden 2"
+        renamed = await staff_client.patch(f"{INVENTORY}/locations/R01", json={"name": "Fenster"})
+        assert renamed.json()["holds_goods"] is False, renamed.text
+        level = (await staff_client.get(f"{INVENTORY}/locations/R01-B01")).json()
+        assert [a["holds_goods"] for a in level["ancestors"] if a["code"] == "R01"] == [False]
         assert_problem(
             await staff_client.post(f"{INVENTORY}/locations/shelves", json={"levels": 21}),
             422,

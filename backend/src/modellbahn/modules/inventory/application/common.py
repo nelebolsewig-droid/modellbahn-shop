@@ -28,11 +28,9 @@ type UnitOfWorkFactory = Callable[[], InventoryUnitOfWork]
 async def takes_goods(uow: InventoryUnitOfWork, location: Location) -> bool:
     """Whether goods may go into ``location``: a compartment, box or staging area, or a
     shelf without anything below it."""
-    if not location.holds_goods:
-        return False
-    return location.kind is not LocationKind.SHELF or not await uow.locations.has_children(
-        location.id
-    )
+    if location.kind is not LocationKind.SHELF:
+        return location.holds_goods
+    return location.takes_goods(has_children=await uow.locations.has_children(location.id))
 
 
 async def resolve_location(uow: InventoryUnitOfWork, code: str, field: str) -> Location:

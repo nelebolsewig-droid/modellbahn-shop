@@ -103,7 +103,8 @@ class LocationOut(BaseModel):
     depth: int
 
     @classmethod
-    def from_location(cls, location: Location) -> Self:
+    def from_location(cls, location: Location, *, has_children: bool) -> Self:
+        """``holds_goods`` says whether goods may go in now: a shelf with Böden takes none."""
         return cls(
             id=location.id,
             code=location.code,
@@ -111,9 +112,14 @@ class LocationOut(BaseModel):
             kind=location.kind,
             name=location.name,
             parent_id=location.parent_id,
-            holds_goods=location.holds_goods,
+            holds_goods=location.takes_goods(has_children=has_children),
             depth=location.depth,
         )
+
+    @classmethod
+    def of_place(cls, location: Location) -> Self:
+        """A place where goods lie; nothing hangs below a shelf with goods on it."""
+        return cls.from_location(location, has_children=False)
 
 
 class LocationNodeOut(LocationOut):
@@ -126,11 +132,9 @@ class LocationNodeOut(LocationOut):
 
     @classmethod
     def from_node(cls, node: LocationNode) -> Self:
-        location = LocationOut.from_location(node.location).model_dump()
-        # A shelf takes goods only while it has no Böden.
-        location["holds_goods"] = node.takes_goods
+        location = LocationOut.from_location(node.location, has_children=node.has_children)
         return cls(
-            **location,
+            **location.model_dump(),
             unit_count=node.unit_count,
             total_count=node.total_count,
             part_count=node.part_count,
@@ -376,7 +380,7 @@ class UnitOut(BaseModel):
             status=unit.status,
             variant_id=unit.variant_id,
             variant=VariantRefOut.from_variant(view.variant) if view.variant else None,
-            location=LocationOut.from_location(view.location) if view.location else None,
+            location=LocationOut.of_place(view.location) if view.location else None,
             order_id=view.order_id,
             order_number=view.order_number,
             scrap_note=unit.scrap_note,
@@ -525,7 +529,7 @@ class UnitMoveOut(BaseModel):
             moved=move.moved,
             already_there=move.already_there,
             reserved=move.reserved,
-            location=LocationOut.from_location(move.location),
+            location=LocationOut.of_place(move.location),
         )
 
 
@@ -553,7 +557,7 @@ class UnitRestoreOut(BaseModel):
             restored=restore.restored,
             already_there=restore.already_there,
             reserved=restore.reserved,
-            location=LocationOut.from_location(restore.location),
+            location=LocationOut.of_place(restore.location),
         )
 
 
@@ -622,7 +626,10 @@ class LocationContentsOut(BaseModel):
             )
         return cls(
             location=LocationNodeOut.from_node(contents.node),
-            ancestors=[LocationOut.from_location(location) for location in contents.ancestors],
+            ancestors=[
+                LocationOut.from_location(location, has_children=True)
+                for location in contents.ancestors
+            ],
             children=[LocationNodeOut.from_node(child) for child in contents.children],
             units=units,
             parts=parts,
@@ -669,7 +676,7 @@ class PlaceStockOut(BaseModel):
     @classmethod
     def from_line(cls, line: PlaceStock) -> Self:
         return cls(
-            location=LocationOut.from_location(line.location),
+            location=LocationOut.of_place(line.location),
             place=line.place,
             variant_id=line.variant_id,
             variant=VariantRefOut.from_variant(line.variant) if line.variant else None,
@@ -732,8 +739,8 @@ class StockMoveOut(BaseModel):
     def from_result(cls, result: MoveResult) -> Self:
         return cls(
             moved=result.moved,
-            from_location=LocationOut.from_location(result.source),
-            to_location=LocationOut.from_location(result.target),
+            from_location=LocationOut.of_place(result.source),
+            to_location=LocationOut.of_place(result.target),
         )
 
 
@@ -839,8 +846,8 @@ class ShelfOut(BaseModel):
     @classmethod
     def from_shelf(cls, created: NewShelf) -> Self:
         return cls(
-            shelf=LocationOut.from_location(created.shelf),
-            levels=[LocationOut.from_location(level) for level in created.levels],
+            shelf=LocationOut.from_location(created.shelf, has_children=bool(created.levels)),
+            levels=[LocationOut.of_place(level) for level in created.levels],
         )
 
 
@@ -1060,7 +1067,7 @@ class PickItemOut(BaseModel):
             title=item.title,
             state=item.state,
             unit_code=item.unit_code,
-            location=LocationOut.from_location(item.location) if item.location else None,
+            location=LocationOut.of_place(item.location) if item.location else None,
             place=item.place,
         )
 

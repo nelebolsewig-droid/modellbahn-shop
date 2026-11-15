@@ -54,8 +54,10 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     load_print_jobs,
 )
 from modellbahn.modules.sales.contracts.orders import (
+    OrderStatus,
     OrderSummary,
     load_order_numbers,
+    load_order_status,
     load_order_summary,
 )
 from modellbahn.platform.db import Ltree
@@ -539,6 +541,9 @@ class SqlOrders:
 
     async def summary(self, order_id: UUID) -> OrderSummary | None:
         return await load_order_summary(self._uow, order_id)
+
+    async def status(self, order_id: UUID) -> OrderStatus | None:
+        return await load_order_status(self._uow, order_id)
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]:
         return await load_order_numbers(self._uow, order_ids)

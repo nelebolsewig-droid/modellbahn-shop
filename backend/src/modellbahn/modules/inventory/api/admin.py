@@ -124,7 +124,7 @@ async def create_location(
         kind=body.kind,
         name=body.name,
     )
-    return LocationOut.from_location(location)
+    return LocationOut.from_location(location, has_children=False)  # just made
 
 
 @router.get(
@@ -148,7 +148,8 @@ async def get_location(
 async def rename_location(
     code: str, body: LocationPatchIn, _: StockManager, service: LocationServiceDep
 ) -> LocationOut:
-    return LocationOut.from_location(await service.rename(code.upper(), name=body.name))
+    renamed = await service.rename(code.upper(), name=body.name)
+    return LocationOut.from_location(renamed.location, has_children=renamed.has_children)
 
 
 @router.delete(

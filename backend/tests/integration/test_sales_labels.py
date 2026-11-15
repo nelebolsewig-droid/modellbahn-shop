@@ -64,6 +64,21 @@ class RefusingCarrier(TestCarrier):
         raise self.error
 
 
+class OverlongNumberCarrier(TestCarrier):
+    """Books a label whose number no order can carry: the shop fails after booking."""
+
+    async def book(self, request: LabelRequest) -> BookedLabel:
+        booked = await super().book(request)
+        return BookedLabel(
+            shipment_number="9" * 41, document=booked.document, print_format=booked.print_format
+        )
+
+
+class FailingCancelCarrier(OverlongNumberCarrier):
+    async def cancel(self, shipment_number: str) -> None:
+        raise CarrierUnavailableError
+
+
 @pytest.fixture
 def carrier() -> TestCarrier:
     return TestCarrier()
@@ -408,6 +423,42 @@ class TestDispatch:
         assert label.shipment_number in mails_to(mailer, CUSTOMER)[-1].text
         (item,) = (await allocation.pick_list(order_id)).items
         assert item.state is PieceState.SHIPPED
+
+    @pytest.mark.parametrize("carrier_type", [OverlongNumberCarrier, FailingCancelCarrier])
+    async def test_a_label_the_shop_cannot_keep_is_cancelled_at_the_carrier(
+        self,
+        sales_uow: UnitOfWorkFactory,
+        clock: FixedClock,
+        orders: OrderService,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        locations: LocationService,
+        units: UnitService,
+        painted: UUID,
+        carrier_type: type[OverlongNumberCarrier],
+    ) -> None:
+        carrier = carrier_type()
+        labels = ShippingLabelService(
+            uow_factory=sales_uow,
+            clock=clock,
+            carrier=carrier,
+            shipper=TEST_SHIPPER,
+            default_weight_g=1000,
+        )
+        await stock_up(locations, units, painted)
+        order_id = await paid_order(carts, checkout, painted)
+        await deliver()
+
+        # Booked at the carrier, then shipping fails: the label goes back, the error stays.
+        with pytest.raises(InvalidFieldError):
+            await labels.book(order_id, ship=True)
+
+        if carrier_type is OverlongNumberCarrier:
+            assert carrier.cancelled == ["9" * 41]
+        with pytest.raises(LabelNotFoundError):
+            await labels.active(order_id)
+        assert (await orders.get(order_id)).order.status is OrderStatus.PAID
 
     async def test_a_typed_number_wins_over_the_label(
         self,
