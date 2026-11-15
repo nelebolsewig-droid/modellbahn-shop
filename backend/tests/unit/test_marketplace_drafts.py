@@ -47,6 +47,7 @@ def variant(finish: str = "painted", color: str = "", **changes: object) -> Sale
         purchasable=True,
         allow_backorder=True,
         lead_time_weeks=(1, 2),
+        own_lead_time=True,
     )
     return replace(base, **changes)  # type: ignore[arg-type]
 
@@ -147,9 +148,16 @@ class TestDraft:
         ]
 
     def test_stock_counts_for_variants_not_made_to_order(self) -> None:
-        on_shelf = variant(allow_backorder=False, lead_time_weeks=None)
+        on_shelf = variant(allow_backorder=False, lead_time_weeks=None, own_lead_time=False)
         result = built(source(on_shelf), free={on_shelf.variant_id: 2})
         assert result.offers[0].quantity == 2
+
+    def test_the_shops_lead_time_does_not_reach_ebay(self) -> None:
+        # Made again in the shop's lead time (ADR 0029): eBay still sells only the stock.
+        shop_default = variant(lead_time_weeks=(2, 4), own_lead_time=False)
+        result = built(source(shop_default), free={shop_default.variant_id: 1})
+        assert result.offers[0].quantity == 1
+        assert "Wochen" not in result.description_html
 
     def test_variants_not_in_the_shop_stay_away(self) -> None:
         result = built(source(variant("unpainted", purchasable=False), variant()))

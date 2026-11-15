@@ -88,9 +88,18 @@ async def offered_product(
     *,
     made_to_order: bool = True,
 ) -> ProductDetails:
-    """A shop product in H0 (kit and finished model) with its category mapped to eBay."""
+    """A shop product in H0 (kit and finished model) with its category mapped to eBay.
+
+    Made to order with a lead time of its own: eBay sells such variants beyond the stock
+    (the shop's lead time alone does not reach eBay, ADR 0029).
+    """
     details = await shop_product(
-        catalog, media, media_storage, deliver, made_to_order=made_to_order
+        catalog,
+        media,
+        media_storage,
+        deliver,
+        made_to_order=made_to_order,
+        lead_time_weeks=(1, 2),
     )
     category_id = details.product.primary_category_id
     assert category_id is not None

@@ -9,13 +9,14 @@ from dataclasses import dataclass
 from typing import Final
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, case, func, select
 
 from modellbahn.modules.catalog.domain.model import ProductStatus
 from modellbahn.modules.catalog.infrastructure.tables import (
     finishes,
     product_media,
     product_scales,
+    production_settings,
     products,
     scales,
     variants,
@@ -62,9 +63,13 @@ class SaleVariant:
     purchasable: bool
     """In the shop and active: only such variants go into a cart and into an order."""
     allow_backorder: bool
-    """Made to order: may be sold without stock, the workshop makes it for the customer."""
+    """Made again: may be sold beyond the stock, the workshop makes the rest (ADR 0029)."""
     lead_time_weeks: tuple[int, int] | None
-    """How many weeks making it takes (from, to); set for every variant made to order."""
+    """How many weeks making one takes (from, to): its own lead time or the shop's; set
+    for every variant made again."""
+    own_lead_time: bool = False
+    """The lead time is the variant's own, not the shop's (eBay offers only such variants
+    beyond the stock, as before ADR 0029)."""
 
     @property
     def variant_name(self) -> str:
@@ -121,8 +126,8 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
                 variants.c.compare_at_price_cents,
                 variants.c.active,
                 variants.c.allow_backorder,
-                variants.c.lead_time_min_weeks,
-                variants.c.lead_time_max_weeks,
+                *made_within(),
+                (variants.c.lead_time_min_weeks.is_not(None)).label("own_lead_time"),
                 variants.c.finish_code,
                 variants.c.color,
                 finishes.c.name.label("finish_name"),
@@ -180,13 +185,33 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
             purchasable=row.active and row.status == ProductStatus.ACTIVE,
             allow_backorder=row.allow_backorder,
             lead_time_weeks=(
-                (row.lead_time_min_weeks, row.lead_time_max_weeks)
-                if row.lead_time_min_weeks is not None
+                (row.made_within_min_weeks, row.made_within_max_weeks)
+                if row.made_within_min_weeks is not None
                 else None
             ),
+            own_lead_time=row.own_lead_time,
         )
         for row in rows
     ]
+
+
+def made_within() -> tuple[ColumnElement[int | None], ColumnElement[int | None]]:
+    """How many weeks making a piece of the variant takes, from and to (labelled
+    ``made_within_min_weeks``, ``made_within_max_weeks``): its own lead time or the shop's
+    as it is now; ``NULL`` for a variant not made again (ADR 0029)."""
+    return (
+        _made_within(
+            variants.c.lead_time_min_weeks, production_settings.c.default_lead_time_min_weeks
+        ).label("made_within_min_weeks"),
+        _made_within(
+            variants.c.lead_time_max_weeks, production_settings.c.default_lead_time_max_weeks
+        ).label("made_within_max_weeks"),
+    )
+
+
+def _made_within(own: ColumnElement[int], shop: ColumnElement[int]) -> ColumnElement[int | None]:
+    shop_now = select(shop).where(production_settings.c.id == 1).scalar_subquery()
+    return case((variants.c.allow_backorder, func.coalesce(own, shop_now)), else_=None)
 
 
 @dataclass(frozen=True, slots=True)

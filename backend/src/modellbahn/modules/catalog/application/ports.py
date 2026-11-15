@@ -16,6 +16,7 @@ from modellbahn.modules.catalog.domain.model import (
     Epoch,
     Finish,
     Product,
+    ProductionSettings,
     ProductStatus,
     Scale,
 )
@@ -74,6 +75,7 @@ class Article:
     active: bool
     allow_backorder: bool
     lead_time_weeks: tuple[int, int] | None
+    """Its own lead time or the shop's; ``None`` when it is not made again."""
 
 
 class ProductRepository(Protocol):
@@ -156,6 +158,12 @@ class ReferenceData(Protocol):
     async def scale_usage(self) -> dict[str, int]:
         """How many products (in any state) are offered in each scale that has any."""
         ...
+
+    async def production_settings(self, *, for_update: bool = False) -> ProductionSettings:
+        """The shop's lead time for pieces made again (ADR 0029); the migration made it."""
+        ...
+
+    async def save_production_settings(self, settings: ProductionSettings) -> None: ...
 
     async def scale_in_use(self, code: str) -> bool:
         """A product is offered in it or a photo is tagged with it."""

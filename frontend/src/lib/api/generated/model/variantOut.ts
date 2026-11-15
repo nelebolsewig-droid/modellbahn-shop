@@ -14,7 +14,7 @@
 
 export interface VariantOut {
   active: boolean;
-  /** Made to order: always for sale, made within the lead time; otherwise sold from stock and sold out when the shelves are empty. */
+  /** Made again: sold beyond the stock, the workshop makes the rest within the lead time (ADR 0029); otherwise sold out when the shelves are empty. */
   allow_backorder: boolean;
   /** Empty for a kit or a finished model in one colour. */
   color: string;
@@ -23,6 +23,7 @@ export interface VariantOut {
   gtin: string;
   id: string;
   lead_time_max_weeks: number | null;
+  /** Its own lead time; null follows the shop's (`/catalog/production`). */
   lead_time_min_weeks: number | null;
   price_cents: number;
   sku: string;

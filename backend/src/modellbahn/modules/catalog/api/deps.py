@@ -29,6 +29,8 @@ def get_scale_service(request: Request) -> ScaleService:
 ScaleServiceDep = Annotated[ScaleService, Depends(get_scale_service)]
 # Packers scan and pack, nothing else (KONZEPT §9.2).
 CatalogEditor = Annotated[StaffMember, Depends(require_staff(StaffRole.OWNER, StaffRole.STAFF))]
+# What the whole shop promises (its lead time) only the owner changes.
+CatalogOwner = Annotated[StaffMember, Depends(require_staff(StaffRole.OWNER))]
 IfMatch = Annotated[
     str | None,
     Header(description='The ETag of the product as read, e.g. `"7"`. A newer version answers 412.'),

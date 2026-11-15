@@ -14,7 +14,7 @@
 
 export interface VariantCreateIn {
   active?: boolean;
-  /** Made to order. */
+  /** Made again (ADR 0029). */
   allow_backorder?: boolean;
   /**
      * Only for a finished model; empty for a kit.
@@ -25,7 +25,7 @@ export interface VariantCreateIn {
   finish_code: string;
   /** Defaults to the minimum. */
   lead_time_max_weeks?: number | null;
-  /** Made to order without a lead time: 4 to 6 weeks. */
+  /** Its own lead time; left out follows the shop's. */
   lead_time_min_weeks?: number | null;
   /**
      * @minimum 0

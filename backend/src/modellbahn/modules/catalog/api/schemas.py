@@ -38,6 +38,7 @@ from modellbahn.modules.catalog.domain.model import (
     Finish,
     GalleryEntry,
     MediaRole,
+    ProductionSettings,
     ProductScale,
     ProductStatus,
     Scale,
@@ -57,6 +58,9 @@ Grams = Annotated[int, Field(gt=0, le=WEIGHT_MAX_G)]
 
 class _Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+LeadTimeWeeks = Annotated[int, Field(ge=1, le=LEAD_TIME_MAX_WEEKS, examples=[4])]
 
 
 def _decimal(value: float | None) -> Decimal | None:
@@ -164,6 +168,25 @@ class ReferencesOut(BaseModel):
             finishes=[FinishOut.from_finish(f) for f in references.finishes],
             epochs=[EpochOut.from_epoch(e) for e in references.epochs],
         )
+
+
+class ProductionOut(BaseModel):
+    """The shop's lead time for pieces made again (ADR 0029)."""
+
+    default_lead_time_min_weeks: int = Field(examples=[2])
+    default_lead_time_max_weeks: int = Field(examples=[4])
+
+    @classmethod
+    def from_settings(cls, settings: ProductionSettings) -> Self:
+        return cls(
+            default_lead_time_min_weeks=settings.default_lead_time_min_weeks,
+            default_lead_time_max_weeks=settings.default_lead_time_max_weeks,
+        )
+
+
+class ProductionIn(_Request):
+    default_lead_time_min_weeks: LeadTimeWeeks
+    default_lead_time_max_weeks: LeadTimeWeeks
 
 
 # --- Categories -----------------------------------------------------------------------
@@ -283,10 +306,12 @@ class VariantOut(BaseModel):
     price_cents: int
     compare_at_price_cents: int | None
     allow_backorder: bool = Field(
-        description="Made to order: always for sale, made within the lead time; "
-        "otherwise sold from stock and sold out when the shelves are empty."
+        description="Made again: sold beyond the stock, the workshop makes the rest within "
+        "the lead time (ADR 0029); otherwise sold out when the shelves are empty."
     )
-    lead_time_min_weeks: int | None
+    lead_time_min_weeks: int | None = Field(
+        description="Its own lead time; null follows the shop's (`/catalog/production`)."
+    )
     lead_time_max_weeks: int | None
     active: bool
 
@@ -472,7 +497,7 @@ class QuickEntryIn(_Request):
     finish_code: str = Field(examples=["painted"])
     color: Color = ""
     price_cents: Price = Field(description="Also the new price of a variant that exists.")
-    allow_backorder: bool = False
+    allow_backorder: bool = Field(default=True, description="Made again, in the shop's lead time.")
     asset_id: UUID | None = Field(
         default=None, description="An uploaded photo: joins the gallery, tagged with the variant."
     )
@@ -518,18 +543,15 @@ class ProductScaleIn(DimensionsIn):
     scale_code: str = Field(examples=["H0"])
 
 
-LeadTimeWeeks = Annotated[int, Field(ge=1, le=LEAD_TIME_MAX_WEEKS, examples=[4])]
-
-
 class VariantCreateIn(_Request):
     finish_code: str = Field(examples=["painted"])
     color: Color = Field(default="", description="Only for a finished model; empty for a kit.")
     price_cents: Price
     # A former price, shown struck through; must be above the price.
     compare_at_price_cents: Price | None = None
-    allow_backorder: bool = Field(default=False, description="Made to order.")
+    allow_backorder: bool = Field(default=True, description="Made again (ADR 0029).")
     lead_time_min_weeks: LeadTimeWeeks | None = Field(
-        default=None, description="Made to order without a lead time: 4 to 6 weeks."
+        default=None, description="Its own lead time; left out follows the shop's."
     )
     lead_time_max_weeks: LeadTimeWeeks | None = Field(
         default=None, description="Defaults to the minimum."
@@ -541,7 +563,8 @@ class VariantCreateIn(_Request):
 
 
 class VariantPatchIn(_Request):
-    """Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time."""
+    """Only the fields sent are changed; ``lead_time_min_weeks: null`` lets the variant
+    follow the shop's lead time; ``allow_backorder: false`` drops its own."""
 
     price_cents: Price | None = None
     compare_at_price_cents: Price | None = None

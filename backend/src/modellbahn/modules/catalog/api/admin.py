@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from modellbahn.modules.catalog.api.articles import articles_csv
 from modellbahn.modules.catalog.api.deps import (
     CatalogEditor,
+    CatalogOwner,
     CatalogServiceDep,
     IfMatch,
     ScaleServiceDep,
@@ -35,6 +36,8 @@ from modellbahn.modules.catalog.api.schemas import (
     GalleryAttachIn,
     GalleryIn,
     ProductCreateIn,
+    ProductionIn,
+    ProductionOut,
     ProductOut,
     ProductPageOut,
     ProductPatchIn,
@@ -88,6 +91,31 @@ def _given(body: BaseModel, name: str, *, nullable: bool = False) -> Any:
 )
 async def get_references(_: CatalogEditor, service: CatalogServiceDep) -> ReferencesOut:
     return ReferencesOut.from_references(await service.references())
+
+
+@router.get(
+    "/catalog/production",
+    operation_id="getProduction",
+    summary="The shop's lead time for pieces made again",
+    responses=problems(ACCESS, unsafe=False, validated=False),
+)
+async def get_production(_: CatalogEditor, service: CatalogServiceDep) -> ProductionOut:
+    return ProductionOut.from_settings(await service.production())
+
+
+@router.put(
+    "/catalog/production",
+    operation_id="changeProduction",
+    summary="Change the shop's lead time; every variant without its own follows (owner only)",
+    responses=problems(ACCESS),
+)
+async def change_production(
+    body: ProductionIn, _: CatalogOwner, service: CatalogServiceDep
+) -> ProductionOut:
+    settings = await service.change_default_lead_time(
+        (body.default_lead_time_min_weeks, body.default_lead_time_max_weeks)
+    )
+    return ProductionOut.from_settings(settings)
 
 
 @router.get(

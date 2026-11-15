@@ -13,7 +13,8 @@
  */
 
 /**
- * Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time.
+ * Only the fields sent are changed; ``lead_time_min_weeks: null`` lets the variant
+ * follow the shop's lead time; ``allow_backorder: false`` drops its own.
  */
 export interface VariantPatchIn {
   active?: boolean | null;

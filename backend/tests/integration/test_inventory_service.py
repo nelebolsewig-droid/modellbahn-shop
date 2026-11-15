@@ -1317,6 +1317,11 @@ class TestAvailability:
             Availability.MADE_TO_ORDER,
             (6, 8),
         )
+        # Back to the shop's lead time, which it follows when that changes (ADR 0029).
+        await catalog.change_variant(unpainted, expected_version=None, lead_time_weeks=None)
+        await catalog.change_default_lead_time((3, 5))
+        found = {a.variant_id: a for a in await availability.for_product(product.product.slug)}
+        assert found[unpainted].lead_time_weeks == (3, 5)
         await catalog.change_variant(unpainted, expected_version=None, allow_backorder=False)
         found = {a.variant_id: a for a in await availability.for_product(product.product.slug)}
         assert found[unpainted].availability is Availability.UNAVAILABLE

@@ -50,6 +50,7 @@ from modellbahn.modules.catalog.domain.model import (
     GalleryEntry,
     Maybe,
     Product,
+    ProductionSettings,
     ProductScale,
     ProductStatus,
     Scale,
@@ -191,6 +192,23 @@ class CatalogService:
         async with self._uow() as uow:
             return await _references(uow)
 
+    async def production(self) -> ProductionSettings:
+        """The shop's lead time for pieces made again (ADR 0029)."""
+        async with self._uow() as uow:
+            return await uow.references.production_settings()
+
+    async def change_default_lead_time(
+        self, lead_time_weeks: tuple[int, int]
+    ) -> ProductionSettings:
+        """Every variant made again without its own lead time follows it from now on."""
+        async with self._uow() as uow:
+            settings = await uow.references.production_settings(for_update=True)
+            settings.change_default_lead_time(lead_time_weeks, self._clock.now())
+            await uow.references.save_production_settings(settings)
+            await uow.commit()
+        _logger.info("catalog.lead_time.changed", weeks=list(settings.default_lead_time_weeks))
+        return settings
+
     async def articles(self) -> list[Article]:
         """The article list for the till: every variant with EAN, article number and price."""
         async with self._uow() as uow:
@@ -316,7 +334,7 @@ class CatalogService:
         finish_code: str,
         color: str,
         price_cents: int,
-        allow_backorder: bool = False,
+        allow_backorder: bool = True,
         asset_id: UUID | None = None,
     ) -> QuickEntry:
         """One model off the shelf in one step, for the quick entry on the phone.
@@ -500,7 +518,7 @@ class CatalogService:
         price_cents: int,
         color: str = "",
         compare_at_price_cents: int | None = None,
-        allow_backorder: bool = False,
+        allow_backorder: bool = True,
         lead_time_weeks: tuple[int, int] | None = None,
         active: bool = True,
     ) -> ProductDetails:

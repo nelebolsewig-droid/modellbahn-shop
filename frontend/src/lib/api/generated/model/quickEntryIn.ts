@@ -16,6 +16,7 @@
  * One model off the shelf: an existing product (a draft, say) or a new one by name.
  */
 export interface QuickEntryIn {
+  /** Made again, in the shop's lead time. */
   allow_backorder?: boolean;
   /** An uploaded photo: joins the gallery, tagged with the variant. */
   asset_id?: string | null;

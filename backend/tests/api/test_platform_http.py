@@ -125,6 +125,8 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/store/products"): ("listStoreProducts", "store-catalog"),
     ("GET", "/api/v1/store/products/{slug}"): ("getStoreProduct", "store-catalog"),
     ("GET", "/api/v1/admin/catalog/references"): ("getCatalogReferences", "admin-catalog"),
+    ("GET", "/api/v1/admin/catalog/production"): ("getProduction", "admin-catalog"),
+    ("PUT", "/api/v1/admin/catalog/production"): ("changeProduction", "admin-catalog"),
     ("GET", "/api/v1/admin/categories"): ("listCategories", "admin-catalog"),
     ("POST", "/api/v1/admin/categories"): ("createCategory", "admin-catalog"),
     ("PATCH", "/api/v1/admin/categories/{category_id}"): ("updateCategory", "admin-catalog"),

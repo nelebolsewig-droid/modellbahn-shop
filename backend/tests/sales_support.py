@@ -47,11 +47,12 @@ async def shop_product(
     name: str = "Stellwerk Altenau",
     variants: Sequence[VariantSpec] = DEFAULT_VARIANTS,
     made_to_order: bool = True,
+    lead_time_weeks: tuple[int, int] | None = None,
 ) -> ProductDetails:
     """A published product with the given variants and a ready main image.
 
-    Its variants are made to order unless told otherwise, so they can be bought
-    without stock.
+    Its variants are made again unless told otherwise, so they can be bought without
+    stock; in the shop's lead time unless they get their own.
     """
     details = await catalog.create_product(name=name)
     category = await catalog.create_category(name=f"Kategorie {uuid4().hex[:6]}")
@@ -69,6 +70,7 @@ async def shop_product(
                 finish_code=finish,
                 price_cents=price,
                 allow_backorder=made_to_order,
+                lead_time_weeks=lead_time_weeks if made_to_order else None,
             )
     shade = next(_colours) % 250
     image = await ready_image(

@@ -193,6 +193,8 @@ export * from './printJobStatus';
 export * from './problem';
 export * from './problemFieldError';
 export * from './productCreateIn';
+export * from './productionIn';
+export * from './productionOut';
 export * from './productListItemOut';
 export * from './productOut';
 export * from './productPageOut';
