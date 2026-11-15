@@ -1,7 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
-import { useDeferredValue, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from "react";
 import { useWatch } from "react-hook-form";
 
 import { useProduct, useReferences } from "@/components/admin/catalog/use-product";
@@ -14,21 +13,17 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useListProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
-import {
-  getListLocationsQueryKey,
-  getListStockQueryKey,
-  labelUnits,
-  useListLocations,
-} from "@/lib/api/generated/admin-inventory/admin-inventory";
+import { labelUnits, useListLocations, useListUnits } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { UnitOut, VariantOut } from "@/lib/api/generated/model";
 import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { useApiForm } from "@/lib/forms/use-api-form";
-import { formatUnitCode } from "@/lib/inventory/codes";
+import { pieces } from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { cn } from "@/lib/utils";
 import { UNITS_PER_BATCH_MAX, unitsCreateSchema } from "@/lib/validation/inventory";
 
 import { LabelPrinter } from "./label-printer";
+import { useInventoryRefresh } from "./part-dialogs";
 
 export type ChosenVariant = { variantId: string; title: string; sku: string };
 
@@ -38,59 +33,104 @@ type UnitsDialogProps = {
   trigger: ReactNode;
 };
 
+type Booked = { variant: ChosenVariant; units: UnitOut[]; location: string; print: boolean };
+
+const PLACE_KEY = "mb-einbuchen-platz";
+
+/** The place this computer booked pieces into last. */
+function rememberedPlace(): string {
+  try {
+    return window.localStorage.getItem(PLACE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberPlace(code: string): void {
+  try {
+    window.localStorage.setItem(PLACE_KEY, code);
+  } catch {
+    // Private mode or blocked storage: the place just isn't kept.
+  }
+}
+
+/** The place holding the most pieces of the model; the first of them on a tie. */
+export function usualPlace(units: readonly UnitOut[]): string | null {
+  const counts = new Map<string, number>();
+  for (const unit of units) {
+    if (unit.location) {
+      counts.set(unit.location.code, (counts.get(unit.location.code) ?? 0) + 1);
+    }
+  }
+  let best: string | null = null;
+  for (const [code, count] of counts) {
+    if (best === null || count > (counts.get(best) ?? 0)) {
+      best = code;
+    }
+  }
+  return best;
+}
+
 /**
- * Records new pieces (fresh from the workbench or a delivery): each gets its own code
- * and a label. They can go into a location at once or wait for the scanner.
+ * Books new pieces in (Einbuchen): fresh from the workbench or a delivery, counted where
+ * they lie. They are in stock there at once, and the shop sells them or a waiting order
+ * gets them. Their labels are the model's (its EAN), as many as there are pieces.
  */
 export function UnitsDialog({ variant, trigger }: UnitsDialogProps) {
   const [open, setOpen] = useState(false);
-  const [created, setCreated] = useState<{ units: UnitOut[]; variant: ChosenVariant } | null>(null);
+  const [booked, setBooked] = useState<Booked | null>(null);
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          setCreated(null);
+          setBooked(null);
         }
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl">
-        {created === null ? (
-          <RecordUnits preset={variant} onCreated={(units, chosen) => setCreated({ units, variant: chosen })} onCancel={() => setOpen(false)} />
+        {booked === null ? (
+          <BookIn preset={variant} onBooked={setBooked} onCancel={() => setOpen(false)} />
         ) : (
-          <PrintNewLabels units={created.units} variant={created.variant} onClose={() => setOpen(false)} />
+          <BookedIn booked={booked} onClose={() => setOpen(false)} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function RecordUnits({
+function BookIn({
   preset,
-  onCreated,
+  onBooked,
   onCancel,
 }: {
   preset?: ChosenVariant;
-  onCreated: (units: UnitOut[], variant: ChosenVariant) => void;
+  onBooked: (booked: Booked) => void;
   onCancel: () => void;
 }) {
-  const queryClient = useQueryClient();
+  const refresh = useInventoryRefresh();
   const [chosen, setChosen] = useState<ChosenVariant | null>(preset ?? null);
+  // Once someone picks a place, the suggestions keep out of it.
+  const placeByHand = useRef(false);
   const locations = useListLocations({ query: { select: (tree) => tree.items.filter((item) => item.holds_goods) } });
+  const lying = useListUnits(
+    { variant_id: chosen?.variantId ?? "", status: ["in_stock", "allocated"] },
+    { query: { enabled: chosen !== null } },
+  );
   const { form, onSubmit, formError } = useApiForm({
     schema: unitsCreateSchema,
-    defaultValues: { variant_id: preset?.variantId ?? "", quantity: "1", location_code: "" },
+    defaultValues: { variant_id: preset?.variantId ?? "", quantity: "1", location_code: "", print: true },
     async submit(values) {
       const batch = await labelUnits({
         variant_id: values.variant_id,
         quantity: values.quantity,
-        location_code: values.location_code === "" ? null : values.location_code,
+        location_code: values.location_code,
       });
-      void queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
-      void queryClient.invalidateQueries({ queryKey: getListLocationsQueryKey() });
-      onCreated(batch.items, chosen as ChosenVariant);
+      rememberPlace(values.location_code);
+      refresh();
+      onBooked({ variant: chosen as ChosenVariant, units: batch.items, location: values.location_code, print: values.print });
     },
   });
   const {
@@ -99,18 +139,34 @@ function RecordUnits({
     setValue,
     formState: { errors, isSubmitting },
   } = form;
-  const place = useWatch({ control, name: "location_code" });
+  const print = useWatch({ control, name: "print" });
+
+  // Where the model already lies, else where this computer booked in last.
+  const places = locations.data;
+  const usual = chosen !== null && lying.isSuccess ? usualPlace(lying.data.items) : null;
+  const remembered = rememberedPlace();
+  const suggestion =
+    places === undefined
+      ? null
+      : (usual ?? (places.some((place) => place.code === remembered) ? remembered : null));
+  useEffect(() => {
+    if (suggestion !== null && !placeByHand.current) {
+      setValue("location_code", suggestion, { shouldValidate: false });
+    }
+  }, [suggestion, setValue]);
 
   const choose = (next: ChosenVariant | null) => {
     setChosen(next);
     setValue("variant_id", next?.variantId ?? "", { shouldValidate: next !== null });
   };
+  const placeField = register("location_code");
 
   return (
     <>
-      <DialogTitle>Stücke erfassen</DialogTitle>
+      <DialogTitle>Stücke einbuchen</DialogTitle>
       <DialogDescription>
-        Jedes Stück bekommt einen eigenen Code und ein Etikett mit EAN für die Kasse. Danach geht es direkt zum Druck.
+        Für fertige Stücke, die in einem Platz liegen: Sie sind gleich im Bestand. Das Etikett trägt die EAN des Modells; ein
+        Etikett passt auf jedes Stück davon.
       </DialogDescription>
       <form noValidate onSubmit={onSubmit} className="mt-6 space-y-5">
         <FormError message={formError?.message} />
@@ -118,7 +174,7 @@ function RecordUnits({
         {chosen ? (
           <div className="flex items-center justify-between gap-4 rounded-sm border border-line bg-canvas px-4 py-3">
             <div className="min-w-0">
-              <p className="label-caps text-ink-tertiary">Modell</p>
+              <p className="label-caps text-ink-tertiary">Ausführung</p>
               <p className="mt-1 truncate text-small font-medium">{chosen.title}</p>
               <p className="font-mono text-hint text-ink-tertiary">{chosen.sku}</p>
             </div>
@@ -130,22 +186,30 @@ function RecordUnits({
           <VariantPicker onChoose={choose} error={errors.variant_id?.message} />
         )}
         <div className="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)]">
-          <FormField label="Stück" error={errors.quantity?.message}>
+          <FormField label="Anzahl" error={errors.quantity?.message}>
             {(control) => <Input {...control} {...register("quantity")} type="number" inputMode="numeric" min={1} max={UNITS_PER_BATCH_MAX} />}
           </FormField>
           <FormField
             label="Platz"
             hint={
-              place === ""
-                ? "Ohne Platz bleiben die Stücke „Unverbucht“: Im Shop sind sie erst lieferbar, wenn sie eingelagert sind."
-                : "Die Stücke liegen gleich dort und sind im Shop lieferbar oder gehen gleich an eine wartende Bestellung."
+              usual !== null
+                ? "Hier liegt das Modell schon. Danach im Shop lieferbar oder gleich für eine wartende Bestellung reserviert."
+                : "Danach im Shop lieferbar oder gleich für eine wartende Bestellung reserviert."
             }
             error={errors.location_code?.message}
           >
             {(control) => (
-              <Select {...control} {...register("location_code")} disabled={locations.isPending}>
-                <option value="">Später beim Einlagern scannen</option>
-                {(locations.data ?? []).map((location) => (
+              <Select
+                {...control}
+                {...placeField}
+                onChange={(event) => {
+                  placeByHand.current = true;
+                  void placeField.onChange(event);
+                }}
+                disabled={locations.isPending}
+              >
+                <option value="">{locations.isPending ? "Wird geladen …" : "Bitte wählen"}</option>
+                {(places ?? []).map((location) => (
                   <option key={location.id} value={location.code}>
                     {location.code}
                     {location.name ? ` · ${location.name}` : ""}
@@ -155,12 +219,17 @@ function RecordUnits({
             )}
           </FormField>
         </div>
+        <label className="flex cursor-pointer items-center gap-3 text-small">
+          <input type="checkbox" {...register("print")} className="size-4 shrink-0 accent-[var(--selected)]" />
+          Etiketten drucken
+          <span className="text-ink-tertiary">· eins je Stück</span>
+        </label>
         <div className="flex flex-wrap justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onCancel}>
             Abbrechen
           </Button>
-          <SubmitButton pending={isSubmitting} pendingLabel="Wird erfasst …">
-            Erfassen und Etiketten drucken
+          <SubmitButton pending={isSubmitting} pendingLabel="Wird eingebucht …">
+            {print ? "Einbuchen und Etiketten drucken" : "Einbuchen"}
           </SubmitButton>
         </div>
       </form>
@@ -287,26 +356,25 @@ function ProductVariants({
   );
 }
 
-function PrintNewLabels({ units, variant, onClose }: { units: UnitOut[]; variant: ChosenVariant; onClose: () => void }) {
-  const stored = units[0]?.location?.code;
+/** What was booked, and the model's labels to print if they were asked for. */
+function BookedIn({ booked, onClose }: { booked: Booked; onClose: () => void }) {
+  const { variant, units, location, print } = booked;
+  const reserved = units.filter((unit) => unit.status === "allocated").length;
   return (
     <>
-      <DialogTitle>{units.length === 1 ? "1 Stück erfasst" : `${units.length} Stücke erfasst`}</DialogTitle>
+      <DialogTitle>{pieces(units.length)} eingebucht</DialogTitle>
       <DialogDescription>
-        {variant.title}.{" "}
-        {stored
-          ? `Liegen in ${stored}.`
-          : "Unverbucht: Erst eingelagert sind sie im Shop lieferbar. Platz scannen, dann die Etiketten, oder im Lager unter „Unverbuchte einlagern“."}
+        {variant.title}. {units.length === 1 ? "Liegt" : "Liegen"} in {location}
+        {reserved > 0
+          ? `, ${reserved === units.length ? (units.length === 1 ? "gleich" : "alle gleich") : `${reserved} davon gleich`} für ${reserved === 1 ? "eine wartende Bestellung" : "wartende Bestellungen"} reserviert.`
+          : ` und ${units.length === 1 ? "ist" : "sind"} im Shop lieferbar.`}
       </DialogDescription>
-      <ul className="mt-5 flex flex-wrap gap-1.5">
-        {units.slice(0, 12).map((unit) => (
-          <li key={unit.id} className="rounded-xs bg-sunken px-2 py-1 font-mono text-hint">
-            {formatUnitCode(unit.code)}
-          </li>
-        ))}
-        {units.length > 12 ? <li className="px-2 py-1 text-hint text-ink-tertiary">+ {units.length - 12}</li> : null}
-      </ul>
-      <LabelPrinter unitCodes={units.map((unit) => unit.code)} className="mt-6 border-t border-line pt-6" />
+      {print ? (
+        <LabelPrinter
+          models={[{ variantId: variant.variantId, quantity: units.length, sku: variant.sku }]}
+          className="mt-6 border-t border-line pt-6"
+        />
+      ) : null}
       <div className="mt-6 flex justify-end">
         <Button type="button" variant="secondary" onClick={onClose}>
           Fertig

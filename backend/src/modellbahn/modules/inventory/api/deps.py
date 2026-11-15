@@ -61,4 +61,6 @@ AssemblyServiceDep = Annotated[AssemblyService, Depends(get_assembly_service)]
 StockWorker = Annotated[
     StaffMember, Depends(require_staff(StaffRole.OWNER, StaffRole.STAFF, StaffRole.PACKER))
 ]
-StockManager = Annotated[StaffMember, Depends(require_staff(StaffRole.OWNER, StaffRole.STAFF))]
+STOCK_MANAGERS = frozenset({StaffRole.OWNER, StaffRole.STAFF})
+"""Who may arrange the store and its stock: book pieces in by hand and out."""
+StockManager = Annotated[StaffMember, Depends(require_staff(*STOCK_MANAGERS))]

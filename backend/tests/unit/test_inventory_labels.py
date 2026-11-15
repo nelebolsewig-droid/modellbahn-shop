@@ -1,8 +1,9 @@
-"""The manufacturer on the labels of units (EU GPSR): taken from the imprint, fitted to the
-space right of the workshop's barcode."""
+"""The labels of models: the EAN-13 and what the model is, no code of a single piece; the
+manufacturer (EU GPSR) taken from the imprint and fitted to the space across the bottom."""
 
 from dataclasses import replace
 
+import pypdfium2 as pdfium
 from reportlab.lib.units import mm
 
 from modellbahn.modules.inventory.application.labels import document_name, file_name
@@ -25,10 +26,10 @@ IMPRINT = Imprint(
     email="info@adp-modelle.de",
     vat_id="",
 )
-UNIT = Label(
-    caption="Einheit",
-    code_text="J4WZ XRT2 S2",
-    code128="J4WZXRT2S2",
+MODEL = Label(
+    caption="Modell",
+    code_text="",
+    code128="",
     ean13="4262441230064",
     title="Stellwerk Altenau",
     detail="H0 · bemalt",
@@ -81,21 +82,43 @@ class TestRenderer:
     def test_the_price_is_printed_where_there_is_one(self) -> None:
         renderer = ReportLabLabelRenderer()
         for sheet in LabelSheet:
-            without = renderer.render([UNIT], sheet=sheet, skip=0)
-            with_price = renderer.render([replace(UNIT, price="79,90\u00a0€")], sheet=sheet, skip=0)
+            without = renderer.render([MODEL], sheet=sheet, skip=0)
+            with_price = renderer.render(
+                [replace(MODEL, price="79,90\u00a0€")], sheet=sheet, skip=0
+            )
             assert len(with_price) > len(without)
 
-    def test_only_units_carry_the_manufacturer(self) -> None:
+    def test_only_models_carry_the_manufacturer(self) -> None:
         plain = ReportLabLabelRenderer()
         with_maker = ReportLabLabelRenderer(maker=IMPRINT.maker_lines())
         for sheet in LabelSheet:
-            unit_plain = plain.render([UNIT], sheet=sheet, skip=0)
-            unit_maker = with_maker.render([UNIT], sheet=sheet, skip=0)
-            assert unit_maker.startswith(b"%PDF")
-            assert len(unit_maker) > len(unit_plain)
+            model_plain = plain.render([MODEL], sheet=sheet, skip=0)
+            model_maker = with_maker.render([MODEL], sheet=sheet, skip=0)
+            assert model_maker.startswith(b"%PDF")
+            assert len(model_maker) > len(model_plain)
             location_plain = plain.render([LOCATION], sheet=sheet, skip=0)
             location_maker = with_maker.render([LOCATION], sheet=sheet, skip=0)
             assert len(location_maker) == len(location_plain)
+
+    def test_a_models_label_names_the_model_never_a_piece(self) -> None:
+        renderer = ReportLabLabelRenderer(maker=IMPRINT.maker_lines())
+        # Even a label that still knew a piece's code prints none.
+        old = replace(MODEL, code_text="J4WZ XRT2 S2", code128="J4WZXRT2S2")
+        for sheet in LabelSheet:
+            text = _text(renderer.render([old], sheet=sheet, skip=0))
+            assert "MODELL" in text
+            assert "Stellwerk Altenau" in text
+            assert "MB-000006-H0-B" in text
+            assert "info@adp-modelle.de" in text
+            assert "J4WZ" not in text
+
+
+def _text(pdf: bytes) -> str:
+    document = pdfium.PdfDocument(pdf)
+    try:
+        return "".join(page.get_textpage().get_text_range() for page in document)
+    finally:
+        document.close()
 
 
 class TestFileNames:

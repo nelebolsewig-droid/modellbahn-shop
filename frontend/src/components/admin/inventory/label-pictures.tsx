@@ -9,40 +9,61 @@ import {
   LabelFormat,
   LabelSheet,
   type LabelsIn,
+  type VariantLabelsIn,
 } from "@/lib/api/generated/model";
 import { errorMessage } from "@/lib/i18n/problems";
+
+import type { ModelLabels } from "./label-printer";
 
 /** More labels than this come only as a ZIP, not one by one on the page. */
 export const PICTURES_SHOWN_MAX = 24;
 
-type Picture = { url: string; name: string; code: string };
+type Picture = { url: string; name: string; code: string; copies: number };
 type Codes = {
   unitCodes: readonly string[];
+  models?: readonly ModelLabels[];
   locationCodes: readonly string[];
   partNumbers: readonly string[];
 };
 
-/** One request per label: each code alone, in the order the labels are printed. */
+/** All labels of a model look the same: the app prints one picture as often as needed. */
+function variantsOf(models: readonly ModelLabels[]): VariantLabelsIn[] {
+  return models.map((model) => ({
+    variant_id: model.variantId,
+    quantity: model.quantity,
+  }));
+}
+
+/** One request per label: each code alone, in the order the labels are printed; one
+ * picture per model, however many of its labels there are. */
 function singles({
   unitCodes,
+  models = [],
   locationCodes,
   partNumbers,
-}: Codes): { code: string; body: LabelsIn }[] {
+}: Codes): { code: string; copies: number; body: LabelsIn }[] {
   const body = (
     unit: string[],
     location: string[],
     part: string[],
+    variants: VariantLabelsIn[] = [],
   ): LabelsIn => ({
     sheet: LabelSheet.ql_62x29,
     format: LabelFormat.png,
     unit_codes: unit,
+    variants,
     location_codes: location,
     part_numbers: part,
   });
   return [
-    ...unitCodes.map((code) => ({ code, body: body([code], [], []) })),
-    ...locationCodes.map((code) => ({ code, body: body([], [code], []) })),
-    ...partNumbers.map((code) => ({ code, body: body([], [], [code]) })),
+    ...unitCodes.map((code) => ({ code, copies: 1, body: body([code], [], []) })),
+    ...models.map((model) => ({
+      code: model.sku,
+      copies: model.quantity,
+      body: body([], [], [], variantsOf([{ ...model, quantity: 1 }])),
+    })),
+    ...locationCodes.map((code) => ({ code, copies: 1, body: body([], [code], []) })),
+    ...partNumbers.map((code) => ({ code, copies: 1, body: body([], [], [code]) })),
   ];
 }
 
@@ -56,10 +77,15 @@ function fileName(code: string): string {
  */
 export function LabelPictures({
   unitCodes,
+  models = [],
   locationCodes,
   partNumbers,
 }: Codes) {
-  const count = unitCodes.length + locationCodes.length + partNumbers.length;
+  const count =
+    unitCodes.length +
+    models.reduce((sum, model) => sum + model.quantity, 0) +
+    locationCodes.length +
+    partNumbers.length;
   const [pictures, setPictures] = useState<Picture[] | null>(null);
   const [zip, setZip] = useState<{ url: string; name: string } | null>(null);
   const [pending, setPending] = useState(false);
@@ -85,17 +111,20 @@ export function LabelPictures({
     setProblem(null);
     try {
       const made: Picture[] = [];
-      if (count <= PICTURES_SHOWN_MAX) {
-        for (const { code, body } of singles({
-          unitCodes,
-          locationCodes,
-          partNumbers,
-        })) {
+      const one = singles({
+        unitCodes,
+        models,
+        locationCodes,
+        partNumbers,
+      });
+      if (one.length <= PICTURES_SHOWN_MAX) {
+        for (const { code, copies, body } of one) {
           const blob = await printLabels(body);
           made.push({
             url: URL.createObjectURL(blob),
             name: savedName(blob) ?? fileName(code),
             code,
+            copies,
           });
         }
       }
@@ -105,6 +134,7 @@ export function LabelPictures({
           sheet: LabelSheet.ql_62x29,
           format: LabelFormat.png,
           unit_codes: [...unitCodes],
+          variants: variantsOf(models),
           location_codes: [...locationCodes],
           part_numbers: [...partNumbers],
         });
@@ -158,7 +188,9 @@ export function LabelPictures({
                 />
                 <figcaption className="mt-1 flex items-center justify-between gap-2">
                   <span className="truncate font-mono text-hint text-ink-tertiary">
-                    {picture.code}
+                    {picture.copies > 1
+                      ? `${picture.copies} × ${picture.code}`
+                      : picture.code}
                   </span>
                   <a
                     href={picture.url}

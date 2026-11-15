@@ -59,7 +59,7 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
           <UnitsDialog
             trigger={
               <Button type="button" size="sm">
-                Stücke erfassen
+                Stücke einbuchen
               </Button>
             }
           />

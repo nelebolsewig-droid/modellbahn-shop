@@ -1380,13 +1380,15 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | POST | `/locations/{code}/stocktakes` | Inventur eines Platzes buchen: fehlende Stücke ausbuchen („Fehlt bei Inventur“), gefundene hier einlagern, alles oder nichts (Inhaber, Mitarbeiter; 409 `stocktake_outdated`, `units_not_movable`; ADR 0011) |
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
 | | GET | `/units` | Stücke eines Artikels (`variant_id`) und/oder in Zuständen (`status`, mehrfach), etwa alle unverbuchten |
+| | POST | `/units` | Stücke einer Ausführung einbuchen: Anzahl und Platz (Pflicht), gleich im Bestand; wartende Bestellungen zuerst (Inhaber, Mitarbeiter; ADR 0027) |
 | | POST | `/units/moves` | mehrere Stücke in einen Platz ein- oder umlagern, alles oder nichts; schon dort liegende bleiben (409 `units_not_movable`) |
 | | POST | `/units/scraps` | mehrere Stücke mit Grund ausbuchen, alles oder nichts (Inhaber, Mitarbeiter; 409 `units_not_scrappable`) |
 | | POST | `/units/restores` | ausgebuchte Stücke in einen Platz wieder einbuchen, alles oder nichts (Inhaber, Mitarbeiter; 409 `units_not_restorable`) |
 | | GET | `/units/{code}` | Einheit mit Lebenslauf |
 | | POST | `/units/{code}/scrap` | eine Einheit mit Grund ausbuchen; ihre Bestellung bekommt eine andere |
 | | POST | `/units/{code}/correction` | Ausführung eines falsch etikettierten Stücks ändern, danach Etikett neu drucken (Inhaber, Mitarbeiter; 409 `unit_not_correctable`) |
-| | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` |
+| | **POST** | **`/scans`** | **zentraler Scan-Befehl**, idempotent über `scan_id` (mit `quantity`). Ein Code nennt das Modell: einlagern bucht `quantity` Stücke ein (unverbuchte zuerst, dann neue; neue nur Inhaber und Mitarbeiter, sonst `book_in_not_allowed`), ausbuchen (`mode: scrap`, Kontext `reason`, optional Platz; Inhaber, Mitarbeiter) nimmt so viele freie hinaus oder keins (`not_enough_free`), kommissionieren nimmt ein Stück der Bestellung (ADR 0027) |
+| | POST | `/scans/{id}/undo` | einen Scan zehn Minuten lang zurückbuchen; Stücke, die er angelegt hat, gehen als „Versehen“ hinaus; einen Ausbuch-Scan nur Inhaber und Mitarbeiter (409 `scan_changed_since` u. a.) |
 | | GET | `/parts` · `/parts/{Teilenummer}` | Teilelager; ein Teil mit Boxen, Wareneingang und Journal (ADR 0018) |
 | | POST | `/parts/{Teilenummer}/count` | Gezählt: Menge in einem Platz setzen, das Journal bucht den Unterschied |
 | | GET | `/receiving` | Wareneingang: gute Teile fertiger Platten, die auf eine Box warten |
@@ -1394,7 +1396,7 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET | `/assembly-plan` | Montageplan: Bedarf, Bestand, Entnahme je Box in Laufreihenfolge |
 | | POST | `/assemblies` | Bausätze aus Teilen montieren, Einheiten und Etiketten erzeugen |
 | | POST | `/movements` | Korrekturbuchung mit Begründung (für Teile: `/parts/{Teilenummer}/count`) |
-| | POST | `/labels` | Etiketten als PDF oder an den Etikettendrucker |
+| | POST | `/labels` | Etiketten als PDF oder PNG/ZIP: Modell-Etiketten (`variants` mit Anzahl, legt keine Stücke an; `unit_codes` druckt dasselbe Etikett), Plätze, Teile (ADR 0027) |
 | | POST · PATCH | `/stocktakes` … | Inventur (umgesetzt je Platz: `/locations/{code}/stocktakes`) |
 | Verkauf | GET | `/orders` | Liste nach Zustand (`status`, mehrfach), Suche nach Nummer oder E-Mail (`q`), Cursor |
 | | GET | `/orders/{id}` | Bestellung mit Positionen, Adresse, Zahlungen und Stornohinweis; Zuteilungen ab Schritt 5 |
@@ -1634,6 +1636,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 22 | Modelle löschen (11.11.2026) | **Testmodelle endgültig löschen**, als Entwurf oder archiviert: Nie verkaufte Stücke samt Buchungen und eBay-Angebote, die nicht mehr online sind, gehen mit; offene Bestellungen (auch eBay-Bestellungen auf dem Weg in den Shop), verkaufte oder montierte Stücke und Angebote, die eBay noch zeigt, halten das Modell fest (ADR 0024) |
 | 23 | Überwachung und Sicherung außer Haus (11.11.2026) | **Healthchecks.io** schickt eine Mail, wenn der Shop (alle 5 Minuten vom Server geprüft) oder die nächtliche Sicherung ausfällt. Jede Sicherung geht zusätzlich verschlüsselt mit **restic auf eine Storage Box bei Hetzner** und bleibt dort wie auf dem Server 14 Tage; das Passwort liegt nur bei der Werkstatt. `make sicherung-pruefen` spielt die neueste zur Probe ein (ADR 0025) |
 | 24 | Navigation im Stellwerk (12.11.2026) | **Jede Rolle sieht nur, was sie benutzen kann:** Packer Übersicht, Bestellungen, Lager, Fertigung und Scannen; Inhaber und Mitarbeiter dazu Katalog, Messen, eBay und Einstellungen. Kategorien, Maßstäbe und die eBay-Einrichtung stehen unter Einstellungen. Scannen ist ein Knopf, auf dem Handy in der Mitte einer Leiste am unteren Rand. Ein Wortschatz: Modell, Ausführung, Stück, Platz, Teil (ADR 0026) |
+| 25 | Ein Code pro Modell (15.11.2026) | **Ein Etikett nennt die Ausführung, nie ein Stück:** EAN-13 ohne Code 128 der Einheit, so oft gedruckt wie nötig, ohne Stücke anzulegen. Stücke kommen mit Anzahl und Platz in den Bestand (Einbuchen, Einlager-Scan mit Anzahl); der Scanner bucht auch aus (Verkauf auf der Messe). Intern bleibt jedes Stück eine Einheit (ADR 0027) |
 
 Noch offen:
 

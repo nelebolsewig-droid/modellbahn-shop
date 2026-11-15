@@ -9,6 +9,7 @@ import type {
   ScanOut,
   ScanOutcome,
   ScanOutMessage,
+  ScanStockEffectOut,
   UnitStatus,
 } from "@/lib/api/generated/model";
 
@@ -28,7 +29,7 @@ export const SCRAP_REASON_LABELS: Readonly<Record<ScrapReason, string>> = {
   sold: "Verkauft (Messe, Laden, privat)",
   damaged: "Beschädigt",
   missing: "Fehlt bei Inventur",
-  mistake: "Falsch erfasst",
+  mistake: "Versehen",
 };
 
 export const UNIT_STATUS_TONES: Readonly<Record<UnitStatus, StatusTone>> = {
@@ -100,6 +101,7 @@ export const PART_MOVEMENT_LABELS: Readonly<Record<PartMovementReason, string>> 
 export const SCAN_MODE_LABELS: Readonly<Record<ScanMode, string>> = {
   put_away: "Einlagern",
   pick: "Kommissionieren",
+  scrap: "Ausbuchen",
   lookup: "Auskunft",
 };
 
@@ -135,7 +137,7 @@ const MESSAGES: Readonly<Record<ScanOutMessage, string>> = {
   put_away: "Eingelagert.",
   move: "Umgelagert.",
   no_unit_to_store: "Kein unverbuchtes Stück dieses Modells. Bitte das Etikett des Stücks scannen.",
-  scan_unit_label: "Bitte das Etikett der Ware scannen.",
+  scan_unit_label: "Bitte das Etikett des Modells scannen.",
   order_unknown: "Diese Bestellung gibt es nicht. Bitte neu wählen.",
   order_not_pickable: "Diese Bestellung ist nicht bezahlt oder noch nicht zugeteilt.",
   picked: "Kommissioniert.",
@@ -148,7 +150,53 @@ const MESSAGES: Readonly<Record<ScanOutMessage, string>> = {
   part: "Teil",
   parts_stored: "Teile eingelagert.",
   no_parts_to_store: "Von diesem Teil wartet nichts im Wareneingang.",
+  booked_in: "Eingebucht.",
+  booked_out: "Ausgebucht.",
+  not_enough_free: "Nicht genug freie Stücke. Nichts ausgebucht.",
+  book_in_not_allowed:
+    "Neue Stücke einbuchen dürfen nur Inhaber und Mitarbeiter. Es liegen nicht genug unverbuchte Stücke vor; nichts gebucht.",
 };
+
+/** The reasons as one word, for the answer to a scan. */
+const SCRAP_REASON_SHORT: Readonly<Record<ScrapReason, string>> = {
+  sold: "Verkauft",
+  damaged: "Beschädigt",
+  missing: "Fehlt",
+  mistake: "Versehen",
+};
+
+/** `+7 · jetzt 9 hier`: what a model's label booked in, in a few words. */
+function bookedIn(effect: ScanStockEffectOut): string {
+  const here = effect.in_location === null ? "" : ` · jetzt ${effect.in_location} hier`;
+  const reserved = effect.reserved > 0 ? ` · ${effect.reserved} gleich reserviert` : "";
+  return `+${effect.quantity}${here}${reserved}`;
+}
+
+/** `−3 · Verkauft · noch 2 hier` (or `noch 5 frei` without a place). */
+function bookedOut(answer: ScanOut, effect: ScanStockEffectOut): string {
+  const reason = effect.reason ? ` · ${SCRAP_REASON_SHORT[effect.reason]}` : "";
+  const left =
+    effect.in_location !== null
+      ? ` · noch ${effect.in_location} hier`
+      : answer.variant
+        ? ` · noch ${answer.variant.free_units} frei`
+        : "";
+  return `−${effect.quantity}${reason}${left}`;
+}
+
+/** `Nur 2 frei in R01-F01, 3 verlangt. Nichts ausgebucht.` */
+function shortage(answer: ScanOut): string {
+  const wanted = answer.quantity ?? 1;
+  const place = answer.location?.code;
+  const free = place ? answer.variant?.free_here : answer.variant?.free_units;
+  if (free === undefined || free === null) {
+    return MESSAGES.not_enough_free;
+  }
+  const where = place ? ` in ${place}` : "";
+  return free === 0
+    ? `Kein freies Stück${where}. Nichts ausgebucht.`
+    : `Nur ${free} frei${where}, ${wanted} verlangt. Nichts ausgebucht.`;
+}
 
 /** `3 Teile` or `1 Teil`. */
 export function partCount(count: number): string {
@@ -171,6 +219,15 @@ export function scanHeadline(answer: ScanOut): string {
   }
   if (answer.message === "parts_stored" && answer.part_effect && answer.part) {
     return `${answer.part_effect.quantity} × ${answer.part.name} eingelagert.`;
+  }
+  if (answer.message === "booked_in" && answer.stock_effect) {
+    return bookedIn(answer.stock_effect);
+  }
+  if (answer.message === "booked_out" && answer.stock_effect) {
+    return bookedOut(answer, answer.stock_effect);
+  }
+  if (answer.message === "not_enough_free") {
+    return shortage(answer);
   }
   return MESSAGES[answer.message];
 }

@@ -12,6 +12,7 @@ from httpx import AsyncClient
 from PIL import Image
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from tests.api.helpers import SHOP, assert_problem
 from tests.conftest import Deliver
@@ -46,7 +47,9 @@ async def build_store(staff: AsyncClient) -> None:
         assert response.status_code == 201, response.text
 
 
-async def scan(staff: AsyncClient, raw: str, mode: str, **context: str) -> dict[str, Any]:
+async def scan(
+    staff: AsyncClient, raw: str, mode: str, *, quantity: int = 1, **context: str
+) -> dict[str, Any]:
     response = await staff.post(
         f"{INVENTORY}/scans",
         json={
@@ -55,6 +58,7 @@ async def scan(staff: AsyncClient, raw: str, mode: str, **context: str) -> dict[
             "mode": mode,
             "source": "camera",
             "context": context,
+            "quantity": quantity,
         },
     )
     assert response.status_code == 200, response.text
@@ -119,22 +123,38 @@ class TestLocations:
 
 
 class TestUnitsAndScans:
-    async def test_label_store_look_up_scrap(
-        self, staff_client: AsyncClient, painted: UUID
+    async def test_book_in_store_look_up_scrap(
+        self, staff_client: AsyncClient, units: UnitService, painted: UUID
     ) -> None:
         await build_store(staff_client)
+        without_place = assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": 2}
+            ),
+            422,
+            "validation_failed",
+        )
+        assert without_place["errors"][0]["field"] == "location_code"
         created = await staff_client.post(
-            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": 2}
+            f"{INVENTORY}/units",
+            json={"variant_id": str(painted), "quantity": 2, "location_code": "r01-f01"},
         )
         assert created.status_code == 201, created.text
         first, second = created.json()["items"]
-        assert (first["status"], first["variant"]["variant_id"]) == ("labeled", str(painted))
+        assert (first["status"], first["location"]["code"]) == ("in_stock", "R01-F01")
         assert first["display_code"].replace(" ", "") == first["code"]
+        # A piece labelled before model labels, never put away.
+        (older,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
 
         selected = await scan(staff_client, "R01-F01", "put_away")
         assert selected["outcome"] == "selected"
         stored = await scan(staff_client, first["code"], "put_away", location_code="R01-F01")
-        assert (stored["outcome"], stored["effect"]["to_location"]) == ("applied", "R01-F01")
+        assert (stored["outcome"], stored["message"]) == ("applied", "booked_in")
+        assert stored["stock_effect"]["stored"] == 1
+        assert stored["stock_effect"]["in_location"] == 3
+        assert stored["effect"] is None
         undone = await staff_client.post(f"{INVENTORY}/scans/{stored['scan_id']}/undo")
         assert undone.json()["undone"] is True
         assert_problem(
@@ -144,11 +164,18 @@ class TestUnitsAndScans:
         )
         await scan(staff_client, second["code"], "put_away", location_code="R01-F01")
 
-        details = (await staff_client.get(f"{INVENTORY}/units/{second['code']}")).json()
-        assert [h["reason"] for h in details["history"]] == ["label", "put_away"]
+        details = (await staff_client.get(f"{INVENTORY}/units/{older.unit.code}")).json()
+        assert [h["reason"] for h in details["history"]] == [
+            "label",
+            "put_away",
+            "undo",
+            "put_away",
+        ]
         assert details["location"]["code"] == "R01-F01"
         stock = (await staff_client.get(f"{INVENTORY}/stock")).json()["items"]
-        assert [(s["labeled"], s["in_stock"]) for s in stock] == [(1, 1)]
+        assert [(s["labeled"], s["in_stock"]) for s in stock] == [(0, 3)]
+        looked_up = await scan(staff_client, second["code"], "lookup")
+        assert (looked_up["message"], looked_up["unit"]["code"]) == ("unit", second["code"])
 
         no_reason = assert_problem(
             await staff_client.post(
@@ -192,24 +219,32 @@ class TestUnitsAndScans:
             "scan_id_reused",
         )
         assert_problem(
+            await staff_client.post(f"{INVENTORY}/scans", json={**body, "quantity": 2}),
+            409,
+            "scan_id_reused",
+        )
+        assert_problem(
             await staff_client.post(f"{INVENTORY}/scans/{uuid4()}/undo"), 404, "scan_not_found"
         )
 
 
 class TestSeveralUnitsAtOnce:
-    async def label(self, staff: AsyncClient, painted: UUID, quantity: int) -> list[dict[str, Any]]:
-        created = await staff.post(
-            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": quantity}
+    async def label(self, units: UnitService, painted: UUID, quantity: int) -> list[dict[str, Any]]:
+        """Pieces labelled before model labels and never put away (``id`` and ``code``)."""
+        views = await units.label_units(
+            variant_id=painted, quantity=quantity, location_code=None, staff_id=None
         )
-        assert created.status_code == 201, created.text
-        items: list[dict[str, Any]] = created.json()["items"]
-        return items
+        return [{"id": str(view.unit.id), "code": view.unit.code} for view in views]
 
     async def test_list_the_unbooked_and_put_them_away_in_one_go(
-        self, staff_client: AsyncClient, packer_client: AsyncClient, painted: UUID
+        self,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        units: UnitService,
+        painted: UUID,
     ) -> None:
         await build_store(staff_client)
-        labelled = await self.label(staff_client, painted, 2)
+        labelled = await self.label(units, painted, 2)
         listed = await packer_client.get(f"{INVENTORY}/units", params={"status": "labeled"})
         assert listed.status_code == 200, listed.text
         assert [u["code"] for u in listed.json()["items"]] == [u["code"] for u in labelled]
@@ -237,10 +272,11 @@ class TestSeveralUnitsAtOnce:
         staff_client: AsyncClient,
         packer_client: AsyncClient,
         client: AsyncClient,
+        units: UnitService,
         painted: UUID,
     ) -> None:
         await build_store(staff_client)
-        first, second = await self.label(staff_client, painted, 2)
+        first, second = await self.label(units, painted, 2)
         ids = [first["id"], second["id"]]
         gone = await staff_client.post(
             f"{INVENTORY}/units/scraps", json={"unit_ids": [second["id"]], "reason": "mistake"}
@@ -369,18 +405,20 @@ class TestPicking:
 
 class TestLabels:
     @pytest.mark.parametrize("sheet", ["a4_70x37", "ql_62x29"])
-    async def test_units_and_locations_as_pdf(
+    async def test_models_units_and_locations_as_pdf(
         self, staff_client: AsyncClient, painted: UUID, sheet: str
     ) -> None:
         await build_store(staff_client)
         created = await staff_client.post(
-            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": 2}
+            f"{INVENTORY}/units",
+            json={"variant_id": str(painted), "quantity": 2, "location_code": "R01-F01"},
         )
         codes = [unit["code"] for unit in created.json()["items"]]
         response = await staff_client.post(
             f"{INVENTORY}/labels",
             json={
                 "unit_codes": codes,
+                "variants": [{"variant_id": str(painted), "quantity": 3}],
                 "location_codes": ["R01-F01", "R01"],
                 "sheet": sheet,
                 "skip": 3,
@@ -391,23 +429,38 @@ class TestLabels:
         assert response.content.startswith(b"%PDF")
         assert response.headers["cache-control"] == "no-store"
 
+    async def test_model_labels_make_no_pieces(
+        self, staff_client: AsyncClient, painted: UUID
+    ) -> None:
+        response = await staff_client.post(
+            f"{INVENTORY}/labels",
+            json={"variants": [{"variant_id": str(painted), "quantity": 7}], "sheet": "a4_70x37"},
+        )
+        assert response.status_code == 200, response.text
+        assert (await staff_client.get(f"{INVENTORY}/stock")).json()["items"] == []
+        units = await staff_client.get(f"{INVENTORY}/units", params={"variant_id": str(painted)})
+        assert units.json()["items"] == []
+
     async def test_pictures_for_the_brother_apps(
         self, staff_client: AsyncClient, painted: UUID
     ) -> None:
         await build_store(staff_client)
         created = await staff_client.post(
-            f"{INVENTORY}/units", json={"variant_id": str(painted), "quantity": 2}
+            f"{INVENTORY}/units",
+            json={"variant_id": str(painted), "quantity": 1, "location_code": "R01-F01"},
         )
-        codes = [unit["code"] for unit in created.json()["items"]]
+        (code,) = [unit["code"] for unit in created.json()["items"]]
+        title = created.json()["items"][0]["variant"]["title"]
         one = await staff_client.post(
             f"{INVENTORY}/labels",
-            json={"unit_codes": codes[:1], "sheet": "ql_62x29", "format": "png"},
+            json={"unit_codes": [code], "sheet": "ql_62x29", "format": "png"},
         )
         assert one.status_code == 200, one.text
         assert one.headers["content-type"] == "image/png"
-        # Named after the model and variant, with the piece's code (umlauts survive).
+        # Named after the model and variant only: the label names no piece.
         disposition = one.headers["content-disposition"]
-        assert f'{codes[0]}.png"' in disposition
+        assert code not in disposition
+        assert disposition.endswith(".png")
         assert "filename*=UTF-8''" in disposition
         picture = Image.open(BytesIO(one.content))
         # 62 x 29 mm at 300 dpi, black and white as the thermal printer prints.
@@ -416,7 +469,7 @@ class TestLabels:
         several = await staff_client.post(
             f"{INVENTORY}/labels",
             json={
-                "unit_codes": codes,
+                "variants": [{"variant_id": str(painted), "quantity": 2}],
                 "location_codes": ["R01-F01"],
                 "sheet": "ql_62x29",
                 "format": "png",
@@ -425,13 +478,12 @@ class TestLabels:
         assert several.headers["content-type"] == "application/zip"
         with ZipFile(BytesIO(several.content)) as archive:
             names = archive.namelist()
-        assert [name[:3] for name in names] == ["01 ", "02 ", "03 "]
-        assert names[0].endswith(f" {codes[0]}.png")
-        assert names[2] == "03 Platz R01-F01.png"
+        model = title.replace(" · ", " ").replace(",", "")
+        assert names == [f"01 {model}.png", f"02 {model}.png", "03 Platz R01-F01.png"]
         assert "und 1 weitere.zip" in several.headers["content-disposition"]
         sheet = await staff_client.post(
             f"{INVENTORY}/labels",
-            json={"unit_codes": codes, "sheet": "a4_70x37", "format": "png"},
+            json={"unit_codes": [code], "sheet": "a4_70x37", "format": "png"},
         )
         assert_problem(sheet, 422, "validation_failed")
 
@@ -446,6 +498,29 @@ class TestLabels:
             "validation_failed",
         )
         assert body["errors"][0]["field"] == "unit_codes.0"
+        unknown = assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/labels",
+                json={
+                    "variants": [{"variant_id": str(uuid4()), "quantity": 1}],
+                    "sheet": "a4_70x37",
+                },
+            ),
+            422,
+            "validation_failed",
+        )
+        assert unknown["errors"][0]["field"] == "variants.0.variant_id"
+        assert_problem(
+            await staff_client.post(
+                f"{INVENTORY}/labels",
+                json={
+                    "variants": [{"variant_id": str(uuid4()), "quantity": 241}],
+                    "sheet": "a4_70x37",
+                },
+            ),
+            422,
+            "validation_failed",
+        )
         assert_problem(
             await staff_client.post(
                 f"{INVENTORY}/labels", json={"location_codes": ["NIRGENDS"], "sheet": "ql_62x29"}

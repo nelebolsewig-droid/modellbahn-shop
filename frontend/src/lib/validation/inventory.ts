@@ -25,6 +25,7 @@ export type LocationRenameValues = z.input<typeof locationRenameSchema>;
 
 export const UNITS_PER_BATCH_MAX = 200;
 
+/** Einbuchen: the pieces lie in a place and come into the stock there at once. */
 export const unitsCreateSchema = z.object({
   variant_id: z.string().min(1, "Bitte eine Ausführung wählen."),
   quantity: z.coerce
@@ -32,8 +33,9 @@ export const unitsCreateSchema = z.object({
     .int("Bitte eine ganze Zahl eingeben.")
     .min(1, "Mindestens 1 Stück.")
     .max(UNITS_PER_BATCH_MAX, `Höchstens ${UNITS_PER_BATCH_MAX} Stück auf einmal.`),
-  // "" stands for "put away later, by scanning".
-  location_code: z.string(),
+  location_code: z.string().min(1, "Bitte den Platz wählen, in dem die Stücke liegen."),
+  /** Print the model's labels right after (one per piece). */
+  print: z.boolean(),
 });
 export type UnitsCreateValues = z.input<typeof unitsCreateSchema>;
 

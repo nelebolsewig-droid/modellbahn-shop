@@ -19,4 +19,5 @@ export const ScanMode = {
   put_away: 'put_away',
   pick: 'pick',
   lookup: 'lookup',
+  scrap: 'scrap',
 } as const;

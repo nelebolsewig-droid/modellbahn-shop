@@ -670,6 +670,12 @@ class TestScans:
         assert not scan.matches(mode=ScanMode.PICK, raw=CODE, context={})
         assert not scan.matches(mode=ScanMode.LOOKUP, raw=CODE, context={"order_id": "x"})
 
+    def test_a_repeat_brings_the_same_quantity(self) -> None:
+        scan = self._scan(ScanOutcome.APPLIED)
+        scan.quantity = 7
+        assert scan.matches(mode=ScanMode.PICK, raw=CODE, context={"order_id": "x"}, quantity=7)
+        assert not scan.matches(mode=ScanMode.PICK, raw=CODE, context={"order_id": "x"})
+
     def test_only_bookings_can_be_undone_and_only_for_a_while(self) -> None:
         scan = self._scan(ScanOutcome.APPLIED)
         assert scan.can_undo(NOW + timedelta(seconds=UNDO_WINDOW_SECONDS))

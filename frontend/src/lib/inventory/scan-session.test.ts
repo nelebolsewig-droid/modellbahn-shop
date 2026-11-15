@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import type { ScanOut } from "@/lib/api/generated/model";
 
-import { contextFor, HISTORY_LENGTH, initialSession, latestAnswer, scanSession, type ScanSession } from "./scan-session";
+import {
+  contextFor,
+  HISTORY_LENGTH,
+  initialSession,
+  latestAnswer,
+  quantityFor,
+  quantityOf,
+  SCAN_QUANTITY_MAX,
+  scanSession,
+  type ScanSession,
+} from "./scan-session";
 
 function answer(scanId: string, change: Partial<ScanOut>): ScanOut {
   return {
@@ -75,6 +85,58 @@ describe("scan session", () => {
       ["a", "answered"],
     ]);
     expect(latestAnswer(session)?.scanId).toBe("c");
+  });
+
+  it("gives the Anzahl to the next model label and is back at 1 right away", () => {
+    let session = scanSession(initialSession(), { type: "quantity", quantity: 7 });
+    expect(quantityFor(session)).toBe(7);
+    // A place label leaves the Anzahl for the model label that follows it.
+    session = scanned(session, "place", "R01-F01");
+    expect([quantityOf(session, "place"), session.quantity]).toEqual([1, 7]);
+    session = scanned(session, "a", "2000000000428");
+    expect([quantityOf(session, "a"), session.quantity]).toEqual([7, 1]);
+    // Scanned before the first answer came (or kept offline): one piece, not seven again.
+    session = scanned(session, "b", "2000000000428");
+    expect(quantityOf(session, "b")).toBe(1);
+    session = scanSession(session, { type: "answered", answer: answer("a", { message: "booked_in" }) });
+    expect(session.quantity).toBe(1);
+  });
+
+  it("keeps an Anzahl typed for the next label while an earlier one is answered", () => {
+    let session = scanned(scanSession(initialSession(), { type: "quantity", quantity: 7 }), "a", "2000000000428");
+    session = scanSession(session, { type: "quantity", quantity: 3 });
+    session = scanSession(session, { type: "answered", answer: answer("a", { message: "booked_in" }) });
+    expect(session.quantity).toBe(3);
+  });
+
+  it("counts an old piece's code like the model's EAN, while booking out too", () => {
+    let session = scanSession(scanSession(initialSession(), { type: "mode", mode: "scrap" }), { type: "quantity", quantity: 4 });
+    session = scanned(session, "a", "7KQ2X9F4MZ");
+    expect([quantityOf(session, "a"), session.quantity]).toEqual([4, 1]);
+    const picking = scanned(scanSession(initialSession("pick", "o-1"), { type: "quantity", quantity: 4 }), "p", "2000000000428");
+    expect(quantityOf(picking, "p")).toBe(1);
+  });
+
+  it("takes whole numbers from 1 to the most one scan books, and only where they count", () => {
+    const count = (quantity: number) => scanSession(initialSession(), { type: "quantity", quantity }).quantity;
+    expect([count(0), count(2.7), count(500), count(Number.NaN)]).toEqual([1, 2, SCAN_QUANTITY_MAX, 1]);
+    let picking = scanSession(initialSession("pick", "o-1"), { type: "quantity", quantity: 5 });
+    expect(quantityFor(picking)).toBe(1);
+    picking = scanSession(scanSession(initialSession(), { type: "quantity", quantity: 5 }), { type: "mode", mode: "scrap" });
+    expect(picking.quantity).toBe(1);
+  });
+
+  it("books out with a reason, from the chosen place or from anywhere", () => {
+    let session = scanSession(initialSession(), { type: "mode", mode: "scrap" });
+    expect(contextFor(session)).toEqual({ reason: "sold" });
+    session = scanSession(session, { type: "reason", reason: "damaged" });
+    session = scanSession(session, { type: "assume_location", code: "R01-F02" });
+    expect(contextFor(session)).toEqual({ reason: "damaged", location_code: "R01-F02" });
+    session = scanSession(session, { type: "leave_location" });
+    expect(contextFor(session)).toEqual({ reason: "damaged" });
+    // The reason stays when the mode changes and comes back.
+    session = scanSession(scanSession(session, { type: "mode", mode: "put_away" }), { type: "mode", mode: "scrap" });
+    expect(session.reason).toBe("damaged");
   });
 
   it("keeps a limited history, newest first", () => {

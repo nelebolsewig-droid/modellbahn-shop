@@ -155,10 +155,11 @@ export const PROBLEM_MESSAGES: Messages = {
   scan_id_reused: "Dieser Scan wurde schon mit anderem Inhalt gesendet. Bitte scanne erneut.",
   scan_not_found: "Diesen Scan gibt es nicht.",
   scan_already_undone: "Dieser Scan ist schon rückgängig gemacht.",
-  scan_too_old: "Rückgängig geht nur zehn Minuten lang. Buche das Stück stattdessen um.",
+  scan_too_old:
+    "Rückgängig geht nur zehn Minuten lang. Bucht die Stücke stattdessen um oder in der Liste der Stücke aus.",
   scan_nothing_booked: "Dieser Scan hat nichts gebucht; es gibt nichts rückgängig zu machen.",
   scan_changed_since:
-    "Das Stück wurde inzwischen weiter bewegt. Rückgängig ist deshalb nicht mehr möglich.",
+    "Ein Stück dieses Scans wurde inzwischen weiter gebucht (umgelagert, reserviert, kommissioniert oder ausgebucht). Rückgängig ist deshalb nicht mehr möglich.",
 
   // Platform
   validation_failed: "Bitte prüfe deine Eingaben.",
@@ -277,6 +278,11 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
     required: "Bitte gib eine Farbe an: Das Fertigmodell gibt es hier schon in Farben.",
     unnamed_sibling: "Gib zuerst der Ausführung ohne Farbe ihre Farbe; dann kann eine weitere dazukommen.",
   },
+  location_code: {
+    required: "Bitte den Platz wählen, in dem die Stücke liegen.",
+    too_short: "Bitte den Platz wählen, in dem die Stücke liegen.",
+  },
+  "context.reason": { invalid: "Diesen Grund zum Ausbuchen gibt es nicht. Bitte die Seite neu laden." },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },

@@ -61,6 +61,8 @@ async def scan(
     *,
     context: dict[str, str] | None = None,
     scan_id: UUID | None = None,
+    quantity: int = 1,
+    may_add_units: bool = True,
 ) -> JsonObject:
     return await scans.scan(
         ScanRequest(
@@ -69,6 +71,8 @@ async def scan(
             mode=mode,
             source="scanner",
             context=context or {},
+            quantity=quantity,
+            may_add_units=may_add_units,
         ),
         staff_id=staff_id,
     )

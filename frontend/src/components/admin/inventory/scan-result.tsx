@@ -14,6 +14,7 @@ import {
   OUTCOME_TONES,
   partCount,
   scanHeadline,
+  SCRAP_REASON_LABELS,
   UNIT_STATUS_LABELS,
 } from "@/lib/inventory/labels";
 import type { ScanEntry } from "@/lib/inventory/scan-session";
@@ -167,6 +168,7 @@ function Line({ label, children }: { label: string; children: ReactNode }) {
 
 function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: string; showLinks: boolean }) {
   const { unit, location, variant, part, effect, part_effect: partEffect, progress, next_expected: next } = answer;
+  const stock = answer.undone ? null : (answer.stock_effect ?? null);
   const resolved = answer.resolved;
   const code =
     resolved === null ? null : resolved.kind === "unit" ? formatUnitCode(resolved.code) : resolved.code;
@@ -265,6 +267,29 @@ function AnswerDetails({ answer, raw, showLinks }: { answer: ScanOut; raw: strin
           </Line>
         ) : null}
         {effect?.reserved_for ? <Line label="Reserviert">{<span className="font-mono">{effect.reserved_for}</span>}</Line> : null}
+        {stock && (stock.stored > 0 || stock.created > 0) ? (
+          <Line label="Davon">
+            {[
+              stock.stored > 0 ? `${stock.stored} unverbucht ${stock.stored === 1 ? "lag" : "lagen"} schon da` : "",
+              stock.created > 0 ? `${stock.created} neu` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </Line>
+        ) : null}
+        {stock && stock.reserved_for.length > 0 ? (
+          <Line label="Reserviert">
+            <span className="font-mono">{stock.reserved_for.join(", ")}</span>
+          </Line>
+        ) : null}
+        {stock?.reason ? <Line label="Grund">{SCRAP_REASON_LABELS[stock.reason]}</Line> : null}
+        {stock && stock.from_locations.length > 0 ? (
+          <Line label="Aus">
+            <span className="font-mono">
+              {stock.from_locations.map((place) => `${place.code} ${place.quantity}`).join(" · ")}
+            </span>
+          </Line>
+        ) : null}
         {progress ? (
           <Line label="Fortschritt">
             <span className="tabular-nums">

@@ -47,4 +47,8 @@ export const ScanOutMessage = {
   part: 'part',
   parts_stored: 'parts_stored',
   no_parts_to_store: 'no_parts_to_store',
+  booked_in: 'booked_in',
+  booked_out: 'booked_out',
+  not_enough_free: 'not_enough_free',
+  book_in_not_allowed: 'book_in_not_allowed',
 } as const;

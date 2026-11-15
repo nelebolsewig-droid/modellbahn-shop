@@ -5,11 +5,12 @@ as a pattern of dots.
 
 Johann's till (SumUp) reads barcodes, not QR codes:
 
-* **Unit:** the variant's EAN-13 at the top left (the till rings up the article by
-  it), product and article number beside it with the price large at the top right, and
-  across the bottom a Code 128 with the unit's own code for the workshop's scanner.
-  Right of that the manufacturer with its postal and e-mail address, which the EU's
-  product safety regulation (GPSR) asks for on the product or its packaging.
+* **Model:** the variant's EAN-13 at the top left (the till rings up the article by
+  it, the workshop's scanner books by it), product, finish and article number beside it
+  with the price large at the top right, and across the bottom the manufacturer with its
+  postal and e-mail address, which the EU's product safety regulation (GPSR) asks for on
+  the product or its packaging. No code of a single piece: one label serves every piece
+  of the model (ADR 0027).
 * **Location:** the code in large type and a wide Code 128 with it.
 
 Two stocks:
@@ -67,13 +68,11 @@ class _Layout:
     """Width of one EAN-13 bar module (0.33 mm is 100 %)."""
     ean_height: float
     code128_module: float
-    code128_height: float
     location_code128_height: float
     gap: float
     caption_size: float
     title_size: float
     detail_size: float
-    code_size: float
     location_code_size: float
     maker_size: float
     """Largest size of the manufacturer's lines; smaller (to 75 %) where they need it."""
@@ -87,13 +86,11 @@ _A4_LAYOUT: Final = _Layout(
     ean_module=0.29 * mm,
     ean_height=16 * mm,
     code128_module=0.3 * mm,
-    code128_height=6 * mm,
     location_code128_height=11 * mm,
     gap=2 * mm,
     caption_size=5.5,
     title_size=7.5,
     detail_size=6,
-    code_size=7,
     location_code_size=17,
     maker_size=5,
     price_size=9.5,
@@ -105,13 +102,11 @@ _QL_LAYOUT: Final = _Layout(
     ean_module=0.25 * mm,
     ean_height=12 * mm,
     code128_module=0.26 * mm,
-    code128_height=5 * mm,
     location_code128_height=9 * mm,
     gap=1.6 * mm,
     caption_size=5,
     title_size=6.8,
     detail_size=5.5,
-    code_size=6.5,
     location_code_size=15,
     maker_size=4.6,
     price_size=8.5,
@@ -186,12 +181,12 @@ def _draw(
     maker: Sequence[str],
 ) -> None:
     if label.ean13 is not None:
-        _draw_unit(canvas, label, label.ean13, origin, layout=layout, maker=maker)
+        _draw_model(canvas, label, label.ean13, origin, layout=layout, maker=maker)
     else:
         _draw_location(canvas, label, *origin, layout)
 
 
-def _draw_unit(
+def _draw_model(
     canvas: Canvas,
     label: Label,
     ean13: str,
@@ -212,7 +207,7 @@ def _draw_unit(
     ean_left = left - 11 * layout.ean_module * 0.25
     _draw_ean13(canvas, ean13, ean_left, top - layout.ean_height, layout)
 
-    # Beside it: what the unit is.
+    # Beside it: what the model is.
     text_left = ean_left + ean_width + layout.gap * 0.5
     width = right - text_left
     cursor = top - layout.caption_size
@@ -244,21 +239,11 @@ def _draw_unit(
         text_left, reference_y, _truncated(label.reference, _MONO, reference_size, width)
     )
 
-    # Across the bottom: the unit's own code for the workshop's scanner.
-    canvas.setFillColor(black)
-    canvas.setFont(_MONO, layout.code_size)
-    canvas.drawString(left, bottom, label.code_text)
-    code128_y = bottom + layout.code_size + 0.6 * mm
-    code128_width = _draw_code128(
-        canvas, label.code128, (left, code128_y), layout.code128_module, layout.code128_height
-    )
-
-    # Right of it, behind its quiet zone and below the article number: the manufacturer.
+    # Across the bottom, below the barcode and the article number: the manufacturer.
     if maker:
-        maker_left = left + code128_width
         size, lines = maker_block(
             maker,
-            width=right - maker_left,
+            width=right - left,
             height=top - layout.ean_height - 0.6 * mm - bottom,
             size=layout.maker_size,
         )
@@ -266,7 +251,7 @@ def _draw_unit(
         baseline = bottom + (len(lines) - 1) * size * _MAKER_LEADING
         for index, line in enumerate(lines):
             canvas.setFont(_SANS_MEDIUM if index == 0 else _SANS, size)
-            canvas.drawString(maker_left, baseline, line)
+            canvas.drawString(left, baseline, line)
             baseline -= size * _MAKER_LEADING
 
 

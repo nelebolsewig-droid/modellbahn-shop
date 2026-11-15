@@ -312,3 +312,24 @@ in der Liste suchte.
 - **Modellseite:** Der Katalog zeigt je Ausführung freie, reservierte und unverbuchte
   Stücke (aus `GET /stock`), mit „Stücke“ und „Stücke erfassen“. Im Bestand des Lagers führt
   „Modell“ zurück in den Katalog.
+
+## Nachtrag 15.11.2026: Ein Code pro Modell
+
+Die Werkstatt klebt ein Etikett auf mehrere Stücke desselben Modells; das Lager zählte
+aber ein Stück je Einheiten-Code. Die Entscheidung dazu steht in ADR 0027.
+
+- **Etikett:** Das Etikett eines Stücks ist das Etikett seines Modells: EAN-13 der
+  Ausführung, Name, Ausführung, Artikelnummer, Preis und Hersteller. Der Code 128 der
+  Einheit entfällt, der Hersteller rückt unten über die ganze Breite. Modell-Etiketten
+  druckt `printLabels` mit `variants`, ohne eine Einheit anzulegen.
+- **Erfassen wird Einbuchen:** `POST /units` verlangt einen Platz; die Stücke liegen gleich
+  im Lager. Unverbuchte Stücke entstehen nur noch aus älteren Etiketten.
+- **Scannen:** Ein Code nennt das Modell (ein alter Einheiten-Code das seiner Einheit). Beim
+  Einlagern bucht er so viele Stücke ein, wie die Anzahl sagt, unverbuchte zuerst;
+  Umlagern per Scan entfällt. Beim Kommissionieren nimmt er ein Stück, das der Bestellung
+  zugeteilt ist. Neu ist der Modus *Ausbuchen*: freie Stücke mit Grund, aus einem Platz
+  oder die ältesten.
+- **Zwei Codes auf einem Etikett** gibt es nur noch auf alten Etiketten. Beide nennen
+  dasselbe Modell; welcher gewinnt, ist gleich.
+- **Wer ein Stück ohne Etikett findet,** druckt das Etikett des Modells; ein Code des
+  Stücks bleibt im System, steht aber nicht mehr darauf.

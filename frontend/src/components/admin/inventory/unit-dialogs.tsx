@@ -266,6 +266,8 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
     },
   });
   const reserved = units.some((unit) => unit.status === "allocated");
+  // Pieces never put away are, as a rule, labels printed once too often.
+  const unbooked = onlyUnbooked(units.map((unit) => unit.status));
 
   return (
     <Dialog
@@ -273,7 +275,7 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
       onOpenChange={(next) => {
         setOpen(next);
         if (next) {
-          setReason("");
+          setReason(unbooked ? "mistake" : "");
           setNote("");
           setMissingReason(false);
           scrap.reset();

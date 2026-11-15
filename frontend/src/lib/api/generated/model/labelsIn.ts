@@ -13,6 +13,7 @@
  */
 import type { LabelFormat } from './labelFormat';
 import type { LabelSheet } from './labelSheet';
+import type { VariantLabelsIn } from './variantLabelsIn';
 
 export interface LabelsIn {
   /** `png` only for the QL roll: one picture per label; several come as ZIP. */
@@ -36,8 +37,14 @@ export interface LabelsIn {
      */
   skip?: number;
   /**
+     * A unit's label is its model's label.
      * @maxItems 240
      * @items.maxLength 20
      */
   unit_codes?: string[];
+  /**
+     * Model labels, without making a unit; printed after the units' labels.
+     * @maxItems 240
+     */
+  variants?: VariantLabelsIn[];
 }

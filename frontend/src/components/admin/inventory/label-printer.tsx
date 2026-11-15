@@ -46,8 +46,14 @@ function fileName(now: Date): string {
   return `etiketten-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.pdf`;
 }
 
+/** Labels of one model (Ausführung): its EAN for the till and the scanner, no piece's code. */
+export type ModelLabels = { variantId: string; quantity: number; sku: string };
+
 type LabelPrinterProps = {
+  /** A piece's label is its model's label. */
   unitCodes?: readonly string[];
+  /** Model labels, as many as asked for; printing them books nothing. */
+  models?: readonly ModelLabels[];
   locationCodes?: readonly string[];
   /** Labels for boxes of printed parts. */
   partNumbers?: readonly string[];
@@ -55,8 +61,9 @@ type LabelPrinterProps = {
 };
 
 /** Choose the label stock, where to start on a used sheet, and get the PDF to print. */
-export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers = [], className }: LabelPrinterProps) {
-  const count = unitCodes.length + locationCodes.length + partNumbers.length;
+export function LabelPrinter({ unitCodes = [], models = [], locationCodes = [], partNumbers = [], className }: LabelPrinterProps) {
+  const count =
+    unitCodes.length + models.reduce((sum, model) => sum + model.quantity, 0) + locationCodes.length + partNumbers.length;
   // Rendered only in the browser (behind the staff session check), so storage is there.
   const [sheet, setSheet] = useState<LabelSheet>(rememberedSheet);
   const [skip, setSkip] = useState(0);
@@ -84,6 +91,7 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers =
         sheet,
         skip: sheet === LabelSheet.a4_70x37 ? skip : 0,
         unit_codes: [...unitCodes],
+        variants: models.map((model) => ({ variant_id: model.variantId, quantity: model.quantity })),
         location_codes: [...locationCodes],
         part_numbers: [...partNumbers],
       });
@@ -155,8 +163,9 @@ export function LabelPrinter({ unitCodes = [], locationCodes = [], partNumbers =
           </p>
           {sheet === LabelSheet.ql_62x29 ? (
             <LabelPictures
-              key={[...unitCodes, ...locationCodes, ...partNumbers].join(" ")}
+              key={[...unitCodes, ...models.map((model) => `${model.variantId}×${model.quantity}`), ...locationCodes, ...partNumbers].join(" ")}
               unitCodes={unitCodes}
+              models={models}
               locationCodes={locationCodes}
               partNumbers={partNumbers}
             />

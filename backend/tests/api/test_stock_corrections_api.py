@@ -8,6 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
+from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from tests.api.helpers import assert_problem
 from tests.conftest import Deliver
@@ -49,8 +50,9 @@ async def build_store(staff: AsyncClient) -> None:
 
 
 async def label(
-    staff: AsyncClient, variant: UUID, quantity: int, location: str | None = None
+    staff: AsyncClient, variant: UUID, quantity: int, location: str
 ) -> list[dict[str, Any]]:
+    """New pieces booked into ``location`` (*Einbuchen*)."""
     created = await staff.post(
         f"{INVENTORY}/units",
         json={"variant_id": str(variant), "quantity": quantity, "location_code": location},
@@ -206,12 +208,17 @@ class TestStocktake:
         staff_client: AsyncClient,
         packer_client: AsyncClient,
         client: AsyncClient,
+        units: UnitService,
         painted: UUID,
     ) -> None:
         await build_store(staff_client)
         present, lost = await label(staff_client, painted, 2, "R01-F01")
         (stray,) = await label(staff_client, painted, 1, "R01-F02")
-        (unbooked,) = await label(staff_client, painted, 1)
+        # Labelled before model labels and never put away.
+        (older,) = await units.label_units(
+            variant_id=painted, quantity=1, location_code=None, staff_id=None
+        )
+        unbooked = {"id": str(older.unit.id), "code": older.unit.code}
         url = f"{INVENTORY}/locations/r01-f01/stocktakes"
         body = {
             "present_unit_ids": [present["id"]],

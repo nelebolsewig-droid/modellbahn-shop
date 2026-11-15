@@ -3265,12 +3265,22 @@
             "type": "integer"
           },
           "unit_codes": {
+            "description": "A unit's label is its model's label.",
             "items": {
               "maxLength": 20,
               "type": "string"
             },
             "maxItems": 240,
             "title": "Unit Codes",
+            "type": "array"
+          },
+          "variants": {
+            "description": "Model labels, without making a unit; printed after the units' labels.",
+            "items": {
+              "$ref": "#/components/schemas/VariantLabelsIn"
+            },
+            "maxItems": 240,
+            "title": "Variants",
             "type": "array"
           }
         },
@@ -8582,11 +8592,12 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "`location_code` when putting away, `order_id` when picking.",
+            "description": "`location_code` when putting away (and, optionally, booking out), `order_id` when picking, `reason` when booking out (`sold`, `damaged`, `missing`, `mistake`; default `sold`).",
             "propertyNames": {
               "enum": [
                 "location_code",
-                "order_id"
+                "order_id",
+                "reason"
               ]
             },
             "title": "Context",
@@ -8595,9 +8606,17 @@
           "mode": {
             "$ref": "#/components/schemas/ScanMode"
           },
+          "quantity": {
+            "default": 1,
+            "description": "Pieces a model's label stands for when putting away or booking out; the other modes book one piece.",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
           "raw": {
             "examples": [
-              "https://shop/u/7KQ2X9F4MZ"
+              "2000000000428"
             ],
             "maxLength": 300,
             "minLength": 1,
@@ -8670,7 +8689,8 @@
         "enum": [
           "put_away",
           "pick",
-          "lookup"
+          "lookup",
+          "scrap"
         ],
         "title": "ScanMode",
         "type": "string"
@@ -8728,7 +8748,11 @@
               "variant_not_in_stock",
               "part",
               "parts_stored",
-              "no_parts_to_store"
+              "no_parts_to_store",
+              "booked_in",
+              "booked_out",
+              "not_enough_free",
+              "book_in_not_allowed"
             ],
             "title": "Message",
             "type": "string"
@@ -8779,6 +8803,12 @@
               }
             ]
           },
+          "quantity": {
+            "default": 1,
+            "description": "Pieces the scan was asked to book.",
+            "title": "Quantity",
+            "type": "integer"
+          },
           "resolved": {
             "anyOf": [
               {
@@ -8793,6 +8823,16 @@
             "format": "uuid",
             "title": "Scan Id",
             "type": "string"
+          },
+          "stock_effect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanStockEffectOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "undoable": {
             "title": "Undoable",
@@ -8955,6 +8995,24 @@
         "title": "ScanPartPlaceOut",
         "type": "object"
       },
+      "ScanPlaceOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "quantity"
+        ],
+        "title": "ScanPlaceOut",
+        "type": "object"
+      },
       "ScanProgressOut": {
         "properties": {
           "picked": {
@@ -8988,6 +9046,95 @@
           "code"
         ],
         "title": "ScanResolvedOut",
+        "type": "object"
+      },
+      "ScanStockEffectOut": {
+        "description": "What a model's label booked in or out: several pieces in one scan.",
+        "properties": {
+          "created": {
+            "description": "Putting away: new pieces booked straight into stock.",
+            "title": "Created",
+            "type": "integer"
+          },
+          "from_locations": {
+            "description": "Booking out: where they came from, by code.",
+            "items": {
+              "$ref": "#/components/schemas/ScanPlaceOut"
+            },
+            "title": "From Locations",
+            "type": "array"
+          },
+          "in_location": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pieces of the model lying there now.",
+            "title": "In Location"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where they went (putting away) or came from (booking out from one place).",
+            "title": "Location"
+          },
+          "quantity": {
+            "description": "Pieces booked in or out.",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScrapReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Booking out: why they left the stock."
+          },
+          "reserved": {
+            "description": "Putting away: of them, pieces a waiting order got.",
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "reserved_for": {
+            "description": "Numbers of the orders that got them.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reserved For",
+            "type": "array"
+          },
+          "stored": {
+            "description": "Putting away: labelled pieces that were put away.",
+            "title": "Stored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity",
+          "location",
+          "in_location",
+          "stored",
+          "created",
+          "reserved",
+          "reserved_for",
+          "reason",
+          "from_locations"
+        ],
+        "title": "ScanStockEffectOut",
         "type": "object"
       },
       "ScanUnitOut": {
@@ -9076,6 +9223,18 @@
       },
       "ScanVariantOut": {
         "properties": {
+          "free_here": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free pieces of it in the chosen location, if one is chosen.",
+            "title": "Free Here"
+          },
           "free_units": {
             "title": "Free Units",
             "type": "integer"
@@ -10649,17 +10808,14 @@
         "additionalProperties": false,
         "properties": {
           "location_code": {
-            "anyOf": [
-              {
-                "maxLength": 44,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "description": "Where the pieces lie: they are booked in there at once (Einbuchen).",
+            "examples": [
+              "R01-F02"
             ],
-            "description": "Put the units away here at once; otherwise they wait for a scan.",
-            "title": "Location Code"
+            "maxLength": 44,
+            "minLength": 1,
+            "title": "Location Code",
+            "type": "string"
           },
           "quantity": {
             "maximum": 200.0,
@@ -10675,7 +10831,8 @@
         },
         "required": [
           "variant_id",
-          "quantity"
+          "quantity",
+          "location_code"
         ],
         "title": "UnitsCreateIn",
         "type": "object"
@@ -11006,6 +11163,29 @@
           "price_cents"
         ],
         "title": "VariantCreateIn",
+        "type": "object"
+      },
+      "VariantLabelsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "description": "How many labels.",
+            "maximum": 240.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "quantity"
+        ],
+        "title": "VariantLabelsIn",
         "type": "object"
       },
       "VariantOut": {
@@ -13186,7 +13366,7 @@
     },
     "/api/v1/admin/inventory/labels": {
       "post": {
-        "description": "With `format: png` (QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.",
+        "description": "A model's label (`variants`, or a unit's, which is the same) carries the variant's EAN-13, no code of a piece; printing it makes no unit. With `format: png` (QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.",
         "operationId": "printLabels",
         "requestBody": {
           "content": {
@@ -13278,7 +13458,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Labels for units and locations as PDF, for A4 sheets or the Brother QL",
+        "summary": "Labels for models, locations and parts as PDF, for A4 sheets or the Brother QL",
         "tags": [
           "admin-inventory"
         ]
@@ -14474,6 +14654,7 @@
     },
     "/api/v1/admin/inventory/scans": {
       "post": {
+        "description": "A label names a model (its EAN-13, or an older unit code standing for its unit's model), never a piece. Putting away books `quantity` pieces of it into the chosen location (labelled pieces first, then new ones; packers store labelled pieces only, else `book_in_not_allowed`); booking out takes `quantity` free pieces out with a reason, from the chosen location or the oldest anywhere, or none (`not_enough_free`). Booking out is for owner and staff.",
         "operationId": "recordScan",
         "requestBody": {
           "content": {
@@ -14562,7 +14743,7 @@
             "staffSession": []
           }
         ],
-        "summary": "The central scan command: put away, pick or look up; idempotent by scan id",
+        "summary": "The central scan command: put away, pick, book out or look up; idempotent by scan id",
         "tags": [
           "admin-inventory"
         ]
@@ -14570,6 +14751,7 @@
     },
     "/api/v1/admin/inventory/scans/{scan_id}/undo": {
       "post": {
+        "description": "Undoing a scan that booked pieces out is for owner and staff.",
         "operationId": "undoScan",
         "parameters": [
           {
@@ -14837,6 +15019,7 @@
         ]
       },
       "post": {
+        "description": "The pieces are in stock there at once; orders waiting for the variant get them first. Their labels are the variant's model labels (`printLabels` with `variants`), which can be printed before or after.",
         "operationId": "labelUnits",
         "requestBody": {
           "content": {
@@ -14925,7 +15108,7 @@
             "staffSession": []
           }
         ],
-        "summary": "New units of a variant, ready for their labels (optionally put away at once)",
+        "summary": "Book new pieces of a variant into a location (Einbuchen)",
         "tags": [
           "admin-inventory"
         ]

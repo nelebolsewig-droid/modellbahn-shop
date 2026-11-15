@@ -147,12 +147,14 @@ class SqlUnitRepository:
         statement = _locked(select(Unit).where(units.c.code == code), for_update)
         return (await self._session.execute(statement)).scalar_one_or_none()
 
-    async def lock(self, unit_ids: Collection[UUID]) -> list[Unit]:
+    async def lock(self, unit_ids: Collection[UUID], *, skip_locked: bool = False) -> list[Unit]:
         ids = list(set(unit_ids))
         if not ids:
             return []
         # PostgreSQL locks the rows in the order it returns them.
-        statement = _locked(select(Unit).where(units.c.id.in_(ids)).order_by(units.c.id), True)
+        statement = select(Unit).where(units.c.id.in_(ids)).order_by(units.c.id)
+        statement = statement.with_for_update(key_share=True, skip_locked=skip_locked)
+        statement = statement.execution_options(populate_existing=True)
         return list((await self._session.execute(statement)).scalars())
 
     async def existing_codes(self, codes: Collection[str]) -> set[str]:
@@ -190,16 +192,24 @@ class SqlUnitRepository:
         statement = statement.order_by(units.c.created_at, units.c.id).limit(limit)
         return list((await self._session.execute(statement)).scalars())
 
-    async def oldest_labeled(self, variant_id: UUID) -> Unit | None:
-        statement = (
-            select(Unit)
-            .where(units.c.variant_id == variant_id, units.c.status == UnitStatus.LABELED)
-            .order_by(units.c.created_at, units.c.id)
-            .limit(1)
-            .with_for_update(key_share=True, skip_locked=True)
-            .execution_options(populate_existing=True)
+    async def oldest(
+        self,
+        variant_id: UUID,
+        status: UnitStatus,
+        *,
+        location_id: UUID | None = None,
+        limit: int,
+        exclude: Collection[UUID] = (),
+    ) -> list[UUID]:
+        statement = select(units.c.id).where(
+            units.c.variant_id == variant_id, units.c.status == status
         )
-        return (await self._session.execute(statement)).scalar_one_or_none()
+        if location_id is not None:
+            statement = statement.where(units.c.location_id == location_id)
+        if exclude:
+            statement = statement.where(units.c.id.not_in(list(exclude)))
+        statement = statement.order_by(units.c.created_at, units.c.id).limit(limit)
+        return list((await self._session.execute(statement)).scalars())
 
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
         statement = (

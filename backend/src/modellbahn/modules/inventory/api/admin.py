@@ -12,6 +12,7 @@ from fastapi import APIRouter, Query, Response, status
 from starlette.concurrency import run_in_threadpool
 
 from modellbahn.modules.inventory.api.deps import (
+    STOCK_MANAGERS,
     AllocationServiceDep,
     AssemblyServiceDep,
     LabelServiceDep,
@@ -65,9 +66,9 @@ from modellbahn.modules.inventory.api.schemas import (
 )
 from modellbahn.modules.inventory.application.labels import LabelRequest
 from modellbahn.modules.inventory.application.scanning import ScanRequest
-from modellbahn.modules.inventory.domain.model import UnitStatus
+from modellbahn.modules.inventory.domain.model import ScanMode, UnitStatus
 from modellbahn.modules.inventory.domain.parts import KITS_PER_ASSEMBLY_MAX
-from modellbahn.platform.errors import problems
+from modellbahn.platform.errors import ForbiddenError, problems
 from modellbahn.platform.pdf_images import pdf_to_pngs
 
 router = APIRouter(prefix="/admin/inventory", tags=["admin-inventory"])
@@ -221,7 +222,10 @@ async def list_units(
 @router.post(
     "/units",
     operation_id="labelUnits",
-    summary="New units of a variant, ready for their labels (optionally put away at once)",
+    summary="Book new pieces of a variant into a location (Einbuchen)",
+    description="The pieces are in stock there at once; orders waiting for the variant get "
+    "them first. Their labels are the variant's model labels (`printLabels` with "
+    "`variants`), which can be printed before or after.",
     status_code=status.HTTP_201_CREATED,
     responses=problems({**STAFF_ACCESS, 404: ["variant_not_found", "location_not_found"]}),
 )
@@ -231,7 +235,7 @@ async def label_units(
     views = await service.label_units(
         variant_id=body.variant_id,
         quantity=body.quantity,
-        location_code=body.location_code or None,
+        location_code=body.location_code,
         staff_id=staff.id,
     )
     return UnitBatchOut(items=[UnitOut.from_view(view) for view in views])
@@ -459,10 +463,18 @@ async def assemble(
 @router.post(
     "/scans",
     operation_id="recordScan",
-    summary="The central scan command: put away, pick or look up; idempotent by scan id",
+    summary="The central scan command: put away, pick, book out or look up; idempotent by scan id",
+    description="A label names a model (its EAN-13, or an older unit code standing for its "
+    "unit's model), never a piece. Putting away books `quantity` pieces of it into the "
+    "chosen location (labelled pieces first, then new ones; packers store labelled pieces "
+    "only, else `book_in_not_allowed`); booking out takes `quantity` free pieces out with "
+    "a reason, from the chosen location or the oldest anywhere, or none "
+    "(`not_enough_free`). Booking out is for owner and staff.",
     responses=problems({**STAFF_ACCESS, 409: ["scan_id_reused"]}),
 )
 async def record_scan(body: ScanIn, staff: StockWorker, service: ScanServiceDep) -> ScanOut:
+    if body.mode is ScanMode.SCRAP and staff.role not in STOCK_MANAGERS:
+        raise ForbiddenError("Your role does not allow this action.", code="insufficient_role")
     answer = await service.scan(
         ScanRequest(
             scan_id=body.scan_id,
@@ -470,6 +482,8 @@ async def record_scan(body: ScanIn, staff: StockWorker, service: ScanServiceDep)
             mode=body.mode,
             source=body.source,
             context={str(key): value for key, value in body.context.items()},
+            quantity=body.quantity,
+            may_add_units=staff.role in STOCK_MANAGERS,
         ),
         staff_id=staff.id,
     )
@@ -480,6 +494,7 @@ async def record_scan(body: ScanIn, staff: StockWorker, service: ScanServiceDep)
     "/scans/{scan_id}/undo",
     operation_id="undoScan",
     summary="Book a scan backwards (within ten minutes, while its units have not moved on)",
+    description="Undoing a scan that booked pieces out is for owner and staff.",
     responses=problems(
         {
             **STAFF_ACCESS,
@@ -494,7 +509,11 @@ async def record_scan(body: ScanIn, staff: StockWorker, service: ScanServiceDep)
     ),
 )
 async def undo_scan(scan_id: UUID, staff: StockWorker, service: ScanServiceDep) -> ScanOut:
-    return ScanOut.model_validate(await service.undo(scan_id, staff_id=staff.id))
+    # Undoing a booking out books pieces in again: owner and staff, like booking out.
+    may_book_out = staff.role in STOCK_MANAGERS
+    return ScanOut.model_validate(
+        await service.undo(scan_id, staff_id=staff.id, may_book_out=may_book_out)
+    )
 
 
 # --- Picking --------------------------------------------------------------------------
@@ -530,9 +549,11 @@ async def allocate_order(
 @router.post(
     "/labels",
     operation_id="printLabels",
-    summary="Labels for units and locations as PDF, for A4 sheets or the Brother QL",
-    description="With `format: png` (QL roll only) one picture per label at 300 dpi, for "
-    "Brother's apps; a single label comes as PNG, several as a ZIP of PNGs.",
+    summary="Labels for models, locations and parts as PDF, for A4 sheets or the Brother QL",
+    description="A model's label (`variants`, or a unit's, which is the same) carries the "
+    "variant's EAN-13, no code of a piece; printing it makes no unit. With `format: png` "
+    "(QL roll only) one picture per label at 300 dpi, for Brother's apps; a single label "
+    "comes as PNG, several as a ZIP of PNGs.",
     response_class=Response,
     responses={
         200: {
@@ -552,6 +573,7 @@ async def print_labels(body: LabelsIn, _: StockWorker, service: LabelServiceDep)
             unit_codes=body.unit_codes,
             location_codes=body.location_codes,
             part_numbers=body.part_numbers,
+            variants=[wanted.to_request() for wanted in body.variants],
             sheet=body.sheet,
             skip=body.skip,
         )
@@ -585,7 +607,7 @@ def _download(content: bytes, media_type: str, filename: str) -> Response:
 
 
 def _zipped(pictures: list[bytes], names: Sequence[str]) -> bytes:
-    """``01 IFA ADK 70 Autokran H0 Fertigmodell Gelb 7KQ2X9F4MZ.png`` … in print order."""
+    """``01 IFA ADK 70 Autokran H0 Fertigmodell Gelb.png`` … in print order."""
     buffer = BytesIO()
     with ZipFile(buffer, "w", ZIP_STORED) as archive:
         for number, picture in enumerate(pictures, start=1):

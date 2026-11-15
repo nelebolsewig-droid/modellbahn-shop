@@ -23,6 +23,7 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanIdReusedError,
     ScanNotFoundError,
     ScanNotUndoableError,
+    ScanUndoForbiddenError,
     StocktakeOutdatedError,
     UnitNotCorrectableError,
     UnitNotFoundError,
@@ -35,6 +36,7 @@ from modellbahn.platform.errors import (
     AppError,
     ConflictError,
     FieldError,
+    ForbiddenError,
     NotFoundError,
     ValidationFailedError,
     add_error_translation,
@@ -102,6 +104,9 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "This scan id was used for a different scan.", code="scan_id_reused"
     ),
     ScanNotFoundError: lambda _: NotFoundError("The scan does not exist.", code="scan_not_found"),
+    ScanUndoForbiddenError: lambda _: ForbiddenError(
+        "Only owner and staff may undo booking out.", code="insufficient_role"
+    ),
     ScanNotUndoableError: lambda error: ConflictError(
         f"The scan cannot be undone: {error.reason}.", code=f"scan_{error.reason}"
     ),
