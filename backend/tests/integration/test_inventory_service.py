@@ -191,7 +191,10 @@ class TestLocations:
     ) -> None:
         await store(locations)
         renamed = await locations.rename("R01", name="Regal am Fenster")
-        assert (renamed.code, renamed.name) == ("R01", "Regal am Fenster")
+        assert (renamed.location.code, renamed.location.name) == ("R01", "Regal am Fenster")
+        # It has a Boden: goods go there, not onto the shelf itself.
+        assert renamed.has_children
+        assert not renamed.location.takes_goods(has_children=renamed.has_children)
         with pytest.raises(LocationNotEmptyError):
             await locations.remove("R01")
         spare = await locations.create(
@@ -441,6 +444,37 @@ class TestAllocation:
             PieceState.SHIPPED
         ]
         await allocation.ship_order(order_id)
+
+    @pytest.mark.parametrize("stock_arrives_first", [False, True])
+    async def test_a_piece_scrapped_while_its_parcel_leaves_reserves_nothing_new(
+        self,
+        locations: LocationService,
+        units: UnitService,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        allocation: AllocationService,
+        deliver: Deliver,
+        painted: UUID,
+        stock_arrives_first: bool,
+    ) -> None:
+        (reserved,) = await stock_up(locations, units, painted)
+        order_id = await order(carts, checkout, (painted, 1))
+        await deliver()
+        await orders.ship(order_id, carrier="DHL", tracking_number="1")
+        # Before the workshop hears of the parcel, its reserved piece is scrapped: the
+        # order's allocation is a backorder now, of an order that has left.
+        await units.scrap(reserved, note="", staff_id=None)
+        if stock_arrives_first:
+            (fresh,) = await stock_up(locations, units, painted)
+        await deliver()
+        if not stock_arrives_first:
+            (fresh,) = await stock_up(locations, units, painted)
+
+        assert (await units.details(fresh)).view.unit.status is UnitStatus.IN_STOCK
+        assert [i.state for i in (await allocation.pick_list(order_id)).items] == [
+            PieceState.SHIPPED
+        ]
 
     async def test_only_paid_orders_are_allocated(
         self,

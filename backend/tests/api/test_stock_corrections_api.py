@@ -8,7 +8,6 @@ import pytest
 from httpx import AsyncClient
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
-from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.media.application.services import MediaService
 from tests.api.helpers import assert_problem
 from tests.conftest import Deliver
@@ -200,90 +199,3 @@ class TestCorrectingTheVariant:
             "unit_not_correctable",
         )
         assert "scrapped" in refused["detail"]
-
-
-class TestStocktake:
-    async def test_count_a_place_missing_out_found_in(
-        self,
-        staff_client: AsyncClient,
-        packer_client: AsyncClient,
-        client: AsyncClient,
-        units: UnitService,
-        painted: UUID,
-    ) -> None:
-        await build_store(staff_client)
-        present, lost = await label(staff_client, painted, 2, "R01-F01")
-        (stray,) = await label(staff_client, painted, 1, "R01-F02")
-        # Labelled before model labels and never put away.
-        (older,) = await units.label_units(
-            variant_id=painted, quantity=1, location_code=None, staff_id=None
-        )
-        unbooked = {"id": str(older.unit.id), "code": older.unit.code}
-        url = f"{INVENTORY}/locations/r01-f01/stocktakes"
-        body = {
-            "present_unit_ids": [present["id"]],
-            "missing_unit_ids": [lost["id"]],
-            "found_unit_ids": [stray["id"], unbooked["id"]],
-        }
-
-        assert_problem(await packer_client.post(url, json=body), 403, "insufficient_role")
-        assert_problem(await client.post(url, json=body), 401, "not_authenticated")
-        counted = await staff_client.post(url, json=body)
-        assert counted.status_code == 200, counted.text
-        assert counted.json() | {"location": None} == {
-            "confirmed": 1,
-            "scrapped": 1,
-            "found": 2,
-            "reserved": 0,
-            "location": None,
-        }
-        inside = (await staff_client.get(f"{INVENTORY}/locations/R01-F01")).json()["units"]
-        assert {u["code"] for u in inside} == {present["code"], stray["code"], unbooked["code"]}
-        missing = (await staff_client.get(f"{INVENTORY}/units/{lost['code']}")).json()
-        assert (missing["status"], missing["scrap_reason"]) == ("scrapped", "missing")
-
-        # The answer got lost and the request comes again: nothing more is booked.
-        again = await staff_client.post(url, json=body)
-        assert (again.json()["scrapped"], again.json()["found"]) == (0, 0)
-
-    async def test_refusals(self, staff_client: AsyncClient, painted: UUID) -> None:
-        await build_store(staff_client)
-        (counted,) = await label(staff_client, painted, 1, "R01-F01")
-        (late,) = await label(staff_client, painted, 1, "R01-F01")
-        url = f"{INVENTORY}/locations/R01-F01/stocktakes"
-
-        outdated = assert_problem(
-            await staff_client.post(url, json={"present_unit_ids": [counted["id"]]}),
-            409,
-            "stocktake_outdated",
-        )
-        assert late["code"] in outdated["detail"]
-        assert_problem(
-            await staff_client.post(
-                url,
-                json={
-                    "present_unit_ids": [counted["id"], late["id"]],
-                    "found_unit_ids": [str(uuid4())],
-                },
-            ),
-            409,
-            "units_not_movable",
-        )
-        assert_problem(
-            await staff_client.post(
-                url,
-                json={"present_unit_ids": [counted["id"]], "missing_unit_ids": [counted["id"]]},
-            ),
-            422,
-            "validation_failed",
-        )
-        assert_problem(
-            await staff_client.post(f"{INVENTORY}/locations/R01/stocktakes", json={}),
-            422,
-            "validation_failed",
-        )
-        assert_problem(
-            await staff_client.post(f"{INVENTORY}/locations/R77/stocktakes", json={}),
-            404,
-            "location_not_found",
-        )

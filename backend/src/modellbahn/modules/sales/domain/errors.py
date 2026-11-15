@@ -53,13 +53,12 @@ class InsufficientStockError(SalesError):
         """Free units per variant that is short."""
 
 
-class OrderNotPickedError(SalesError):
-    """Only an order whose pieces are all picked can be shipped."""
+class OrderPiecesMissingError(SalesError):
+    """Pieces of the order wait for the workshop (no unit yet): it cannot ship."""
 
-    def __init__(self, *, picked: int, total: int) -> None:
-        super().__init__(f"{picked} of {total} pieces picked")
-        self.picked = picked
-        self.total = total
+    def __init__(self, models: list[str]) -> None:
+        self.models = models
+        super().__init__(", ".join(models))
 
 
 class PriceChangedError(SalesError):

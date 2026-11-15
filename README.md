@@ -36,12 +36,13 @@ Was sich vorführen lässt:
   in den Objektspeicher, der Worker rechnet alle Bildstufen, und das Vorschaubild erscheint
   nach wenigen Sekunden ohne Neuladen. Sind die Regeln erfüllt (Kategorie, aktive Variante,
   fertiges Hauptbild), wird das Produkt veröffentlicht.
-  Die Maßstäbe selbst pflegt das Stellwerk unter „Maßstäbe“: von Z 1:220 bis G 1:22,5,
+  Die Maßstäbe selbst pflegt das Stellwerk unter „Einstellungen“: von Z 1:220 bis G 1:22,5,
   dazu 1:24 und 1:25 für Straßenfahrzeuge ohne Gleis.
-- **Schnellerfassung.** Unter „Erfassen“ steht man mit dem Handy an der Kiste: Foto, Modell
-  suchen oder neu anlegen, Maßstab, Ausführung, Farbe und Preis antippen, Stücke mit
-  Etiketten gleich dazu. Neues bleibt Entwurf; „Fertige veröffentlichen“ in der Produktliste
-  bringt abends alle vollständigen Entwürfe in einem Schritt in den Shop.
+- **Neues Modell.** Unter „Modelle“ → „Neues Modell“ in vier Schritten fürs Handy: Name und
+  Fotos; Maßstab, Ausführungen, Farben und Preis; Bestand je Boden; Etiketten und „Gleich im
+  Shop zeigen“. Am Ende steht die Seite des Modells mit Bestand, Bearbeiten und Verlauf
+  (ADR 0028). „Fertige veröffentlichen“ in der Liste bringt alle vollständigen Entwürfe in
+  einem Schritt in den Shop.
   `make catalog-import` spielt den Startbestand ein: die bekannten Modelle mit Preisen und
   Entwürfe aus den Lagerfotos.
 - **Shop.** Der Katalog beginnt mit der Frage „Welcher Maßstab?“: Kacheln mit der Zahl der
@@ -66,15 +67,14 @@ Was sich vorführen lässt:
   Widerruf dem Shop und live im Stellwerk (ADR 0020).
 - **Bestellungen im Stellwerk.** Unter „Bestellungen“ erscheinen neue Bestellungen live mit
   blinkendem Signal. Das Bestellpult zeigt Verlauf, Zahlungen, Artikel, die Pickliste und
-  einen Paketaufkleber; Packer melden den Versand mit Sendungsnummer, sobald alles
-  kommissioniert ist. Inhaber und Mitarbeiter können stornieren, eine Zahlung wird dabei
-  erstattet.
-- **Lager.** Unter „Lager“ legt ein Mitarbeiter Lager, Regale, Fächer und Boxen an und druckt
-  ihre Etiketten. „Einheiten erfassen“ gibt jedem neuen Stück einen eigenen Code und druckt
-  Etiketten mit der EAN für die Kasse und dem Code 128 des Stücks, als PDF für A4-Bögen
-  (70 × 37 mm, ab einem freien Feld) oder den Brother QL (62 mm). Der Bestand zeigt je
-  Artikel, was frei, reserviert, kommissioniert, noch einzulagern oder in Fertigung ist,
-  live. Die Artikelliste für die Kasse (SumUp) gibt es als CSV.
+  einen Paketaufkleber; „Versandlabel drucken“ bucht das DHL-Label und versendet in einem
+  Schritt, ohne vorher zu scannen. Inhaber und Mitarbeiter können stornieren, eine Zahlung
+  wird dabei erstattet.
+- **Lager.** Unter „Lager“ legt ein Mitarbeiter ein Regal mit seinen Böden in einem Schritt
+  an und druckt alle Etiketten („Regal 1 · Boden 3“). Die Seite zeigt je Boden die Modelle
+  mit Anzahl, live; gezählt wird je Boden oder je Modell nach Anzahl. Ein Etikett nennt das
+  Modell (ADR 0027), als PDF für A4-Bögen (70 × 37 mm, ab einem freien Feld) oder den
+  Brother QL (62 mm). Die Artikelliste für die Kasse (SumUp) gibt es als CSV.
 - **Teilelager und Wareneingang.** Meldet jemand eine Platte fertig, liegen ihre guten Teile
   im **Wareneingang**, als Lieferschein je Platte. Im Scanner unter „Einlagern“ die Box
   scannen, dann das **Teileetikett** (Code 128 mit der Teilenummer), und die Teile liegen in
@@ -173,7 +173,7 @@ Zufallspasswort an und prüft HTTPS gegen Caddys interne Zertifizierungsstelle. 
 | <https://localhost/konto/registrieren> | Kundenkonto anlegen; Bestellungen und Adressbuch unter `/konto/bestellungen` und `/konto/adressen` |
 | <https://localhost/admin> | Admin-Bereich „Stellwerk“ (Anmeldung mit dem Konto aus `make staff`) |
 | <https://localhost/admin/bestellungen> | Bestellungen: Liste live, Bestellpult mit Versand und Storno |
-| <https://localhost/admin/katalog> | Produkte anlegen und pflegen; Kategorien und Maßstäbe unter `/admin/katalog/kategorien` und `/admin/katalog/massstaebe` |
+| <https://localhost/admin/modelle> | Modelle anlegen und pflegen, mit Bestand; Kategorien und Maßstäbe unter `/admin/einstellungen/kategorien` und `/admin/einstellungen/massstaebe` |
 | <http://localhost:8025> | Mailpit: hier landet jede E-Mail des Stacks |
 | <https://localhost/healthz>, <https://localhost/readyz> | Lebenszeichen der API, Bereitschaft inkl. Datenbank |
 

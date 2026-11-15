@@ -1636,8 +1636,8 @@ class Demo:
         expect([item["number"] for item in items] == [number], f"Suche nach {number}: {items}")
         expect(items[0]["guest"] is False, "Übernommene Bestellung gilt noch als Gastbestellung")
         self._order["id"] = items[0]["id"]
-        early = self._staff("POST", f"{ADMIN}/orders/{self._order['id']}/ship", {"carrier": "DHL"})
-        expect_problem(early, 409, "order_not_picked", "Versand vor dem Kommissionieren")
+        # Shipping needs no pick scan any more (ADR 0028); the smoke test still picks by
+        # scan below, since the scanner is part of the way it checks.
         pick_list = self._allocated_pick_list(self._order["id"])
         piece = pick_list["items"][0]
         expect(

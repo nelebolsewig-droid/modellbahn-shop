@@ -13,6 +13,8 @@
  */
 
 export interface LabelIn {
+  /** Ship the order in the same go, with the label's number for the customer's e-mail; refused (`order_pieces_missing`) before the carrier is asked. */
+  ship?: boolean;
   /** Of the packed parcel; the configured default if left out. */
   weight_g?: number | null;
 }

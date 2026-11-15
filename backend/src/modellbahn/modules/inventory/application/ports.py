@@ -27,8 +27,18 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     PrintJobInfo,
     PrintJobYield,
 )
-from modellbahn.modules.sales.contracts.orders import OrderSummary
+from modellbahn.modules.sales.contracts.orders import OrderStatus, OrderSummary
 from modellbahn.platform.events import DomainEvent
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceCount:
+    """How many units of a variant lie in one location in one state."""
+
+    variant_id: UUID
+    location_id: UUID
+    status: UnitStatus
+    count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,15 +113,21 @@ class UnitRepository(Protocol):
     async def oldest(
         self,
         variant_id: UUID,
-        status: UnitStatus,
+        status: UnitStatus | Collection[UnitStatus],
         *,
         location_id: UUID | None = None,
-        limit: int,
+        limit: int | None,
         exclude: Collection[UUID] = (),
     ) -> list[UUID]:
-        """Ids of up to ``limit`` units of the variant in ``status`` (lying in the location,
-        if one is given), oldest first, leaving out the ids in ``exclude``. Nothing is
-        locked: callers lock them with :meth:`lock` and look again."""
+        """Ids of up to ``limit`` (``None``: all) units of the variant in ``status`` (lying
+        in the location, if one is given), oldest first, leaving out the ids in
+        ``exclude``. Nothing is locked: callers lock them with :meth:`lock` and look again."""
+        ...
+
+    async def place_counts(
+        self, *, variant_ids: Collection[UUID] | None = None, location_id: UUID | None = None
+    ) -> list[PlaceCount]:
+        """Units lying in locations, per variant, location and state; ``None``: all."""
         ...
 
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
@@ -163,6 +179,12 @@ class LedgerRepository(Protocol):
 
     async def for_scan(self, scan_id: UUID) -> list[LedgerEntry]:
         """What a scan booked, in the order it was booked."""
+        ...
+
+    async def latest_for_variants(
+        self, variant_ids: Collection[UUID], *, limit: int
+    ) -> list[LedgerEntry]:
+        """The latest ``limit`` entries of units of the variants, newest first."""
         ...
 
 
@@ -245,11 +267,17 @@ class Catalog(Protocol):
 
     async def product_variants(self, slug: str) -> list[SaleVariant]: ...
 
+    async def variants_of_product(self, product_id: UUID) -> list[SaleVariant]:
+        """Every variant of the product, whatever its state (empty for no such product)."""
+        ...
+
 
 class Orders(Protocol):
     """What inventory may ask the sales module."""
 
     async def summary(self, order_id: UUID) -> OrderSummary | None: ...
+
+    async def status(self, order_id: UUID) -> OrderStatus | None: ...
 
     async def numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]: ...
 

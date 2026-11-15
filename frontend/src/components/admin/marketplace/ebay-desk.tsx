@@ -152,7 +152,7 @@ export function ListingRow({
         {!compact ? (
           <p className="text-small font-medium break-words">
             {listing.product ? (
-              <Link href={`/admin/katalog/${listing.product.product_id}` as Route} className="hover:underline">
+              <Link href={`/admin/modelle/${listing.product.product_id}` as Route} className="hover:underline">
                 {listing.product.name}
               </Link>
             ) : (

@@ -1,9 +1,5 @@
-import type { Route } from "next";
-import Link from "next/link";
-
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { PickItemOut, PickListOut, PieceState } from "@/lib/api/generated/model";
-import { formatUnitCode } from "@/lib/inventory/codes";
 import { PIECE_STATE_LABELS, PIECE_STATE_TONES } from "@/lib/inventory/labels";
 import { cn } from "@/lib/utils";
 
@@ -54,21 +50,43 @@ export function PickProgress({ list, className }: { list: PickListOut; className
   );
 }
 
-type PickListProps = {
-  list: PickListOut;
-  /** Links the units to their pages (the Stellwerk on a desk, not on the phone). */
-  linkUnits?: boolean;
-  className?: string;
-};
+/**
+ * ``Stellwerk Altenau · H0 · Fertigmodell, Rot`` → the model and its Ausführung. An order
+ * line freezes the title as product name, then scale and finish (catalogue contract).
+ */
+export function splitTitle(title: string): { model: string; finish: string } {
+  const parts = title.split(" · ");
+  return parts.length >= 3 ? { model: parts.slice(0, -2).join(" · "), finish: parts.slice(-2).join(" · ") } : { model: title, finish: "" };
+}
 
-/** What to fetch, in the order of a walk through the store; backorders at the end. */
-export function PickList({ list, linkUnits = true, className }: PickListProps) {
+/** Pieces of the same Ausführung, at the same place and as far along, in one row. */
+export function pickRows(items: readonly PickItemOut[]): PickItemOut[][] {
+  const rows: PickItemOut[][] = [];
+  for (const item of items) {
+    const last = rows.at(-1)?.[0];
+    if (last && last.variant_id === item.variant_id && last.state === item.state && last.location?.code === item.location?.code) {
+      rows.at(-1)?.push(item);
+    } else {
+      rows.push([item]);
+    }
+  }
+  return rows;
+}
+
+/**
+ * What to fetch, in the order of a walk through the store; backorders at the end. Each
+ * row names the model, its Ausführung and the place: one label fits every piece of an
+ * Ausführung, so which piece it is does not matter (ADR 0027).
+ */
+export function PickList({ list, className }: { list: PickListOut; className?: string }) {
   const next = nextPiece(list);
   return (
     <ol className={cn("divide-y divide-line border-y border-line", className)}>
-      {list.items.map((item) => {
-        const isNext = item.allocation_id === next?.allocation_id;
+      {pickRows(list.items).map((row) => {
+        const [item] = row as [PickItemOut, ...PickItemOut[]];
+        const isNext = row.some((piece) => piece.allocation_id === next?.allocation_id);
         const done = item.state === "picked" || item.state === "shipped";
+        const { model, finish } = splitTitle(item.title);
         return (
           <li
             key={item.allocation_id}
@@ -82,25 +100,12 @@ export function PickList({ list, linkUnits = true, className }: PickListProps) {
             <div className="min-w-0">
               <p className={cn("text-small font-medium", done && "text-ink-secondary")}>
                 {isNext ? <span className="mr-2 label-caps text-accent">Als Nächstes</span> : null}
-                {item.title}
+                {row.length > 1 ? <span className="tabular-nums">{row.length} × </span> : null}
+                {model}
               </p>
-              <p className="mt-0.5 font-mono text-hint text-ink-tertiary">
-                {item.sku}
-                {item.unit_code ? (
-                  <>
-                    {" · "}
-                    {linkUnits ? (
-                      <Link
-                        href={`/admin/lager/einheiten/${item.unit_code}` as Route}
-                        className="whitespace-nowrap hover:text-ink hover:underline"
-                      >
-                        {formatUnitCode(item.unit_code)}
-                      </Link>
-                    ) : (
-                      <span className="whitespace-nowrap">{formatUnitCode(item.unit_code)}</span>
-                    )}
-                  </>
-                ) : null}
+              <p className="mt-0.5 text-hint text-ink-secondary">
+                {finish ? `${finish} · ` : null}
+                <span className="font-mono text-ink-tertiary">{item.sku}</span>
               </p>
             </div>
             <StatusBadge tone={PIECE_STATE_TONES[item.state]} className="col-start-2 sm:col-start-auto sm:justify-self-end">
@@ -132,9 +137,13 @@ function PlaceTag({ item }: { item: PickItemOut }) {
       </span>
     );
   }
+  // "Regal 2, Boden 3" as people say it; the code where the place has no name.
   return (
-    <span className="inline-flex h-7 min-w-0 items-center justify-center rounded-xs bg-selected px-2 font-mono text-hint font-medium tracking-wide text-on-selected">
-      <span className="truncate">{item.location.code}</span>
+    <span
+      title={item.location.code}
+      className="inline-flex min-h-7 min-w-0 items-center justify-center rounded-xs bg-selected px-2 py-0.5 text-center text-hint leading-tight font-medium text-on-selected"
+    >
+      {item.place ?? item.location.code}
     </span>
   );
 }

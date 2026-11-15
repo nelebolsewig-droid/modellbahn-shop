@@ -20,6 +20,7 @@ from modellbahn.modules.inventory.api.deps import (
     PartStoreServiceDep,
     ScanServiceDep,
     StockManager,
+    StockServiceDep,
     StockWorker,
     UnitServiceDep,
 )
@@ -41,15 +42,27 @@ from modellbahn.modules.inventory.api.schemas import (
     PartStockLineOut,
     PartStockOut,
     PickListOut,
+    PlaceStockListOut,
+    PlaceStockOut,
+    ProductStockListOut,
+    ProductStockOut,
     ReceiptOut,
     ReceivingOut,
     ScanIn,
     ScanOut,
     ScrapIn,
+    ShelfIn,
+    ShelfOut,
+    StockCountIn,
+    StockCountOut,
+    StockHistoryOut,
+    StockHistoryRowOut,
     StockLineOut,
+    StockMoveIn,
+    StockMoveOut,
     StockOut,
-    StocktakeIn,
-    StocktakeOut,
+    StockScrapIn,
+    StockScrapOut,
     UnitBatchOut,
     UnitCorrectionIn,
     UnitDetailsOut,
@@ -111,7 +124,7 @@ async def create_location(
         kind=body.kind,
         name=body.name,
     )
-    return LocationOut.from_location(location)
+    return LocationOut.from_location(location, has_children=False)  # just made
 
 
 @router.get(
@@ -135,7 +148,8 @@ async def get_location(
 async def rename_location(
     code: str, body: LocationPatchIn, _: StockManager, service: LocationServiceDep
 ) -> LocationOut:
-    return LocationOut.from_location(await service.rename(code.upper(), name=body.name))
+    renamed = await service.rename(code.upper(), name=body.name)
+    return LocationOut.from_location(renamed.location, has_children=renamed.has_children)
 
 
 @router.delete(
@@ -157,34 +171,139 @@ async def delete_location(code: str, _: StockManager, service: LocationServiceDe
 
 
 @router.post(
-    "/locations/{code}/stocktakes",
-    operation_id="takeStock",
-    summary="Book the count of a location: missing units out, found units in, all or none",
-    description="Every unit lying in the location is named as present or missing; units "
-    "scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing "
-    "units are scrapped as missing (an order they were reserved for gets another unit or "
-    "waits), found ones are put away there. If the location changed during the count, "
-    "nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated "
-    "request books nothing twice.",
+    "/locations/shelves",
+    operation_id="createShelf",
+    summary="A shelf with its Böden in one go (Neues Regal)",
+    description="Goes into the first site, which is made if there is none. The shelf gets "
+    "the next free code (R01, R02 …), its Böden the names Boden 1 … N. A shelf without "
+    "Böden holds goods itself.",
+    status_code=status.HTTP_201_CREATED,
+    responses=problems({**STAFF_ACCESS, 409: ["location_code_taken"]}),
+)
+async def create_shelf(body: ShelfIn, _: StockManager, service: LocationServiceDep) -> ShelfOut:
+    return ShelfOut.from_shelf(await service.create_shelf(name=body.name, levels=body.levels))
+
+
+# --- Stock by quantity ----------------------------------------------------------------
+
+
+@router.get(
+    "/stock/products",
+    operation_id="listProductStock",
+    summary="Per model: free, reserved, unbooked and waiting pieces, and where they lie",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def list_product_stock(_: StockWorker, service: StockServiceDep) -> ProductStockListOut:
+    return ProductStockListOut(
+        items=[ProductStockOut.from_stock(stock) for stock in await service.products()]
+    )
+
+
+@router.get(
+    "/stock/places",
+    operation_id="listPlaceStock",
+    summary="Pieces per variant and place, free and reserved: of a model, in a place, or all",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def list_place_stock(
+    _: StockWorker,
+    service: StockServiceDep,
+    product_id: Annotated[UUID | None, Query()] = None,
+    location_code: Annotated[str | None, Query(max_length=44)] = None,
+) -> PlaceStockListOut:
+    lines = await service.places(product_id=product_id, location_code=location_code)
+    return PlaceStockListOut(items=[PlaceStockOut.from_line(line) for line in lines])
+
+
+@router.get(
+    "/stock/history",
+    operation_id="getStockHistory",
+    summary="A model's latest bookings, grouped: when, who, what, how many, where",
+    responses=problems({**STAFF_ACCESS, 404: ["product_not_found"]}, unsafe=False),
+)
+async def get_stock_history(
+    product_id: UUID, _: StockWorker, service: StockServiceDep
+) -> StockHistoryOut:
+    rows = await service.history(product_id)
+    return StockHistoryOut(items=[StockHistoryRowOut.from_row(row) for row in rows])
+
+
+@router.post(
+    "/stock/moves",
+    operation_id="moveStock",
+    summary="Move a number of pieces of a variant from one place to another",
+    description="Oldest first; reserved pieces keep their order. Fewer there: nothing moves.",
     responses=problems(
         {
             **STAFF_ACCESS,
-            **_LOCATION_NOT_FOUND,
-            409: ["stocktake_outdated", "units_not_movable"],
+            404: ["variant_not_found", "location_not_found"],
+            409: ["not_enough_pieces"],
         }
     ),
 )
-async def take_stock(
-    code: str, body: StocktakeIn, staff: StockManager, service: UnitServiceDep
-) -> StocktakeOut:
-    result = await service.take_stock(
-        code,
-        present=body.present_unit_ids,
-        missing=body.missing_unit_ids,
-        found=body.found_unit_ids,
+async def move_stock(
+    body: StockMoveIn, staff: StockManager, service: StockServiceDep
+) -> StockMoveOut:
+    result = await service.move(
+        body.variant_id,
+        from_code=body.from_location,
+        to_code=body.to_location,
+        quantity=body.quantity,
         staff_id=staff.id,
     )
-    return StocktakeOut.from_result(result)
+    return StockMoveOut.from_result(result)
+
+
+@router.post(
+    "/stock/scraps",
+    operation_id="scrapStock",
+    summary="Take a number of free pieces of a variant out with a reason (Ausbuchen)",
+    description="From the place, else the oldest anywhere. Reserved pieces stay with their "
+    "order; fewer free ones: nothing is booked.",
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            404: ["variant_not_found", "location_not_found"],
+            409: ["not_enough_free"],
+        }
+    ),
+)
+async def scrap_stock(
+    body: StockScrapIn, staff: StockManager, service: StockServiceDep
+) -> StockScrapOut:
+    result = await service.scrap(
+        body.variant_id,
+        location_code=body.location_code or None,
+        quantity=body.quantity,
+        reason=body.reason,
+        note=body.note,
+        staff_id=staff.id,
+    )
+    return StockScrapOut.from_result(result)
+
+
+@router.post(
+    "/stock/counts",
+    operation_id="countStock",
+    summary="Set places to what was counted there, all lines or none (Zählen)",
+    description="Each line names the pieces the Stellwerk showed (`expected`) and those "
+    "counted. Fewer: free pieces go out as missing; if that would take reserved ones, "
+    "nothing is booked (`count_takes_reserved`, `detail` names the lines). More: new "
+    "pieces are booked in there and serve waiting orders. A place that changed meanwhile "
+    "refuses the count (`stocktake_outdated`).",
+    responses=problems(
+        {
+            **STAFF_ACCESS,
+            404: ["location_not_found"],
+            409: ["stocktake_outdated", "count_takes_reserved"],
+        }
+    ),
+)
+async def count_stock(
+    body: StockCountIn, staff: StockManager, service: StockServiceDep
+) -> StockCountOut:
+    result = await service.count([line.to_line() for line in body.lines], staff_id=staff.id)
+    return StockCountOut.from_result(result)
 
 
 # --- Units ----------------------------------------------------------------------------

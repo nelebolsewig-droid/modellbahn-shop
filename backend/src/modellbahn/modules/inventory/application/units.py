@@ -1,5 +1,5 @@
 """Use cases of units: label, list, move, look one up with its history, scrap, count,
-book in again, correct the variant, and take stock of a location."""
+book in again and correct the variant. Counting a place is by number (``stock.py``)."""
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
@@ -22,7 +22,6 @@ from modellbahn.modules.inventory.domain.errors import (
 )
 from modellbahn.modules.inventory.domain.events import AllocationBackordered
 from modellbahn.modules.inventory.domain.model import (
-    UNITS_COUNTED_MAX,
     UNITS_PER_BATCH_MAX,
     UNITS_SELECTED_MAX,
     Allocation,
@@ -34,7 +33,6 @@ from modellbahn.modules.inventory.domain.model import (
     ScrapReason,
     Unit,
     UnitStatus,
-    take_stock,
     units_to_move,
     units_to_restore,
     units_to_scrap,
@@ -120,21 +118,6 @@ class UnitRestore:
     """Units that lay there already (booked in by an earlier request) and were left alone."""
     reserved: int
     """Of the restored ones, those that went straight to a waiting order."""
-
-
-@dataclass(frozen=True, slots=True)
-class StocktakeResult:
-    """What booking the count of one location did."""
-
-    location: Location
-    confirmed: int
-    """Units found where the journal has them."""
-    scrapped: int
-    """Missing units that left the stock now."""
-    found: int
-    """Units put away here now: from elsewhere, unbooked, or booked in again."""
-    reserved: int
-    """Of the found ones, those that went straight to a waiting order."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -442,66 +425,6 @@ class UnitService:
             await uow.commit()
             (view,) = await unit_views(uow, [unit])
             return view
-
-    async def take_stock(
-        self,
-        location_code: str,
-        *,
-        present: Collection[UUID],
-        missing: Collection[UUID],
-        found: Collection[UUID],
-        staff_id: UUID | None,
-    ) -> StocktakeResult:
-        """Book the count of one location in one go, all or nothing (*Inventur*).
-
-        Missing units leave the stock as missing (an order they were reserved for gets
-        another unit or waits for the workshop); found ones are put away here like any
-        moved unit, scrapped ones booked in again. A count of a location that changed
-        meanwhile is refused (:class:`StocktakeOutdatedError`), so no unit put there
-        during the count is taken for missing. A repeated request books nothing twice.
-        """
-        named = set(present) | set(missing) | set(found)
-        if len(named) > UNITS_COUNTED_MAX:
-            raise InvalidFieldError(
-                "unit_ids", "out_of_range", f"at most {UNITS_COUNTED_MAX} units"
-            )
-        async with self._uow() as uow:
-            location = await resolve_location(uow, location_code, "code")
-            lying = await uow.units.in_locations([location.id])
-            units = await uow.units.lock(named | {unit.id for unit in lying})
-            locked = {unit.id for unit in units}
-            # Put there between the first look and the locks: the count cannot name them.
-            arrived = [
-                unit
-                for unit in await uow.units.in_locations([location.id])
-                if unit.id not in locked
-            ]
-            count = take_stock(
-                location, [*units, *arrived], present=present, missing=missing, found=found
-            )
-            journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
-            reserved = 0
-            for unit in count.found:
-                if unit.status is UnitStatus.SCRAPPED:
-                    allocation = await book_in_again(uow, journal, unit, location)
-                else:
-                    _, allocation = await put_away(uow, journal, unit, location)
-                reserved += allocation is not None
-            freed: list[UUID | None] = []
-            for unit in count.missing:
-                movement = unit.scrap(f"Inventur {location.code}", journal.now, ScrapReason.MISSING)
-                await journal.book(unit, movement)
-                freed.append(movement.allocation_id)
-            # Only now: none of the missing units may stand in for another one.
-            await _allocate_again(uow, journal, freed)
-            await uow.commit()
-        return StocktakeResult(
-            location=location,
-            confirmed=len(count.confirmed),
-            scrapped=len(count.missing),
-            found=len(count.found),
-            reserved=reserved,
-        )
 
     async def stock(self) -> list[StockLine]:
         """Every variant that has units or backorders, by product name."""

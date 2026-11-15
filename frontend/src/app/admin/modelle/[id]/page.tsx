@@ -4,7 +4,7 @@ import { ProductEditorPage } from "@/components/admin/catalog/product-editor-pag
 
 export const metadata: Metadata = { title: "Modell bearbeiten" };
 
-export default async function AdminProductPage({ params }: PageProps<"/admin/katalog/[id]">) {
+export default async function AdminProductPage({ params }: PageProps<"/admin/modelle/[id]">) {
   const { id } = await params;
   return <ProductEditorPage productId={id} />;
 }

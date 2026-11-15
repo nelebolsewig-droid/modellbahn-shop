@@ -53,6 +53,7 @@ from modellbahn.modules.inventory.application.labels import LabelService
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.stock import StockService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.labels import ReportLabLabelRenderer
 from modellbahn.modules.inventory.infrastructure.mapping import (
@@ -430,6 +431,7 @@ def _attach_inventory_services(
 ) -> None:
     app.state.location_service = LocationService(uow_factory=uow_factory, clock=clock)
     app.state.unit_service = UnitService(uow_factory=uow_factory, clock=clock)
+    app.state.stock_service = StockService(uow_factory=uow_factory, clock=clock)
     app.state.scan_service = ScanService(uow_factory=uow_factory, clock=clock)
     app.state.allocation_service = AllocationService(uow_factory=uow_factory, clock=clock)
     app.state.label_service = LabelService(

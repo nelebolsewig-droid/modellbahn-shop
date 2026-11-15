@@ -80,7 +80,7 @@ async def get_order(order_id: UUID, _: OrderViewer, service: OrderServiceDep) ->
     operation_id="shipOrder",
     summary="Ship a paid, completely picked order (the customer gets an e-mail)",
     responses=problems(
-        {**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state", "order_not_picked"]}
+        {**STAFF_ACCESS, **ORDER_NOT_FOUND, 409: ["invalid_order_state", "order_pieces_missing"]}
     ),
 )
 async def ship_order(
@@ -176,13 +176,19 @@ async def shipping_setup(_: OrderViewer, labels: LabelServiceDep) -> ShippingSet
     "/{order_id}/shipping-label",
     status_code=status.HTTP_201_CREATED,
     operation_id="bookShippingLabel",
-    summary="Book the parcel's label with the carrier (ADR 0023)",
-    description="Packers too: whoever packs the parcel prints its label.",
+    summary="Book the parcel's label with the carrier (ADR 0023), and ship if asked",
+    description="Packers too: whoever packs the parcel prints its label. With `ship` the "
+    "order is shipped in the same go (ADR 0028).",
     responses=problems(
         {
             **STAFF_ACCESS,
             **ORDER_NOT_FOUND,
-            409: ["invalid_order_state", "label_exists", "carrier_rejected"],
+            409: [
+                "invalid_order_state",
+                "label_exists",
+                "carrier_rejected",
+                "order_pieces_missing",
+            ],
             503: ["carrier_unavailable"],
         }
     ),
@@ -190,7 +196,8 @@ async def shipping_setup(_: OrderViewer, labels: LabelServiceDep) -> ShippingSet
 async def book_shipping_label(
     order_id: UUID, body: LabelIn, _: OrderShipper, labels: LabelServiceDep
 ) -> ShippingLabelOut:
-    return ShippingLabelOut.from_label(await labels.book(order_id, weight_g=body.weight_g))
+    label = await labels.book(order_id, weight_g=body.weight_g, ship=body.ship)
+    return ShippingLabelOut.from_label(label)
 
 
 @router.get(

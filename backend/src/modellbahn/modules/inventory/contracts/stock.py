@@ -56,22 +56,25 @@ async def load_free_units(uow: UnitOfWork, variant_ids: Collection[UUID]) -> dic
 
 
 async def load_pick_progress(uow: UnitOfWork, order_id: UUID) -> PickProgress:
-    """The order's open pieces and how many of them are picked (0 of 0 if not allocated)."""
-    row = (
+    """The order's open pieces, how many of them are picked (0 of 0 if not allocated), and
+    the variants of those still waiting for a unit."""
+    rows = (
         await uow.session.execute(
-            select(
-                func.count(allocations.c.id),
-                func.count(units.c.id).filter(units.c.status == UnitStatus.PICKED),
-            )
+            select(allocations.c.variant_id, units.c.status)
             .select_from(allocations)
             .outerjoin(units, units.c.allocation_id == allocations.c.id)
             .where(
                 allocations.c.order_id == order_id,
                 allocations.c.status == AllocationStatus.OPEN,
             )
+            .order_by(allocations.c.id)
         )
-    ).one()
-    return PickProgress(total=int(row[0]), picked=int(row[1]))
+    ).all()
+    return PickProgress(
+        total=len(rows),
+        picked=sum(1 for row in rows if row[1] == UnitStatus.PICKED),
+        waiting_variant_ids=tuple(row[0] for row in rows if row[1] is None),
+    )
 
 
 def _unsold_units(ids: list[UUID]) -> Select[tuple[UUID]]:

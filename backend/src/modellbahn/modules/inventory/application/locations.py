@@ -1,11 +1,13 @@
 """Use cases of the location tree: list, create, rename, remove, look inside."""
 
 from dataclasses import dataclass
+from typing import Final
 from uuid import UUID
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
-from modellbahn.modules.inventory.application.common import UnitOfWorkFactory
+from modellbahn.modules.inventory.application.common import UnitOfWorkFactory, place_name
 from modellbahn.modules.inventory.domain.errors import (
+    InvalidFieldError,
     LocationCodeTakenError,
     LocationInUseError,
     LocationNotEmptyError,
@@ -30,6 +32,35 @@ class LocationNode:
     """Units in this location and everything below it."""
     part_count: int = 0
     """Printed parts lying in this location itself."""
+    has_children: bool = False
+    place: str = ""
+    """How people call it: ``Regal 2, Boden 3`` (:func:`place_name`)."""
+
+    @property
+    def takes_goods(self) -> bool:
+        """Goods may go in: a shelf only while nothing lies below it."""
+        return self.location.takes_goods(has_children=self.has_children)
+
+
+SHELF_LEVELS_MAX: Final = 20
+"""Böden one new shelf gets at most."""
+DEFAULT_SITE: Final = "LAGER"
+"""The site new shelves go into when there is none yet; the Stellwerk does not show it."""
+
+
+@dataclass(frozen=True, slots=True)
+class NamedLocation:
+    """A location just renamed, with what decides whether goods may go in."""
+
+    location: Location
+    has_children: bool
+
+
+@dataclass(frozen=True, slots=True)
+class NewShelf:
+    shelf: Location
+    levels: list[Location]
+    """Its Böden, top to bottom as numbered: ``Boden 1`` … ``Boden N``."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +102,9 @@ class LocationService:
                 parent = await uow.locations.get_by_code(parent_code.strip().upper())
                 if parent is None:
                     raise LocationNotFoundError
+                # Goods on a shelf itself would lie nowhere once it has Böden.
+                if parent.kind is LocationKind.SHELF and await uow.units.in_locations([parent.id]):
+                    raise LocationNotEmptyError
             now = self._clock.now()
             location = Location.create(
                 parent=parent, segment=segment, kind=kind, name=name, now=now
@@ -89,7 +123,66 @@ class LocationService:
                 raise LocationCodeTakenError from exc
             return location
 
-    async def rename(self, code: str, *, name: str) -> Location:
+    async def create_shelf(self, *, name: str, levels: int) -> NewShelf:
+        """A shelf with ``levels`` Böden (compartments ``Boden 1`` … ``Boden N``) in one go.
+
+        It goes into the first site, which is made (``LAGER``) if there is none. Its code
+        is the next free ``R01``, ``R02`` …; without a name it is called ``Regal N``. A
+        shelf without Böden holds goods itself.
+        """
+        if not 0 <= levels <= SHELF_LEVELS_MAX:
+            raise InvalidFieldError("levels", "out_of_range", f"0 to {SHELF_LEVELS_MAX} Böden")
+        async with self._uow() as uow:
+            now = self._clock.now()
+            tree = await uow.locations.tree()
+            created: list[Location] = []
+            site = next((loc for loc in tree if loc.kind is LocationKind.SITE), None)
+            if site is None:
+                site = Location.create(
+                    parent=None, segment=DEFAULT_SITE, kind=LocationKind.SITE, name="Lager", now=now
+                )
+                created.append(site)
+            taken = {location.code for location in tree}
+            number = 1
+            while f"R{number:02d}" in taken:
+                number += 1
+            shelf = Location.create(
+                parent=site,
+                segment=f"R{number:02d}",
+                kind=LocationKind.SHELF,
+                name=name.strip() or f"Regal {number}",
+                now=now,
+            )
+            boards = [
+                Location.create(
+                    parent=shelf,
+                    segment=f"B{index:02d}",
+                    kind=LocationKind.COMPARTMENT,
+                    name=f"Boden {index}",
+                    now=now,
+                )
+                for index in range(1, levels + 1)
+            ]
+            created += [shelf, *boards]
+            try:
+                # Parents first: a child refers to its parent by key.
+                for location in created:
+                    uow.locations.add(location)
+                    await uow.flush()
+                    uow.publish(
+                        LocationChanged(
+                            aggregate_id=location.id,
+                            occurred_at=now,
+                            code=location.code,
+                            change="created",
+                        )
+                    )
+                await uow.commit()
+            except UniqueViolationError as exc:  # made at the same moment elsewhere
+                raise LocationCodeTakenError from exc
+            return NewShelf(shelf=shelf, levels=boards)
+
+    async def rename(self, code: str, *, name: str) -> NamedLocation:
         async with self._uow() as uow:
             location = await uow.locations.get_by_code(code, for_update=True)
             if location is None:
@@ -101,8 +194,9 @@ class LocationService:
                     aggregate_id=location.id, occurred_at=now, code=location.code, change="renamed"
                 )
             )
+            has_children = await uow.locations.has_children(location.id)
             await uow.commit()
-            return location
+            return NamedLocation(location, has_children=has_children)
 
     async def remove(self, code: str) -> None:
         """Remove an empty location that never held anything (its label is thrown away)."""
@@ -153,7 +247,7 @@ class LocationService:
             numbers = await uow.orders.numbers({a.order_id for a in allocations.values()})
             parts = await uow.part_stock.in_locations([loc.id for loc in subtree])
             part_infos = await uow.manufacturing.parts({entry.part_id for entry in parts})
-        nodes = _nodes(subtree, counts, part_counts)
+        nodes = _nodes(subtree, counts, part_counts, all_locations)
         parts.sort(
             key=lambda entry: (
                 part_infos[entry.part_id].part_number if entry.part_id in part_infos else "",
@@ -178,7 +272,10 @@ class LocationService:
 
 
 def _nodes(
-    locations: list[Location], counts: dict[UUID, int], part_counts: dict[UUID, int]
+    locations: list[Location],
+    counts: dict[UUID, int],
+    part_counts: dict[UUID, int],
+    known: list[Location] | None = None,
 ) -> list[LocationNode]:
     """Locations in path order with their own and their subtree's unit counts."""
     totals = {location.id: counts.get(location.id, 0) for location in locations}
@@ -186,12 +283,16 @@ def _nodes(
     for location in sorted(locations, key=lambda loc: loc.depth, reverse=True):
         if location.parent_id in totals:
             totals[location.parent_id] += totals[location.id]
+    parents = {location.parent_id for location in locations}
+    by_id = {location.id: location for location in [*locations, *(known or [])]}
     return [
         LocationNode(
             location=location,
             unit_count=counts.get(location.id, 0),
             total_count=totals[location.id],
             part_count=part_counts.get(location.id, 0),
+            has_children=location.id in parents,
+            place=place_name(location, by_id),
         )
         for location in locations
     ]

@@ -47,6 +47,7 @@ function place(code: string, path: string, kind: LocationNodeOut["kind"], name =
     unit_count: 0,
     total_count: 0,
     part_count: 0,
+    place: code,
   };
 }
 

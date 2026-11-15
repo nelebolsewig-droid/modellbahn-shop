@@ -34,7 +34,9 @@ import type {
   AssemblyIn,
   AssemblyOut,
   AssemblyPlanOut,
+  GetStockHistoryParams,
   LabelsIn,
+  ListPlaceStockParams,
   ListUnitsParams,
   LocationContentsOut,
   LocationCreateIn,
@@ -45,16 +47,25 @@ import type {
   PartDetailsOut,
   PartStockOut,
   PickListOut,
+  PlaceStockListOut,
   PlanAssemblyParams,
   Problem,
+  ProductStockListOut,
   ReceiptOut,
   ReceivingOut,
   ScanIn,
   ScanOut,
   ScrapIn,
+  ShelfIn,
+  ShelfOut,
+  StockCountIn,
+  StockCountOut,
+  StockHistoryOut,
+  StockMoveIn,
+  StockMoveOut,
   StockOut,
-  StocktakeIn,
-  StocktakeOut,
+  StockScrapIn,
+  StockScrapOut,
   UnitBatchOut,
   UnitCorrectionIn,
   UnitDetailsOut,
@@ -563,6 +574,94 @@ export const useCreateLocation = <TError = ErrorType<Problem | ValidationProblem
       > => {
       return useMutation(getCreateLocationMutationOptions(options), queryClient);
     }
+    export const getCreateShelfUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/locations/shelves`
+}
+
+/**
+ * Goes into the first site, which is made if there is none. The shelf gets the next free code (R01, R02 …), its Böden the names Boden 1 … N. A shelf without Böden holds goods itself.
+ * @summary A shelf with its Böden in one go (Neues Regal)
+ */
+export const createShelf = async (shelfIn: ShelfIn, options?: Parameters<typeof apiFetch>[1]): Promise<ShelfOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ShelfOut>(getCreateShelfUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(shelfIn)
+  }
+);}
+
+
+
+
+
+export const getCreateShelfMutationKey = () => ['createShelf'] as const;
+
+export const getCreateShelfMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShelf>>, TError,CreateShelfMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createShelf>>, TError,CreateShelfMutationVariables, TContext> => {
+
+const mutationKey = getCreateShelfMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createShelf>>, CreateShelfMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createShelf(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateShelfMutationResult = NonNullable<Awaited<ReturnType<typeof createShelf>>>
+    export type CreateShelfMutationBody = ShelfIn
+    export type CreateShelfMutationError = ErrorType<Problem | ValidationProblem>
+    export type CreateShelfMutationVariables = {data: ShelfIn}
+
+    /**
+ * @summary A shelf with its Böden in one go (Neues Regal)
+ */
+export const useCreateShelf = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShelf>>, TError,CreateShelfMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createShelf>>,
+        TError,
+        CreateShelfMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateShelfMutationOptions(options), queryClient);
+    }
     export const getDeleteLocationUrl = (code: string,) => {
 
 
@@ -823,95 +922,6 @@ export const useRenameLocation = <TError = ErrorType<Problem | ValidationProblem
         TContext
       > => {
       return useMutation(getRenameLocationMutationOptions(options), queryClient);
-    }
-    export const getTakeStockUrl = (code: string,) => {
-
-
-
-
-  return `/api/v1/admin/inventory/locations/${code}/stocktakes`
-}
-
-/**
- * Every unit lying in the location is named as present or missing; units scanned there that are booked elsewhere, unbooked or scrapped come as found. Missing units are scrapped as missing (an order they were reserved for gets another unit or waits), found ones are put away there. If the location changed during the count, nothing is booked (`stocktake_outdated`, `detail` names the units). A repeated request books nothing twice.
- * @summary Book the count of a location: missing units out, found units in, all or none
- */
-export const takeStock = async (code: string,
-    stocktakeIn: StocktakeIn, options?: Parameters<typeof apiFetch>[1]): Promise<StocktakeOut> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<StocktakeOut>(getTakeStockUrl(code),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(stocktakeIn)
-  }
-);}
-
-
-
-
-
-export const getTakeStockMutationKey = () => ['takeStock'] as const;
-
-export const getTakeStockMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext> => {
-
-const mutationKey = getTakeStockMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeStock>>, TakeStockMutationVariables> = (props) => {
-          const {code,data} = props ?? {};
-
-          return  takeStock(code,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type TakeStockMutationResult = NonNullable<Awaited<ReturnType<typeof takeStock>>>
-    export type TakeStockMutationBody = StocktakeIn
-    export type TakeStockMutationError = ErrorType<Problem | ValidationProblem>
-    export type TakeStockMutationVariables = {code: string;data: StocktakeIn}
-
-    /**
- * @summary Book the count of a location: missing units out, found units in, all or none
- */
-export const useTakeStock = <TError = ErrorType<Problem | ValidationProblem>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeStock>>, TError,TakeStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof takeStock>>,
-        TError,
-        TakeStockMutationVariables,
-        TContext
-      > => {
-      return useMutation(getTakeStockMutationOptions(options), queryClient);
     }
     export const getAllocateOrderUrl = (orderId: string,) => {
 
@@ -1824,7 +1834,585 @@ export function useListStock<TData = Awaited<ReturnType<typeof listStock>>, TErr
 
 
 
-export const getListUnitsUrl = (params?: ListUnitsParams,) => {
+export const getCountStockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/counts`
+}
+
+/**
+ * Each line names the pieces the Stellwerk showed (`expected`) and those counted. Fewer: free pieces go out as missing; if that would take reserved ones, nothing is booked (`count_takes_reserved`, `detail` names the lines). More: new pieces are booked in there and serve waiting orders. A place that changed meanwhile refuses the count (`stocktake_outdated`).
+ * @summary Set places to what was counted there, all lines or none (Zählen)
+ */
+export const countStock = async (stockCountIn: StockCountIn, options?: Parameters<typeof apiFetch>[1]): Promise<StockCountOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockCountOut>(getCountStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockCountIn)
+  }
+);}
+
+
+
+
+
+export const getCountStockMutationKey = () => ['countStock'] as const;
+
+export const getCountStockMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countStock>>, TError,CountStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof countStock>>, TError,CountStockMutationVariables, TContext> => {
+
+const mutationKey = getCountStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof countStock>>, CountStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  countStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CountStockMutationResult = NonNullable<Awaited<ReturnType<typeof countStock>>>
+    export type CountStockMutationBody = StockCountIn
+    export type CountStockMutationError = ErrorType<Problem | ValidationProblem>
+    export type CountStockMutationVariables = {data: StockCountIn}
+
+    /**
+ * @summary Set places to what was counted there, all lines or none (Zählen)
+ */
+export const useCountStock = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof countStock>>, TError,CountStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof countStock>>,
+        TError,
+        CountStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCountStockMutationOptions(options), queryClient);
+    }
+    export const getGetStockHistoryUrl = (params: GetStockHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/inventory/stock/history?${stringifiedParams}` : `/api/v1/admin/inventory/stock/history`
+}
+
+/**
+ * @summary A model's latest bookings, grouped: when, who, what, how many, where
+ */
+export const getStockHistory = async (params: GetStockHistoryParams, options?: Parameters<typeof apiFetch>[1]): Promise<StockHistoryOut> => {
+
+  return apiFetch<StockHistoryOut>(getGetStockHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockHistoryQueryKey = (params?: GetStockHistoryParams,) => {
+    return [
+    `/api/v1/admin/inventory/stock/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStockHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getStockHistory>>, TError = ErrorType<Problem | ValidationProblem>>(params: GetStockHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockHistory>>> = ({ signal }) => getStockHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStockHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getStockHistory>>>
+export type GetStockHistoryQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetStockHistory<TData = Awaited<ReturnType<typeof getStockHistory>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetStockHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockHistory>>,
+          TError,
+          Awaited<ReturnType<typeof getStockHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockHistory<TData = Awaited<ReturnType<typeof getStockHistory>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetStockHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockHistory>>,
+          TError,
+          Awaited<ReturnType<typeof getStockHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockHistory<TData = Awaited<ReturnType<typeof getStockHistory>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetStockHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A model's latest bookings, grouped: when, who, what, how many, where
+ */
+
+export function useGetStockHistory<TData = Awaited<ReturnType<typeof getStockHistory>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetStockHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockHistory>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStockHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getMoveStockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/moves`
+}
+
+/**
+ * Oldest first; reserved pieces keep their order. Fewer there: nothing moves.
+ * @summary Move a number of pieces of a variant from one place to another
+ */
+export const moveStock = async (stockMoveIn: StockMoveIn, options?: Parameters<typeof apiFetch>[1]): Promise<StockMoveOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockMoveOut>(getMoveStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockMoveIn)
+  }
+);}
+
+
+
+
+
+export const getMoveStockMutationKey = () => ['moveStock'] as const;
+
+export const getMoveStockMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveStock>>, TError,MoveStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveStock>>, TError,MoveStockMutationVariables, TContext> => {
+
+const mutationKey = getMoveStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveStock>>, MoveStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  moveStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveStockMutationResult = NonNullable<Awaited<ReturnType<typeof moveStock>>>
+    export type MoveStockMutationBody = StockMoveIn
+    export type MoveStockMutationError = ErrorType<Problem | ValidationProblem>
+    export type MoveStockMutationVariables = {data: StockMoveIn}
+
+    /**
+ * @summary Move a number of pieces of a variant from one place to another
+ */
+export const useMoveStock = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveStock>>, TError,MoveStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveStock>>,
+        TError,
+        MoveStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveStockMutationOptions(options), queryClient);
+    }
+    export const getListPlaceStockUrl = (params?: ListPlaceStockParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/inventory/stock/places?${stringifiedParams}` : `/api/v1/admin/inventory/stock/places`
+}
+
+/**
+ * @summary Pieces per variant and place, free and reserved: of a model, in a place, or all
+ */
+export const listPlaceStock = async (params?: ListPlaceStockParams, options?: Parameters<typeof apiFetch>[1]): Promise<PlaceStockListOut> => {
+
+  return apiFetch<PlaceStockListOut>(getListPlaceStockUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlaceStockQueryKey = (params?: ListPlaceStockParams,) => {
+    return [
+    `/api/v1/admin/inventory/stock/places`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPlaceStockQueryOptions = <TData = Awaited<ReturnType<typeof listPlaceStock>>, TError = ErrorType<Problem | ValidationProblem>>(params?: ListPlaceStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlaceStockQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlaceStock>>> = ({ signal }) => listPlaceStock(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPlaceStockQueryResult = NonNullable<Awaited<ReturnType<typeof listPlaceStock>>>
+export type ListPlaceStockQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useListPlaceStock<TData = Awaited<ReturnType<typeof listPlaceStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: undefined |  ListPlaceStockParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlaceStock>>,
+          TError,
+          Awaited<ReturnType<typeof listPlaceStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPlaceStock<TData = Awaited<ReturnType<typeof listPlaceStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListPlaceStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPlaceStock>>,
+          TError,
+          Awaited<ReturnType<typeof listPlaceStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPlaceStock<TData = Awaited<ReturnType<typeof listPlaceStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListPlaceStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Pieces per variant and place, free and reserved: of a model, in a place, or all
+ */
+
+export function useListPlaceStock<TData = Awaited<ReturnType<typeof listPlaceStock>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListPlaceStockParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPlaceStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPlaceStockQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getListProductStockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/products`
+}
+
+/**
+ * @summary Per model: free, reserved, unbooked and waiting pieces, and where they lie
+ */
+export const listProductStock = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ProductStockListOut> => {
+
+  return apiFetch<ProductStockListOut>(getListProductStockUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductStockQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/stock/products`
+    ] as const;
+    }
+
+
+export const getListProductStockQueryOptions = <TData = Awaited<ReturnType<typeof listProductStock>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductStockQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductStock>>> = ({ signal }) => listProductStock({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListProductStockQueryResult = NonNullable<Awaited<ReturnType<typeof listProductStock>>>
+export type ListProductStockQueryError = ErrorType<Problem>
+
+
+export function useListProductStock<TData = Awaited<ReturnType<typeof listProductStock>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProductStock>>,
+          TError,
+          Awaited<ReturnType<typeof listProductStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProductStock<TData = Awaited<ReturnType<typeof listProductStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProductStock>>,
+          TError,
+          Awaited<ReturnType<typeof listProductStock>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProductStock<TData = Awaited<ReturnType<typeof listProductStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Per model: free, reserved, unbooked and waiting pieces, and where they lie
+ */
+
+export function useListProductStock<TData = Awaited<ReturnType<typeof listProductStock>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProductStock>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListProductStockQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getScrapStockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/scraps`
+}
+
+/**
+ * From the place, else the oldest anywhere. Reserved pieces stay with their order; fewer free ones: nothing is booked.
+ * @summary Take a number of free pieces of a variant out with a reason (Ausbuchen)
+ */
+export const scrapStock = async (stockScrapIn: StockScrapIn, options?: Parameters<typeof apiFetch>[1]): Promise<StockScrapOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<StockScrapOut>(getScrapStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stockScrapIn)
+  }
+);}
+
+
+
+
+
+export const getScrapStockMutationKey = () => ['scrapStock'] as const;
+
+export const getScrapStockMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scrapStock>>, TError,ScrapStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scrapStock>>, TError,ScrapStockMutationVariables, TContext> => {
+
+const mutationKey = getScrapStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scrapStock>>, ScrapStockMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  scrapStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScrapStockMutationResult = NonNullable<Awaited<ReturnType<typeof scrapStock>>>
+    export type ScrapStockMutationBody = StockScrapIn
+    export type ScrapStockMutationError = ErrorType<Problem | ValidationProblem>
+    export type ScrapStockMutationVariables = {data: StockScrapIn}
+
+    /**
+ * @summary Take a number of free pieces of a variant out with a reason (Ausbuchen)
+ */
+export const useScrapStock = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scrapStock>>, TError,ScrapStockMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof scrapStock>>,
+        TError,
+        ScrapStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getScrapStockMutationOptions(options), queryClient);
+    }
+    export const getListUnitsUrl = (params?: ListUnitsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

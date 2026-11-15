@@ -807,8 +807,8 @@ export const getBookShippingLabelUrl = (orderId: string,) => {
 }
 
 /**
- * Packers too: whoever packs the parcel prints its label.
- * @summary Book the parcel's label with the carrier (ADR 0023)
+ * Packers too: whoever packs the parcel prints its label. With `ship` the order is shipped in the same go (ADR 0028).
+ * @summary Book the parcel's label with the carrier (ADR 0023), and ship if asked
  */
 export const bookShippingLabel = async (orderId: string,
     labelIn: LabelIn, options?: Parameters<typeof apiFetch>[1]): Promise<ShippingLabelOut> => {
@@ -875,7 +875,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type BookShippingLabelMutationVariables = {orderId: string;data: LabelIn}
 
     /**
- * @summary Book the parcel's label with the carrier (ADR 0023)
+ * @summary Book the parcel's label with the carrier (ADR 0023), and ship if asked
  */
 export const useBookShippingLabel = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bookShippingLabel>>, TError,BookShippingLabelMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

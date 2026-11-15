@@ -352,10 +352,15 @@ function Dispatch({
   if (pickList === undefined) {
     return <p className="text-small text-ink-secondary">Die Pickliste wird geladen …</p>;
   }
-  if (!pickList.complete) {
+  if (!pickList.allocated) {
+    return <p className="text-small text-ink-secondary">Verschickt wird, sobald das Lager die Stücke zugeteilt hat.</p>;
+  }
+  // Scanning is optional: every piece with a place goes out with the parcel (ADR 0028).
+  const waiting = [...new Set(pickList.items.filter((item) => item.state === "backordered").map((item) => item.title))];
+  if (waiting.length > 0) {
     return (
       <p className="text-small text-ink-secondary">
-        Verschickt wird, wenn alles kommissioniert ist: noch {pickList.total - pickList.picked} von {pickList.total} Stück.
+        Noch nicht alles da, es wartet auf die Fertigung: {waiting.join(", ")}.
       </p>
     );
   }
@@ -377,7 +382,7 @@ function ReadyToShip({ order, onShipped }: { order: AdminOrderOut; onShipped: (o
         label.isError ? (
           <p className="text-small text-danger">{errorMessage(label.error)}</p>
         ) : (
-          <ShippingLabelDesk order={order} setup={setup.data} label={active} />
+          <ShippingLabelDesk order={order} setup={setup.data} label={active} onShipped={onShipped} />
         )
       ) : null}
       <div className={booksLabels ? "border-t border-line pt-6" : undefined}>
@@ -405,9 +410,9 @@ function Shipped({ order }: { order: AdminOrderOut }) {
         <dd className={order.tracking_number ? "font-mono break-all" : undefined}>{order.tracking_number || "keine Nummer"}</dd>
       </dl>
       {label.data ? (
-        <p className="mt-4">
+        <div className="mt-4">
           <LabelReprint order={order} label={label.data} />
-        </p>
+        </div>
       ) : null}
     </>
   );
@@ -469,8 +474,8 @@ function Picking({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PickProgress list={list} className="min-w-56 flex-1" />
         {order.status === "paid" && !list.complete ? (
-          <Button asChild size="sm">
-            <Link href={`/admin/scanner?bestellung=${order.id}` as Route}>Mit dem Scanner kommissionieren</Link>
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/admin/scanner?bestellung=${order.id}` as Route}>Mit dem Scanner abhaken (optional)</Link>
           </Button>
         ) : null}
       </div>

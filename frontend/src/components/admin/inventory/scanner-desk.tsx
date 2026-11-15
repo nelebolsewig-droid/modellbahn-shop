@@ -742,7 +742,7 @@ function PickPanel({ orderId, mayAllocate }: { orderId: string; mayAllocate: boo
               Alles beisammen. Paket packen und in der Bestellung als versendet melden.
             </p>
           ) : null}
-          <PickList list={data} linkUnits={false} className="mt-4" />
+          <PickList list={data} className="mt-4" />
         </>
       ) : (
         <div className="mt-4 space-y-3">

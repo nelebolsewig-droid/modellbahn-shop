@@ -12,6 +12,7 @@ from modellbahn.modules.inventory.application.labels import LabelService
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.stock import StockService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.platform.http import app_state
 
@@ -22,6 +23,10 @@ def get_location_service(request: Request) -> LocationService:
 
 def get_unit_service(request: Request) -> UnitService:
     return app_state(request, "unit_service", UnitService)
+
+
+def get_stock_service(request: Request) -> StockService:
+    return app_state(request, "stock_service", StockService)
 
 
 def get_scan_service(request: Request) -> ScanService:
@@ -51,6 +56,7 @@ def get_assembly_service(request: Request) -> AssemblyService:
 LocationServiceDep = Annotated[LocationService, Depends(get_location_service)]
 UnitServiceDep = Annotated[UnitService, Depends(get_unit_service)]
 ScanServiceDep = Annotated[ScanService, Depends(get_scan_service)]
+StockServiceDep = Annotated[StockService, Depends(get_stock_service)]
 AllocationServiceDep = Annotated[AllocationService, Depends(get_allocation_service)]
 LabelServiceDep = Annotated[LabelService, Depends(get_label_service)]
 AvailabilityServiceDep = Annotated[AvailabilityService, Depends(get_availability_service)]

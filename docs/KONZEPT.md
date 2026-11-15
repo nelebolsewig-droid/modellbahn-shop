@@ -1375,10 +1375,16 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | GET · POST · PUT | `/manufacturing/print-jobs` … | Druckaufträge; PUT verschiebt einen wartenden |
 | | POST | `/manufacturing/print-jobs/{id}/start` · `/take-off` · `/complete` · `/fail` · `/cancel` | Zustandswechsel; `complete` meldet die guten Teile je Teil |
 | | GET · POST · PUT · DELETE | `/manufacturing/materials` … | Material (Bestand folgt) |
-| Lager | GET · POST | `/locations` | Lagerbaum |
+| Lager | GET · POST | `/locations` | Lagerbaum; je Platz `place` („Regal 2, Boden 3“) und `holds_goods` |
+| | POST | `/locations/shelves` | Regal mit 0 bis 20 Böden in einem Schritt; legt das Lager an, wenn es keins gibt (Inhaber, Mitarbeiter; ADR 0028) |
 | | GET | `/locations/{code}` | Inhalt eines Platzes |
-| | POST | `/locations/{code}/stocktakes` | Inventur eines Platzes buchen: fehlende Stücke ausbuchen („Fehlt bei Inventur“), gefundene hier einlagern, alles oder nichts (Inhaber, Mitarbeiter; 409 `stocktake_outdated`, `units_not_movable`; ADR 0011) |
 | | GET | `/stock` | Bestand nach Teil, Variante, Platz |
+| | GET | `/stock/products` | je Modell frei, reserviert, unverbucht, wartend und die Plätze mit Anzahl (ADR 0028) |
+| | GET | `/stock/places` | je Ausführung und Platz frei und reserviert, für ein Modell (`product_id`) oder einen Platz (`location_code`) |
+| | GET | `/stock/history` | Verlauf eines Modells, Journalzeilen gleicher Buchung zusammengefasst |
+| | POST | `/stock/moves` | Anzahl einer Ausführung umlagern, älteste zuerst, reservierte behalten ihre Bestellung (Inhaber, Mitarbeiter; 409 `not_enough_pieces`) |
+| | POST | `/stock/scraps` | Anzahl freier Stücke mit Grund ausbuchen, optional nur an einem Platz (Inhaber, Mitarbeiter; 409 `not_enough_free`) |
+| | POST | `/stock/counts` | Zählung je Ausführung und Platz: fehlende freie gehen als „Fehlt“ hinaus, zusätzliche werden eingebucht, alles oder nichts (Inhaber, Mitarbeiter; 409 `count_takes_reserved`, `stocktake_outdated`) |
 | | GET | `/units` | Stücke eines Artikels (`variant_id`) und/oder in Zuständen (`status`, mehrfach), etwa alle unverbuchten |
 | | POST | `/units` | Stücke einer Ausführung einbuchen: Anzahl und Platz (Pflicht), gleich im Bestand; wartende Bestellungen zuerst (Inhaber, Mitarbeiter; ADR 0027) |
 | | POST | `/units/moves` | mehrere Stücke in einen Platz ein- oder umlagern, alles oder nichts; schon dort liegende bleiben (409 `units_not_movable`) |
@@ -1397,12 +1403,11 @@ ohne CSRF-Kopf; ihr Nachweis ist die Signatur des Absenders.
 | | POST | `/assemblies` | Bausätze aus Teilen montieren, Einheiten und Etiketten erzeugen |
 | | POST | `/movements` | Korrekturbuchung mit Begründung (für Teile: `/parts/{Teilenummer}/count`) |
 | | POST | `/labels` | Etiketten als PDF oder PNG/ZIP: Modell-Etiketten (`variants` mit Anzahl, legt keine Stücke an; `unit_codes` druckt dasselbe Etikett), Plätze, Teile (ADR 0027) |
-| | POST · PATCH | `/stocktakes` … | Inventur (umgesetzt je Platz: `/locations/{code}/stocktakes`) |
 | Verkauf | GET | `/orders` | Liste nach Zustand (`status`, mehrfach), Suche nach Nummer oder E-Mail (`q`), Cursor |
 | | GET | `/orders/{id}` | Bestellung mit Positionen, Adresse, Zahlungen und Stornohinweis; Zuteilungen ab Schritt 5 |
 | | GET | `/orders/{id}/pick-list` | Pickliste mit Lagerplätzen (ab Schritt 5) |
-| | POST | `/orders/{id}/ship` · `/cancel` | versenden mit Versanddienst und Sendungsnummer (auch Packer); stornieren mit Hinweis und Erstattung (Owner, Mitarbeiter) |
-| | POST · GET · DELETE | `/orders/{id}/shipping-label` | DHL-Label buchen (mit Gewicht), anzeigen, stornieren; das PDF unter `…/shipping-label.pdf` (auch Packer, ADR 0023) |
+| | POST | `/orders/{id}/ship` · `/cancel` | versenden mit Versanddienst und Sendungsnummer (auch Packer), ohne vorher zu scannen; wartet ein Stück auf die Fertigung, 409 `order_pieces_missing` (ADR 0028); stornieren mit Hinweis und Erstattung (Owner, Mitarbeiter) |
+| | POST · GET · DELETE | `/orders/{id}/shipping-label` | DHL-Label buchen (mit Gewicht), anzeigen, stornieren; mit `ship: true` zugleich versenden (ADR 0028); das PDF unter `…/shipping-label.pdf` (auch Packer, ADR 0023) |
 | | GET | `/shipping/setup` | ob das Stellwerk Labels bucht, Versanddienst, Vorschlagsgewicht |
 | Planung | POST | `/planning/runs` | neu rechnen, `202` |
 | | GET | `/planning/runs/{id}` | Lauf mit Kennzahlen |
@@ -1637,6 +1642,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 23 | Überwachung und Sicherung außer Haus (11.11.2026) | **Healthchecks.io** schickt eine Mail, wenn der Shop (alle 5 Minuten vom Server geprüft) oder die nächtliche Sicherung ausfällt. Jede Sicherung geht zusätzlich verschlüsselt mit **restic auf eine Storage Box bei Hetzner** und bleibt dort wie auf dem Server 14 Tage; das Passwort liegt nur bei der Werkstatt. `make sicherung-pruefen` spielt die neueste zur Probe ein (ADR 0025) |
 | 24 | Navigation im Stellwerk (12.11.2026) | **Jede Rolle sieht nur, was sie benutzen kann:** Packer Übersicht, Bestellungen, Lager, Fertigung und Scannen; Inhaber und Mitarbeiter dazu Katalog, Messen, eBay und Einstellungen. Kategorien, Maßstäbe und die eBay-Einrichtung stehen unter Einstellungen. Scannen ist ein Knopf, auf dem Handy in der Mitte einer Leiste am unteren Rand. Ein Wortschatz: Modell, Ausführung, Stück, Platz, Teil (ADR 0026) |
 | 25 | Ein Code pro Modell (15.11.2026) | **Ein Etikett nennt die Ausführung, nie ein Stück:** EAN-13 ohne Code 128 der Einheit, so oft gedruckt wie nötig, ohne Stücke anzulegen. Stücke kommen mit Anzahl und Platz in den Bestand (Einbuchen, Einlager-Scan mit Anzahl); der Scanner bucht auch aus (Verkauf auf der Messe). Intern bleibt jedes Stück eine Einheit (ADR 0027) |
+| 26 | Das Modell im Mittelpunkt (15.11.2026) | **Ein Modell ist eine Seite:** Bestand je Ausführung und Platz mit Einbuchen, Ausbuchen, Umlagern, Etiketten und Zählen nach Anzahl, darunter Bearbeiten und Verlauf. „Neues Modell“ in vier Schritten ersetzt Erfassen. Täglich: Modelle, Bestellungen, Scannen, Lager. Ein Regal mit seinen Böden entsteht in einem Schritt, alle Etiketten gleich dazu. Versendet wird ohne Scannen, „Versandlabel drucken“ bucht Label und Versand zusammen (ADR 0028) |
 
 Noch offen:
 

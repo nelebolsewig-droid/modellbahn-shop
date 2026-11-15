@@ -1,5 +1,6 @@
 """Use cases around placed orders: status pages, order history, the admin area's actions."""
 
+from datetime import datetime
 from uuid import UUID
 
 import structlog
@@ -21,7 +22,7 @@ from modellbahn.modules.sales.application.ports import (
 from modellbahn.modules.sales.domain.errors import (
     MarketplaceOrderError,
     OrderNotFoundError,
-    OrderNotPickedError,
+    OrderPiecesMissingError,
     PaymentUnavailableError,
     RefundNotPossibleError,
 )
@@ -35,6 +36,27 @@ from modellbahn.platform.clock import Clock
 _logger = structlog.get_logger(__name__)
 
 OVERDUE_BATCH_SIZE = 100
+
+
+async def check_shippable(uow: SalesUnitOfWork, order: Order) -> None:
+    """Refuse a paid order with pieces still waiting for the workshop; the error names
+    their models (all of them if the order is not allocated yet)."""
+    if order.status is not OrderStatus.PAID:
+        return
+    progress = await uow.inventory.pick_progress(order.id)
+    if progress.is_shippable:
+        return
+    waiting = set(progress.waiting_variant_ids) if progress.total else None
+    models = [line.title for line in order.lines if waiting is None or line.variant_id in waiting]
+    raise OrderPiecesMissingError(models)
+
+
+async def dispatch(
+    uow: SalesUnitOfWork, order: Order, *, carrier: str, tracking_number: str, now: datetime
+) -> None:
+    """Ship the order now; the inventory picks and ships its pieces when it hears of it."""
+    await check_shippable(uow, order)
+    uow.publish(order.ship(carrier=carrier, tracking_number=tracking_number, now=now))
 
 
 class OrderService:
@@ -94,7 +116,8 @@ class OrderService:
             return await order_details(uow, order)
 
     async def ship(self, order_id: UUID, *, carrier: str, tracking_number: str) -> OrderDetails:
-        """Ship a paid order whose pieces are all picked (the workshop scanned each one).
+        """Ship a paid order whose pieces all have a unit (ADR 0028): reserved ones are
+        picked and shipped by the workshop's books, scanned or not.
 
         Without a shipment number given, the order's label in force supplies carrier and
         number (ADR 0023), so they reach the customer's e-mail.
@@ -108,12 +131,8 @@ class OrderService:
                         carrier.strip() or label.carrier,
                         label.shipment_number,
                     )
-            if order.status is OrderStatus.PAID:
-                progress = await uow.inventory.pick_progress(order.id)
-                if not progress.is_complete:
-                    raise OrderNotPickedError(picked=progress.picked, total=progress.total)
-            uow.publish(
-                order.ship(carrier=carrier, tracking_number=tracking_number, now=self._clock.now())
+            await dispatch(
+                uow, order, carrier=carrier, tracking_number=tracking_number, now=self._clock.now()
             )
             await uow.commit()
             return await order_details(uow, order)

@@ -1,47 +1,43 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { Panel } from "@/components/admin/panel";
-import { FormError } from "@/components/forms/form-error";
-import { SubmitButton } from "@/components/forms/submit-button";
 import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { createProduct, listProducts, publishReadyProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { listProducts, publishReadyProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { useListProductStock } from "@/lib/api/generated/admin-inventory/admin-inventory";
+import { getListEbayListingsQueryKey, listEbayListings } from "@/lib/api/generated/admin-marketplace/admin-marketplace";
 import type {
   ProductListItemOut,
-  ProductOut,
   ProductPageOut,
   ProductStatus,
+  ProductStockOut,
   PublishedOut,
 } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { formatPrice, formatProductNumber } from "@/lib/catalog/format";
 import { readyPicture } from "@/lib/catalog/images";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalog/labels";
-import { formatEventTime } from "@/lib/format";
-import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
+import { placesLine } from "@/lib/inventory/stock";
+import { errorMessage } from "@/lib/i18n/problems";
 
-import { ADMIN_PRODUCTS_KEY, productQueryKey } from "./use-product";
+import { ADMIN_PRODUCTS_KEY } from "./use-product";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 50;
 
-type StatusFilter = ProductStatus | "all";
+type Filter = "all" | "draft" | "empty";
 
-const FILTERS: readonly { value: StatusFilter; label: string }[] = [
+const FILTERS: readonly { value: Filter; label: string }[] = [
   { value: "all", label: "Alle" },
   { value: "draft", label: "Entwürfe" },
-  { value: "active", label: "Im Shop" },
-  { value: "archived", label: "Archiviert" },
+  { value: "empty", label: "Ohne Bestand" },
 ];
 
 export const STATUS_TONES = {
@@ -50,18 +46,50 @@ export const STATUS_TONES = {
   archived: "warning",
 } as const satisfies Record<ProductStatus, "neutral" | "success" | "warning">;
 
-/** The catalogue of the Stellwerk: every product, newest first, with a quick way to add one. */
+/** eBay's listings come in pages of this many; a shop with more pages than this is not expected. */
+const LISTING_PAGE = 100;
+const LISTING_PAGES_MAX = 50;
+
+/** The models with an active offer on eBay, from every page of the listings. */
+export async function activeOnEbay(signal?: AbortSignal): Promise<Set<string>> {
+  const active = new Set<string>();
+  let cursor: string | null = null;
+  for (let page = 0; page < LISTING_PAGES_MAX; page += 1) {
+    const listings = await listEbayListings({ limit: LISTING_PAGE, ...(cursor !== null && { cursor }) }, { signal });
+    for (const listing of listings.items) {
+      if (listing.status === "active") {
+        active.add(listing.product_id);
+      }
+    }
+    cursor = listings.next_cursor;
+    if (cursor === null) {
+      break;
+    }
+  }
+  return active;
+}
+
+/** Models without a free or reserved piece; nothing at all counts as none. */
+export function withoutStock(item: ProductListItemOut, stock: ReadonlyMap<string, ProductStockOut>): boolean {
+  const line = stock.get(item.id);
+  return line === undefined || line.free + line.reserved === 0;
+}
+
+/**
+ * Every model, newest first: photo, name, where it stands (shop, draft, archive, eBay),
+ * how many pieces are free or reserved and where they lie. A tap opens the model.
+ */
 export function ProductList() {
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const products = useInfiniteQuery<ProductPageOut, ApiProblem>({
-    queryKey: [...ADMIN_PRODUCTS_KEY, { status, query }],
+    queryKey: [...ADMIN_PRODUCTS_KEY, { status: filter === "draft" ? "draft" : null, query }],
     queryFn: ({ pageParam, signal }) =>
       listProducts(
         {
           limit: PAGE_SIZE,
-          ...(status !== "all" && { status }),
+          ...(filter === "draft" && { status: "draft" as const }),
           ...(query && { q: query }),
           ...(typeof pageParam === "string" && { cursor: pageParam }),
         },
@@ -70,7 +98,18 @@ export function ProductList() {
     initialPageParam: null,
     getNextPageParam: (page) => page.next_cursor,
   });
-  const items = products.data?.pages.flatMap((page) => page.items) ?? [];
+  const stock = useListProductStock({
+    query: { select: (data) => new Map(data.items.map((line) => [line.product_id, line])) },
+  });
+  // eBay may not be connected: then no model shows the mark, and nothing complains.
+  const ebay = useQuery({
+    queryKey: [...getListEbayListingsQueryKey(), "active-products"],
+    queryFn: ({ signal }) => activeOnEbay(signal),
+    retry: false,
+  });
+  const stockByProduct = stock.data ?? new Map<string, ProductStockOut>();
+  const all = products.data?.pages.flatMap((page) => page.items) ?? [];
+  const items = filter === "empty" ? all.filter((item) => withoutStock(item, stockByProduct)) : all;
 
   function onSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,91 +117,82 @@ export function ProductList() {
   }
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel title="Modelle" code="KAT 01">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <OptionGroup
-            label="Zustand"
-            value={status}
-            onValueChange={(value) => setStatus(value as StatusFilter)}
-          >
-            {FILTERS.map((filter) => (
-              <OptionPill key={filter.value} value={filter.value} tone="accent">
-                {filter.label}
-              </OptionPill>
-            ))}
-          </OptionGroup>
-          <form role="search" onSubmit={onSearch} className="flex items-end gap-2">
-            <FormField label="Suche" className="w-56">
-              {(control) => (
-                <Input
-                  {...control}
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Name, Beschreibung …"
-                />
-              )}
-            </FormField>
-            <Button type="submit" variant="secondary" size="sm" className="mb-0.5">
-              Suchen
-            </Button>
-          </form>
-        </div>
-
-        <div className="mt-6">
-          {products.isPending ? (
-            <PendingNotice>Modelle werden geladen …</PendingNotice>
-          ) : products.isError ? (
-            <p role="alert" className="text-small text-danger">
-              {errorMessage(products.error)}
-            </p>
-          ) : items.length === 0 ? (
-            <p className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center text-small text-ink-secondary">
-              {query || status !== "all"
-                ? "Keine Modelle für diese Auswahl."
-                : "Noch kein Modell angelegt. Rechts geht es los."}
-            </p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {items.map((item) => (
-                <ProductRow key={item.id} item={item} />
-              ))}
-            </ul>
-          )}
-          {products.hasNextPage ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="mt-6"
-              disabled={products.isFetchingNextPage}
-              onClick={() => void products.fetchNextPage()}
-            >
-              {products.isFetchingNextPage ? "Lädt …" : "Weitere laden"}
-            </Button>
-          ) : null}
-        </div>
-      </Panel>
-      <div className="space-y-6">
-        <NewProductForm />
-        <DraftsPanel />
+    <section aria-label="Modelle">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <OptionGroup label="Zeigen" value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+          {FILTERS.map((entry) => (
+            <OptionPill key={entry.value} value={entry.value} tone="accent">
+              {entry.label}
+            </OptionPill>
+          ))}
+        </OptionGroup>
+        <form role="search" onSubmit={onSearch} className="flex w-full items-center gap-2 sm:w-auto">
+          <label htmlFor="model-search" className="sr-only">
+            Modell suchen
+          </label>
+          <Input
+            id="model-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Name oder Nummer"
+            className="sm:w-64"
+          />
+          <Button type="submit" variant="secondary">
+            Suchen
+          </Button>
+        </form>
       </div>
-    </div>
+      {filter === "draft" ? <PublishReady /> : null}
+
+      <div className="mt-6">
+        {products.isPending ? (
+          <PendingNotice>Modelle werden geladen …</PendingNotice>
+        ) : products.isError ? (
+          <p role="alert" className="text-small text-danger">
+            {errorMessage(products.error)}
+          </p>
+        ) : items.length === 0 ? (
+          <p className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center text-small text-ink-secondary">
+            {query || filter !== "all" ? "Keine Modelle für diese Auswahl." : "Noch kein Modell. Mit „Neues Modell“ geht es los."}
+          </p>
+        ) : (
+          <ul className="divide-y divide-line border-y border-line">
+            {items.map((item) => (
+              <ProductRow key={item.id} item={item} stock={stockByProduct.get(item.id)} onEbay={ebay.data?.has(item.id) ?? false} />
+            ))}
+          </ul>
+        )}
+        {products.hasNextPage ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="mt-6"
+            disabled={products.isFetchingNextPage}
+            onClick={() => void products.fetchNextPage()}
+          >
+            {products.isFetchingNextPage ? "Lädt …" : "Weitere laden"}
+          </Button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
-function ProductRow({ item }: { item: ProductListItemOut }) {
+function ProductRow({ item, stock, onEbay }: { item: ProductListItemOut; stock: ProductStockOut | undefined; onEbay: boolean }) {
   const picture = readyPicture(item.main_image);
+  const free = stock?.free ?? 0;
+  const reserved = stock?.reserved ?? 0;
   return (
     <li>
       <Link
-        href={`/admin/katalog/${item.id}` as Route}
-        className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4 rounded-sm py-3 hover:bg-stage"
+        href={`/admin/modelle/${item.id}` as Route}
+        className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-4 py-3 hover:bg-stage sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
       >
-        <span className="relative block size-14 overflow-hidden rounded-sm bg-stage">
+        <span className="relative block size-16 overflow-hidden rounded-sm bg-stage">
           {picture ? (
-            <ResponsivePicture image={picture} alt="" sizes="56px" variant="thumb" fit="cover" />
+            <ResponsivePicture image={picture} alt="" sizes="64px" variant="thumb" fit="cover" />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-center text-[0.625rem] leading-tight text-ink-tertiary">
               {item.main_image ? "…" : "ohne Foto"}
@@ -171,75 +201,30 @@ function ProductRow({ item }: { item: ProductListItemOut }) {
         </span>
         <span className="min-w-0">
           <span className="block truncate font-medium">{item.name}</span>
-          <span className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-hint text-ink-tertiary">
-            <span>{formatProductNumber(item.number)}</span>
-            {item.scale_codes.length > 0 ? <span>{item.scale_codes.join(" · ")}</span> : null}
-            <span>{item.variant_count === 1 ? "1 Ausführung" : `${item.variant_count} Ausführungen`}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-2">
+            <StatusBadge tone={STATUS_TONES[item.status]}>{PRODUCT_STATUS_LABELS[item.status]}</StatusBadge>
+            {onEbay ? <StatusBadge tone="accent">eBay</StatusBadge> : null}
+            <span className="font-mono text-hint text-ink-tertiary">{formatProductNumber(item.number)}</span>
+            {item.price_from_cents !== null ? (
+              <span className="text-hint text-ink-tertiary tabular-nums">ab {formatPrice(item.price_from_cents)}</span>
+            ) : null}
           </span>
+          {stock && stock.places.length > 0 ? (
+            <span className="mt-1 block truncate text-hint text-ink-secondary">{placesLine(stock.places)}</span>
+          ) : null}
         </span>
-        <span className="flex flex-col items-end gap-1 text-right">
-          <StatusBadge tone={STATUS_TONES[item.status]}>{PRODUCT_STATUS_LABELS[item.status]}</StatusBadge>
-          <span className="text-hint text-ink-tertiary tabular-nums">
-            {item.price_from_cents !== null ? `ab ${formatPrice(item.price_from_cents)} · ` : ""}
-            {formatEventTime(new Date(item.updated_at))}
-          </span>
+        <span className="col-span-2 text-small tabular-nums sm:col-span-1 sm:text-right">
+          <span className={free === 0 ? "text-ink-tertiary" : "font-medium"}>{free} frei</span>
+          {reserved > 0 ? <span className="text-ink-secondary"> · {reserved} reserviert</span> : null}
+          {stock && stock.labeled > 0 ? <span className="block text-hint text-warning">{stock.labeled} unverbucht</span> : null}
         </span>
       </Link>
     </li>
   );
 }
 
-function NewProductForm() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const create = useMutation<ProductOut, ApiProblem, string>({
-    mutationFn: (productName) => createProduct({ name: productName }),
-    onSuccess(product) {
-      queryClient.setQueryData(productQueryKey(product.id), product);
-      void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
-      router.push(`/admin/katalog/${product.id}` as Route);
-    },
-  });
-  const fieldError = create.error?.fieldErrors.find((error) => error.field === "name");
-
-  return (
-    <Panel title="Neuer Entwurf" code="KAT 02">
-      <form
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (name.trim()) {
-            create.mutate(name.trim());
-          }
-        }}
-      >
-        <FormError message={create.isError && !fieldError ? errorMessage(create.error) : undefined} />
-        <FormField
-          label="Name"
-          hint="Die Adresse im Shop entsteht daraus; alles Weitere folgt im Editor."
-          error={fieldError ? fieldErrorMessage("name", fieldError.code) : undefined}
-        >
-          {(control) => (
-            <Input
-              {...control}
-              value={name}
-              maxLength={120}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="z. B. Stellwerk Altenau"
-            />
-          )}
-        </FormField>
-        <SubmitButton pending={create.isPending} pendingLabel="Legt an …" className="mt-5" disabled={!name.trim()}>
-          Entwurf anlegen
-        </SubmitButton>
-      </form>
-    </Panel>
-  );
-}
-
-/** The end of a day at the crates: every draft that lacks nothing goes into the shop at once. */
-function DraftsPanel() {
+/** Among the drafts: every one that lacks nothing goes into the shop at once. */
+function PublishReady() {
   const queryClient = useQueryClient();
   const publish = useMutation<PublishedOut, ApiProblem>({
     mutationFn: () => publishReadyProducts(),
@@ -248,54 +233,19 @@ function DraftsPanel() {
     },
   });
   const published = publish.data?.published ?? [];
-
   return (
-    <Panel title="Entwürfe" code="KAT 03">
-      <p className="text-small text-ink-secondary">
-        Modelle aus der Kiste erfasst? Entwürfe mit Kategorie, aktiver Ausführung und fertigem Hauptbild gehen hier in einem
-        Schritt in den Shop; die anderen bleiben, bis sie vollständig sind.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Button asChild variant="secondary" size="sm">
-          <Link href="/admin/erfassen">Neues Modell</Link>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          disabled={publish.isPending}
-          aria-busy={publish.isPending || undefined}
-          onClick={() => {
-            if (window.confirm("Alle fertigen Entwürfe jetzt im Shop zeigen?")) {
-              publish.mutate();
-            }
-          }}
-        >
-          {publish.isPending ? "Veröffentlicht …" : "Fertige veröffentlichen"}
-        </Button>
-      </div>
-      <div role="status" className="mt-4 text-small empty:hidden">
-        {publish.isError ? <p className="text-danger">{errorMessage(publish.error)}</p> : null}
-        {publish.isSuccess ? (
-          published.length === 0 ? (
-            <p className="text-ink-secondary">Kein Entwurf ist schon fertig. Im Editor steht, was jeweils fehlt.</p>
-          ) : (
-            <>
-              <p className="font-medium text-success">
-                {published.length === 1 ? "1 Modell ist jetzt im Shop:" : `${published.length} Modelle sind jetzt im Shop:`}
-              </p>
-              <ul className="mt-2 space-y-1">
-                {published.map((item) => (
-                  <li key={item.id}>
-                    <Link href={`/admin/katalog/${item.id}` as Route} className="text-accent hover:underline">
-                      {item.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )
-        ) : null}
-      </div>
-    </Panel>
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-small">
+      <Button type="button" size="sm" variant="secondary" disabled={publish.isPending} onClick={() => publish.mutate()}>
+        {publish.isPending ? "Veröffentlicht …" : "Fertige Entwürfe in den Shop"}
+      </Button>
+      <span role="status" className="text-ink-secondary">
+        {publish.isError ? errorMessage(publish.error) : null}
+        {publish.isSuccess
+          ? published.length === 0
+            ? "Kein Entwurf ist schon fertig; auf der Seite des Modells steht, was fehlt."
+            : `${published.length === 1 ? "1 Modell ist" : `${published.length} Modelle sind`} jetzt im Shop.`
+          : null}
+      </span>
+    </div>
   );
 }

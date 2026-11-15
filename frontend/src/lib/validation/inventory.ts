@@ -1,24 +1,11 @@
 import { z } from "zod";
 
-import { SEGMENT_PATTERN } from "@/lib/inventory/locations";
-
 /*
- * The forms of the store in the Stellwerk; the limits are those of LocationCreateIn,
- * LocationPatchIn, UnitsCreateIn and ScrapIn in the inventory API.
+ * The forms of the store in the Stellwerk; the limits are those of LocationPatchIn,
+ * UnitsCreateIn and ScrapIn in the inventory API.
  */
 
 const name = z.string().trim().max(60, "Bitte höchstens 60 Zeichen.");
-
-export const locationCreateSchema = z.object({
-  segment: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(SEGMENT_PATTERN, "1 bis 8 Buchstaben oder Ziffern, z. B. R02 oder F04."),
-  kind: z.enum(["site", "shelf", "compartment", "box", "staging"]),
-  name,
-});
-export type LocationCreateValues = z.input<typeof locationCreateSchema>;
 
 export const locationRenameSchema = z.object({ name });
 export type LocationRenameValues = z.input<typeof locationRenameSchema>;

@@ -19,6 +19,7 @@ export interface PickItemOut {
   location: LocationOut | null;
   order_line_id: string;
   piece: number;
+  place?: string | null;
   position: number;
   sku: string;
   state: PieceState;
