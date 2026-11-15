@@ -76,11 +76,17 @@ export function colorsWithoutPhoto(colors: readonly string[], entries: readonly 
  * finished, a photo got processed): entries that are gone are dropped, new ones
  * are appended, the rest keeps its local order and texts.
  */
-export function mergeDraft(draft: readonly GalleryEntryIn[], server: readonly GalleryItemOut[]): GalleryEntryIn[] {
+export function mergeDraft(
+  draft: readonly GalleryEntryIn[],
+  server: readonly GalleryItemOut[],
+  removed: ReadonlySet<string> = new Set(),
+): GalleryEntryIn[] {
   const onServer = new Set(server.map((item) => item.asset_id));
   const kept = draft.filter((entry) => onServer.has(entry.asset_id));
   const known = new Set(kept.map((entry) => entry.asset_id));
-  return [...kept, ...server.filter((item) => !known.has(item.asset_id)).map(entryOf)];
+  // New uploads join the draft; a photo removed by hand stays out until the gallery is saved.
+  const added = server.filter((item) => !known.has(item.asset_id) && !removed.has(item.asset_id));
+  return [...kept, ...added.map(entryOf)];
 }
 
 function uploadErrorMessage(error: unknown): string {
@@ -107,17 +113,32 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
   const save = useProductCommand(product.id);
   // Local edits, or null while the gallery shows the server state as it is.
   const [edits, setEdits] = useState<GalleryEntryIn[] | null>(null);
+  // Photos removed in this edit; without it the merge below would append them again.
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragging, setDragging] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const images = new Map(product.media.map((item) => [item.asset_id, item.image]));
   const dirty = edits !== null;
-  const draft = edits === null ? product.media.map(entryOf) : mergeDraft(edits, product.media);
+  const draft = edits === null ? product.media.map(entryOf) : mergeDraft(edits, product.media, removed);
   const colors = productColors(product);
   const unshown = colorsWithoutPhoto(colors, draft);
 
   function change(next: GalleryEntryIn[]) {
     setEdits(next);
+  }
+
+  function remove(index: number) {
+    const gone = draft[index];
+    if (gone) {
+      setRemoved((current) => new Set(current).add(gone.asset_id));
+    }
+    change(draft.filter((_, position) => position !== index));
+  }
+
+  function discard() {
+    setEdits(null);
+    setRemoved(new Set());
   }
 
   function move(index: number, to: number) {
@@ -167,7 +188,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
 
   function onSave() {
     save.mutate(() => arrangeProductGallery(product.id, { entries: draft }, ifMatch(product.version)), {
-      onSuccess: () => setEdits(null),
+      onSuccess: discard,
     });
   }
 
@@ -242,7 +263,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
               colors={colors}
               onMove={move}
               onEdit={edit}
-              onRemove={() => change(draft.filter((_, position) => position !== index))}
+              onRemove={() => remove(index)}
             />
           ))}
         </ol>
@@ -256,7 +277,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setEdits(null)}
+            onClick={discard}
           >
             Verwerfen
           </Button>
