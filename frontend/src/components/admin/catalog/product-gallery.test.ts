@@ -22,6 +22,12 @@ describe("mergeDraft", () => {
       ["new", ""],
     ]);
   });
+
+  it("does not bring back a photo removed by hand", () => {
+    const draft = [{ asset_id: "a", alt_text: "Front" }];
+    const merged = mergeDraft(draft, [item("a"), item("removed"), item("new")], new Set(["removed"]));
+    expect(merged.map((entry) => entry.asset_id)).toEqual(["a", "new"]);
+  });
 });
 
 describe("colorsWithoutPhoto", () => {
