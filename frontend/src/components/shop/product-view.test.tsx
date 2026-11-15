@@ -208,6 +208,14 @@ describe("ProductView", () => {
     expect(screen.getByRole("button", { name: "In den Warenkorb" })).toBeEnabled();
   });
 
+  it("says how few ship at once when the rest is made again", async () => {
+    shop({ shelf: [onShelf("v1", 3, [2, 4])] });
+    renderWithQueryClient(<ProductView product={PRODUCT} />);
+
+    const note = (await screen.findByText("Nur noch 3 Stück sofort lieferbar")).closest("p");
+    expect(note).toHaveTextContent("Nur noch 3 Stück sofort lieferbar– weitere fertigen wir für dich (Lieferzeit 2–4 Wochen)");
+  });
+
   it("does not sell what is neither on the shelf nor made to order", async () => {
     shop({ shelf: [onShelf("v1", 0)] });
     renderWithQueryClient(<ProductView product={PRODUCT} />);

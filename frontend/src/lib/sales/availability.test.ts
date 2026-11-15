@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { VariantAvailabilityOut } from "@/lib/api/generated/model";
 import { cartLine } from "@/test/sales";
 
-import { availabilityFor, availabilityNote, cartLeadTime, leadTimeText, orderableMax } from "./availability";
+import { availabilityFor, availabilityNote, cartLeadTime, cartLineNote, leadTimeText, orderableMax } from "./availability";
 
 function info(free: number, lead: [number, number] | null = null): VariantAvailabilityOut {
   return {
@@ -43,6 +43,27 @@ describe("availability in the shop", () => {
       detail: "Lieferzeit 4–6 Wochen",
     });
     expect(availabilityNote("unavailable", 0, info(0)).label).toBe("Derzeit nicht lieferbar");
+  });
+
+  it("says how many ship at once when the rest is made, not that all of it is", () => {
+    const note = availabilityNote("in_stock", 3, info(3, [2, 4]));
+    expect(`${note.label} ${note.detail}`).toBe("Nur noch 3 Stück sofort lieferbar – weitere fertigen wir für dich (Lieferzeit 2–4 Wochen)");
+    // More wanted than the shelf holds: the same words.
+    expect(availabilityNote("made_to_order", 2, info(2, [2, 4])).label).toBe("Nur noch 2 Stück sofort lieferbar");
+    // Plenty on the shelf: no word about making.
+    expect(availabilityNote("in_stock", 12, info(12, [2, 4]))).toEqual({ label: "Sofort lieferbar", tone: "success", detail: null });
+    // Nothing on the shelf: all of it is made.
+    expect(availabilityNote("made_to_order", 0, info(0, [2, 4])).label).toBe("Wird für dich gefertigt");
+  });
+
+  it("splits a cart line into what ships at once and what is made", () => {
+    const line = (quantity: number, free: number) =>
+      cartLine({ quantity, free_units: free, availability: free >= quantity ? "in_stock" : "made_to_order", lead_time_min_weeks: 2, lead_time_max_weeks: 4 });
+    const split = cartLineNote(line(5, 3));
+    expect(`${split.label} · ${split.detail}`).toBe("3 sofort lieferbar, 2 werden für dich gefertigt · Lieferzeit 2–4 Wochen");
+    expect(cartLineNote(line(4, 3)).label).toBe("3 sofort lieferbar, 1 wird für dich gefertigt");
+    expect(cartLineNote(line(2, 0)).label).toBe("Wird für dich gefertigt");
+    expect(cartLineNote(line(2, 5)).label).toBe("Sofort lieferbar");
   });
 
   it("takes the longest lead time of the built-to-order lines", () => {

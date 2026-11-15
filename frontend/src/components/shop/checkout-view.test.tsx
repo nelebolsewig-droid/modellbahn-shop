@@ -83,6 +83,18 @@ describe("CheckoutView", () => {
     expect(await screen.findByText(/alles zusammen in voraussichtlich 4–6 Wochen/)).toBeInTheDocument();
   });
 
+  it("says which pieces are made, and when the parcel leaves when all lie on the shelf", async () => {
+    const split = cartLine({ quantity: 5, free_units: 3, availability: "made_to_order", lead_time_min_weeks: 2, lead_time_max_weeks: 4 });
+    guestShop(() => jsonResponse(orderOut(), 201), cartOut(split));
+    const { unmount } = renderWithQueryClient(<CheckoutView />);
+    expect(await screen.findByText("3 sofort lieferbar, 2 werden für dich gefertigt")).toBeInTheDocument();
+    unmount();
+
+    guestShop(() => jsonResponse(orderOut(), 201), cartOut(cartLine()));
+    renderWithQueryClient(<CheckoutView />);
+    expect(await screen.findByText(/Alles ist vorrätig\. Wir verschicken dein Paket in der Regel 1–3 Werktage/)).toBeInTheDocument();
+  });
+
   it("refreshes the cart when the shelf ran short in the meantime", async () => {
     guestShop(() => problemResponse(409, "insufficient_stock"));
     const user = userEvent.setup();

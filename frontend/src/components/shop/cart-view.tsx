@@ -16,7 +16,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import type { CartLineOut, CartOut } from "@/lib/api/generated/model";
 import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { errorMessage } from "@/lib/i18n/problems";
-import { availabilityNote, cartLeadTime, leadTimeText } from "@/lib/sales/availability";
+import { cartLeadTime, cartLineNote, leadTimeText } from "@/lib/sales/availability";
 import { shippingGroups } from "@/lib/sales/countries";
 import { useCart, useCartChange } from "@/lib/sales/cart";
 import { cn } from "@/lib/utils";
@@ -148,7 +148,10 @@ function CartLine({
   );
 }
 
-/** "Sofort lieferbar", "Wird für dich gefertigt · 4–6 Wochen", or what keeps it from the checkout. */
+/**
+ * "Sofort lieferbar", "3 sofort lieferbar, 2 werden für dich gefertigt · Lieferzeit 2–4
+ * Wochen", or what keeps it from the checkout.
+ */
 function LineAvailability({ line }: { line: CartLineOut }) {
   if (!line.available) {
     return (
@@ -159,20 +162,27 @@ function LineAvailability({ line }: { line: CartLineOut }) {
       </p>
     );
   }
-  const note = availabilityNote(line.availability, line.free_units, line);
+  const note = cartLineNote(line);
   return (
     <p className="mt-2 flex flex-wrap items-baseline gap-x-2">
       <StatusBadge tone={note.tone}>{note.label}</StatusBadge>
-      {line.availability === "made_to_order" && note.detail ? <span className="text-hint text-ink-tertiary">{note.detail}</span> : null}
+      {line.availability === "made_to_order" && note.detail ? <span className="text-hint text-ink-tertiary">· {note.detail}</span> : null}
     </p>
   );
 }
 
-/** When the parcel can leave: at once, or once the last piece built to order is done. */
-export function DeliveryNote({ cart, className }: { cart: CartOut; className?: string }) {
+/**
+ * When the parcel can leave: once the last piece made for the customer is done, or (with
+ * `fromShelf`, at the checkout) within days when everything lies on the shelf.
+ */
+export function DeliveryNote({ cart, fromShelf = false, className }: { cart: CartOut; fromShelf?: boolean; className?: string }) {
   const weeks = cartLeadTime(cart.lines);
   if (weeks === null) {
-    return null;
+    return fromShelf ? (
+      <p className={cn("rounded-sm bg-sunken px-4 py-3 text-small text-ink-secondary", className)}>
+        Alles ist vorrätig. Wir verschicken dein Paket in der Regel 1–3 Werktage, nachdem deine Zahlung eingegangen ist.
+      </p>
+    ) : null;
   }
   return (
     <p className={cn("rounded-sm bg-accent-subtle px-4 py-3 text-small text-accent", className)}>
