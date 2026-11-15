@@ -47,6 +47,8 @@ from modellbahn.modules.inventory.application.common import (
     Journal,
     PartJournal,
     UnitOfWorkFactory,
+    lock_oldest,
+    takes_goods,
 )
 from modellbahn.modules.inventory.application.parts import walking_order
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
@@ -394,7 +396,7 @@ class _Interpreter:
             await self._add_progress(answer)
             return answer
         # Putting away and booking out: the location of the scans that follow.
-        if not location.holds_goods:
+        if not await takes_goods(self._uow, location):
             return _Answer(ScanOutcome.REJECTED, "holds_no_goods", resolved=reading, location=info)
         return _Answer(ScanOutcome.SELECTED, "location_selected", resolved=reading, location=info)
 
@@ -446,7 +448,7 @@ class _Interpreter:
         location = await self._uow.locations.get_by_code(code)
         if location is None:
             return _Answer(ScanOutcome.REJECTED, "location_unknown")
-        if not location.holds_goods:
+        if not await takes_goods(self._uow, location):
             return _Answer(
                 ScanOutcome.REJECTED,
                 "holds_no_goods",
@@ -458,40 +460,7 @@ class _Interpreter:
     async def _lock_oldest(
         self, variant_id: UUID, status: UnitStatus, *, limit: int, location: Location | None
     ) -> list[Unit]:
-        """Up to ``limit`` units of the variant in ``status`` (lying in ``location``, if
-        given), oldest first, locked.
-
-        The first ones are locked in one go, by id, as on every path. A unit that changed
-        between the first look and the lock is left out, and the next oldest are looked
-        for until ``limit`` is reached or none is left. Those later ones are locked only
-        if nobody else holds them: waiting for them while holding others could wait
-        crosswise.
-        """
-        location_id = location.id if location is not None else None
-        found: list[Unit] = []
-        seen: set[UUID] = set()
-        first = True
-        while len(found) < limit:
-            ids = await self._uow.units.oldest(
-                variant_id,
-                status,
-                location_id=location_id,
-                limit=limit - len(found),
-                exclude=seen,
-            )
-            if not ids:
-                break
-            seen.update(ids)
-            locked = await self._uow.units.lock(ids, skip_locked=not first)
-            first = False
-            found.extend(
-                unit
-                for unit in locked
-                if unit.variant_id == variant_id
-                and unit.status is status
-                and (location is None or unit.location_id == location.id)
-            )
-        return sorted(found, key=lambda unit: (unit.created_at, unit.id))
+        return await lock_oldest(self._uow, variant_id, status, limit=limit, location=location)
 
     async def _pieces_in(self, variant_id: UUID, location: Location) -> int:
         """Pieces of the variant lying in the location (free and reserved)."""
@@ -761,7 +730,7 @@ class _Interpreter:
             "code": location.code,
             "name": location.name,
             "kind": location.kind.value,
-            "holds_goods": location.holds_goods,
+            "holds_goods": await takes_goods(self._uow, location),
             "unit_count": len(units),
             "part_count": sum(entry.quantity for entry in parts),
         }

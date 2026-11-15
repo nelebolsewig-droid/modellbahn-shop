@@ -67,9 +67,36 @@ class UnitsNotRestorableError(UnitsRefusedError):
     """Units to book in again that are not scrapped (or do not exist); none was booked."""
 
 
-class StocktakeOutdatedError(UnitsRefusedError):
-    """The location changed while it was counted: a unit counted there is gone, or one came
-    that the count does not name. Nothing was booked."""
+class NotEnoughPiecesError(InventoryError):
+    """Fewer pieces of the variant lie in the place than are to be moved; none moved."""
+
+    def __init__(self, available: int) -> None:
+        super().__init__(f"only {available} there")
+        self.available = available
+
+
+class NotEnoughFreeError(InventoryError):
+    """Fewer free pieces of the variant than are to be taken out; none went."""
+
+    def __init__(self, available: int) -> None:
+        super().__init__(f"only {available} free")
+        self.available = available
+
+
+class CountLinesError(InventoryError):
+    """Lines of a count that could not be booked, so none was (variant and place each)."""
+
+    def __init__(self, lines: Collection[str]) -> None:
+        self.lines = sorted(lines)
+        super().__init__(", ".join(self.lines))
+
+
+class CountOutdatedError(CountLinesError):
+    """A place no longer holds what the count expected there: booked meanwhile."""
+
+
+class CountTakesReservedError(CountLinesError):
+    """Fewer pieces were counted than are reserved there: they belong to orders."""
 
 
 class UnitNotCorrectableError(InventoryError):

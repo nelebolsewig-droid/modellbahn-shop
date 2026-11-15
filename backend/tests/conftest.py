@@ -38,6 +38,7 @@ from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
+from modellbahn.modules.inventory.application.stock import StockService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.manufacturing.application.jobs import PrintJobService
@@ -432,6 +433,11 @@ def locations(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> L
 @pytest.fixture
 def units(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> UnitService:
     return UnitService(uow_factory=inventory_uow, clock=clock)
+
+
+@pytest.fixture
+def stock(inventory_uow: InventoryUnitOfWorkFactory, clock: FixedClock) -> StockService:
+    return StockService(uow_factory=inventory_uow, clock=clock)
 
 
 @pytest.fixture

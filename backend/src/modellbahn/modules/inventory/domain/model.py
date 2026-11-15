@@ -1,7 +1,9 @@
 """The inventory model: where things lie, every finished piece on its own, and who gets it.
 
 *Locations* form a tree: site → shelf → compartment → box (and staging areas on the
-site, such as the packing table). Only compartments, boxes and staging areas hold goods.
+site, such as the packing table). Compartments, boxes and staging areas hold goods, and a
+shelf does too as long as nothing lies below it (a shelf without Böden; the application
+checks that part, since a location does not know its children).
 A location's code is printed on its label, so it never changes and the tree is never
 rearranged; the name may change.
 
@@ -37,7 +39,6 @@ from modellbahn.modules.inventory.domain.codes import SEGMENT
 from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
     InvalidUnitStateError,
-    StocktakeOutdatedError,
     UnitNotCorrectableError,
     UnitsNotMovableError,
     UnitsNotRestorableError,
@@ -54,8 +55,6 @@ SCAN_QUANTITY_MAX: Final = UNITS_PER_BATCH_MAX
 """Pieces one scan of a model's label books in or out at once."""
 UNITS_SELECTED_MAX: Final = 500
 """Pieces moved or scrapped at once: as many as one list shows."""
-UNITS_COUNTED_MAX: Final = 2000
-"""Pieces named in one stocktake of a location: confirmed, missing and found together."""
 UNDO_WINDOW_SECONDS: Final = 600
 
 
@@ -85,7 +84,9 @@ _PARENT_KINDS: Final[dict[LocationKind, frozenset[LocationKind | None]]] = {
     LocationKind.BOX: frozenset({LocationKind.SHELF, LocationKind.COMPARTMENT}),
     LocationKind.STAGING: frozenset({LocationKind.SITE}),
 }
-_HOLDS_GOODS: Final = frozenset({LocationKind.COMPARTMENT, LocationKind.BOX, LocationKind.STAGING})
+_HOLDS_GOODS: Final = frozenset(
+    {LocationKind.SHELF, LocationKind.COMPARTMENT, LocationKind.BOX, LocationKind.STAGING}
+)
 
 
 @dataclass(eq=False, kw_only=True)
@@ -143,6 +144,9 @@ class Location:
 
     @property
     def holds_goods(self) -> bool:
+        """Whether its kind takes goods; a shelf only while it has no compartments or
+        boxes, which :func:`~modellbahn.modules.inventory.application.common.takes_goods`
+        checks."""
         return self.kind in _HOLDS_GOODS
 
     @property
@@ -495,75 +499,6 @@ def units_to_restore(
     if refused or missing:
         raise UnitsNotRestorableError(refused, missing)
     return [unit for unit in units if unit.status is UnitStatus.SCRAPPED]
-
-
-@dataclass(frozen=True, slots=True)
-class Stocktake:
-    """What counting one location books (*Inventur*)."""
-
-    confirmed: list[Unit]
-    """Found where the journal says they lie: nothing to book."""
-    missing: list[Unit]
-    """Not found: they leave the stock as missing."""
-    found: list[Unit]
-    """Lying here, though the journal has them elsewhere, unbooked or scrapped: they are
-    put away (or booked in again) here."""
-
-
-def take_stock(
-    location: Location,
-    units: Sequence[Unit],
-    *,
-    present: Collection[UUID],
-    missing: Collection[UUID],
-    found: Collection[UUID],
-) -> Stocktake:
-    """Check a count of ``location`` against the journal and say what it books.
-
-    ``units`` are the units lying in the location now and every unit the count names.
-    The count lists every unit expected there as ``present`` or ``missing``; scanned units
-    from elsewhere are ``found``. If the location changed since the count began (a unit
-    named as there is gone, or a unit came that the count does not name) the whole count
-    is refused (:class:`StocktakeOutdatedError`); so is a found unit that belongs to an
-    order or does not exist (:class:`UnitsNotMovableError`). Missing units scrapped and
-    found units stored already (a request repeated after its answer got lost) are left
-    out, so a repeat books nothing twice.
-    """
-    if not location.holds_goods:
-        raise InvalidUnitStateError(f"a {location.kind} holds no goods")
-    lists = (set(present), set(missing), set(found))
-    if sum(map(len, lists)) != len(set().union(*lists)):
-        raise InvalidFieldError("unit_ids", "duplicate", "a unit is named in more than one list")
-    present_ids, missing_ids, found_ids = lists
-    known = {unit.id: unit for unit in units}
-    named = present_ids | missing_ids | found_ids
-
-    def here(unit: Unit) -> bool:
-        return unit.location_id == location.id
-
-    changed = {
-        unit.code: unit.status.value
-        for unit in units
-        if (unit.id in present_ids and not here(unit))
-        or (unit.id in missing_ids and not here(unit) and unit.status is not UnitStatus.SCRAPPED)
-        or (here(unit) and unit.id not in named)
-    }
-    vanished = (present_ids | missing_ids) - known.keys()
-    if changed or vanished:
-        raise StocktakeOutdatedError(changed, vanished)
-    coming = [unit for unit in units if unit.id in found_ids and not here(unit)]
-    refused = {
-        unit.code: unit.status.value
-        for unit in coming
-        if not unit.is_storable and unit.status is not UnitStatus.SCRAPPED
-    }
-    if refused or found_ids - known.keys():
-        raise UnitsNotMovableError(refused, found_ids - known.keys())
-    return Stocktake(
-        confirmed=[unit for unit in units if unit.id in present_ids],
-        missing=[unit for unit in units if unit.id in missing_ids and here(unit)],
-        found=coming,
-    )
 
 
 # --- Allocations ----------------------------------------------------------------------

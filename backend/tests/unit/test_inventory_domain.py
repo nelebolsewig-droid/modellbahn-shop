@@ -18,7 +18,6 @@ from modellbahn.modules.inventory.domain.codes import (
 from modellbahn.modules.inventory.domain.errors import (
     InvalidFieldError,
     InvalidUnitStateError,
-    StocktakeOutdatedError,
     UnitNotCorrectableError,
     UnitsNotMovableError,
     UnitsNotRestorableError,
@@ -36,7 +35,6 @@ from modellbahn.modules.inventory.domain.model import (
     ScrapReason,
     Unit,
     UnitStatus,
-    take_stock,
     units_to_move,
     units_to_restore,
     units_to_scrap,
@@ -162,14 +160,15 @@ class TestLocations:
         assert (compartment.code, compartment.path) == ("R02-F04", "LAGER.R02.F04")
         assert (box.code, box.path, box.depth) == ("R02-F04-B12", "LAGER.R02.F04.B12", 3)
 
-    def test_only_compartments_boxes_and_staging_hold_goods(self) -> None:
+    def test_everything_but_a_site_may_hold_goods(self) -> None:
         site, shelf, compartment, box = _tree()
         staging = Location.create(
             parent=site, segment="PACK", kind=LocationKind.STAGING, name="Packtisch", now=NOW
         )
+        # A shelf only while it has no Böden; the application checks that (ADR 0028).
         assert [loc.holds_goods for loc in (site, shelf, compartment, box, staging)] == [
             False,
-            False,
+            True,
             True,
             True,
             True,
@@ -278,10 +277,10 @@ class TestUnitLifecycle:
         assert (unit.status, unit.location_id) == (UnitStatus.LABELED, None)
 
     def test_goods_go_only_where_goods_are_held(self) -> None:
-        _, shelf, _, box = _tree()
+        site, _, _, box = _tree()
         unit = _unit()
         with pytest.raises(InvalidUnitStateError, match="holds no goods"):
-            unit.put_away(shelf, NOW)
+            unit.put_away(site, NOW)
         unit.put_away(box, NOW)
         with pytest.raises(InvalidUnitStateError, match="already there"):
             unit.put_away(box, NOW)
@@ -373,10 +372,10 @@ class TestMovingSeveralUnits:
         assert units["labelled"].status is UnitStatus.LABELED
 
     def test_only_into_a_place_that_holds_goods(self) -> None:
-        _, shelf, compartment, box = _tree()
+        site, _, compartment, box = _tree()
         units = self._units(box, compartment)
         with pytest.raises(InvalidUnitStateError, match="holds no goods"):
-            units_to_move(list(units.values()), shelf)
+            units_to_move(list(units.values()), site)
 
 
 class TestTakingSeveralUnitsOut:
@@ -421,14 +420,14 @@ class TestTakingSeveralUnitsOut:
 
 class TestBookingInAgain:
     def test_a_scrapped_unit_comes_back_free_and_forgets_why_it_left(self) -> None:
-        _, shelf, compartment, box = _tree()
+        site, _, compartment, box = _tree()
         unit = _unit()
         unit.put_away(box, NOW)
         unit.allocate(uuid4(), NOW)
         unit.scrap("nicht gefunden", NOW, ScrapReason.MISSING)
         later = NOW + timedelta(days=3)
         with pytest.raises(InvalidUnitStateError, match="holds no goods"):
-            unit.restore(shelf, later)
+            unit.restore(site, later)
         restored = unit.restore(compartment, later)
         assert (restored.reason, restored.from_status, restored.to_status) == (
             MovementReason.RESTORE,
@@ -481,7 +480,7 @@ class TestBookingInAgain:
         assert (error.value.refused, error.value.missing) == ({"STORED": "in_stock"}, [missing])
         assert gone.status is UnitStatus.SCRAPPED
         with pytest.raises(InvalidUnitStateError, match="holds no goods"):
-            units_to_restore([gone], _tree()[1])
+            units_to_restore([gone], _tree()[0])
 
 
 class TestCorrectingTheVariant:
@@ -555,99 +554,6 @@ class TestCorrectingTheVariant:
         with pytest.raises(UnitNotCorrectableError):
             unit.correct(uuid4(), NOW, history=history)
         assert unit.is_correctable(history[:2])
-
-
-class TestStocktake:
-    """Counting one location: confirmed, missing and found units."""
-
-    def _units(self, box: Location, compartment: Location) -> dict[str, Unit]:
-        named = {}
-        for name in ("free", "reserved", "lost", "elsewhere", "unbooked", "gone", "packed"):
-            unit = _unit()
-            unit.code = name.upper()
-            named[name] = unit
-        named["free"].put_away(box, NOW)
-        named["reserved"].put_away(box, NOW)
-        named["reserved"].allocate(uuid4(), NOW)
-        named["lost"].put_away(box, NOW)
-        named["elsewhere"].put_away(compartment, NOW)
-        named["gone"].scrap("", NOW, ScrapReason.MISSING)
-        named["packed"].put_away(compartment, NOW)
-        named["packed"].allocate(uuid4(), NOW)
-        named["packed"].pick(NOW)
-        return named
-
-    def test_confirmed_missing_and_found(self) -> None:
-        _, _, compartment, box = _tree()
-        units = self._units(box, compartment)
-        count = take_stock(
-            box,
-            list(units.values()),
-            present=[units["free"].id, units["reserved"].id],
-            missing=[units["lost"].id],
-            found=[units["elsewhere"].id, units["unbooked"].id, units["gone"].id],
-        )
-        assert count.confirmed == [units["free"], units["reserved"]]
-        assert count.missing == [units["lost"]]
-        assert count.found == [units["elsewhere"], units["unbooked"], units["gone"]]
-        # Only a check: nothing was booked yet.
-        assert units["lost"].location_id == box.id
-
-    def test_a_repeat_after_the_booking_finds_nothing_left_to_do(self) -> None:
-        _, _, compartment, box = _tree()
-        units = self._units(box, compartment)
-        units["lost"].scrap("", NOW, ScrapReason.MISSING)
-        units["elsewhere"].put_away(box, NOW)
-        count = take_stock(
-            box,
-            list(units.values()),
-            present=[units["free"].id, units["reserved"].id],
-            missing=[units["lost"].id],
-            found=[units["elsewhere"].id],
-        )
-        assert (count.missing, count.found) == ([], [])
-
-    def test_a_location_that_changed_during_the_count_is_refused(self) -> None:
-        _, _, compartment, box = _tree()
-        units = self._units(box, compartment)
-        # Put there while counting: the count does not name it, so it is no "missing".
-        units["unbooked"].put_away(box, NOW)
-        units["free"].put_away(compartment, NOW)
-        vanished = uuid4()
-        with pytest.raises(StocktakeOutdatedError) as error:
-            take_stock(
-                box,
-                list(units.values()),
-                present=[units["free"].id, units["reserved"].id, vanished],
-                missing=[units["lost"].id],
-                found=[],
-            )
-        assert error.value.refused == {"FREE": "in_stock", "UNBOOKED": "in_stock"}
-        assert error.value.missing == [vanished]
-
-    def test_found_units_of_an_order_or_unknown_ones_are_refused(self) -> None:
-        _, _, compartment, box = _tree()
-        units = self._units(box, compartment)
-        unknown = uuid4()
-        with pytest.raises(UnitsNotMovableError) as error:
-            take_stock(
-                box,
-                list(units.values()),
-                present=[units["free"].id, units["reserved"].id, units["lost"].id],
-                missing=[],
-                found=[units["packed"].id, unknown],
-            )
-        assert (error.value.refused, error.value.missing) == ({"PACKED": "picked"}, [unknown])
-
-    def test_a_unit_in_two_lists_and_places_without_goods_are_refused(self) -> None:
-        _, shelf, compartment, box = _tree()
-        units = self._units(box, compartment)
-        free = units["free"].id
-        with pytest.raises(InvalidFieldError) as twice:
-            take_stock(box, list(units.values()), present=[free], missing=[free], found=[])
-        assert twice.value.code == "duplicate"
-        with pytest.raises(InvalidUnitStateError, match="holds no goods"):
-            take_stock(shelf, [], present=[], missing=[], found=[])
 
 
 class TestScans:

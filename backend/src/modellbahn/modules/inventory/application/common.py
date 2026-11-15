@@ -1,6 +1,6 @@
 """What the inventory use cases share: the unit of work factory and the journal keepers."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Mapping
 from datetime import datetime
 from uuid import UUID
 
@@ -11,8 +11,10 @@ from modellbahn.modules.inventory.domain.model import (
     Allocation,
     LedgerEntry,
     Location,
+    LocationKind,
     Movement,
     Unit,
+    UnitStatus,
 )
 from modellbahn.modules.inventory.domain.parts import (
     PartLedgerEntry,
@@ -23,14 +25,84 @@ from modellbahn.modules.inventory.domain.parts import (
 type UnitOfWorkFactory = Callable[[], InventoryUnitOfWork]
 
 
+async def takes_goods(uow: InventoryUnitOfWork, location: Location) -> bool:
+    """Whether goods may go into ``location``: a compartment, box or staging area, or a
+    shelf without anything below it."""
+    if not location.holds_goods:
+        return False
+    return location.kind is not LocationKind.SHELF or not await uow.locations.has_children(
+        location.id
+    )
+
+
 async def resolve_location(uow: InventoryUnitOfWork, code: str, field: str) -> Location:
     """The location with ``code`` that can hold goods; ``field`` names the input."""
     location = await uow.locations.get_by_code(code.strip().upper())
     if location is None:
         raise LocationNotFoundError
-    if not location.holds_goods:
+    if not await takes_goods(uow, location):
         raise InvalidFieldError(field, "holds_no_goods", f"a {location.kind} holds no goods")
     return location
+
+
+def place_name(location: Location, locations: Mapping[UUID, Location]) -> str:
+    """How people call a place: ``Regal 2, Boden 3`` (the shelf's and its own name), its
+    own name, or else its code. ``locations`` holds its parent, if it has one."""
+    parent = locations.get(location.parent_id) if location.parent_id is not None else None
+    if (
+        location.name
+        and parent is not None
+        and parent.kind is not LocationKind.SITE
+        and parent.name
+    ):
+        return f"{parent.name}, {location.name}"
+    return location.name or location.code
+
+
+async def lock_oldest(
+    uow: InventoryUnitOfWork,
+    variant_id: UUID,
+    status: UnitStatus | Collection[UnitStatus],
+    *,
+    limit: int | None,
+    location: Location | None,
+) -> list[Unit]:
+    """Up to ``limit`` (``None``: all) units of the variant in ``status`` (lying in
+    ``location``, if given), oldest first, locked.
+
+    The first ones are locked in one go, by id, as on every path. A unit that changed
+    between the first look and the lock is left out, and the next oldest are looked for
+    until ``limit`` is reached or none is left. Those later ones are locked only if nobody
+    else holds them: waiting for them while holding others could wait crosswise.
+    """
+    statuses = {status} if isinstance(status, UnitStatus) else set(status)
+    location_id = location.id if location is not None else None
+    found: list[Unit] = []
+    seen: set[UUID] = set()
+    first = True
+    while limit is None or len(found) < limit:
+        ids = await uow.units.oldest(
+            variant_id,
+            statuses,
+            location_id=location_id,
+            limit=None if limit is None else limit - len(found),
+            exclude=seen,
+        )
+        if not ids:
+            break
+        seen.update(ids)
+        locked = await uow.units.lock(ids, skip_locked=not first)
+        first = False
+        found.extend(
+            unit
+            for unit in locked
+            if unit.variant_id == variant_id
+            and unit.status in statuses
+            and (location_id is None or unit.location_id == location_id)
+        )
+        if limit is None:
+            break
+    return sorted(found, key=lambda unit: (unit.created_at, unit.id))
 
 
 class Journal:

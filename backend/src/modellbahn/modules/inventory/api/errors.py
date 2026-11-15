@@ -7,6 +7,8 @@ from fastapi import FastAPI
 
 from modellbahn.modules.inventory.domain.errors import (
     BillOfMaterialsMissingError,
+    CountOutdatedError,
+    CountTakesReservedError,
     InsufficientPartsError,
     InvalidFieldError,
     InvalidReceiptStateError,
@@ -15,6 +17,8 @@ from modellbahn.modules.inventory.domain.errors import (
     LocationInUseError,
     LocationNotEmptyError,
     LocationNotFoundError,
+    NotEnoughFreeError,
+    NotEnoughPiecesError,
     OrderNotAllocatableError,
     OrderNotFoundError,
     PartNotFoundError,
@@ -24,7 +28,6 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanNotFoundError,
     ScanNotUndoableError,
     ScanUndoForbiddenError,
-    StocktakeOutdatedError,
     UnitNotCorrectableError,
     UnitNotFoundError,
     UnitsNotMovableError,
@@ -79,9 +82,22 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         f"Nothing was booked in; these units are not scrapped or do not exist: {error}.",
         code="units_not_restorable",
     ),
-    StocktakeOutdatedError: lambda error: ConflictError(
-        f"Nothing was booked; the location changed while it was counted: {error}.",
+    CountOutdatedError: lambda error: ConflictError(
+        f"Nothing was booked; these places changed while they were counted: {error}.",
         code="stocktake_outdated",
+    ),
+    CountTakesReservedError: lambda error: ConflictError(
+        "Nothing was booked; fewer pieces were counted than are reserved for orders "
+        f"there: {error}.",
+        code="count_takes_reserved",
+    ),
+    NotEnoughPiecesError: lambda error: ConflictError(
+        f"Nothing was moved; only {error.available} pieces lie there.",
+        code="not_enough_pieces",
+    ),
+    NotEnoughFreeError: lambda error: ConflictError(
+        f"Nothing was booked out; only {error.available} pieces are free.",
+        code="not_enough_free",
     ),
     UnitNotCorrectableError: lambda error: ConflictError(
         "Only a labelled or free unit that was never picked for an order can change its "

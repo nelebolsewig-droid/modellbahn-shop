@@ -17,9 +17,10 @@ from modellbahn.modules.catalog.contracts.variants import (
     load_product_variants,
     load_sale_variants,
     load_variant_by_gtin,
+    load_variants_of_product,
 )
 from modellbahn.modules.identity.contracts.accounts import load_display_names
-from modellbahn.modules.inventory.application.ports import StockCount
+from modellbahn.modules.inventory.application.ports import PlaceCount, StockCount
 from modellbahn.modules.inventory.domain.model import (
     Allocation,
     AllocationStatus,
@@ -195,21 +196,47 @@ class SqlUnitRepository:
     async def oldest(
         self,
         variant_id: UUID,
-        status: UnitStatus,
+        status: UnitStatus | Collection[UnitStatus],
         *,
         location_id: UUID | None = None,
-        limit: int,
+        limit: int | None,
         exclude: Collection[UUID] = (),
     ) -> list[UUID]:
+        statuses = [status] if isinstance(status, UnitStatus) else list(status)
         statement = select(units.c.id).where(
-            units.c.variant_id == variant_id, units.c.status == status
+            units.c.variant_id == variant_id, units.c.status.in_([str(s) for s in statuses])
         )
         if location_id is not None:
             statement = statement.where(units.c.location_id == location_id)
         if exclude:
             statement = statement.where(units.c.id.not_in(list(exclude)))
-        statement = statement.order_by(units.c.created_at, units.c.id).limit(limit)
+        statement = statement.order_by(units.c.created_at, units.c.id)
+        if limit is not None:
+            statement = statement.limit(limit)
         return list((await self._session.execute(statement)).scalars())
+
+    async def place_counts(
+        self, *, variant_ids: Collection[UUID] | None = None, location_id: UUID | None = None
+    ) -> list[PlaceCount]:
+        statement = (
+            select(units.c.variant_id, units.c.location_id, units.c.status, func.count())
+            .where(units.c.location_id.is_not(None))
+            .group_by(units.c.variant_id, units.c.location_id, units.c.status)
+        )
+        if variant_ids is not None:
+            ids = list(set(variant_ids))
+            if not ids:
+                return []
+            statement = statement.where(units.c.variant_id.in_(ids))
+        if location_id is not None:
+            statement = statement.where(units.c.location_id == location_id)
+        rows = await self._session.execute(statement)
+        return [
+            PlaceCount(
+                variant_id=row[0], location_id=row[1], status=UnitStatus(row[2]), count=int(row[3])
+            )
+            for row in rows
+        ]
 
     async def oldest_free(self, variant_id: UUID, *, limit: int) -> list[Unit]:
         statement = (
@@ -321,6 +348,20 @@ class SqlLedgerRepository:
     async def for_scan(self, scan_id: UUID) -> list[LedgerEntry]:
         statement = (
             select(LedgerEntry).where(stock_ledger.c.scan_id == scan_id).order_by(stock_ledger.c.id)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def latest_for_variants(
+        self, variant_ids: Collection[UUID], *, limit: int
+    ) -> list[LedgerEntry]:
+        ids = list(set(variant_ids))
+        if not ids:
+            return []
+        statement = (
+            select(LedgerEntry)
+            .where(stock_ledger.c.variant_id.in_(ids))
+            .order_by(stock_ledger.c.id.desc())
+            .limit(limit)
         )
         return list((await self._session.execute(statement)).scalars())
 
@@ -485,6 +526,9 @@ class SqlCatalog:
 
     async def product_variants(self, slug: str) -> list[SaleVariant]:
         return await load_product_variants(self._uow, slug)
+
+    async def variants_of_product(self, product_id: UUID) -> list[SaleVariant]:
+        return await load_variants_of_product(self._uow, product_id)
 
 
 class SqlOrders:

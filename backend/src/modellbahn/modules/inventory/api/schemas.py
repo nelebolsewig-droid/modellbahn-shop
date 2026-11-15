@@ -16,7 +16,12 @@ from modellbahn.modules.inventory.application.labels import (
     LABELS_PER_PRINT_MAX,
     VariantLabels,
 )
-from modellbahn.modules.inventory.application.locations import LocationContents, LocationNode
+from modellbahn.modules.inventory.application.locations import (
+    SHELF_LEVELS_MAX,
+    LocationContents,
+    LocationNode,
+    NewShelf,
+)
 from modellbahn.modules.inventory.application.parts import (
     PartDetails,
     PartHistoryEntry,
@@ -29,11 +34,22 @@ from modellbahn.modules.inventory.application.scanning import (
     ORDER_CONTEXT,
     REASON_CONTEXT,
 )
+from modellbahn.modules.inventory.application.stock import (
+    COUNT_LINES_MAX,
+    STOCK_QUANTITY_MAX,
+    CountLine,
+    CountResult,
+    HistoryRow,
+    MoveResult,
+    PlaceStock,
+    PlaceTotal,
+    ProductStock,
+    ScrapResult,
+)
 from modellbahn.modules.inventory.application.units import (
     AssembledPart,
     HistoryEntry,
     StockLine,
-    StocktakeResult,
     UnitDetails,
     UnitList,
     UnitMove,
@@ -47,7 +63,6 @@ from modellbahn.modules.inventory.domain.model import (
     LOCATION_NAME_MAX_LENGTH,
     SCAN_QUANTITY_MAX,
     SCRAP_NOTE_MAX_LENGTH,
-    UNITS_COUNTED_MAX,
     UNITS_PER_BATCH_MAX,
     UNITS_SELECTED_MAX,
     Location,
@@ -105,14 +120,21 @@ class LocationNodeOut(LocationOut):
     unit_count: int = Field(description="Units lying in this location itself.")
     total_count: int = Field(description="Units in this location and everything below it.")
     part_count: int = Field(description="Printed parts lying in this location itself.")
+    place: str = Field(
+        examples=["Regal 2, Boden 3"], description="How people call it; the code if unnamed."
+    )
 
     @classmethod
     def from_node(cls, node: LocationNode) -> Self:
+        location = LocationOut.from_location(node.location).model_dump()
+        # A shelf takes goods only while it has no Böden.
+        location["holds_goods"] = node.takes_goods
         return cls(
-            **LocationOut.from_location(node.location).model_dump(),
+            **location,
             unit_count=node.unit_count,
             total_count=node.total_count,
             part_count=node.part_count,
+            place=node.place,
         )
 
 
@@ -539,47 +561,6 @@ class UnitCorrectionIn(_Request):
     variant_id: UUID = Field(description="The variant the unit really is.")
 
 
-class StocktakeIn(_Request):
-    """A location as counted: every unit expected there is present or missing."""
-
-    present_unit_ids: list[UUID] = Field(
-        default_factory=list,
-        max_length=UNITS_COUNTED_MAX,
-        description="Expected there and found there.",
-    )
-    missing_unit_ids: list[UUID] = Field(
-        default_factory=list,
-        max_length=UNITS_COUNTED_MAX,
-        description="Expected there, not found: scrapped as missing.",
-    )
-    found_unit_ids: list[UUID] = Field(
-        default_factory=list,
-        max_length=UNITS_COUNTED_MAX,
-        description="Found there, though booked elsewhere, unbooked or scrapped: put away "
-        "there (scrapped ones booked in again).",
-    )
-
-
-class StocktakeOut(BaseModel):
-    confirmed: int = Field(description="Units found where the journal has them.")
-    scrapped: int = Field(description="Missing units scrapped now.")
-    found: int = Field(description="Units put away there now.")
-    reserved: int = Field(
-        description="Of the found units, those that went straight to a waiting order."
-    )
-    location: LocationOut
-
-    @classmethod
-    def from_result(cls, result: StocktakeResult) -> Self:
-        return cls(
-            confirmed=result.confirmed,
-            scrapped=result.scrapped,
-            found=result.found,
-            reserved=result.reserved,
-            location=LocationOut.from_location(result.location),
-        )
-
-
 class LocatedUnitOut(BaseModel):
     id: UUID
     code: str
@@ -672,6 +653,195 @@ class StockLineOut(BaseModel):
 
 class StockOut(BaseModel):
     items: list[StockLineOut]
+
+
+# --- Stock by quantity (ADR 0028) ----------------------------------------------------
+
+
+class PlaceStockOut(BaseModel):
+    location: LocationOut
+    place: str = Field(examples=["Regal 2, Boden 3"], description="How people call it.")
+    variant_id: UUID
+    variant: VariantRefOut | None
+    free: int
+    reserved: int
+
+    @classmethod
+    def from_line(cls, line: PlaceStock) -> Self:
+        return cls(
+            location=LocationOut.from_location(line.location),
+            place=line.place,
+            variant_id=line.variant_id,
+            variant=VariantRefOut.from_variant(line.variant) if line.variant else None,
+            free=line.free,
+            reserved=line.reserved,
+        )
+
+
+class PlaceStockListOut(BaseModel):
+    items: list[PlaceStockOut] = Field(description="Walking order of the places, then by model.")
+
+
+class PlaceTotalOut(BaseModel):
+    code: str
+    place: str
+    quantity: int
+
+    @classmethod
+    def from_total(cls, total: PlaceTotal) -> Self:
+        return cls(code=total.location.code, place=total.place, quantity=total.quantity)
+
+
+class ProductStockOut(BaseModel):
+    product_id: UUID
+    free: int
+    reserved: int
+    labeled: int = Field(description="Labelled the old way and never put away.")
+    backordered: int = Field(description="Ordered pieces waiting for the workshop.")
+    places: list[PlaceTotalOut] = Field(description="Where its pieces lie, most first.")
+
+    @classmethod
+    def from_stock(cls, stock: ProductStock) -> Self:
+        return cls(
+            product_id=stock.product_id,
+            free=stock.free,
+            reserved=stock.reserved,
+            labeled=stock.labeled,
+            backordered=stock.backordered,
+            places=[PlaceTotalOut.from_total(total) for total in stock.places],
+        )
+
+
+class ProductStockListOut(BaseModel):
+    items: list[ProductStockOut]
+
+
+class StockMoveIn(_Request):
+    variant_id: UUID
+    from_location: str = Field(min_length=1, max_length=44, examples=["R01-B02"])
+    to_location: str = Field(min_length=1, max_length=44, examples=["R02-B01"])
+    quantity: int = Field(ge=1, le=STOCK_QUANTITY_MAX)
+
+
+class StockMoveOut(BaseModel):
+    moved: int
+    from_location: LocationOut
+    to_location: LocationOut
+
+    @classmethod
+    def from_result(cls, result: MoveResult) -> Self:
+        return cls(
+            moved=result.moved,
+            from_location=LocationOut.from_location(result.source),
+            to_location=LocationOut.from_location(result.target),
+        )
+
+
+class StockScrapIn(_Request):
+    variant_id: UUID
+    location_code: str | None = Field(
+        default=None, max_length=44, description="From this place; without one the oldest anywhere."
+    )
+    quantity: int = Field(ge=1, le=STOCK_QUANTITY_MAX)
+    reason: ScrapReason
+    note: str = Field(default="", max_length=SCRAP_NOTE_MAX_LENGTH)
+
+
+class StockScrapOut(BaseModel):
+    scrapped: int
+    sources: list[PlaceTotalOut]
+
+    @classmethod
+    def from_result(cls, result: ScrapResult) -> Self:
+        return cls(
+            scrapped=result.scrapped,
+            sources=[PlaceTotalOut.from_total(total) for total in result.sources],
+        )
+
+
+class CountLineIn(_Request):
+    variant_id: UUID
+    location_code: str = Field(min_length=1, max_length=44)
+    expected: int = Field(ge=0, description="Free and reserved pieces the Stellwerk showed.")
+    counted: int = Field(ge=0, le=STOCK_QUANTITY_MAX)
+
+    def to_line(self) -> CountLine:
+        return CountLine(
+            variant_id=self.variant_id,
+            location_code=self.location_code,
+            expected=self.expected,
+            counted=self.counted,
+        )
+
+
+class StockCountIn(_Request):
+    lines: list[CountLineIn] = Field(min_length=1, max_length=COUNT_LINES_MAX)
+
+
+class StockCountOut(BaseModel):
+    missing: int = Field(description="Pieces taken out as missing.")
+    added: int = Field(description="New pieces booked in where more lay.")
+    reserved: int = Field(description="Of the added ones, those a waiting order got.")
+
+    @classmethod
+    def from_result(cls, result: CountResult) -> Self:
+        return cls(missing=result.missing, added=result.added, reserved=result.reserved)
+
+
+class StockHistoryRowOut(BaseModel):
+    occurred_at: datetime
+    staff_name: str | None
+    reason: MovementReason
+    variant_id: UUID
+    variant: VariantRefOut | None
+    quantity: int = Field(description="Pieces this booking moved.")
+    from_location: str | None
+    from_place: str | None
+    to_location: str | None
+    to_place: str | None
+    scan: bool = Field(description="Booked by the scanner.")
+
+    @classmethod
+    def from_row(cls, row: HistoryRow) -> Self:
+        return cls(
+            occurred_at=row.occurred_at,
+            staff_name=row.staff_name,
+            reason=row.reason,
+            variant_id=row.variant_id,
+            variant=VariantRefOut.from_variant(row.variant) if row.variant else None,
+            quantity=row.quantity,
+            from_location=row.from_location.code if row.from_location else None,
+            from_place=row.from_place,
+            to_location=row.to_location.code if row.to_location else None,
+            to_place=row.to_place,
+            scan=row.scan,
+        )
+
+
+class StockHistoryOut(BaseModel):
+    items: list[StockHistoryRowOut] = Field(description="Newest first.")
+
+
+class ShelfIn(_Request):
+    name: str = Field(
+        default="",
+        max_length=LOCATION_NAME_MAX_LENGTH,
+        examples=["Regal 2"],
+        description="Empty: Regal N.",
+    )
+    levels: int = Field(ge=0, le=SHELF_LEVELS_MAX, description="Böden; 0: the shelf holds goods.")
+
+
+class ShelfOut(BaseModel):
+    shelf: LocationOut
+    levels: list[LocationOut] = Field(description="Boden 1 … N.")
+
+    @classmethod
+    def from_shelf(cls, created: NewShelf) -> Self:
+        return cls(
+            shelf=LocationOut.from_location(created.shelf),
+            levels=[LocationOut.from_location(level) for level in created.levels],
+        )
 
 
 # --- Scans ----------------------------------------------------------------------------

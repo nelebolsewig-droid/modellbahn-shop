@@ -28,6 +28,7 @@ __all__ = [
     "load_product_variants",
     "load_sale_variants",
     "load_variant_by_gtin",
+    "load_variants_of_product",
 ]
 
 VARIANT_REFERENCE: Final = "catalog.variants.id"
@@ -95,6 +96,11 @@ async def load_sale_variants(
 async def load_product_variants(uow: UnitOfWork, slug: str) -> list[SaleVariant]:
     """Every variant of the product with ``slug`` (empty if there is no such product)."""
     return await _load(uow, products.c.slug == slug)
+
+
+async def load_variants_of_product(uow: UnitOfWork, product_id: UUID) -> list[SaleVariant]:
+    """Every variant of the product with ``product_id`` (empty if there is no such product)."""
+    return await _load(uow, products.c.id == product_id)
 
 
 async def load_variant_by_gtin(uow: UnitOfWork, gtin: str) -> SaleVariant | None:
