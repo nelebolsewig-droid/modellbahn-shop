@@ -15,7 +15,11 @@ from uuid import UUID
 
 import structlog
 
-from modellbahn.modules.inventory.application.common import Journal, UnitOfWorkFactory
+from modellbahn.modules.inventory.application.common import (
+    Journal,
+    UnitOfWorkFactory,
+    place_name,
+)
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
 from modellbahn.modules.inventory.domain.errors import (
     OrderNotAllocatableError,
@@ -91,6 +95,8 @@ class PickItem:
     state: PieceState
     unit_code: str | None
     location: Location | None
+    place: str | None = None
+    """How people call the location: ``Regal 2, Boden 3``."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +154,9 @@ async def load_pick_list(uow: InventoryUnitOfWork, order: OrderSummary) -> PickL
     locations = await uow.locations.by_ids(
         [unit.location_id for unit in units.values() if unit.location_id is not None]
     )
+    locations |= await uow.locations.by_ids(
+        [loc.parent_id for loc in locations.values() if loc.parent_id is not None]
+    )
     lines = {line.id: line for line in order.lines}
     items: list[PickItem] = []
     for allocation in allocations:
@@ -166,6 +175,7 @@ async def load_pick_list(uow: InventoryUnitOfWork, order: OrderSummary) -> PickL
                 state=piece_state(allocation, unit),
                 unit_code=unit.code if unit else None,
                 location=location,
+                place=place_name(location, locations) if location else None,
             )
         )
     items.sort(
@@ -268,7 +278,8 @@ class AllocationService:
             _logger.info("inventory.order.released", order_id=str(order_id), units=len(freed))
 
     async def ship_order(self, order_id: UUID) -> None:
-        """The parcel left: its picked units are shipped, the allocations done."""
+        """The parcel left: its units are shipped, the allocations done. Reserved units
+        nobody scanned are picked on the way (ADR 0028): shipping needs no pick scan."""
         async with self._uow() as uow:
             allocations = await uow.allocations.for_order(order_id, for_update=True)
             open_ones = [a for a in allocations if a.status is AllocationStatus.OPEN]
@@ -280,10 +291,13 @@ class AllocationService:
             for allocation in open_ones:
                 journal.know(allocation)
                 unit = units.get(allocation.id)
+                if unit is not None and unit.status is UnitStatus.ALLOCATED:
+                    await journal.book(unit, unit.pick(now))
                 if unit is None or unit.status is not UnitStatus.PICKED:
-                    # Sales ships only completely picked orders; this would be a bug.
+                    # Sales ships only orders whose pieces all have a unit; a piece lost
+                    # its unit between that check and now (scrapped meanwhile).
                     _logger.warning(
-                        "inventory.ship.unpicked_piece",
+                        "inventory.ship.piece_without_unit",
                         order_id=str(order_id),
                         allocation_id=str(allocation.id),
                     )

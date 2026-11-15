@@ -1046,6 +1046,7 @@ class PickItemOut(BaseModel):
     state: PieceState
     unit_code: str | None
     location: LocationOut | None
+    place: str | None = Field(default=None, examples=["Regal 2, Boden 3"])
 
     @classmethod
     def from_item(cls, item: PickItem) -> Self:
@@ -1060,6 +1061,7 @@ class PickItemOut(BaseModel):
             state=item.state,
             unit_code=item.unit_code,
             location=LocationOut.from_location(item.location) if item.location else None,
+            place=item.place,
         )
 
 

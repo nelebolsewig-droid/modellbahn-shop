@@ -658,6 +658,11 @@ class LabelIn(_Request):
         le=LABEL_WEIGHT_MAX_G,
         description="Of the packed parcel; the configured default if left out.",
     )
+    ship: bool = Field(
+        default=False,
+        description="Ship the order in the same go, with the label's number for the "
+        "customer's e-mail; refused (`order_pieces_missing`) before the carrier is asked.",
+    )
 
 
 class ShippingLabelOut(BaseModel):

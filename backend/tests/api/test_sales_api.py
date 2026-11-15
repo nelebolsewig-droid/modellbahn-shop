@@ -386,13 +386,14 @@ class TestAdmin:
         assert detail["customer_account_id"] is None
 
         paid_id = listing.json()["items"][1]["id"]
-        assert_problem(
+        missing = assert_problem(
             await staff_client.post(f"{ADMIN_ORDERS}/{paid_id}/ship", json={}),
             409,
-            "order_not_picked",
+            "order_pieces_missing",
         )
+        assert " · H0 · " in missing["detail"]
         await deliver()
-        await pick_via_api(staff_client, paid_id)
+        # No pick scan: the reserved piece is picked on the way out.
         shipped = await staff_client.post(
             f"{ADMIN_ORDERS}/{paid_id}/ship", json={"carrier": "DHL", "tracking_number": "0034"}
         )

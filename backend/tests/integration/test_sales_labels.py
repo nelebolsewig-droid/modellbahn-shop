@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.services import CatalogService
 from modellbahn.modules.identity.application.services import IdentityService
-from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.allocation import AllocationService, PieceState
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
@@ -31,6 +31,7 @@ from modellbahn.modules.sales.domain.errors import (
     LabelExistsError,
     LabelNotFoundError,
     OrderNotFoundError,
+    OrderPiecesMissingError,
 )
 from modellbahn.modules.sales.domain.events import OrderCancelled
 from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingProduct
@@ -372,6 +373,41 @@ class TestDispatch:
         assert mail.subject.endswith("ist unterwegs")
         assert label.shipment_number in mail.text
         assert f"piececode={label.shipment_number}" in mail.text
+
+    async def test_printing_the_label_ships_at_once_unless_a_piece_waits(
+        self,
+        labels: ShippingLabelService,
+        orders: OrderService,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        locations: LocationService,
+        units: UnitService,
+        allocation: AllocationService,
+        painted: UUID,
+    ) -> None:
+        order_id = await paid_order(carts, checkout, painted)
+        await deliver()  # made to order: the piece waits for the workshop
+        with pytest.raises(OrderPiecesMissingError):
+            await labels.book(order_id, ship=True)
+        # Refused before the carrier was asked: no label, nothing shipped.
+        with pytest.raises(LabelNotFoundError):
+            await labels.active(order_id)
+
+        await stock_up(locations, units, painted)  # the waiting piece gets it
+        label = await labels.book(order_id, weight_g=900, ship=True)
+
+        order = (await orders.get(order_id)).order
+        assert (order.status, order.carrier, order.tracking_number) == (
+            OrderStatus.SHIPPED,
+            "DHL",
+            label.shipment_number,
+        )
+        await deliver()
+        assert label.shipment_number in mails_to(mailer, CUSTOMER)[-1].text
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert item.state is PieceState.SHIPPED
 
     async def test_a_typed_number_wins_over_the_label(
         self,

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.identity.application.services import IdentityService
-from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.allocation import AllocationService, PieceState
 from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.units import UnitService
@@ -33,7 +33,7 @@ from modellbahn.modules.sales.domain.errors import (
     InvalidOrderStateError,
     OrderNotFoundError,
     OrderNotPayableError,
-    OrderNotPickedError,
+    OrderPiecesMissingError,
     PaymentUnavailableError,
     PriceChangedError,
     VariantUnavailableError,
@@ -504,19 +504,51 @@ class TestAfterTheOrder:
     ) -> None:
         await stock_up(locations, units, painted)
         order_id = await self.paid_order(carts, checkout, painted)
-        # Only a completely picked order leaves the workshop.
-        with pytest.raises(OrderNotPickedError):
+        # Not allocated yet: nothing in the workshop is meant for it, so it cannot ship.
+        with pytest.raises(OrderPiecesMissingError) as missing:
             await orders.ship(order_id, carrier="DHL", tracking_number="00340434")
+        (model,) = missing.value.models
+        assert " · H0 · " in model
         await deliver()
-        await pick_everything(scans, allocation, order_id, await staff_member(identity))
+        # No pick scan needed: the reserved piece is picked on the way out.
         shipped = await orders.ship(order_id, carrier="DHL", tracking_number="00340434")
         assert shipped.order.status is OrderStatus.SHIPPED
+        await deliver()
+        (item,) = (await allocation.pick_list(order_id)).items
+        assert item.state is PieceState.SHIPPED
         with pytest.raises(InvalidOrderStateError):
             await orders.cancel(order_id, note="")
         await deliver()
         subjects = [mail.subject for mail in mails_to(mailer, "erika@example.de")]
         assert subjects[-1].endswith("ist unterwegs")
         assert "00340434" in mails_to(mailer, "erika@example.de")[-1].text
+
+    async def test_a_piece_waiting_for_the_workshop_holds_the_parcel_back(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        catalog: CatalogService,
+        orders: OrderService,
+        deliver: Deliver,
+        painted: UUID,
+        identity: IdentityService,
+        locations: LocationService,
+        units: UnitService,
+        scans: ScanService,
+        allocation: AllocationService,
+    ) -> None:
+        await catalog.change_variant(painted, expected_version=None, allow_backorder=True)
+        order_id = await self.paid_order(carts, checkout, painted)
+        await deliver()
+        with pytest.raises(OrderPiecesMissingError) as missing:
+            await orders.ship(order_id, carrier="DHL", tracking_number="")
+        (title,) = missing.value.models
+        assert " · H0 · " in title
+        # Picked by scan still works, and ships the same way.
+        await stock_up(locations, units, painted)
+        await pick_everything(scans, allocation, order_id, await staff_member(identity))
+        shipped = await orders.ship(order_id, carrier="DHL", tracking_number="")
+        assert shipped.order.status is OrderStatus.SHIPPED
 
     async def test_cancelling_a_paid_order_refunds_it(
         self,

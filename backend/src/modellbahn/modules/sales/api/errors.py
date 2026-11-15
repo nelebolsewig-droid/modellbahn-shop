@@ -23,7 +23,7 @@ from modellbahn.modules.sales.domain.errors import (
     MarketplaceOrderError,
     OrderNotFoundError,
     OrderNotPayableError,
-    OrderNotPickedError,
+    OrderPiecesMissingError,
     PaymentUnavailableError,
     PriceChangedError,
     RefundNotPossibleError,
@@ -98,9 +98,9 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     InsufficientStockError: lambda _: ConflictError(
         "Not enough in stock, and the article is not made to order.", code="insufficient_stock"
     ),
-    OrderNotPickedError: lambda error: ConflictError(
-        f"Only {error.picked} of {error.total} pieces are picked; pick the order first.",
-        code="order_not_picked",
+    OrderPiecesMissingError: lambda error: ConflictError(
+        f"Pieces wait for the workshop, nothing was shipped: {error}.",
+        code="order_pieces_missing",
     ),
     CartItemsUnavailableError: lambda _: ConflictError(
         "Some articles in the cart can no longer be bought; remove them first.",

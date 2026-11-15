@@ -11,6 +11,7 @@ from uuid import UUID
 import structlog
 
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.orders import check_shippable, dispatch
 from modellbahn.modules.sales.application.ports import Carrier, LabelRequest, SalesUnitOfWork
 from modellbahn.modules.sales.domain.errors import (
     CarrierRejectedError,
@@ -64,8 +65,16 @@ class ShippingLabelService:
     def default_weight_g(self) -> int:
         return self._default_weight_g
 
-    async def book(self, order_id: UUID, *, weight_g: int | None = None) -> ShippingLabel:
-        """Book the label of a paid order; one in force per order."""
+    async def book(
+        self, order_id: UUID, *, weight_g: int | None = None, ship: bool = False
+    ) -> ShippingLabel:
+        """Book the label of a paid order; one in force per order.
+
+        With ``ship`` the order is shipped in the same go, with the label's shipment
+        number for the customer's e-mail (ADR 0028). Pieces still waiting for the
+        workshop refuse it before the carrier is asked; if the carrier refuses, nothing
+        ships.
+        """
         if self._shipper is None or not self._carrier.books_labels:
             raise CarrierUnavailableError
         async with self._uow() as uow:
@@ -73,6 +82,8 @@ class ShippingLabelService:
             check_labelable(order)
             if await uow.labels.active_for(order.id) is not None:
                 raise LabelExistsError
+            if ship:
+                await check_shippable(uow, order)
             weight = check_weight(weight_g if weight_g is not None else self._default_weight_g)
             product = product_for(order.shipping_address.country_code)
             booked = await self._carrier.book(
@@ -95,6 +106,14 @@ class ShippingLabelService:
                 now=self._clock.now(),
             )
             uow.labels.add(label)
+            if ship:
+                await dispatch(
+                    uow,
+                    order,
+                    carrier=label.carrier,
+                    tracking_number=label.shipment_number,
+                    now=self._clock.now(),
+                )
             await uow.commit()
         _logger.info(
             "sales.label.booked",
