@@ -32,8 +32,8 @@ type Photo = { key: string; previewUrl: string; assetId: string | null; error: s
 /** What step 2 asks per finish: chosen or not, its price, and (if painted) its colours. */
 type FinishChoice = { chosen: boolean; price: string; colors: string[]; draft: string };
 
-/** An Ausführung the wizard made, and the pieces it booked of it. */
-type Made = { variantId: string; label: string; sku: string; colored: boolean };
+/** An Ausführung the wizard made; ``key`` is what step 2 planned (scale, finish, colour). */
+type Made = { key: string; variantId: string; label: string; sku: string; colored: boolean };
 
 const STEPS = ["Name und Fotos", "Ausführungen und Preis", "Bestand", "Etiketten und Shop"] as const;
 
@@ -50,6 +50,10 @@ function rememberedPlace(): string {
 function failure(error: unknown): string {
   const field = isApiProblem(error) ? error.fieldErrors[0] : undefined;
   return field ? fieldErrorMessage(field.field, field.code) : errorMessage(error);
+}
+
+function plannedKey(scaleCode: string, entry: { finish: FinishOut; color: string }): string {
+  return `${scaleCode}|${entry.finish.code}|${entry.color}`;
 }
 
 /** What step 2 makes: one Ausführung per finish, or per colour of a painted one. */
@@ -90,8 +94,10 @@ export function ModelWizard() {
   const [scaleCode, setScaleCode] = useState("");
   const [choices, setChoices] = useState<Record<string, FinishChoice>>({});
   // After step 2: what exists
+  // Kept after every call that worked, so a retry after a failure makes nothing twice.
   const [product, setProduct] = useState<ProductOut | null>(null);
   const [made, setMade] = useState<Made[]>([]);
+  const [attached, setAttached] = useState<string[]>([]);
   // Step 3
   const [counts, setCounts] = useState<Record<string, { quantity: string; place: string }>>({});
   const [booked, setBooked] = useState<Record<string, number>>({});
@@ -167,38 +173,56 @@ export function ModelWizard() {
     await run(async () => {
       const uploaded = photos.flatMap((photo) => (photo.assetId ? [photo.assetId] : []));
       let current: ProductOut | null = product;
-      const created: Made[] = [];
-      for (const [index, entry] of planned.entries()) {
-        const price = prices[index];
-        const answer = await createQuickEntry({
-          product_id: current?.id ?? null,
-          name: current ? null : name.trim(),
-          category_id: current || categoryId === "" ? null : categoryId,
-          scale_code: scaleCode,
-          finish_code: entry.finish.code,
-          color: entry.color,
-          price_cents: price?.success ? price.data : 0,
-          asset_id: current ? null : (uploaded[0] ?? null),
-        });
-        current = answer.product;
-        created.push({
-          variantId: answer.variant.id,
-          label: `${scaleCode} · ${finishLabel(entry.finish.name, entry.color)}`,
-          sku: answer.variant.sku,
-          colored: entry.color !== "",
-        });
-      }
-      for (const assetId of uploaded.slice(1)) {
-        if (current) {
-          current = await attachProductImage(current.id, { asset_id: assetId });
+      const created: Made[] = [...made];
+      const withPhotos = [...attached];
+      const keep = (next: ProductOut) => {
+        current = next;
+        setProduct(next);
+        queryClient.setQueryData(productQueryKey(next.id), next);
+      };
+      try {
+        for (const [index, entry] of planned.entries()) {
+          const key = plannedKey(scaleCode, entry);
+          if (created.some((done) => done.key === key)) {
+            continue; // made before an earlier attempt failed
+          }
+          const price = prices[index];
+          const first = current === null ? (uploaded[0] ?? null) : null;
+          const answer = await createQuickEntry({
+            product_id: current?.id ?? null,
+            name: current ? null : name.trim(),
+            category_id: current || categoryId === "" ? null : categoryId,
+            scale_code: scaleCode,
+            finish_code: entry.finish.code,
+            color: entry.color,
+            price_cents: price?.success ? price.data : 0,
+            asset_id: first,
+          });
+          keep(answer.product);
+          created.push({
+            key,
+            variantId: answer.variant.id,
+            label: `${scaleCode} · ${finishLabel(entry.finish.name, entry.color)}`,
+            sku: answer.variant.sku,
+            colored: entry.color !== "",
+          });
+          setMade([...created]);
+          if (first) {
+            withPhotos.push(first);
+            setAttached([...withPhotos]);
+          }
         }
+        for (const assetId of uploaded) {
+          const model: ProductOut | null = current;
+          if (model && !withPhotos.includes(assetId)) {
+            keep(await attachProductImage(model.id, { asset_id: assetId }));
+            withPhotos.push(assetId);
+            setAttached([...withPhotos]);
+          }
+        }
+      } finally {
+        void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
       }
-      if (current) {
-        queryClient.setQueryData(productQueryKey(current.id), current);
-      }
-      void queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_KEY });
-      setProduct(current);
-      setMade(created);
       const place = places.data?.some((item) => item.code === rememberedPlace()) ? rememberedPlace() : "";
       setCounts(Object.fromEntries(created.map((entry) => [entry.variantId, { quantity: "0", place }])));
       setShow(uploaded.length > 0 && prices.every((price) => price.success && price.data > 0));
@@ -218,17 +242,20 @@ export function ModelWizard() {
       return;
     }
     await run(async () => {
-      const done: Record<string, number> = {};
+      const done: Record<string, number> = { ...booked };
       for (const line of wanted) {
+        if (done[line.entry.variantId] !== undefined) {
+          continue; // booked before an earlier attempt failed
+        }
         const batch = await labelUnits({ variant_id: line.entry.variantId, quantity: line.quantity, location_code: line.place });
         done[line.entry.variantId] = batch.items.length;
+        setBooked({ ...done });
         try {
           window.localStorage.setItem(PLACE_KEY, line.place);
         } catch {
           // The place just isn't remembered.
         }
       }
-      setBooked(done);
       setStep(3);
     });
   }
@@ -416,15 +443,25 @@ export function ModelWizard() {
               {made.map((entry) => {
                 const count = counts[entry.variantId] ?? { quantity: "0", place: "" };
                 const set = (change: Partial<typeof count>) => setCounts((before) => ({ ...before, [entry.variantId]: { ...count, ...change } }));
+                const done = booked[entry.variantId];
                 return (
                   <li key={entry.variantId} className="rounded-md border border-line p-4">
-                    <p className="font-medium">{entry.label}</p>
+                    <p className="font-medium">
+                      {entry.label}
+                      {done !== undefined ? <span className="ml-2 text-small font-normal text-success">{done} eingebucht</span> : null}
+                    </p>
                     <div className="mt-3 grid grid-cols-[6rem_minmax(0,1fr)] gap-3">
                       <Field label="Anzahl" htmlFor={`count-${entry.variantId}`}>
-                        <Input id={`count-${entry.variantId}`} value={count.quantity} onChange={(event) => set({ quantity: event.target.value })} inputMode="numeric" />
+                        <Input
+                          id={`count-${entry.variantId}`}
+                          value={count.quantity}
+                          onChange={(event) => set({ quantity: event.target.value })}
+                          inputMode="numeric"
+                          disabled={done !== undefined}
+                        />
                       </Field>
                       <Field label="Platz" htmlFor={`place-${entry.variantId}`}>
-                        <Select id={`place-${entry.variantId}`} value={count.place} onChange={(event) => set({ place: event.target.value })}>
+                        <Select id={`place-${entry.variantId}`} value={count.place} onChange={(event) => set({ place: event.target.value })} disabled={done !== undefined}>
                           <option value="">Bitte wählen</option>
                           {(places.data ?? []).map((place) => (
                             <option key={place.id} value={place.code}>

@@ -410,9 +410,9 @@ function Shipped({ order }: { order: AdminOrderOut }) {
         <dd className={order.tracking_number ? "font-mono break-all" : undefined}>{order.tracking_number || "keine Nummer"}</dd>
       </dl>
       {label.data ? (
-        <p className="mt-4">
+        <div className="mt-4">
           <LabelReprint order={order} label={label.data} />
-        </p>
+        </div>
       ) : null}
     </>
   );

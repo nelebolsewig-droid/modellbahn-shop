@@ -91,13 +91,22 @@ describe("Lager", () => {
 
   it("shows shelves and Böden with the models on them, linked to the model", async () => {
     store();
-    renderWithQueryClient(<InventoryOverview staffRole="packer" onStreamClosed={vi.fn()} />);
+    renderWithQueryClient(<InventoryOverview staffRole="staff" onStreamClosed={vi.fn()} />);
 
     const shelf = await screen.findByRole("region", { name: "Regal 1" });
     const model = within(shelf).getByRole("link", { name: "Stellwerk Altenau · H0 · Bausatz" });
     expect(model).toHaveAttribute("href", "/admin/modelle/p1");
     expect(model.closest("li")).toHaveTextContent("7 (1 reserviert)");
     expect(screen.getByRole("region", { name: "Weitere Plätze" })).toHaveTextContent("Packtisch");
+  });
+
+  it("shows packers the models without links to a page they may not open", async () => {
+    store();
+    renderWithQueryClient(<InventoryOverview staffRole="packer" onStreamClosed={vi.fn()} />);
+
+    const shelf = await screen.findByRole("region", { name: "Regal 1" });
+    expect(within(shelf).getByText("Stellwerk Altenau · H0 · Bausatz").closest("li")).toHaveTextContent("7 (1 reserviert)");
+    expect(within(shelf).queryByRole("link", { name: "Stellwerk Altenau · H0 · Bausatz" })).toBeNull();
     // Packers look; they make no shelves and count nothing.
     expect(screen.queryByRole("button", { name: "Neues Regal" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Zählen" })).toBeNull();

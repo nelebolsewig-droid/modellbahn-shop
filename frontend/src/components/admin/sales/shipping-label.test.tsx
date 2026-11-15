@@ -106,8 +106,6 @@ describe("shipping label at the order desk", () => {
         return jsonResponse(BOOKED, 201);
       },
     });
-    const open = vi.fn();
-    vi.stubGlobal("open", open);
     const user = userEvent.setup();
     renderWithQueryClient(
       <OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />,
@@ -135,11 +133,63 @@ describe("shipping label at the order desk", () => {
       weight_g: 850,
       ship: true,
     });
-    expect(open).toHaveBeenCalledWith(
+    // Opened by a tap, not by itself: the popup blocker would stop that.
+    expect(screen.getByRole("link", { name: "Label öffnen" })).toHaveAttribute(
+      "href",
       "/api/v1/admin/orders/o1/shipping-label.pdf",
-      "_blank",
-      "noopener",
     );
+  });
+
+  it("shows no failure when only reading the shipped order back fails", async () => {
+    let booked = false;
+    let readsAfterBooking = 0;
+    routeFetch(fetchMock, {
+      [ORDER]: () => {
+        if (!booked) {
+          return jsonResponse(adminOrder());
+        }
+        readsAfterBooking += 1;
+        return readsAfterBooking === 1
+          ? problemResponse(503, "service_unavailable")
+          : jsonResponse(
+              adminOrder({
+                status: "shipped",
+                shipped_at: "2026-10-25T13:40:00Z",
+                carrier: "DHL",
+                tracking_number: BOOKED.shipment_number,
+              }),
+            );
+      },
+      [PICK_LIST]: () => jsonResponse(PACKED),
+      [SETUP]: () => jsonResponse(DHL_SETUP),
+      [LABEL]: () =>
+        booked
+          ? jsonResponse(BOOKED)
+          : problemResponse(404, "label_not_found"),
+      [BOOK]: () => {
+        booked = true;
+        return jsonResponse(BOOKED, 201);
+      },
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(
+      <OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />,
+    );
+
+    const booking = await screen.findByRole("form", {
+      name: "Versandlabel drucken",
+    });
+    await user.click(
+      within(booking).getByRole("button", { name: "Versandlabel drucken" }),
+    );
+
+    // Booked and shipped: the desk reads the order again and shows it shipped.
+    expect(
+      await screen.findByRole("link", { name: "Label öffnen" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("00340434161094042557")).toBeInTheDocument();
+    expect(screen.queryByText(/nicht erreichbar|nicht geklappt|Fehler/)).toBeNull();
+    expect(readsAfterBooking).toBe(2);
   });
 
   it("refuses a weight DHL does not carry before asking DHL", async () => {
@@ -283,7 +333,7 @@ describe("shipping label at the order desk", () => {
     );
 
     expect(
-      await screen.findByRole("link", { name: "DHL-Label öffnen" }),
+      await screen.findByRole("link", { name: "Label öffnen" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Label stornieren" }),

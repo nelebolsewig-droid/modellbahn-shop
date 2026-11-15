@@ -20,6 +20,7 @@ import {
   cancelShippingLabel,
   getGetShippingLabelDocumentUrl,
   getGetShippingLabelImageUrl,
+  getGetOrderQueryKey,
   getGetShippingLabelQueryKey,
   getOrder,
   getShippingLabel,
@@ -101,7 +102,8 @@ export function useActiveLabel(orderId: string, enabled: boolean) {
 /**
  * The parcel's label at the packing desk (ADR 0023): weigh, then "Versandlabel drucken"
  * books it with DHL and ships the order in the same go (ADR 0028), so the customer's
- * mail carries the number. Printed on the 100 × 150 mm label printer.
+ * mail carries the number. The shipped order then offers "Label öffnen" for the
+ * 100 × 150 mm label printer (a tab opened by itself would meet the popup blocker).
  */
 export function ShippingLabelDesk({
   order,
@@ -135,7 +137,7 @@ function BookLabel({
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const product = productFor(order);
   const book = useMutation<
-    { label: ShippingLabelOut; shipped: AdminOrderOut },
+    { label: ShippingLabelOut; shipped: AdminOrderOut | null },
     ApiProblem,
     number
   >({
@@ -145,16 +147,19 @@ function BookLabel({
         weight_g: grams,
         ship: true,
       });
-      return { label, shipped: await getOrder(order.id) };
+      // Everything is booked now: reading the order back is no part of it.
+      const shipped = await getOrder(order.id).catch(() => null);
+      return { label, shipped };
     },
     onSuccess({ label, shipped }) {
       queryClient.setQueryData(getGetShippingLabelQueryKey(order.id), label);
-      onShipped(shipped);
-      window.open(
-        getGetShippingLabelDocumentUrl(order.id),
-        "_blank",
-        "noopener",
-      );
+      if (shipped) {
+        onShipped(shipped);
+      } else {
+        void queryClient.invalidateQueries({
+          queryKey: getGetOrderQueryKey(order.id),
+        });
+      }
     },
   });
   const reason = carrierReasonOf(book.error);
@@ -365,7 +370,7 @@ function CancelLabel({
   );
 }
 
-/** A shipped order's label, to print it once more. */
+/** A shipped order's label, to print it (right after shipping, or once more). */
 export function LabelReprint({
   order,
   label,
@@ -374,14 +379,25 @@ export function LabelReprint({
   label: ShippingLabelOut;
 }) {
   return (
-    <a
-      href={getGetShippingLabelDocumentUrl(order.id)}
-      target="_blank"
-      rel="noopener"
-      className="text-small text-accent hover:underline hover:underline-offset-4"
-    >
-      {label.carrier}-Label öffnen
-    </a>
+    <span className="flex flex-wrap items-center gap-2">
+      <Button asChild size="sm">
+        <a
+          href={getGetShippingLabelDocumentUrl(order.id)}
+          target="_blank"
+          rel="noopener"
+        >
+          Label öffnen
+        </a>
+      </Button>
+      <Button asChild size="sm" variant="secondary">
+        <a
+          href={getGetShippingLabelImageUrl(order.id)}
+          download={`${label.carrier}-${label.shipment_number}.png`}
+        >
+          Als Bild
+        </a>
+      </Button>
+    </span>
   );
 }
 

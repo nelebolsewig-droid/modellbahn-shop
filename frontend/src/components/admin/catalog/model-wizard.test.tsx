@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocationNodeOut, QuickEntryIn, VariantOut } from "@/lib/api/generated/model";
 import { productOut, REFERENCES, variantOut } from "@/test/catalog";
 import { requestsTo, routeFetch } from "@/test/fetch-routes";
-import { jsonResponse, renderWithQueryClient } from "@/test/render";
+import { jsonResponse, problemResponse, renderWithQueryClient } from "@/test/render";
 
 import { ModelWizard, plannedVariants } from "./model-wizard";
 
@@ -32,13 +32,26 @@ const BODEN: LocationNodeOut = {
   place: "Regal 1, Boden 1",
 };
 
-function desk() {
+/** The catalogue and the store; ``failOnce`` makes the n-th call (from 1) of a route fail once. */
+function desk(failOnce: { quick?: number; units?: number } = {}) {
   const made: VariantOut[] = [];
+  const calls = { quick: 0, units: 0 };
+  const failing = (route: "quick" | "units") => {
+    calls[route] += 1;
+    if (calls[route] === failOnce[route]) {
+      delete failOnce[route];
+      return true;
+    }
+    return false;
+  };
   routeFetch(fetchMock, {
     "GET /api/v1/admin/catalog/references": () => jsonResponse(REFERENCES),
     "GET /api/v1/admin/categories": () => jsonResponse([]),
     "GET /api/v1/admin/inventory/locations": () => jsonResponse({ items: [BODEN] }),
     [QUICK]: ({ body }) => {
+      if (failing("quick")) {
+        return problemResponse(503, "service_unavailable");
+      }
       const entry = body as QuickEntryIn;
       const variant = variantOut({
         id: `v${made.length + 1}`,
@@ -51,6 +64,9 @@ function desk() {
       return jsonResponse({ product: productOut({}, [...made]), variant, new_product: made.length === 1, new_variant: true }, 201);
     },
     [UNITS]: ({ body }) => {
+      if (failing("units")) {
+        return problemResponse(503, "service_unavailable");
+      }
       const { quantity } = body as { quantity: number };
       return jsonResponse({ items: Array.from({ length: quantity }, (_, index) => ({ id: `u${index}` })) }, 201);
     },
@@ -144,6 +160,45 @@ describe("Neues Modell", () => {
     await user.click(screen.getByRole("button", { name: "Überspringen" }));
     expect(await screen.findByRole("heading", { name: /Etiketten und Shop/ })).toBeInTheDocument();
     expect(requestsTo(fetchMock, UNITS)).toHaveLength(0);
+  });
+
+  it("makes nothing twice when a try is repeated after a failure", async () => {
+    desk({ quick: 2, units: 2 });
+    const user = userEvent.setup();
+    renderWithQueryClient(<ModelWizard />);
+    await user.type(await screen.findByLabelText("Name"), "Lokschuppen");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+    await user.click(screen.getByRole("radio", { name: /H0/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Bausatz" }));
+    await user.type(screen.getByLabelText("Preis Bausatz"), "30");
+    await user.click(screen.getByRole("checkbox", { name: "Fertigmodell" }));
+    await user.type(screen.getByLabelText("Preis Fertigmodell"), "55");
+
+    // The model and its first Ausführung are made, the second fails: again.
+    await user.click(screen.getByRole("button", { name: "Anlegen und weiter" }));
+    expect(await screen.findByRole("alert")).not.toBeEmptyDOMElement();
+    await user.click(screen.getByRole("button", { name: "Anlegen und weiter" }));
+    expect(await screen.findByRole("heading", { name: /Bestand/ })).toBeInTheDocument();
+    const quick = requestsTo(fetchMock, QUICK).map((request) => request.body as QuickEntryIn);
+    expect(quick.map((entry) => [entry.product_id, entry.finish_code])).toEqual([
+      [null, "unpainted"],
+      ["p1", "painted"],
+      ["p1", "painted"],
+    ]);
+
+    // The first line is booked in, the second fails: again books only the second.
+    for (const label of ["H0 · Bausatz", "H0 · Fertigmodell"]) {
+      const line = screen.getByText(label).closest("li") as HTMLElement;
+      await user.clear(within(line).getByLabelText("Anzahl"));
+      await user.type(within(line).getByLabelText("Anzahl"), "2");
+      await user.selectOptions(within(line).getByLabelText("Platz"), "R01-B01");
+    }
+    await user.click(screen.getByRole("button", { name: "Einbuchen und weiter" }));
+    expect(await screen.findByText("2 eingebucht")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Einbuchen und weiter" }));
+    expect(await screen.findByRole("heading", { name: /Etiketten und Shop/ })).toBeInTheDocument();
+    expect(requestsTo(fetchMock, UNITS).map((request) => (request.body as { variant_id: string }).variant_id)).toEqual(["v1", "v2", "v2"]);
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "4 Etiketten")).toBeInTheDocument();
   });
 
   it("makes one Ausführung per finish, or per colour of a painted one", () => {

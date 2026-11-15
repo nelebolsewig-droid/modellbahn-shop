@@ -209,12 +209,15 @@ function PlaceBlock({
         <ul className="mt-1.5 space-y-1">
           {lines.map((line) => (
             <li key={line.variant_id} className="flex items-baseline justify-between gap-3 text-small">
-              {line.variant ? (
+              {line.variant === null ? (
+                <span className="min-w-0 truncate text-ink-tertiary">Gelöschtes Modell</span>
+              ) : mayManage ? (
                 <Link href={`/admin/modelle/${line.variant.product_id}` as Route} className="min-w-0 truncate hover:underline">
                   {line.variant.title}
                 </Link>
               ) : (
-                <span className="min-w-0 truncate text-ink-tertiary">Gelöschtes Modell</span>
+                // Packers have no Modelle page (it is the catalogue's); the name is enough here.
+                <span className="min-w-0 truncate">{line.variant.title}</span>
               )}
               <span className="shrink-0 tabular-nums">
                 <span className="font-medium">{lying(line)}</span>
