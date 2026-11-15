@@ -27,11 +27,12 @@ import type {
 } from "@/lib/api/generated/model";
 import { PAINT_SUGGESTIONS, sameColor } from "@/lib/catalog/colors";
 import { centsToEuroInput, finishLabel, scaleSpec } from "@/lib/catalog/format";
+import { INITIAL_LEAD_TIME, madeAgain, useShopLeadTime, type MadeAgain } from "@/lib/catalog/production";
 import { scaleLabel } from "@/lib/catalog/scales";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
+import { leadTimeText } from "@/lib/sales/availability";
 import {
-  DEFAULT_LEAD_TIME,
   colorName,
   euroPrice,
   leadTimeSchema,
@@ -170,7 +171,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
                   <th scope="col" className="pb-2 font-medium">Preis €</th>
                   <th scope="col" className="pb-2 font-medium">Früher €</th>
                   <th scope="col" className="pb-2 font-medium">Im Shop</th>
-                  <th scope="col" className="pb-2 font-medium">Auf Bestellung</th>
+                  <th scope="col" className="pb-2 font-medium">Nachfertigen</th>
                   <th scope="col" className="pb-2"><span className="sr-only">Aktionen</span></th>
                 </tr>
               </thead>
@@ -270,8 +271,10 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
     variant.compare_at_price_cents === null ? "" : centsToEuroInput(variant.compare_at_price_cents),
   );
   const [error, setError] = useState<string | null>(null);
-  const [leadMin, setLeadMin] = useState(String(variant.lead_time_min_weeks ?? DEFAULT_LEAD_TIME[0]));
-  const [leadMax, setLeadMax] = useState(String(variant.lead_time_max_weeks ?? DEFAULT_LEAD_TIME[1]));
+  const shopLeadTime = useShopLeadTime();
+  const shopWeeks = shopLeadTime ?? INITIAL_LEAD_TIME;
+  const [leadMin, setLeadMin] = useState(variant.lead_time_min_weeks === null ? "" : String(variant.lead_time_min_weeks));
+  const [leadMax, setLeadMax] = useState(variant.lead_time_max_weeks === null ? "" : String(variant.lead_time_max_weeks));
   const [color, setColor] = useState(variant.color);
   const fieldError = command.error?.fieldErrors[0];
   const label = finishLabel(finish.name, variant.color);
@@ -287,6 +290,27 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
       return;
     }
     command.mutate(() => updateVariant(variant.id, { color: parsed.data }, ifMatch(product.version)));
+  }
+
+  /** Standard-Lieferzeit, eigene Lieferzeit (starting from the shop's), or not made again. */
+  function chooseMadeAgain(choice: MadeAgain) {
+    setError(null);
+    if (choice === "none") {
+      command.mutate(() => updateVariant(variant.id, { allow_backorder: false }, ifMatch(product.version)));
+      return;
+    }
+    if (choice === "standard") {
+      command.mutate(() =>
+        updateVariant(variant.id, { allow_backorder: true, lead_time_min_weeks: null, lead_time_max_weeks: null }, ifMatch(product.version)),
+      );
+      return;
+    }
+    const [min, max] = shopWeeks;
+    setLeadMin(String(min));
+    setLeadMax(String(max));
+    command.mutate(() =>
+      updateVariant(variant.id, { allow_backorder: true, lead_time_min_weeks: min, lead_time_max_weeks: max }, ifMatch(product.version)),
+    );
   }
 
   function saveLeadTime() {
@@ -394,21 +418,21 @@ function VariantRow({ product, finish, variant }: { product: ProductOut; finish:
           />
         </td>
         <td className="py-2 pr-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              aria-label={`${label} auf Bestellung fertigen (auch ohne Lagerbestand bestellbar)`}
-              checked={variant.allow_backorder}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              aria-label={`Nachfertigen ${label}`}
+              value={madeAgain(variant)}
               disabled={command.isPending}
-              onChange={(event) => {
-                const allowBackorder = event.target.checked;
-                command.mutate(() =>
-                  updateVariant(variant.id, { allow_backorder: allowBackorder }, ifMatch(product.version)),
-                );
-              }}
-              className="size-4 cursor-pointer accent-selected"
-            />
-            {variant.allow_backorder ? (
+              onChange={(event) => chooseMadeAgain(event.target.value as MadeAgain)}
+              className="w-auto werkstatt:h-8"
+            >
+              <option value="standard">
+                Standard-Lieferzeit{shopLeadTime ? ` (${leadTimeText(shopLeadTime)})` : ""}
+              </option>
+              <option value="own">eigene Lieferzeit</option>
+              <option value="none">nicht nachfertigen</option>
+            </Select>
+            {madeAgain(variant) === "own" ? (
               <span className="flex items-center gap-1 text-hint text-ink-secondary">
                 <Input
                   aria-label={`Lieferzeit ${label}: frühestens nach Wochen`}

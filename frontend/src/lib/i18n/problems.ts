@@ -290,6 +290,8 @@ const FIELD_SPECIFIC_MESSAGES: Readonly<Record<string, Messages>> = {
   "context.reason": { invalid: "Diesen Grund zum Ausbuchen gibt es nicht. Bitte die Seite neu laden." },
   lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
   lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
+  default_lead_time_min_weeks: { out_of_range: "Bitte 1 bis 52 Wochen." },
+  default_lead_time_max_weeks: { out_of_range: "Bitte nicht weniger als „von“ und höchstens 52 Wochen." },
   recipient: { required: "Bitte gib den Namen für das Paket ein." },
   street: { required: "Bitte gib Straße und Hausnummer ein." },
   city: { required: "Bitte gib den Ort ein." },

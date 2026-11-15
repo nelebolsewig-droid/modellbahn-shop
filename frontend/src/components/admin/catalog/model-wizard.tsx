@@ -424,6 +424,10 @@ export function ModelWizard() {
             <p className="text-small text-ink-secondary">
               {planned.length === 0 ? "Noch keine Ausführung gewählt." : planned.length === 1 ? "Es entsteht 1 Ausführung." : `Es entstehen ${planned.length} Ausführungen.`}
             </p>
+            <p className="text-hint text-ink-tertiary">
+              Fehlen Stücke im Regal, fertigt die Werkstatt nach, in der Standard-Lieferzeit. Eine eigene Lieferzeit oder
+              „nicht nachfertigen“ stellt man danach beim Modell ein.
+            </p>
             <Problem text={problem} />
             <Actions>
               <Button type="button" variant="secondary" onClick={() => setStep(0)} disabled={pending}>

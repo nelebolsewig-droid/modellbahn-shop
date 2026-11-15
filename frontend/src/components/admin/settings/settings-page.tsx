@@ -28,6 +28,12 @@ const ENTRIES = [
     title: "eBay-Einrichtung",
     text: "Verbindung, Versand und Zahlung, eBay-Kategorien und Löschmeldungen. Ändern kann sie nur der Inhaber.",
   },
+  {
+    code: "EIN 04",
+    href: "/admin/einstellungen/lieferzeit",
+    title: "Lieferzeit",
+    text: "Wie lange das Nachfertigen dauert, für alle Modelle ohne eigene Lieferzeit. Ändern kann sie nur der Inhaber.",
+  },
 ] as const satisfies readonly { code: string; href: Route; title: string; text: string }[];
 
 export function SettingsPage() {
