@@ -40,6 +40,32 @@ def _rows(order: Order) -> list[MailRow]:
     return rows
 
 
+# A range in the shop's typography: the en dash, as on the product page.
+RANGE_DASH: Final = "\u2013"
+
+
+def weeks_text(weeks: tuple[int, int]) -> str:
+    """``2-4 Wochen`` with an en dash, ``3 Wochen``, ``1 Woche``, as the shop writes it."""
+    shortest, longest = weeks
+    if shortest == longest:
+        return "1 Woche" if shortest == 1 else f"{shortest} Wochen"
+    return f"{shortest}{RANGE_DASH}{longest} Wochen"
+
+
+def dispatch_note(order: Order) -> str:
+    """When the parcel leaves, as the checkout said: from the shelves, or complete once the
+    pieces made for the customer are done (ADR 0029)."""
+    if order.lead_time_weeks is None:
+        return (
+            f"Wir verschicken dein Paket in der Regel 1{RANGE_DASH}3 Werktage, nachdem deine "
+            "Zahlung eingegangen ist."
+        )
+    return (
+        "Nicht alles ist vorrätig: Was fehlt, fertigen wir für dich. Wir schicken alles "
+        f"zusammen in einem Paket, voraussichtlich in {weeks_text(order.lead_time_weeks)}."
+    )
+
+
 def _greeting(order: Order) -> str:
     return f"Hallo {order.shipping_address.recipient},"
 
@@ -79,6 +105,7 @@ def received_mail(
         paragraphs=(
             f"danke für deine Bestellung bei {shop_name}! Wir haben sie erhalten; verbindlich "
             f"wird sie, sobald die Zahlung eingegangen ist.{deadline}",
+            dispatch_note(order),
             f"Bestellnummer {order.number}:",
         ),
         rows=_rows(order),
@@ -104,6 +131,7 @@ def confirmation_mail(order: Order, *, base_url: str, shop_name: str) -> MailCon
         paragraphs=(
             f"vielen Dank für deine Bestellung bei {shop_name}! Deine Zahlung ist eingegangen, "
             "die Bestellung ist damit verbindlich.",
+            dispatch_note(order),
             f"Bestellnummer {order.number}:",
         ),
         rows=_rows(order),

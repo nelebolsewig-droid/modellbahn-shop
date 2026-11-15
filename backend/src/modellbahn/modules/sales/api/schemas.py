@@ -403,6 +403,12 @@ class OrderOut(BaseModel):
         description="What to transfer while the order waits for payment in advance; its "
         "GiroCode is at ``getOrderGirocode``.",
     )
+    lead_time_min_weeks: int | None = Field(
+        default=None,
+        description="Some pieces are made for the customer: the lead time the checkout "
+        "showed; the parcel leaves complete. Null: everything ships from the shelves.",
+    )
+    lead_time_max_weeks: int | None = None
 
     @classmethod
     def from_details(cls, details: OrderDetails, *, bank: BankAccount | None = None) -> Self:
@@ -426,6 +432,8 @@ class OrderOut(BaseModel):
             payment_due_at=order.payment_due_at,
             payment_url=pending.checkout_url if (pending := order.pending_payment) else None,
             bank_transfer=BankTransferOut.of(order, bank),
+            lead_time_min_weeks=order.lead_time_min_weeks,
+            lead_time_max_weeks=order.lead_time_max_weeks,
         )
 
 

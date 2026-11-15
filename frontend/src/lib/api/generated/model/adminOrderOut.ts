@@ -36,6 +36,9 @@ export interface AdminOrderOut {
   /** The marketplace's order number, e.g. eBay's 12-34567-89012. */
   external_ref: string | null;
   id: string;
+  lead_time_max_weeks?: number | null;
+  /** Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves. */
+  lead_time_min_weeks?: number | null;
   lines: OrderLineOut[];
   number: string;
   paid_at: string | null;

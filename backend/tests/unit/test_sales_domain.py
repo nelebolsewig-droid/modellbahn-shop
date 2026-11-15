@@ -654,6 +654,31 @@ class TestMails:
         shipped = mails.shipped_mail(order, base_url="https://shop.test", next_fair=fair)
         assert shipped.closing[-1] == hint
 
+    def test_the_mails_say_when_the_parcel_leaves(self) -> None:
+        from_shelves, _ = placed()
+        made, _ = Order.place(
+            number="MB-2026-00043",
+            public_token="token-43",
+            items=[item()],
+            email="erika@example.de",
+            address=address(),
+            customer_account_id=None,
+            checkout_key=uuid4(),
+            checkout_fingerprint="a" * 64,
+            now=NOW,
+            lead_time_weeks=(2, 4),
+        )
+        for mail in (mails.received_mail, mails.confirmation_mail):
+            stocked = mail(from_shelves, base_url="https://shop.test", shop_name="adp-Modelle")
+            assert "1\u20133 Werktage, nachdem deine Zahlung" in stocked.paragraphs[1]
+            waiting = mail(made, base_url="https://shop.test", shop_name="adp-Modelle")
+            assert waiting.paragraphs[1] == (
+                "Nicht alles ist vorrätig: Was fehlt, fertigen wir für dich. Wir schicken alles "
+                "zusammen in einem Paket, voraussichtlich in 2\u20134 Wochen."
+            )
+        assert made.lead_time_weeks == (2, 4)
+        assert mails.weeks_text((1, 1)) == "1 Woche"
+
     def test_without_a_fair_the_mails_stay_as_they_were(self) -> None:
         order, _ = placed()
         shipped = mails.shipped_mail(order, base_url="https://shop.test")

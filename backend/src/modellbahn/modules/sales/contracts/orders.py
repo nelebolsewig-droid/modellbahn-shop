@@ -18,11 +18,13 @@ from modellbahn.platform.uow import UnitOfWork
 __all__ = [
     "ORDER_REFERENCE",
     "OrderLineSummary",
+    "OrderRef",
     "OrderStatus",
     "OrderSummary",
     "Shipment",
     "load_open_order_numbers",
     "load_order_numbers",
+    "load_order_refs",
     "load_order_status",
     "load_order_summary",
     "load_shipment",
@@ -110,6 +112,32 @@ async def load_order_status(uow: UnitOfWork, order_id: UUID) -> OrderStatus | No
     row = await uow.session.execute(select(orders.c.status).where(orders.c.id == order_id))
     status: OrderStatus | None = row.scalar_one_or_none()
     return status
+
+
+@dataclass(frozen=True, slots=True)
+class OrderRef:
+    """An order as a list in the workshop names it: number, state, when it was placed."""
+
+    id: UUID
+    number: str
+    status: OrderStatus
+    placed_at: datetime
+
+
+async def load_order_refs(uow: UnitOfWork, order_ids: Collection[UUID]) -> dict[UUID, OrderRef]:
+    """Number, state and time of the orders among ``order_ids``."""
+    ids = list(set(order_ids))
+    if not ids:
+        return {}
+    rows = await uow.session.execute(
+        select(orders.c.id, orders.c.number, orders.c.status, orders.c.placed_at).where(
+            orders.c.id.in_(ids)
+        )
+    )
+    return {
+        row.id: OrderRef(id=row.id, number=row.number, status=row.status, placed_at=row.placed_at)
+        for row in rows
+    }
 
 
 async def load_order_numbers(uow: UnitOfWork, order_ids: Collection[UUID]) -> dict[UUID, str]:

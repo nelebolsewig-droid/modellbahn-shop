@@ -346,6 +346,7 @@ class CheckoutService:
             checkout_key=idempotency_key,
             checkout_fingerprint=request_fingerprint,
             now=now,
+            lead_time_weeks=priced.lead_time_weeks,
         )
         uow.orders.add(order)
         uow.publish(placed)

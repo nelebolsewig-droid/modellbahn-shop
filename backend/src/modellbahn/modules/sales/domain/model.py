@@ -555,8 +555,18 @@ class Order:
     channel: SalesChannel = SalesChannel.SHOP
     external_ref: str | None = None
     """The marketplace's order number (empty for the shop's own orders)."""
+    lead_time_min_weeks: int | None = None
+    """When some pieces are made for the customer: the lead time the checkout showed,
+    from and to (ADR 0029). ``None``: everything ships from the shelves."""
+    lead_time_max_weeks: int | None = None
     lines: list[OrderLine] = field(default_factory=list)
     payments: list[Payment] = field(default_factory=list)
+
+    @property
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        if self.lead_time_min_weeks is None or self.lead_time_max_weeks is None:
+            return None
+        return self.lead_time_min_weeks, self.lead_time_max_weeks
 
     @classmethod
     def place(
@@ -571,7 +581,9 @@ class Order:
         checkout_key: UUID,
         checkout_fingerprint: str,
         now: datetime,
+        lead_time_weeks: tuple[int, int] | None = None,
     ) -> tuple["Order", OrderPlaced]:
+        """A new order; ``lead_time_weeks`` when some pieces are made for the customer."""
         if not items:
             msg = "an order needs at least one line"
             raise ValueError(msg)
@@ -611,6 +623,8 @@ class Order:
             checkout_fingerprint=checkout_fingerprint,
             placed_at=now,
             updated_at=now,
+            lead_time_min_weeks=lead_time_weeks[0] if lead_time_weeks else None,
+            lead_time_max_weeks=lead_time_weeks[1] if lead_time_weeks else None,
             lines=lines,
         )
         return order, OrderPlaced(
