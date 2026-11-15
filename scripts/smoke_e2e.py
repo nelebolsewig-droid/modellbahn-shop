@@ -1063,7 +1063,8 @@ class Demo:
         expect_status(scale, 201, "Maßstab H0")
         scale_id = scale.json()["scales"][0]["id"]
         variants = f"{ADMIN}/product-scales/{scale_id}/variants"
-        # Kits come from the shelf, finished models (in a colour) are made to order.
+        # Kits are not made again (sold from the shelf only), finished models (in a
+        # colour) are made again in the shop's lead time (ADR 0029).
         for finish, color, price, made_to_order in (
             ("unpainted", "", UNPAINTED_CENTS, False),
             ("painted", "gelb", PAINTED_CENTS, True),
@@ -1096,8 +1097,8 @@ class Demo:
         gtins = [v["gtin"] for v in product["scales"][0]["variants"]]
         expect(all(g.startswith("2") and ean13_valid(g) for g in gtins), f"EANs {gtins}")
         painted = self._variant("painted")
-        lead_time = (painted["lead_time_min_weeks"], painted["lead_time_max_weeks"])
-        expect(lead_time == (1, 2), f"Lieferzeit auf Bestellung: {lead_time}")
+        own = (painted["lead_time_min_weeks"], painted["lead_time_max_weeks"])
+        expect(own == (None, None), f"Eigene Lieferzeit ohne Angabe: {own}")
         return ", ".join(skus)
 
     def unsigned_upload(self) -> str | None:
@@ -1435,13 +1436,19 @@ class Demo:
             (unpainted["availability"], unpainted["free_units"]) == ("in_stock", UNITS_LABELLED),
             f"Bausatz: {unpainted}",
         )
+        production = self._staff("GET", f"{ADMIN}/catalog/production")
+        expect_status(production, 200, "Lieferzeit des Shops")
+        shop_weeks = (
+            production.json()["default_lead_time_min_weeks"],
+            production.json()["default_lead_time_max_weeks"],
+        )
         expect(
             (
                 painted["availability"],
                 painted["lead_time_min_weeks"],
                 painted["lead_time_max_weeks"],
             )
-            == ("made_to_order", 1, 2),
+            == ("made_to_order", *shop_weeks),
             f"Fertigmodell: {painted}",
         )
         articles = self.staff_browser._send(
@@ -1451,8 +1458,11 @@ class Demo:
         expect(articles.content_type == "text/csv", f"Artikelliste: {articles.content_type}")
         text = articles.text
         expect(self._variant("unpainted")["gtin"] in text, "Artikelliste ohne die EAN")
-        expect("auf Bestellung (1-2 Wochen)" in text, "Artikelliste ohne Lieferzeit")
-        return "Bausatz sofort (2), Fertigmodell in Gelb auf Bestellung in 1 bis 2 Wochen"
+        low, high = shop_weeks
+        weeks = f"{low}" if low == high else f"{low}-{high}"
+        expect(f"vorrätig, sonst {weeks} Wochen" in text, "Artikelliste ohne Lieferzeit")
+        expect("nur vorrätig" in text, "Artikelliste ohne „nur vorrätig“")
+        return f"Bausatz sofort (2), Fertigmodell in Gelb nachgefertigt in {weeks} Wochen"
 
     def cart(self) -> str | None:
         empty = self.guest_browser.api("GET", f"{SHOP}/cart")
