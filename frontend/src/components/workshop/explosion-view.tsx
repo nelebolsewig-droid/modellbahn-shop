@@ -53,7 +53,7 @@ function subscribeToMotion(onChange: () => void): () => void {
 }
 
 /** Whether the visitor asked for less motion; false while rendering on the server. */
-function useReducedMotion(): boolean {
+export function useReducedMotion(): boolean {
   return useSyncExternalStore(
     subscribeToMotion,
     () => window.matchMedia(REDUCED_MOTION).matches,
@@ -62,7 +62,7 @@ function useReducedMotion(): boolean {
 }
 
 /** True once the element comes within a screen of the viewport. */
-function useNearViewport(ref: RefObject<HTMLElement | null>): boolean {
+export function useNearViewport(ref: RefObject<HTMLElement | null>): boolean {
   const [near, setNear] = useState(false);
   useEffect(() => {
     const element = ref.current;
@@ -389,6 +389,10 @@ function ProcessAndParts({ model, phase, highlighted, onHighlight }: ProcessAndP
           <p className="mt-3 rounded-sm bg-warning-subtle px-3 py-2 text-hint text-warning">
             Platzhalter: Dieses Fahrzeug ist nachgebaut, Teile und Zeiten sind Beispielwerte. Bald zeigen wir hier ein
             Modell aus der Werkstatt.
+          </p>
+        ) : model.exampleTimes ? (
+          <p className="mt-3 rounded-sm bg-warning-subtle px-3 py-2 text-hint text-warning">
+            Das Modell stammt aus unseren Druckdateien. Die Zeiten sind noch Beispielwerte.
           </p>
         ) : null}
       </div>

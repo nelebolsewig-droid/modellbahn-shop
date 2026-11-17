@@ -14,7 +14,9 @@ export type Solid =
       axis: "x" | "y" | "z";
       at: readonly [number, number, number];
       segments?: number;
-    };
+    }
+  /** A part of a real model, by its name in the model's mesh file (`meshUrl`). */
+  | { kind: "mesh"; name: string };
 
 /** Solids that move together, along `direction` by `distance` mm when fully exploded. */
 export type Piece = {
@@ -32,6 +34,8 @@ export type ExplosionPart = {
   printMinutes: number;
   /** When it comes off: 0 first. */
   order: number;
+  /** The colour of the painted part; the put-together model wears it (hex). */
+  color?: string;
   pieces: readonly Piece[];
 };
 
@@ -42,6 +46,10 @@ export type ExplosionModel = {
   placeholder: boolean;
   /** Finishing by hand after printing: removing supports, sanding, painting, assembly. */
   handworkMinutes: number;
+  /** A real model whose times are not measured yet: the figures show, marked as examples. */
+  exampleTimes?: boolean;
+  /** The file with the shapes of the `mesh` solids (lib/workshop/mesh-file.ts). */
+  meshUrl?: string;
   parts: readonly ExplosionPart[];
 };
 
@@ -97,6 +105,14 @@ export function partShare(explosion: number, order: number, lastOrder: number): 
   const delay = (order / (lastOrder + 1)) * 0.45;
   const local = clamp((explosion - delay) / (1 - delay));
   return 1 - Math.pow(1 - local, 3);
+}
+
+/**
+ * How much of its paint a part wears (0 to 1): the put-together model stands in colour,
+ * and the colour drains into the plain drawing as the parts move apart.
+ */
+export function paintAt(explosion: number): number {
+  return 1 - smoothstep(0.05, 0.6, explosion);
 }
 
 /** Opacity of the position balloons: they appear once the parts have moved apart. */

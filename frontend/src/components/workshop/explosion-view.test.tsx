@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 import { PLACEHOLDER_MODEL } from "@/lib/workshop/placeholder-model";
 
 import { ExplosionView } from "./explosion-view";
@@ -86,8 +87,19 @@ describe("ExplosionView", () => {
   });
 });
 
+describe("ExplosionView with the workshop's own model", () => {
+  it("names the model as real and its times as examples", () => {
+    stubMotion(false);
+    render(<ExplosionView model={EDK6_MODEL} />);
+    expect(screen.getByText(EDK6_MODEL.name)).toBeInTheDocument();
+    expect(screen.getAllByText(/Die Zeiten sind noch Beispielwerte/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/Platzhalter/)).toBeNull();
+  });
+});
+
 describe("MakingOfTeaser", () => {
-  it("leads to the drawing and keeps a placeholder's figures off the start page", () => {
+  it("leads to the drawing and keeps example figures off the start page", () => {
+    stubMotion(false);
     render(<MakingOfTeaser />);
     expect(screen.getByRole("link", { name: "Zur Explosionszeichnung" })).toHaveAttribute(
       "href",

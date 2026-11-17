@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PageHeading } from "@/components/site/page-heading";
 import { Button } from "@/components/ui/button";
 import { ExplosionView } from "@/components/workshop/explosion-view";
-import { PLACEHOLDER_MODEL } from "@/lib/workshop/placeholder-model";
+import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 
 export const metadata: Metadata = {
   title: "So entsteht ein Modell",
@@ -24,7 +24,7 @@ export default function MakingOfPage() {
         </PageHeading>
       </div>
 
-      <ExplosionView model={PLACEHOLDER_MODEL} />
+      <ExplosionView model={EDK6_MODEL} />
 
       <section aria-labelledby="eigenes-modell" className="mt-16 border-t border-line lg:mt-24">
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:py-20">

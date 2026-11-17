@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { balloonOpacity, explosionAt, formatDuration, hoursOf, partShare, phaseAt, totalsOf } from "./explosion";
+import { balloonOpacity, explosionAt, formatDuration, hoursOf, paintAt, partShare, phaseAt, totalsOf } from "./explosion";
 import { PLACEHOLDER_MODEL } from "./placeholder-model";
 
 describe("the parts list", () => {
@@ -48,5 +48,12 @@ describe("scrolling through the drawing", () => {
   it("shows the balloons only once the parts are apart", () => {
     expect(balloonOpacity(0.3)).toBe(0);
     expect(balloonOpacity(1)).toBe(1);
+  });
+
+  it("paints the whole model and drains the colour as it comes apart", () => {
+    expect(paintAt(0)).toBe(1);
+    expect(paintAt(0.3)).toBeGreaterThan(0);
+    expect(paintAt(0.3)).toBeLessThan(1);
+    expect(paintAt(1)).toBe(0);
   });
 });

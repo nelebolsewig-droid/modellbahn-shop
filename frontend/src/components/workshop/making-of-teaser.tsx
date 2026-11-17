@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { hoursOf, totalsOf } from "@/lib/workshop/explosion";
-import { PLACEHOLDER_MODEL } from "@/lib/workshop/placeholder-model";
+import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
+
+import { ModelTurntable } from "./model-turntable";
 
 const STEPS = [
   { title: "Konstruieren und zerlegen", text: "Das Vorbild am Rechner, in druckbare Teile geschnitten" },
@@ -16,13 +18,13 @@ const STEPS = [
  * a placeholder's examples stay on its own page, marked as such.
  */
 export function MakingOfTeaser() {
-  const model = PLACEHOLDER_MODEL;
+  const model = EDK6_MODEL;
   const totals = totalsOf(model);
   return (
     <section aria-labelledby="so-entsteht" className="border-t border-line">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:py-24">
         <div>
-          <p className="label-caps text-ink-tertiary">Werkstatt</p>
+          <p className="label-caps label-tick text-ink-tertiary">Werkstatt</p>
           <h2 id="so-entsteht" className="mt-4 text-heading">
             So entsteht ein Modell
           </h2>
@@ -30,7 +32,7 @@ export function MakingOfTeaser() {
             Ein Fahrzeug, in seine Teile zerlegt und wieder zusammengesetzt: Scroll durch die Explosionszeichnung und
             sieh, wie viel Arbeit in einem einzigen Modell steckt.
           </p>
-          {model.placeholder ? null : (
+          {model.placeholder || model.exampleTimes ? null : (
             <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-3">
               {[
                 [String(totals.parts), "Teile"],
@@ -48,33 +50,34 @@ export function MakingOfTeaser() {
             <Link href="/so-entsteht-ein-modell">Zur Explosionszeichnung</Link>
           </Button>
         </div>
-        <ol
-          aria-label="Arbeitsschritte"
-          className="m-0 grid list-none gap-0 rounded-lg bg-stage bg-[image:linear-gradient(var(--drawing-grid)_1px,transparent_1px),linear-gradient(90deg,var(--drawing-grid)_1px,transparent_1px)] bg-[size:16px_16px] bg-[position:-1px_-1px] p-6 sm:p-8"
-        >
-          {STEPS.map((step, index) => (
-            <li
-              key={step.title}
-              className="group relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-4 pb-8 last:pb-0"
-            >
-              {/* The leader line down to the next position, as on a drawing. */}
-              <span
-                aria-hidden="true"
-                className="absolute top-7 bottom-0 left-[13.5px] w-px bg-drawing-line group-last:hidden"
-              />
-              <span
-                aria-hidden="true"
-                className="relative grid size-7 place-items-center rounded-full border border-drawing-line bg-stage font-mono text-[0.75rem] text-accent"
+        <div className="rounded-lg bg-stage bg-[image:linear-gradient(var(--drawing-grid)_1px,transparent_1px),linear-gradient(90deg,var(--drawing-grid)_1px,transparent_1px)] bg-[size:16px_16px] bg-[position:-1px_-1px] p-6 sm:p-8">
+          {/* The workshop's own model, turning in its paint; it comes apart under the pointer. */}
+          <ModelTurntable model={model} className="mb-6" />
+          <ol aria-label="Arbeitsschritte" className="m-0 grid list-none gap-0 p-0">
+            {STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="group relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-4 pb-8 last:pb-0"
               >
-                {index + 1}
-              </span>
-              <div className="pt-0.5">
-                <h3 className="text-body font-medium">{step.title}</h3>
-                <p className="mt-1 text-small text-ink-secondary">{step.text}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+                {/* The leader line down to the next position, as on a drawing. */}
+                <span
+                  aria-hidden="true"
+                  className="absolute top-7 bottom-0 left-[13.5px] w-px bg-drawing-line group-last:hidden"
+                />
+                <span
+                  aria-hidden="true"
+                  className="relative grid size-7 place-items-center rounded-full border border-drawing-line bg-stage font-mono text-[0.75rem] text-accent"
+                >
+                  {index + 1}
+                </span>
+                <div className="pt-0.5">
+                  <h3 className="text-body font-medium">{step.title}</h3>
+                  <p className="mt-1 text-small text-ink-secondary">{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </section>
   );

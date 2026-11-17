@@ -5,7 +5,8 @@ import {
   AmbientLight,
   Box3,
   BoxGeometry,
-  type BufferGeometry,
+  BufferAttribute,
+  BufferGeometry,
   Color,
   CylinderGeometry,
   DirectionalLight,
@@ -22,7 +23,8 @@ import {
   WebGLRenderer,
 } from "three";
 
-import { balloonOpacity, partShare, type ExplosionModel, type Solid } from "@/lib/workshop/explosion";
+import { balloonOpacity, paintAt, partShare, type ExplosionModel, type Solid } from "@/lib/workshop/explosion";
+import { loadMeshFile, type PartMesh } from "@/lib/workshop/mesh-file";
 
 type ExplosionSceneProps = {
   model: ExplosionModel;
@@ -36,7 +38,14 @@ type ExplosionSceneProps = {
 };
 
 type MovingPiece = { group: Group; center: Vector3; direction: Vector3; distance: number };
-type ScenePart = { position: number; order: number; material: MeshLambertMaterial; pieces: MovingPiece[] };
+type ScenePart = {
+  position: number;
+  order: number;
+  material: MeshLambertMaterial;
+  /** The part's paint; null for a part that stays the colour of the drawing. */
+  paint: Color | null;
+  pieces: MovingPiece[];
+};
 
 // Wide enough for the fully exploded model while it turns (mm); upright phones get closer.
 const HALF_WIDTH = 100;
@@ -44,6 +53,8 @@ const HALF_WIDTH_UPRIGHT = 80;
 const HALF_HEIGHT = 68;
 const UPRIGHT_ASPECT = 0.75;
 const EDGE_ANGLE = 28;
+// Printed shapes are rounder than the placeholder's boxes: only their sharper edges are drawn.
+const MESH_EDGE_ANGLE = 38;
 const TURN_PER_SECOND = 0.18;
 const DRAG_PER_PIXEL = 0.012;
 const BALLOON_OFFSET = 44;
@@ -54,7 +65,17 @@ function token(name: string, fallback: string): string {
   return value || fallback;
 }
 
-function geometryOf(solid: Solid): BufferGeometry {
+function geometryOf(solid: Solid, meshes: ReadonlyMap<string, PartMesh>): BufferGeometry {
+  if (solid.kind === "mesh") {
+    const mesh = meshes.get(solid.name);
+    const geometry = new BufferGeometry();
+    if (mesh) {
+      geometry.setAttribute("position", new BufferAttribute(mesh.positions, 3));
+      geometry.setIndex(new BufferAttribute(mesh.indices, 1));
+      geometry.computeVertexNormals();
+    }
+    return geometry;
+  }
   if (solid.kind === "box") {
     const geometry = new BoxGeometry(...solid.size);
     geometry.translate(...solid.at);
@@ -70,7 +91,8 @@ function geometryOf(solid: Solid): BufferGeometry {
 /**
  * The model drawn like a construction plan: light faces with Prussian-blue edges, an
  * orthographic view that turns slowly, parts that move apart with the explosion, and a
- * numbered balloon on each position.
+ * numbered balloon on each position. A real model (one with a mesh file) stands in its
+ * paint while it is whole; the colour drains into the drawing as it comes apart.
  */
 export default function ExplosionScene({
   model,
@@ -87,16 +109,14 @@ export default function ExplosionScene({
   const anchorRefs = useRef<(SVGCircleElement | null)[]>([]);
   const partsRef = useRef<ScenePart[]>([]);
   const spinningRef = useRef(spinning);
-  const colors = useRef({ fill: "#fafaf8", highlight: "#d9e4ee" });
+  const highlightedRef = useRef(highlighted);
 
   useEffect(() => {
     spinningRef.current = spinning;
   }, [spinning]);
 
   useEffect(() => {
-    for (const part of partsRef.current) {
-      part.material.color.set(part.position === highlighted ? colors.current.highlight : colors.current.fill);
-    }
+    highlightedRef.current = highlighted;
   }, [highlighted]);
 
   useEffect(() => {
@@ -110,7 +130,8 @@ export default function ExplosionScene({
       onUnavailable();
       return;
     }
-    colors.current = { fill: token("--stage", "#fafaf8"), highlight: token("--drawing-grid", "#d9e4ee") };
+    const fill = new Color(token("--stage", "#fafaf8"));
+    const lit = new Color(token("--drawing-grid", "#d9e4ee"));
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0x000000, 0);
 
@@ -136,9 +157,9 @@ export default function ExplosionScene({
     const lineMaterial = new LineBasicMaterial({ color: new Color(token("--drawing-line", "#003153")) });
     const disposables: { dispose: () => void }[] = [lineMaterial];
 
-    partsRef.current = model.parts.map((part) => {
+    const build = (meshes: ReadonlyMap<string, PartMesh>) => model.parts.map((part) => {
       const material = new MeshLambertMaterial({
-        color: new Color(colors.current.fill),
+        color: fill.clone(),
         polygonOffset: true,
         polygonOffsetFactor: 1,
         polygonOffsetUnits: 1,
@@ -147,8 +168,8 @@ export default function ExplosionScene({
       const pieces = part.pieces.map((piece) => {
         const group = new Group();
         for (const solid of piece.solids) {
-          const geometry = geometryOf(solid);
-          const edges = new EdgesGeometry(geometry, EDGE_ANGLE);
+          const geometry = geometryOf(solid, meshes);
+          const edges = new EdgesGeometry(geometry, solid.kind === "mesh" ? MESH_EDGE_ANGLE : EDGE_ANGLE);
           disposables.push(geometry, edges);
           group.add(new Mesh(geometry, material), new LineSegments(edges, lineMaterial));
         }
@@ -160,8 +181,28 @@ export default function ExplosionScene({
           distance: piece.distance,
         };
       });
-      return { position: part.position, order: part.order, material, pieces };
+      return {
+        position: part.position,
+        order: part.order,
+        material,
+        paint: part.color ? new Color(part.color) : null,
+        pieces,
+      };
     });
+    // The placeholder is built at once; a real model appears when its mesh file has arrived.
+    const abort = new AbortController();
+    if (model.meshUrl) {
+      loadMeshFile(model.meshUrl, abort.signal).then(
+        (meshes) => {
+          if (!abort.signal.aborted) partsRef.current = build(meshes);
+        },
+        () => {
+          if (!abort.signal.aborted) onUnavailable();
+        },
+      );
+    } else {
+      partsRef.current = build(new Map());
+    }
     const lastOrder = Math.max(...model.parts.map((part) => part.order));
 
     let width = 1;
@@ -211,8 +252,12 @@ export default function ExplosionScene({
       if (spinningRef.current && !drag) angle += seconds * TURN_PER_SECOND;
       root.rotation.y = angle;
       const amount = explosion.current;
+      const paint = paintAt(amount);
       for (const part of partsRef.current) {
         const share = partShare(amount, part.order, lastOrder);
+        if (part.position === highlightedRef.current) part.material.color.copy(lit);
+        else if (part.paint) part.material.color.copy(fill).lerp(part.paint, paint);
+        else part.material.color.copy(fill);
         for (const piece of part.pieces)
           piece.group.position.copy(piece.direction).multiplyScalar(piece.distance * share);
       }
@@ -255,6 +300,7 @@ export default function ExplosionScene({
 
     return () => {
       cancelAnimationFrame(frame);
+      abort.abort();
       observer.disconnect();
       canvas.removeEventListener("pointerdown", down);
       canvas.removeEventListener("pointermove", move);
