@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { hoursOf, totalsOf } from "@/lib/workshop/explosion";
 import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 
-import { ModelTurntable } from "./model-turntable";
-
 const STEPS = [
   { title: "Konstruieren und zerlegen", text: "Das Vorbild am Rechner, in druckbare Teile geschnitten" },
   { title: "Drucken", text: "Teil für Teil auf den 12 Druckern der Werkstatt" },
@@ -46,13 +44,11 @@ export function MakingOfTeaser() {
               ))}
             </dl>
           )}
-          <Button asChild className="mt-8">
+          <Button asChild variant="highlight" className="mt-8">
             <Link href="/so-entsteht-ein-modell">Zur Explosionszeichnung</Link>
           </Button>
         </div>
         <div className="rounded-lg bg-stage bg-[image:linear-gradient(var(--drawing-grid)_1px,transparent_1px),linear-gradient(90deg,var(--drawing-grid)_1px,transparent_1px)] bg-[size:16px_16px] bg-[position:-1px_-1px] p-6 sm:p-8">
-          {/* The workshop's own model, turning in its paint; it comes apart under the pointer. */}
-          <ModelTurntable model={model} className="mb-6" />
           <ol aria-label="Arbeitsschritte" className="m-0 grid list-none gap-0 p-0">
             {STEPS.map((step, index) => (
               <li

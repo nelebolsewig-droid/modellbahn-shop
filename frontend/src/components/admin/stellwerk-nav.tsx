@@ -7,7 +7,16 @@ import { Dialog, DialogClose, DialogTitle, DialogTrigger, SheetContent } from "@
 import type { StaffRole } from "@/lib/api/generated/model";
 import { cn } from "@/lib/utils";
 
-import { activeSection, barSections, headerSections, moreSections, section, type Section, type SectionKey } from "./sections";
+import {
+  activeSection,
+  barSections,
+  headerSections,
+  moreSections,
+  section,
+  SECTION_COLORS,
+  type Section,
+  type SectionKey,
+} from "./sections";
 
 type NavProps = { role: StaffRole; pathname: string };
 
@@ -30,8 +39,12 @@ export function HeaderNav({ role, pathname }: NavProps) {
                 entry.key === current ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
               )}
             >
-              {/* The lit lamp of the section you are in. */}
-              {entry.key === current ? <span aria-hidden="true" className="size-1.5 rounded-full bg-highlight" /> : null}
+              {/* Every section's lamp in its own colour; lit white where you are. */}
+              <span
+                aria-hidden="true"
+                style={{ backgroundColor: entry.key === current ? undefined : SECTION_COLORS[entry.key] }}
+                className={cn("size-2 rounded-full", entry.key === current && "bg-on-selected")}
+              />
               {entry.label}
             </Link>
           </li>
@@ -168,7 +181,7 @@ function MoreTab({ entries, active }: { entries: readonly Section[]; active: Sec
 /** The current tab's mark: a short bar on the top edge, like a lit section of track. */
 function Marker({ shown }: { shown: boolean }) {
   return shown ? (
-    <span aria-hidden="true" className="absolute inset-x-1/4 top-0 h-0.5 rounded-b-xs bg-highlight-fill" />
+    <span aria-hidden="true" className="absolute inset-x-1/4 top-0 h-0.5 rounded-b-xs bg-section" />
   ) : null;
 }
 

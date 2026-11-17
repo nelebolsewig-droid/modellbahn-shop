@@ -13,7 +13,9 @@ export function PageHeading({ caption, title, children, className }: PageHeading
   return (
     <header className={className}>
       <p className="animate-rise-in label-caps label-tick text-ink-tertiary">{caption}</p>
-      <h1 className="mt-4 animate-rise-in text-title [animation-delay:80ms] sm:text-display">{title}</h1>
+      <h1 className="mt-4 w-fit animate-rise-in pb-1 text-title font-light text-spectrum [animation-delay:80ms] sm:text-display sm:font-light">
+        {title}
+      </h1>
       {children ? (
         <div className="mt-6 max-w-xl animate-rise-in space-y-3 text-body-lg text-ink-secondary [animation-delay:160ms]">{children}</div>
       ) : null}

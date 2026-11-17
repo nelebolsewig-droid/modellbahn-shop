@@ -1,4 +1,4 @@
-# ADR 0030: Signalorange, Bewegung, einheitliche Fotos und das erste echte Modell
+# ADR 0030: Farbpalette, Bewegung, einheitliche Fotos und das erste echte Modell
 
 Status: angenommen · 17.11.2026
 
@@ -19,6 +19,19 @@ Modellfotos, die alle gleich aussehen, und eine Druckdatei der Werkstatt als bew
   Aktion, für die eine Seite da ist („Zum Katalog“, „In den Warenkorb“, „Zur Kasse“,
   „Scannen“ im Stellwerk), dazu Zähler, Marken und Schwebezustände. `danger` bleibt Rot und
   steht weiter immer mit einem Wort.
+- **Eine ganze Palette, im ganzen System.** Die erste Fassung mit Orange allein war der
+  Auftraggeberin zu schlicht. Dazu kommen deshalb `sea` (Petrol), `plum` (Violett), `rose`,
+  `sky` und `sun` (Gelb, nur als Grund für dunkle Schrift), jede mit hellem Grund, und `night`
+  (tiefes Preußischblau) für den Kopf der Startseite, die Fußzeile und die Begrüßung im
+  Stellwerk. Das hebt aus ADR 0007 die Regel „nie dunkel“ für diese drei Flächen auf; die
+  Seiten selbst bleiben hell. `selected` ist jetzt Preußischblau statt Mattschwarz. Der
+  hervorgehobene Knopf trägt einen Verlauf von Orange nach Rosé (`bg-blaze`), ein Band in
+  allen Farben (`bg-spectrum`) liegt über jeder Seite, und ein weicher Farbschleier (`wash`)
+  hinter ihr.
+- **Jeder Bereich des Stellwerks hat seine Farbe** (`SECTION_COLORS`): Modelle Orange,
+  Bestellungen Blau, Lager Petrol, Fertigung Violett, Messen Rosé, eBay Grün. Sie färbt den
+  aktiven Menüpunkt, den Seitengrund, die Feldkennungen und über `--selected` die primären
+  Knöpfe, solange man dort ist.
 - **Bewegung mit Maß.** Überschriften und Karten steigen beim Erscheinen auf (`Reveal`,
   `animate-rise-in`), die Zeichnung der Startseite wird wie von einem Plotter gezogen, Karten
   heben sich unter dem Zeiger, der Zähler am Warenkorb springt. Ohne JavaScript ist nichts

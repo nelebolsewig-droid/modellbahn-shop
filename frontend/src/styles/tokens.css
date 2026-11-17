@@ -40,6 +40,17 @@
   --signal-500: #ff5a1f;
   --signal-600: #cf430c;
   --signal-700: #b93a08;
+  --sun-50: #fff4d6;
+  --sun-400: #ffc233;
+  --sea-50: #e3f6f5;
+  --sea-700: #0a7379;
+  --plum-50: #f0ebff;
+  --plum-600: #6741d9;
+  --rose-50: #ffe9f1;
+  --rose-600: #c2255c;
+  --sky-50: #e7f1fb;
+  --sky-700: #1864ab;
+  --mist-300: #b9c9d8;
 
   /* Grounds */
   --canvas: var(--gray-50);
@@ -59,7 +70,8 @@
   --line-control: var(--gray-500);
 
   /* Selection and accent */
-  --selected: var(--gray-900);
+  /* Prussian blue since ADR 0030; the Stellwerk sets it to the colour of the section. */
+  --selected: var(--prussian-800);
   --on-selected: var(--gray-0);
   --accent: var(--prussian-800);
   --accent-hover: var(--prussian-900);
@@ -74,6 +86,25 @@
   --highlight-ink: var(--signal-700);
   --highlight-subtle: var(--signal-50);
   --on-highlight: var(--gray-0);
+
+  /* The palette (ADR 0030): four more colours beside orange, each dark enough for text
+     and for white text on it, each with a light ground of its own. `sun` is a ground
+     for dark text only. */
+  --sea: var(--sea-700);
+  --sea-subtle: var(--sea-50);
+  --plum: var(--plum-600);
+  --plum-subtle: var(--plum-50);
+  --rose: var(--rose-600);
+  --rose-subtle: var(--rose-50);
+  --sky: var(--sky-700);
+  --sky-subtle: var(--sky-50);
+  --sun: var(--sun-400);
+  --sun-subtle: var(--sun-50);
+
+  /* Night: the deep blue of the hero, the footer and the Stellwerk's greeting. */
+  --night: var(--prussian-900);
+  --on-night: var(--gray-0);
+  --on-night-muted: var(--mist-300);
 
   /* Technical drawings */
   --drawing-line: var(--prussian-800);

@@ -10,7 +10,7 @@ import { useNearViewport, useReducedMotion } from "./explosion-view";
 const ExplosionScene = lazy(() => import("./explosion-scene"));
 
 // How far the model comes apart under the pointer, and how fast it follows (per second).
-const OPENED = 0.8;
+const OPENED = 0.62;
 const FOLLOW = 3.2;
 
 const NOTHING = () => {};
@@ -21,7 +21,12 @@ const NOTHING = () => {};
  * left alone. Decorative: the page it leads to has the parts list. Loads three.js only
  * when it comes near the viewport, and shows nothing where WebGL is missing.
  */
-export function ModelTurntable({ model, className }: { model: ExplosionModel; className?: string }) {
+// The drawing's colours on the night ground: pale faces, light-blue edges.
+const NIGHT = { fill: "#eef3f7", line: "#8fa9c0" } as const;
+
+type ModelTurntableProps = { model: ExplosionModel; ground?: "sheet" | "night"; zoom?: number; className?: string };
+
+export function ModelTurntable({ model, ground = "sheet", zoom = 1, className }: ModelTurntableProps) {
   const reducedMotion = useReducedMotion();
   const stageRef = useRef<HTMLDivElement>(null);
   const explosion = useRef(0);
@@ -61,6 +66,9 @@ export function ModelTurntable({ model, className }: { model: ExplosionModel; cl
             highlighted={null}
             onHighlight={NOTHING}
             spinning={!reducedMotion}
+            palette={ground === "night" ? NIGHT : undefined}
+            zoom={zoom}
+            plain
             onUnavailable={onUnavailable}
           />
         </Suspense>

@@ -19,6 +19,22 @@ export type SectionKey =
 
 export type Section = { key: SectionKey; href: Route; label: string };
 
+/**
+ * Every place has its colour (ADR 0030): it tints the page, the active entry, the
+ * primary buttons and the field codes while one is there. Values are design tokens.
+ */
+export const SECTION_COLORS: Readonly<Record<SectionKey, string>> = {
+  overview: "var(--prussian-800)",
+  models: "var(--highlight-fill)",
+  orders: "var(--sky)",
+  scan: "var(--highlight-fill)",
+  stock: "var(--sea)",
+  manufacturing: "var(--plum)",
+  fairs: "var(--rose)",
+  ebay: "var(--success)",
+  settings: "var(--gray-700)",
+};
+
 const SECTIONS = {
   models: { href: "/admin/modelle", label: "Modelle", roles: OFFICE_ROLES },
   orders: { href: "/admin/bestellungen", label: "Bestellungen", roles: EVERYONE },

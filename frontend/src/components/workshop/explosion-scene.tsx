@@ -33,6 +33,12 @@ type ExplosionSceneProps = {
   highlighted: number | null;
   onHighlight: (position: number | null) => void;
   spinning: boolean;
+  /** Without the numbered balloons: the model as a picture, e.g. on the start page. */
+  plain?: boolean;
+  /** Brings the model closer (1 = the exploded model fits while it turns). */
+  zoom?: number;
+  /** Colours of the plain drawing where the stage is not the light sheet (hex). */
+  palette?: { fill: string; line: string };
   /** Called once if the browser cannot draw WebGL. */
   onUnavailable: () => void;
 };
@@ -100,6 +106,9 @@ export default function ExplosionScene({
   highlighted,
   onHighlight,
   spinning,
+  palette,
+  zoom = 1,
+  plain = false,
   onUnavailable,
 }: ExplosionSceneProps) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -130,7 +139,7 @@ export default function ExplosionScene({
       onUnavailable();
       return;
     }
-    const fill = new Color(token("--stage", "#fafaf8"));
+    const fill = new Color(palette?.fill ?? token("--stage", "#fafaf8"));
     const lit = new Color(token("--drawing-grid", "#d9e4ee"));
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0x000000, 0);
@@ -154,7 +163,7 @@ export default function ExplosionScene({
     const root = new Group();
     root.position.y = -16;
     scene.add(root);
-    const lineMaterial = new LineBasicMaterial({ color: new Color(token("--drawing-line", "#003153")) });
+    const lineMaterial = new LineBasicMaterial({ color: new Color(palette?.line ?? token("--drawing-line", "#003153")) });
     const disposables: { dispose: () => void }[] = [lineMaterial];
 
     const build = (meshes: ReadonlyMap<string, PartMesh>) => model.parts.map((part) => {
@@ -219,6 +228,7 @@ export default function ExplosionScene({
       camera.right = halfHeight * aspect;
       camera.top = halfHeight;
       camera.bottom = -halfHeight;
+      camera.zoom = zoom;
       camera.updateProjectionMatrix();
     };
     const observer = new ResizeObserver(resize);
@@ -310,7 +320,7 @@ export default function ExplosionScene({
       renderer.dispose();
       partsRef.current = [];
     };
-  }, [model, explosion, onUnavailable]);
+  }, [model, explosion, palette, zoom, onUnavailable]);
 
   return (
     <div ref={stageRef} className="absolute inset-0">
@@ -320,7 +330,7 @@ export default function ExplosionScene({
         className="absolute inset-0 block size-full cursor-grab touch-pan-y active:cursor-grabbing"
       />
       <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
-        {model.parts.map((part, index) => (
+        {(plain ? [] : model.parts).map((part, index) => (
           <g key={part.position} className="fill-drawing-line stroke-drawing-line">
             <line
               ref={(element) => {
@@ -340,7 +350,7 @@ export default function ExplosionScene({
           </g>
         ))}
       </svg>
-      {model.parts.map((part, index) => (
+      {(plain ? [] : model.parts).map((part, index) => (
         <button
           key={part.position}
           ref={(element) => {

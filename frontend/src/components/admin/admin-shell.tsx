@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { LogoMark } from "@/components/site/logo-mark";
 import { Alert } from "@/components/ui/alert";
@@ -17,6 +17,7 @@ import { useStaffSession, useStaffSessionCache } from "@/lib/session/staff";
 import { useProtectedArea } from "@/lib/session/use-session-redirects";
 
 import { StaffPasswordDialog } from "./staff-password-dialog";
+import { activeSection, SECTION_COLORS } from "./sections";
 import { HeaderNav, PhoneBar, ScanButton } from "./stellwerk-nav";
 
 export type AdminDesk = {
@@ -69,8 +70,14 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     // --stellwerk-bar: the height of the phone's bottom bar, kept free at the end of the
     // page and above sticky action bars (none on a desk).
-    <div className="[--stellwerk-bar:calc(4rem_+_env(safe-area-inset-bottom))] sm:[--stellwerk-bar:0px]">
-      <header className="border-b border-line bg-surface">
+    // --section: the colour of the place one is in; --selected follows it, so the
+    // primary buttons and active options of a section wear its colour.
+    <div
+      style={{ "--section": SECTION_COLORS[activeSection(pathname) ?? "overview"], "--selected": "var(--section)" } as CSSProperties}
+      className="min-h-dvh wash-section [--stellwerk-bar:calc(4rem_+_env(safe-area-inset-bottom))] sm:[--stellwerk-bar:0px]"
+    >
+      <div aria-hidden="true" className="h-1 bg-spectrum" />
+      <header className="border-b border-line bg-surface/80 backdrop-blur-md">
         {/* On the phone: logo and account actions in one low row, so the scanner's camera
             starts high up on the screen; the sections are in the bar at the bottom. */}
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-10 gap-y-3 px-5 py-3 sm:px-8 sm:py-4">

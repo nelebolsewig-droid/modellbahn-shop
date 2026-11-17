@@ -5,10 +5,10 @@ import { connection } from "next/server";
 import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
 import { NextFair } from "@/components/site/next-fair";
-import { CraneTruckDrawing } from "@/components/site/crane-truck-drawing";
 import { ProductCard } from "@/components/ui/product-card";
 import { Reveal } from "@/components/ui/reveal";
 import { MakingOfTeaser } from "@/components/workshop/making-of-teaser";
+import { ModelTurntable } from "@/components/workshop/model-turntable";
 import type {
   FairCalendarOut,
   FairOut,
@@ -18,6 +18,7 @@ import type {
 } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { loadNavigation } from "@/lib/catalog/store-data";
+import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 
 // What sets the workshop apart, from its own website (Über uns, Sonderanfertigung).
 const TRAITS = [
@@ -37,6 +38,32 @@ const TRAITS = [
     link: { href: "/sonderanfertigung", label: "Mehr zur Sonderanfertigung" },
   },
 ] as const satisfies readonly { title: string; text: string; link: { href: Route; label: string } | null }[];
+
+const HERO_FIGURES = [
+  { value: "1992", label: "gegründet", tone: "text-sun" },
+  { value: "12", label: "Drucker", tone: "text-on-night" },
+  { value: "N–0", label: "Maßstäbe", tone: "text-on-night" },
+] as const;
+
+const TICKER = [
+  "Resin-Druck",
+  "Handarbeit",
+  "Kleinserie",
+  "H0 · 1:87",
+  "TT · 1:120",
+  "Autokrane",
+  "Lkw",
+  "Schienenfahrzeuge",
+  "Sonderanfertigung",
+  "Seit 1992",
+] as const;
+
+// The traits' cards, one colour of the palette each.
+const TRAIT_TONES = [
+  { card: "bg-highlight-subtle", ink: "text-highlight-ink", rule: "bg-highlight-fill" },
+  { card: "bg-plum-subtle", ink: "text-plum", rule: "bg-plum" },
+  { card: "bg-sea-subtle", ink: "text-sea", rule: "bg-sea" },
+] as const;
 
 const NEWEST_COUNT = "3";
 
@@ -76,38 +103,71 @@ export default async function HomePage() {
   const scaleNames = new Map((navigation?.scales ?? []).map((scale) => [scale.code, scale.name]));
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
-        <div>
-          <p className="animate-rise-in label-caps label-tick text-ink-tertiary">Seit 1992 · Handarbeit aus Deutschland</p>
-          <h1 className="mt-5 animate-rise-in text-title [animation-delay:80ms] sm:text-display">
-            Jedes Modell ein{" "}
-            <span className="relative inline-block">
-              Unikat
-              {/* The stroke under the word draws itself once, in signal orange. */}
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 -bottom-1 h-[0.09em] origin-left animate-stroke-in rounded-full bg-highlight"
-              />
-            </span>{" "}
-            – gefertigt mit Liebe zum Detail.
-          </h1>
-          <p className="mt-6 max-w-xl animate-rise-in text-body-lg text-ink-secondary [animation-delay:200ms]">
-            Fahrzeugmodelle in Kleinserie für Sammler und Modellbahner: Lkw, Autokrane und
-            Schienenfahrzeuge von N bis Spur 0. Bestellen kannst du als Gast oder mit Kundenkonto.
-          </p>
-          <HomeActions />
+      {/* The hero: a night-blue stage with the palette's glows drifting behind the workshop's
+          own crane, which turns in its paint and comes apart under the pointer. */}
+      <section className="px-3 pt-3 sm:px-5 sm:pt-5">
+        <div className="relative mx-auto max-w-[88rem] overflow-hidden rounded-lg bg-night text-on-night">
+          <span aria-hidden="true" className="absolute -top-40 -right-24 size-[34rem] animate-drift rounded-full bg-highlight opacity-45 blur-[90px]" />
+          <span aria-hidden="true" className="absolute -bottom-52 left-[18%] size-[30rem] animate-drift-slow rounded-full bg-plum opacity-55 blur-[100px]" />
+          <span aria-hidden="true" className="absolute top-1/3 -left-40 size-[24rem] animate-drift rounded-full bg-sea opacity-45 blur-[90px]" />
+          {/* The drawing sheet's grid, faint, fading out towards the edges. */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 bg-[image:linear-gradient(rgb(255_255_255_/_0.07)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.07)_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_78%)]"
+          />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-6 px-6 py-14 sm:px-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-10 lg:py-20">
+            <div>
+              <p className="inline-flex animate-rise-in items-center gap-2.5 rounded-full border border-on-night/20 bg-on-night/10 px-3.5 py-1.5 label-caps text-on-night backdrop-blur">
+                <span aria-hidden="true" className="size-2 animate-lamp-glow rounded-full bg-sun" />
+                Seit 1992 · Handarbeit aus Deutschland
+              </p>
+              <h1 className="mt-7 animate-rise-in text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.035em] [animation-delay:80ms] sm:text-[4.25rem] lg:text-[4.75rem]">
+                Jedes Modell ein <span className="text-spectrum-night">Unikat.</span>
+              </h1>
+              <p className="mt-6 max-w-xl animate-rise-in text-body-lg text-on-night-muted [animation-delay:200ms]">
+                Gefertigt mit Liebe zum Detail: Fahrzeugmodelle in Kleinserie für Sammler und Modellbahner. Lkw,
+                Autokrane und Schienenfahrzeuge von N bis Spur 0. Bestellen kannst du als Gast oder mit Kundenkonto.
+              </p>
+              <HomeActions />
+              <dl className="mt-12 grid max-w-lg animate-rise-in grid-cols-3 gap-3 [animation-delay:440ms]">
+                {HERO_FIGURES.map((figure) => (
+                  <div key={figure.label} className="rounded-md border border-on-night/15 bg-on-night/[0.07] px-4 py-3 backdrop-blur">
+                    <dt className="order-2 text-hint text-on-night-muted">{figure.label}</dt>
+                    <dd className={`text-heading font-semibold tracking-[-0.02em] tabular-nums ${figure.tone}`}>{figure.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div className="relative">
+              <ModelTurntable model={EDK6_MODEL} ground="night" zoom={1.5} className="aspect-square lg:aspect-[4/5]" />
+              <p aria-hidden="true" className="pointer-events-none absolute right-2 bottom-2 rounded-full border border-on-night/20 bg-on-night/10 px-3 py-1 font-mono text-hint text-on-night-muted backdrop-blur max-sm:hidden">
+                EDK 6 · aus unseren Druckdateien · fass ihn an
+              </p>
+            </div>
+          </div>
         </div>
-        <CraneTruckDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
       </section>
+
+      {/* A band of words in the palette, running. Decorative: the same words are in the page. */}
+      <div aria-hidden="true" className="mt-3 overflow-hidden bg-spectrum py-3 text-on-highlight sm:mt-5">
+        <div className="flex w-max animate-ticker gap-10 pr-10 text-small font-semibold tracking-[0.08em] whitespace-nowrap uppercase">
+          {[...TICKER, ...TICKER].map((word, index) => (
+            <span key={index} className="flex items-center gap-10">
+              {word}
+              <span className="size-1.5 rounded-full bg-on-highlight" />
+            </span>
+          ))}
+        </div>
+      </div>
 
       {fair ? <NextFair fair={fair} /> : null}
 
       {newest.length > 0 ? (
-        <section aria-labelledby="neu" className="border-t border-line">
+        <section aria-labelledby="neu">
           <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
             <div className="flex flex-wrap items-baseline justify-between gap-4">
-              <h2 id="neu" className="text-heading">
-                Neu aus der Werkstatt
+              <h2 id="neu" className="text-title font-semibold tracking-[-0.03em]">
+                Neu aus der <span className="text-spectrum">Werkstatt</span>
               </h2>
               <Link href="/katalog" className="link-sweep text-small font-medium text-accent hover:text-highlight-ink">
                 Alle Modelle
@@ -132,11 +192,11 @@ export default async function HomePage() {
       ) : null}
 
       {navigation ? (
-        <section aria-labelledby="massstaebe" className="border-t border-line">
+        <section aria-labelledby="massstaebe">
           <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
             <div className="flex flex-wrap items-baseline justify-between gap-4">
-              <h2 id="massstaebe" className="text-heading">
-                Nach Maßstab
+              <h2 id="massstaebe" className="text-title font-semibold tracking-[-0.03em]">
+                Nach <span className="text-spectrum">Maßstab</span>
               </h2>
               <p className="text-small text-ink-tertiary">Ein Meter Vorbild, in jedem Maßstab nachgemessen</p>
             </div>
@@ -149,22 +209,28 @@ export default async function HomePage() {
 
       <MakingOfTeaser />
 
-      <section aria-labelledby="was-uns-ausmacht" className="bg-stage">
+      <section aria-labelledby="was-uns-ausmacht">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
-          <h2 id="was-uns-ausmacht" className="text-heading">
-            Was uns ausmacht
+          <h2 id="was-uns-ausmacht" className="text-title font-semibold tracking-[-0.03em]">
+            Was uns <span className="text-spectrum">ausmacht</span>
           </h2>
-          <ul className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-12">
+          <ul className="mt-10 grid gap-5 sm:grid-cols-3">
             {TRAITS.map((item, index) => (
-              <Reveal as="li" key={item.title} index={index} className="group relative border-t border-line-strong pt-6">
-                {/* The rule above each trait lights up in signal orange under the pointer. */}
+              <Reveal
+                as="li"
+                key={item.title}
+                index={index}
+                className={`group relative overflow-hidden rounded-lg p-7 transition-[transform,box-shadow] duration-300 ease-settle hover:-translate-y-1 hover:shadow-lift ${TRAIT_TONES[index % TRAIT_TONES.length]?.card}`}
+              >
                 <span
                   aria-hidden="true"
-                  className="absolute -top-px left-0 h-0.5 w-10 bg-highlight transition-[width] duration-500 ease-settle group-hover:w-full"
+                  className={`absolute top-0 left-0 h-1 w-14 transition-[width] duration-500 ease-settle group-hover:w-full ${TRAIT_TONES[index % TRAIT_TONES.length]?.rule}`}
                 />
-                <p className="font-mono text-hint text-highlight-ink">{String(index + 1).padStart(2, "0")}</p>
-                <h3 className="mt-2 text-[1.25rem] leading-7 font-normal tracking-[-0.01em]">{item.title}</h3>
-                <p className="mt-3 text-ink-secondary">{item.text}</p>
+                <p className={`text-display leading-none font-semibold tracking-[-0.04em] tabular-nums ${TRAIT_TONES[index % TRAIT_TONES.length]?.ink}`}>
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h3 className="mt-5 text-[1.25rem] leading-7 font-semibold tracking-[-0.01em]">{item.title}</h3>
+                <p className="mt-3 text-ink">{item.text}</p>
                 {item.link ? (
                   <Link href={item.link.href} className="mt-4 inline-block link-sweep text-small font-medium text-accent hover:text-highlight-ink">
                     {item.link.label}

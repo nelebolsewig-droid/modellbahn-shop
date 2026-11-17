@@ -1521,11 +1521,14 @@ keine Hex-Werte.
 | `ink-tertiary` | gray-600 | #666B70 | Metadaten, Trennpunkte | ≥ 4,5 : 1 auf allen Gründen |
 | `line` | gray-200 | #DEDFDB | Haarlinien, Konturen von Pills | Zierde |
 | `line-control` | gray-500 | #80858A | Rahmen von Eingabefeldern | 3,4 : 1 |
-| `selected` | gray-900 | #1E2124 | aktive Option, primärer Knopf (Mattschwarz) | Schrift darauf 16,2 : 1 |
+| `selected` | prussian-800 | #003153 | aktive Option, primärer Knopf; im Stellwerk die Farbe des Bereichs | Schrift darauf 12,2 : 1 |
 | `accent` | prussian-800 | #003153 | Links, Fokusring, Akzent-Auswahl | 12,2 : 1 |
 | `highlight` | signal-500 | #FF5A1F | Signalorange als Zeichen: Lampe im Logo, Striche, Punkte (ADR 0030) | nie Schrift |
 | `highlight-fill` | signal-600 | #CF430C | die eine Aktion einer Seite, Zähler am Warenkorb | Schrift darauf 4,7 : 1 |
 | `highlight-ink` | signal-700 | #B93A08 | orange Schrift, Schwebezustand | ≥ 4,8 : 1 auf allen Gründen |
+| `sea`, `plum`, `rose`, `sky` | sea-700, plum-600, rose-600, sky-700 | #0A7379, #6741D9, #C2255C, #1864AB | die Palette: Bereiche des Stellwerks, Kacheln, Marken (ADR 0030) | Schrift und weiße Schrift darauf ≥ 4,7 : 1 |
+| `sun` | sun-400 | #FFC233 | gelber Grund für dunkle Schrift (Preis, Rolle) | Schrift darauf 10 : 1 |
+| `night` | prussian-900 | #002640 | Kopf der Startseite, Fußzeile, Begrüßung im Stellwerk | weiße Schrift 15,5 : 1 |
 | `drawing-line` | prussian-800 | #003153 | Konturen in Zeichnungen | |
 | `drawing-grid` | prussian-100 | #D9E4EE | Raster hinter Zeichnungen | Zierde |
 | `success`, `warning`, `danger` | green-700, amber-700, red-700 | #2E7046, #8A5A00, #A8322B | Zustände, immer mit Wort | ≥ 5,0 : 1 |
@@ -1574,7 +1577,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
   `globals.css` macht daraus Tailwind-Klassen (`bg-canvas`, `text-ink-secondary`,
   `border-line`). Komponenten verwenden nur diese Klassen.
 - Die Komponenten liegen unter `frontend/src/components/ui/` und heißen wie im Designsystem.
-- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 64 Kontrastpaare (Text 4,5 : 1,
+- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 99 Kontrastpaare (Text 4,5 : 1,
   Rahmen und Fokus 3 : 1). Wer eine Farbe so ändert, dass Text unlesbar wird, bricht den Build.
 - Das Stellwerk nutzt dieselben Tokens mit `data-density="werkstatt"`: Knöpfe, Pills und
   Felder eine Stufe kompakter.

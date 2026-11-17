@@ -8,7 +8,9 @@ const MAIN_ID = "inhalt";
 /** Header, main content and footer of every shop page. */
 export function ShopFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col wash">
+      {/* The palette as a band on top of every page. */}
+      <div aria-hidden="true" className="h-1 bg-spectrum" />
       <a
         href={`#${MAIN_ID}`}
         className="sr-only z-50 rounded-full bg-selected px-5 py-3 text-small font-medium text-on-selected focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

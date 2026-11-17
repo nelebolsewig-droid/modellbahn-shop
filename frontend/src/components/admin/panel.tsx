@@ -18,12 +18,17 @@ export function Panel({ title, code, actions, className, children }: PanelProps)
   return (
     <section
       aria-labelledby={headingId}
-      className={cn("rounded-md border border-line bg-surface", className)}
+      className={cn("relative overflow-hidden rounded-md border border-line bg-surface", className)}
     >
+      {/* The section's colour along the top edge. */}
+      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px] bg-section" />
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="flex items-center gap-3">
           {code ? (
-            <span className="rounded-xs bg-highlight-subtle px-1.5 py-0.5 font-mono text-hint text-highlight-ink" aria-hidden="true">
+            <span
+              className="rounded-xs bg-[color-mix(in_srgb,var(--color-section)_12%,var(--surface))] px-1.5 py-0.5 font-mono text-hint text-section"
+              aria-hidden="true"
+            >
               {code}
             </span>
           ) : null}

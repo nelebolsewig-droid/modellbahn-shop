@@ -7,18 +7,19 @@ import { cn } from "@/lib/utils";
 const buttonVariants = cva(
   [
     "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full whitespace-nowrap",
-    "font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out",
+    "font-medium transition-[background-color,border-color,color,box-shadow,transform,filter] duration-150 ease-out",
     "active:scale-[0.97] disabled:active:scale-100",
     "disabled:cursor-not-allowed aria-busy:cursor-progress",
   ],
   {
     variants: {
       variant: {
-        // Matte black; one per area ("In den Warenkorb", "Speichern").
-        primary: "bg-selected text-on-selected hover:bg-ink-secondary disabled:bg-sunken disabled:text-ink-disabled",
+        // Prussian blue, in the Stellwerk the colour of the section; one per area ("Speichern").
+        primary:
+          "bg-selected text-on-selected hover:shadow-lift hover:brightness-125 disabled:bg-sunken disabled:text-ink-disabled disabled:shadow-none disabled:brightness-100",
         // Signal orange: the one action a page is there for ("In den Warenkorb", "Zur Kasse").
         highlight:
-          "bg-highlight-fill text-on-highlight hover:bg-highlight-ink hover:shadow-glow disabled:bg-sunken disabled:text-ink-disabled disabled:shadow-none",
+          "bg-blaze text-on-highlight hover:shadow-glow disabled:bg-none disabled:bg-sunken disabled:text-ink-disabled disabled:shadow-none disabled:after:hidden",
         // The second action next to it, with a visible border (3:1).
         secondary:
           "border border-line-control bg-transparent text-ink hover:border-ink disabled:border-line disabled:text-ink-disabled",

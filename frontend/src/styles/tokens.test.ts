@@ -50,12 +50,24 @@ export function contrast(foreground: string, background: string): number {
 const GROUNDS = ["canvas", "stage", "surface", "sunken"] as const;
 
 const TEXT_PAIRS: [string, string][] = [
-  ...["ink", "ink-secondary", "ink-tertiary", "accent", "highlight-ink", "danger", "success", "warning"].flatMap(
+  ...["ink", "ink-secondary", "ink-tertiary", "accent", "highlight-ink", "sea", "plum", "rose", "sky", "danger", "success", "warning"].flatMap(
     (text) => GROUNDS.map((ground): [string, string] => [text, ground]),
   ),
   ["on-selected", "selected"],
   ["on-accent", "accent"],
   ["on-highlight", "highlight-fill"],
+  // The palette: white on each colour, each colour and ink on its own light ground.
+  ...["sea", "plum", "rose", "sky"].flatMap((tone): [string, string][] => [
+    ["on-selected", tone],
+    [tone, `${tone}-subtle`],
+    ["ink", `${tone}-subtle`],
+  ]),
+  ["on-selected", "success"],
+  ["ink", "sun"],
+  ["ink", "sun-subtle"],
+  ["on-night", "night"],
+  ["on-night-muted", "night"],
+  ["sun", "night"],
   ["on-highlight", "highlight-ink"],
   ["ink", "highlight-subtle"],
   ["highlight-ink", "highlight-subtle"],
@@ -77,6 +89,7 @@ const MARK_PAIRS: [string, string][] = [
   // The highlight as a mark: on white fields and on the matte-black plate of the logo.
   ["highlight", "surface"],
   ["highlight", "selected"],
+  ["highlight", "night"],
   ...GROUNDS.flatMap((ground): [string, string][] => [
     ["focus", ground],
     ["line-control", ground === "sunken" ? "surface" : ground],

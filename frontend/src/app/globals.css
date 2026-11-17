@@ -76,6 +76,33 @@
   --animate-stroke-in: stroke-in 900ms var(--ease-settle) 500ms both;
   /* The cart's counter jumps when a piece lands in it. */
   --animate-pop: pop 420ms var(--ease-settle);
+  /* Glows drift behind the hero; the band of words runs; a shine crosses a button. */
+  --animate-drift: drift 16s ease-in-out infinite alternate;
+  --animate-drift-slow: drift 24s ease-in-out infinite alternate-reverse;
+  --animate-ticker: ticker 38s linear infinite;
+  --animate-hue: hue 9s linear infinite;
+
+  @keyframes drift {
+    from {
+      transform: translate3d(-6%, -4%, 0) scale(1);
+    }
+    to {
+      transform: translate3d(8%, 6%, 0) scale(1.18);
+    }
+  }
+
+  @keyframes ticker {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes hue {
+    to {
+      background-position: 200% 50%;
+    }
+  }
+
   /* The lamp of the logo breathes. */
   --animate-lamp-glow: lamp-glow 3.2s ease-in-out infinite;
 
@@ -204,6 +231,21 @@
   --color-highlight-ink: var(--highlight-ink);
   --color-highlight-subtle: var(--highlight-subtle);
   --color-on-highlight: var(--on-highlight);
+  --color-sea: var(--sea);
+  --color-sea-subtle: var(--sea-subtle);
+  --color-plum: var(--plum);
+  --color-plum-subtle: var(--plum-subtle);
+  --color-rose: var(--rose);
+  --color-rose-subtle: var(--rose-subtle);
+  --color-sky: var(--sky);
+  --color-sky-subtle: var(--sky-subtle);
+  --color-sun: var(--sun);
+  --color-sun-subtle: var(--sun-subtle);
+  --color-night: var(--night);
+  --color-on-night: var(--on-night);
+  --color-on-night-muted: var(--on-night-muted);
+  /* The colour of the place one is in: a section of the Stellwerk, else orange. */
+  --color-section: var(--section, var(--highlight-fill));
   --color-drawing-line: var(--drawing-line);
   --color-drawing-helper: var(--drawing-helper);
   --color-drawing-dimension: var(--drawing-dimension);
@@ -245,8 +287,73 @@
     width: 1.25rem;
     height: 2px;
     border-radius: 1px;
-    background-color: var(--highlight);
+    background-color: var(--section, var(--highlight));
   }
+}
+
+/* The palette as one band: on top of every page and wherever a rule may be loud. */
+@utility bg-spectrum {
+  background-image: linear-gradient(
+    90deg,
+    var(--highlight) 0%,
+    var(--sun) 22%,
+    var(--rose) 46%,
+    var(--plum) 68%,
+    var(--sea) 100%
+  );
+}
+
+/* Text in the palette's gradient; for large type only (the lightest stop is 3 : 1). */
+@utility text-spectrum {
+  background-image: linear-gradient(100deg, var(--highlight-fill) 0%, var(--rose) 45%, var(--plum) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* The same on the night ground, where the bright stops read. */
+@utility text-spectrum-night {
+  background-image: linear-gradient(100deg, var(--sun) 0%, var(--highlight) 55%, #ff7eb6 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* The loud button: orange into rose, with a shine that crosses it under the pointer. */
+@utility bg-blaze {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(100deg, var(--highlight-fill) 0%, var(--rose) 100%);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 700ms var(--ease-settle);
+    pointer-events: none;
+  }
+
+  &:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+/* A soft wash of the palette behind a whole page (shop) or in the colour of a section. */
+@utility wash {
+  background-image:
+    radial-gradient(60rem 28rem at 88% -6rem, rgb(255 90 31 / 0.16), transparent 70%),
+    radial-gradient(48rem 26rem at 4% 4rem, rgb(103 65 217 / 0.12), transparent 70%),
+    radial-gradient(52rem 30rem at 50% 38rem, rgb(10 115 121 / 0.08), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+@utility wash-section {
+  background-image:
+    radial-gradient(56rem 24rem at 0% -4rem, color-mix(in srgb, var(--section, var(--highlight)) 20%, transparent), transparent 70%),
+    radial-gradient(40rem 20rem at 100% -2rem, color-mix(in srgb, var(--section, var(--highlight)) 10%, transparent), transparent 70%);
+  background-repeat: no-repeat;
 }
 
 /* A link whose underline in the highlight colour grows from the left under the pointer. */
