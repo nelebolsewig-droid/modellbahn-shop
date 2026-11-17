@@ -579,12 +579,30 @@ def _json(response: httpx.Response) -> dict[str, Any]:
 
 
 def _first_error(body: Mapping[str, Any]) -> tuple[str, str]:
+    """eBay's error id (of the first error) and everything eBay said, in one text.
+
+    Wrapper errors like 25002 ("Cannot revise listing ...") name the real reason only in
+    ``parameters`` or in the errors after the first: all of it goes into the message, so
+    the Stellwerk shows what eBay objects to.
+    """
     errors: Sequence[Mapping[str, Any]] = body.get("errors") or []
     if not errors:
         return "http_error", "eBay refused the request"
-    error = errors[0]
+    parts = [_describe(error) for error in errors]
+    return str(errors[0].get("errorId", "unknown")), " | ".join(part for part in parts if part)
+
+
+def _describe(error: Mapping[str, Any]) -> str:
     message = str(error.get("longMessage") or error.get("message") or "")
-    return str(error.get("errorId", "unknown")), message
+    details = [
+        f"{parameter.get('name')}={parameter.get('value')}"
+        if parameter.get("name") not in (None, "") and not str(parameter["name"]).isdigit()
+        else str(parameter.get("value", ""))
+        for parameter in error.get("parameters") or []
+        if isinstance(parameter, Mapping)
+    ]
+    details = [detail for detail in details if detail and detail not in message]
+    return f"{message} [{'; '.join(details)}]" if details else message
 
 
 def _order(order: Mapping[str, Any]) -> ExternalOrder:
