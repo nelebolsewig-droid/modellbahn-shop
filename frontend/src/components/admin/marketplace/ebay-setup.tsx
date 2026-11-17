@@ -415,8 +415,8 @@ function SettingsForm({
         </FormField>
       </div>
       <p className="text-hint text-ink-tertiary">
-        Der Aufschlag deckt eBays Gebühren. Modelle auf Bestellung bietet eBay mit dieser Stückzahl an, auch ohne
-        Bestand; jeder Verkauf wird gefertigt.
+        Der Aufschlag deckt eBays Gebühren. Ausführungen mit eigener Lieferzeit bietet eBay mit dieser Stückzahl an,
+        auch ohne Bestand; jeder Verkauf wird gefertigt. Alle anderen verkauft eBay nur, solange sie im Regal liegen.
       </p>
       {save.isError ? (
         <p role="alert" className="text-small text-danger">

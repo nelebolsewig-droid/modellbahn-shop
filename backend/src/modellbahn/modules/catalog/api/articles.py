@@ -30,13 +30,12 @@ def _euros(cents: int) -> str:
 
 
 def _availability(article: Article) -> str:
-    if not article.allow_backorder:
-        return "vorrätig"
-    if article.lead_time_weeks is None:  # pragma: no cover - the database requires one
-        return "auf Bestellung"
+    """``vorrätig, sonst 2-4 Wochen`` for what is made again; ``nur vorrätig`` otherwise."""
+    if not article.allow_backorder or article.lead_time_weeks is None:
+        return "nur vorrätig"
     shortest, longest = article.lead_time_weeks
     weeks = f"{shortest}" if shortest == longest else f"{shortest}-{longest}"
-    return f"auf Bestellung ({weeks} Wochen)"
+    return f"vorrätig, sonst {weeks} Wochen"
 
 
 def articles_csv(articles: Sequence[Article]) -> bytes:

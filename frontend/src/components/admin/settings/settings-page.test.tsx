@@ -37,6 +37,7 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("link", { name: /^Kategorien/ })).toHaveAttribute("href", "/admin/einstellungen/kategorien");
     expect(screen.getByRole("link", { name: /^Maßstäbe/ })).toHaveAttribute("href", "/admin/einstellungen/massstaebe");
     expect(screen.getByRole("link", { name: /^eBay-Einrichtung/ })).toHaveAttribute("href", "/admin/einstellungen/ebay");
+    expect(screen.getByRole("link", { name: /^Lieferzeit/ })).toHaveAttribute("href", "/admin/einstellungen/lieferzeit");
   });
 
   it("offers a packer nothing to change", async () => {

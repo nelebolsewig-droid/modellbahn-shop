@@ -342,7 +342,7 @@ function ProductVariants({
                   </span>
                   <span className="block font-mono text-hint text-ink-tertiary">
                     {variant.sku}
-                    {variant.allow_backorder ? " · auf Bestellung" : ""}
+                    {variant.allow_backorder ? "" : " · nicht nachfertigen"}
                     {variant.active ? "" : " · inaktiv"}
                   </span>
                 </span>

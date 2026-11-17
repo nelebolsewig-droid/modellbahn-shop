@@ -66,6 +66,7 @@ import type {
   StockOut,
   StockScrapIn,
   StockScrapOut,
+  ToMakeListOut,
   UnitBatchOut,
   UnitCorrectionIn,
   UnitDetailsOut,
@@ -2412,7 +2413,107 @@ export const useScrapStock = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getScrapStockMutationOptions(options), queryClient);
     }
-    export const getListUnitsUrl = (params?: ListUnitsParams,) => {
+    export const getListToMakeUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/to-make`
+}
+
+/**
+ * @summary What the workshop must make for paid orders, per Ausführung (Zu fertigen)
+ */
+export const listToMake = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ToMakeListOut> => {
+
+  return apiFetch<ToMakeListOut>(getListToMakeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListToMakeQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/stock/to-make`
+    ] as const;
+    }
+
+
+export const getListToMakeQueryOptions = <TData = Awaited<ReturnType<typeof listToMake>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListToMakeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listToMake>>> = ({ signal }) => listToMake({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListToMakeQueryResult = NonNullable<Awaited<ReturnType<typeof listToMake>>>
+export type ListToMakeQueryError = ErrorType<Problem>
+
+
+export function useListToMake<TData = Awaited<ReturnType<typeof listToMake>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listToMake>>,
+          TError,
+          Awaited<ReturnType<typeof listToMake>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListToMake<TData = Awaited<ReturnType<typeof listToMake>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listToMake>>,
+          TError,
+          Awaited<ReturnType<typeof listToMake>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListToMake<TData = Awaited<ReturnType<typeof listToMake>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What the workshop must make for paid orders, per Ausführung (Zu fertigen)
+ */
+
+export function useListToMake<TData = Awaited<ReturnType<typeof listToMake>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listToMake>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListToMakeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getListUnitsUrl = (params?: ListUnitsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

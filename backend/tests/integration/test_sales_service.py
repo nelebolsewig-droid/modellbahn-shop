@@ -441,6 +441,29 @@ class TestPayment:
         assert "Bitte bezahle bis" not in received.text
         assert "Bestellung ansehen" in received.text
 
+    async def test_the_order_keeps_the_lead_time_for_what_is_made(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        painted: UUID,
+        locations: LocationService,
+        units: UnitService,
+    ) -> None:
+        await stock_up(locations, units, painted)
+        # One from the shelf: it ships within days.
+        cart = await filled_cart(carts, (painted, 1))
+        stocked = (await place(checkout, carts, cart)).details.order
+        assert stocked.lead_time_weeks is None
+        # Three while one is on the shelf: two are made, in the shop's lead time.
+        cart = await filled_cart(carts, (painted, 3))
+        made = (await place(checkout, carts, cart)).details.order
+        assert made.lead_time_weeks == (2, 4)
+        await deliver()
+        receipt = next(m for m in mails_to(mailer, "erika@example.de") if made.number in m.subject)
+        assert "voraussichtlich in 2\u20134 Wochen" in receipt.text
+
     async def test_a_provider_failure_records_nothing(
         self, carts: CartService, checkout: CheckoutService, orders: OrderService, painted: UUID
     ) -> None:

@@ -511,6 +511,29 @@
             "title": "Id",
             "type": "string"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves.",
+            "title": "Lead Time Min Weeks"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/OrderLineOut"
@@ -4719,6 +4742,29 @@
             "title": "Email",
             "type": "string"
           },
+          "lead_time_max_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Max Weeks"
+          },
+          "lead_time_min_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves.",
+            "title": "Lead Time Min Weeks"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/OrderLineOut"
@@ -8037,6 +8083,60 @@
         "title": "ProductStockOut",
         "type": "object"
       },
+      "ProductionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "default_lead_time_max_weeks": {
+            "examples": [
+              4
+            ],
+            "maximum": 52.0,
+            "minimum": 1.0,
+            "title": "Default Lead Time Max Weeks",
+            "type": "integer"
+          },
+          "default_lead_time_min_weeks": {
+            "examples": [
+              4
+            ],
+            "maximum": 52.0,
+            "minimum": 1.0,
+            "title": "Default Lead Time Min Weeks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_lead_time_min_weeks",
+          "default_lead_time_max_weeks"
+        ],
+        "title": "ProductionIn",
+        "type": "object"
+      },
+      "ProductionOut": {
+        "description": "The shop's lead time for pieces made again (ADR 0029).",
+        "properties": {
+          "default_lead_time_max_weeks": {
+            "examples": [
+              4
+            ],
+            "title": "Default Lead Time Max Weeks",
+            "type": "integer"
+          },
+          "default_lead_time_min_weeks": {
+            "examples": [
+              2
+            ],
+            "title": "Default Lead Time Min Weeks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_lead_time_min_weeks",
+          "default_lead_time_max_weeks"
+        ],
+        "title": "ProductionOut",
+        "type": "object"
+      },
       "PublishBlocker": {
         "description": "Why a product cannot be (or stay) in the shop.",
         "enum": [
@@ -8094,7 +8194,8 @@
         "description": "One model off the shelf: an existing product (a draft, say) or a new one by name.",
         "properties": {
           "allow_backorder": {
-            "default": false,
+            "default": true,
+            "description": "Made again, in the shop's lead time.",
             "title": "Allow Backorder",
             "type": "boolean"
           },
@@ -10767,6 +10868,101 @@
         "title": "TestSaleOut",
         "type": "object"
       },
+      "ToMakeListOut": {
+        "properties": {
+          "items": {
+            "description": "The longest waiting first.",
+            "items": {
+              "$ref": "#/components/schemas/ToMakeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "quantity": {
+            "description": "Pieces to make in all, for the count in the menu.",
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "quantity"
+        ],
+        "title": "ToMakeListOut",
+        "type": "object"
+      },
+      "ToMakeOut": {
+        "description": "An Ausführung the workshop must make for paid orders (*Zu fertigen*, ADR 0029).",
+        "properties": {
+          "finish": {
+            "description": "Ausführung and colour.",
+            "examples": [
+              "H0 · Fertigmodell, Rot"
+            ],
+            "title": "Finish",
+            "type": "string"
+          },
+          "model": {
+            "examples": [
+              "Stellwerk Altenau"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "oldest_at": {
+            "description": "When the oldest of the orders was placed.",
+            "format": "date-time",
+            "title": "Oldest At",
+            "type": "string"
+          },
+          "orders": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/WaitingOrderOut"
+            },
+            "title": "Orders",
+            "type": "array"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null if the model was deleted since.",
+            "title": "Product Id"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_id",
+          "model",
+          "finish",
+          "sku",
+          "quantity",
+          "oldest_at",
+          "orders"
+        ],
+        "title": "ToMakeOut",
+        "type": "object"
+      },
       "TokenIn": {
         "additionalProperties": false,
         "properties": {
@@ -11562,8 +11758,8 @@
             "type": "boolean"
           },
           "allow_backorder": {
-            "default": false,
-            "description": "Made to order.",
+            "default": true,
+            "description": "Made again (ADR 0029).",
             "title": "Allow Backorder",
             "type": "boolean"
           },
@@ -11631,7 +11827,7 @@
                 "type": "null"
               }
             ],
-            "description": "Made to order without a lead time: 4 to 6 weeks.",
+            "description": "Its own lead time; left out follows the shop's.",
             "title": "Lead Time Min Weeks"
           },
           "price_cents": {
@@ -11681,7 +11877,7 @@
             "type": "boolean"
           },
           "allow_backorder": {
-            "description": "Made to order: always for sale, made within the lead time; otherwise sold from stock and sold out when the shelves are empty.",
+            "description": "Made again: sold beyond the stock, the workshop makes the rest within the lead time (ADR 0029); otherwise sold out when the shelves are empty.",
             "title": "Allow Backorder",
             "type": "boolean"
           },
@@ -11737,6 +11933,7 @@
                 "type": "null"
               }
             ],
+            "description": "Its own lead time; null follows the shop's (`/catalog/production`).",
             "title": "Lead Time Min Weeks"
           },
           "price_cents": {
@@ -11769,7 +11966,7 @@
       },
       "VariantPatchIn": {
         "additionalProperties": false,
-        "description": "Only the fields sent are changed; ``lead_time_min_weeks: null`` removes the lead time.",
+        "description": "Only the fields sent are changed; ``lead_time_min_weeks: null`` lets the variant\nfollow the shop's lead time; ``allow_backorder: false`` drops its own.",
         "properties": {
           "active": {
             "anyOf": [
@@ -11927,6 +12124,40 @@
           "allow_backorder"
         ],
         "title": "VariantRefOut",
+        "type": "object"
+      },
+      "WaitingOrderOut": {
+        "properties": {
+          "number": {
+            "examples": [
+              "MB-2026-00042"
+            ],
+            "title": "Number",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "placed_at": {
+            "format": "date-time",
+            "title": "Placed At",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Pieces of this Ausführung the order waits for.",
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "number",
+          "placed_at",
+          "quantity"
+        ],
+        "title": "WaitingOrderOut",
         "type": "object"
       },
       "WantIn": {
@@ -12502,6 +12733,146 @@
           }
         ],
         "summary": "Every variant with EAN, article number and price, as CSV for the till",
+        "tags": [
+          "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/production": {
+      "get": {
+        "operationId": "getProduction",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The shop's lead time for pieces made again",
+        "tags": [
+          "admin-catalog"
+        ]
+      },
+      "put": {
+        "operationId": "changeProduction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Change the shop's lead time; every variant without its own follows (owner only)",
         "tags": [
           "admin-catalog"
         ]
@@ -15941,6 +16312,62 @@
           }
         ],
         "summary": "Take a number of free pieces of a variant out with a reason (Ausbuchen)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/to-make": {
+      "get": {
+        "operationId": "listToMake",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToMakeListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What the workshop must make for paid orders, per Ausführung (Zu fertigen)",
         "tags": [
           "admin-inventory"
         ]

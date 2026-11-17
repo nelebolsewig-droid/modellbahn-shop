@@ -6,8 +6,18 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient, Response
 
+from modellbahn.modules.identity.application.services import IdentityService
+from modellbahn.modules.identity.domain.model import StaffRole
 from modellbahn.modules.media.application.services import MediaService
-from tests.api.helpers import CATEGORIES, PRODUCTS, SHOP, assert_problem
+from tests.api.helpers import (
+    CATEGORIES,
+    PASSWORD,
+    PRODUCTS,
+    SHOP,
+    ClientFactory,
+    assert_problem,
+    staff_login,
+)
 from tests.conftest import Deliver
 from tests.media_support import InMemoryMediaStorage, photo, ready_image
 
@@ -449,3 +459,49 @@ class TestScales:
         assert_problem(await client.get(SCALES), 401, "not_authenticated")
         assert_problem(await packer_client.get(SCALES), 403, "insufficient_role")
         assert_problem(await packer_client.delete(f"{SCALES}/Z"), 403, "insufficient_role")
+
+
+PRODUCTION = "/api/v1/admin/catalog/production"
+
+
+class TestProduction:
+    async def test_the_owner_sets_the_shops_lead_time(
+        self, staff_client: AsyncClient, packer_client: AsyncClient
+    ) -> None:
+        assert (await staff_client.get(PRODUCTION)).json() == {
+            "default_lead_time_min_weeks": 2,
+            "default_lead_time_max_weeks": 4,
+        }
+        changed = await staff_client.put(
+            PRODUCTION, json={"default_lead_time_min_weeks": 3, "default_lead_time_max_weeks": 6}
+        )
+        assert changed.status_code == 200, changed.text
+        assert (await staff_client.get(PRODUCTION)).json()["default_lead_time_max_weeks"] == 6
+        body = assert_problem(
+            await staff_client.put(
+                PRODUCTION,
+                json={"default_lead_time_min_weeks": 5, "default_lead_time_max_weeks": 4},
+            ),
+            422,
+            "validation_failed",
+        )
+        assert body["errors"][0]["field"] == "default_lead_time_max_weeks"
+        assert_problem(await packer_client.get(PRODUCTION), 403, "insufficient_role")
+
+    async def test_only_the_owner_changes_it(
+        self, make_client: ClientFactory, identity: IdentityService
+    ) -> None:
+        await identity.create_staff(
+            email="anna@example.com", display_name="Anna", role=StaffRole.STAFF, password=PASSWORD
+        )
+        async with make_client() as client:
+            await staff_login(client, "anna@example.com")
+            assert (await client.get(PRODUCTION)).status_code == 200
+            assert_problem(
+                await client.put(
+                    PRODUCTION,
+                    json={"default_lead_time_min_weeks": 1, "default_lead_time_max_weeks": 1},
+                ),
+                403,
+                "insufficient_role",
+            )

@@ -1,8 +1,8 @@
 """Domain events of the sales module.
 
-Every order event and every withdrawal shows up live in the admin area. Payloads carry the
-order number and amounts, never the customer's name, e-mail or address: handlers load what
-they need.
+Every order event (but the internal ``OrderDelayed``) and every withdrawal shows up live in
+the admin area. Payloads carry the order number and amounts, never the customer's name,
+e-mail or address: handlers load what they need.
 """
 
 from dataclasses import dataclass
@@ -47,6 +47,23 @@ class OrderPaid(_OrderEvent):
 
     event_type: ClassVar[str] = "sales.order.paid"
     aggregate_type: ClassVar[str] = ORDER_AGGREGATE
+
+
+@domain_event
+@dataclass(frozen=True, kw_only=True)
+class OrderDelayed(_OrderEvent):
+    """Pieces of a paid order are made for the customer although the checkout saw them on
+    the shelves (ADR 0029): the order now knows the lead time, the customer hears so once.
+
+    Not shown live: the backordered pieces already are (``inventory.allocation.backordered``).
+    """
+
+    event_type: ClassVar[str] = "sales.order.delayed"
+    aggregate_type: ClassVar[str] = ORDER_AGGREGATE
+    audience: ClassVar[frozenset[str]] = frozenset()
+
+    lead_time_min_weeks: int
+    lead_time_max_weeks: int
 
 
 @domain_event

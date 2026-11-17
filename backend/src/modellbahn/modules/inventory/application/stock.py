@@ -42,6 +42,7 @@ from modellbahn.modules.inventory.domain.model import (
     Unit,
     UnitStatus,
 )
+from modellbahn.modules.sales.contracts.orders import OrderStatus
 from modellbahn.platform.clock import Clock
 
 STOCK_QUANTITY_MAX: Final = UNITS_PER_BATCH_MAX
@@ -138,6 +139,31 @@ class HistoryRow:
 def _check_quantity(quantity: int, field: str = "quantity") -> None:
     if not 1 <= quantity <= STOCK_QUANTITY_MAX:
         raise InvalidFieldError(field, "out_of_range", f"between 1 and {STOCK_QUANTITY_MAX}")
+
+
+@dataclass(frozen=True, slots=True)
+class WaitingOrder:
+    """An order waiting for pieces of one Ausführung, and how many."""
+
+    order_id: UUID
+    number: str
+    placed_at: datetime
+    quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class ToMake:
+    """An Ausführung the workshop must make for orders (*Zu fertigen*, ADR 0029)."""
+
+    variant_id: UUID
+    variant: SaleVariant | None
+    quantity: int
+    orders: list[WaitingOrder]
+    """Oldest first."""
+
+    @property
+    def oldest_at(self) -> datetime:
+        return self.orders[0].placed_at
 
 
 class StockService:
@@ -247,6 +273,44 @@ class StockService:
             )
             for product_id in sorted(product_ids)
         ]
+
+    async def to_make(self) -> list[ToMake]:
+        """Every Ausführung with pieces paid orders wait for, the longest waiting first.
+
+        A piece booked in serves the oldest of them at once, so its row shrinks and goes.
+        """
+        async with self._uow() as uow:
+            backorders = await uow.allocations.backorders()
+            orders = await uow.orders.refs({allocation.order_id for allocation in backorders})
+            variants = await uow.catalog.variants({a.variant_id for a in backorders})
+        waiting: dict[UUID, dict[UUID, int]] = defaultdict(lambda: defaultdict(int))
+        for allocation in backorders:
+            order = orders.get(allocation.order_id)
+            # Left over from an order that left or was cancelled: closed when stock comes.
+            if order is not None and order.status is OrderStatus.PAID:
+                waiting[allocation.variant_id][order.id] += 1
+        rows = [
+            ToMake(
+                variant_id=variant_id,
+                variant=variants.get(variant_id),
+                quantity=sum(per_order.values()),
+                orders=sorted(
+                    (
+                        WaitingOrder(
+                            order_id=order_id,
+                            number=orders[order_id].number,
+                            placed_at=orders[order_id].placed_at,
+                            quantity=quantity,
+                        )
+                        for order_id, quantity in per_order.items()
+                    ),
+                    key=lambda order: (order.placed_at, order.number),
+                ),
+            )
+            for variant_id, per_order in waiting.items()
+        ]
+        rows.sort(key=lambda row: (row.oldest_at, row.variant.title if row.variant else ""))
+        return rows
 
     async def history(self, product_id: UUID) -> list[HistoryRow]:
         """The model's latest bookings, newest first: journal entries of the same moment,

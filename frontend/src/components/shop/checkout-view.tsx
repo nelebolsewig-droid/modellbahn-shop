@@ -32,6 +32,7 @@ import { finishLabel, formatPrice } from "@/lib/catalog/format";
 import { applyProblemToForm, FORM_ERROR_KEY } from "@/lib/forms/apply-problem";
 import { errorMessage } from "@/lib/i18n/problems";
 import { CUSTOMER_AREA, loginPath } from "@/lib/navigation";
+import { cartLineNote } from "@/lib/sales/availability";
 import { cartQueryKey, useCart } from "@/lib/sales/cart";
 import { IDEMPOTENCY_HEADER, useIdempotencyKeys } from "@/lib/sales/idempotency";
 import { totalsFor } from "@/lib/sales/totals";
@@ -243,6 +244,9 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
                 <span className="block text-ink-tertiary">
                   {line.quantity} × {line.scale_name} · {finishLabel(line.finish_name, line.color)}
                 </span>
+                {line.availability === "made_to_order" ? (
+                  <span className="block text-hint text-accent">{cartLineNote(line).label}</span>
+                ) : null}
               </span>
               <span className="text-small tabular-nums">{formatPrice(line.line_total_cents)}</span>
             </li>
@@ -250,7 +254,7 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
         </ul>
         <OrderTotals totals={totals} countryName={country.name} className="mt-6 border-t border-line pt-6" />
         {/* The delivery time belongs on the page before the binding order. */}
-        <DeliveryNote cart={cart} className="mt-6" />
+        <DeliveryNote cart={cart} fromShelf className="mt-6" />
         <FormError message={formError} className="mt-6" />
         <Button type="submit" className="mt-6 w-full" disabled={isSubmitting} aria-busy={isSubmitting || undefined}>
           {isSubmitting ? "Bestellung wird angelegt …" : "Zahlungspflichtig bestellen"}

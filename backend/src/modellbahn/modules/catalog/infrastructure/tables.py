@@ -188,7 +188,8 @@ variants = Table(
     Column("gtin", CHAR(13), nullable=False, unique=True),
     Column("price_cents", Integer, nullable=False),
     Column("compare_at_price_cents", Integer),
-    Column("allow_backorder", Boolean, nullable=False, server_default=text("false")),
+    # Made again when the shelves run short (ADR 0029); off for one-offs.
+    Column("allow_backorder", Boolean, nullable=False, server_default=text("true")),
     Column("lead_time_min_weeks", SmallInteger),
     Column("lead_time_max_weeks", SmallInteger),
     Column("active", Boolean, nullable=False, server_default=text("true")),
@@ -205,7 +206,7 @@ variants = Table(
     ),
     # Internal numbers (GS1 prefix 20) only, until the shop has its own GS1 prefix.
     CheckConstraint("gtin ~ '^2[0-9]{12}$'", name="gtin_format"),
-    # Made to order means a lead time: a range of weeks within a year.
+    # Its own lead time, a range of weeks within a year; none follows the shop's.
     CheckConstraint(
         "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)", name="lead_time_pair"
     ),
@@ -215,9 +216,27 @@ variants = Table(
         name="lead_time_range",
     ),
     CheckConstraint(
-        "NOT allow_backorder OR lead_time_min_weeks IS NOT NULL", name="made_to_order_lead_time"
+        "allow_backorder OR lead_time_min_weeks IS NULL", name="lead_time_only_made_again"
     ),
     Index("variants_product_scale_idx", "product_scale_id"),
+    schema=SCHEMA,
+)
+
+# The shop's lead time for pieces made again (ADR 0029): one row, read whenever a
+# variant without its own lead time is shown or sold.
+production_settings = Table(
+    "production_settings",
+    metadata,
+    Column("id", SmallInteger, primary_key=True, server_default=text("1")),
+    Column("default_lead_time_min_weeks", SmallInteger, nullable=False),
+    Column("default_lead_time_max_weeks", SmallInteger, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("id = 1", name="single_row"),
+    CheckConstraint(
+        "default_lead_time_min_weeks BETWEEN 1 AND 52 "
+        "AND default_lead_time_max_weeks BETWEEN default_lead_time_min_weeks AND 52",
+        name="default_lead_time_range",
+    ),
     schema=SCHEMA,
 )
 

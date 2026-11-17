@@ -9,13 +9,16 @@ import { cn } from "@/lib/utils";
 
 import { activeSection, barSections, headerSections, moreSections, section, type Section, type SectionKey } from "./sections";
 
-type NavProps = { role: StaffRole; pathname: string };
+/** Counts beside entries: the pieces paid orders wait for, beside Bestellungen. */
+export type NavCounts = Partial<Record<SectionKey, number>>;
+
+type NavProps = { role: StaffRole; pathname: string; counts?: NavCounts };
 
 /**
  * The entries in the header on a desk, only those the role can use. "Neues Modell" lives
  * under Modelle, so it lights up Modelle.
  */
-export function HeaderNav({ role, pathname }: NavProps) {
+export function HeaderNav({ role, pathname, counts = {} }: NavProps) {
   const current = activeSection(pathname);
   return (
     <nav aria-label="Stellwerk" className="max-sm:hidden sm:flex-1">
@@ -31,11 +34,30 @@ export function HeaderNav({ role, pathname }: NavProps) {
               )}
             >
               {entry.label}
+              <Count value={counts[entry.key]} className="ml-1.5" />
             </Link>
           </li>
         ))}
       </ul>
     </nav>
+  );
+}
+
+/** How many pieces wait for the workshop, as a small number beside the entry. */
+function Count({ value, className }: { value: number | undefined; className?: string }) {
+  if (!value) {
+    return null;
+  }
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn("inline-grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[0.6875rem] leading-5 font-medium text-on-accent tabular-nums", className)}
+      >
+        {value}
+      </span>
+      <span className="sr-only">, {value === 1 ? "1 Stück" : `${value} Stücke`} zu fertigen</span>
+    </>
   );
 }
 
@@ -57,7 +79,7 @@ export function ScanButton({ pathname }: { pathname: string }) {
  * Scannen in the middle. What does not fit waits behind "Mehr"; when only one entry is
  * left (a packer's Fertigung), it takes that place itself.
  */
-export function PhoneBar({ role, pathname }: NavProps) {
+export function PhoneBar({ role, pathname, counts = {} }: NavProps) {
   const active = activeSection(pathname);
   const more = moreSections(role);
   const [single] = more;
@@ -73,7 +95,7 @@ export function PhoneBar({ role, pathname }: NavProps) {
             {entry.key === "scan" ? (
               <ScanTab entry={entry} current={active === "scan"} />
             ) : (
-              <Tab entry={entry} current={active === entry.key} />
+              <Tab entry={entry} current={active === entry.key} count={counts[entry.key]} />
             )}
           </li>
         ))}
@@ -94,7 +116,7 @@ export function PhoneBar({ role, pathname }: NavProps) {
 const TAB_CLASSES =
   "relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 px-1 text-[0.6875rem] leading-none font-medium transition-colors";
 
-function Tab({ entry, current }: { entry: Section; current: boolean }) {
+function Tab({ entry, current, count }: { entry: Section; current: boolean; count?: number | undefined }) {
   return (
     <Link
       href={entry.href}
@@ -104,6 +126,7 @@ function Tab({ entry, current }: { entry: Section; current: boolean }) {
       <Marker shown={current} />
       <Glyph name={entry.key} />
       <span className="max-w-full truncate">{entry.label}</span>
+      <Count value={count} className="absolute top-1.5 left-1/2 ml-2" />
     </Link>
   );
 }

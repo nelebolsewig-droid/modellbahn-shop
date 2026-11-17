@@ -9,10 +9,12 @@ from httpx import AsyncClient
 
 from modellbahn.modules.catalog.application.services import CatalogService, ProductDetails
 from modellbahn.modules.media.application.services import MediaService
+from modellbahn.modules.sales.application.cart import CartService
+from modellbahn.modules.sales.application.checkout import CheckoutService
 from tests.api.helpers import assert_problem
 from tests.conftest import Deliver
 from tests.media_support import InMemoryMediaStorage
-from tests.sales_support import shop_product, variant_id
+from tests.sales_support import filled_cart, place, shop_product, variant_id
 
 INVENTORY = "/api/v1/admin/inventory"
 
@@ -178,4 +180,41 @@ class TestStockByQuantity:
             ),
             404,
             "product_not_found",
+        )
+
+
+class TestToMake:
+    async def test_owner_and_staff_see_what_to_make_packers_do_not(
+        self,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        catalog: CatalogService,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        product: ProductDetails,
+        painted: UUID,
+    ) -> None:
+        await catalog.change_variant(painted, expected_version=None, allow_backorder=True)
+        cart = await filled_cart(carts, (painted, 2))
+        order = (await place(checkout, carts, cart)).details.order
+        await checkout.pay(
+            public_token=order.public_token, method="succeeds", idempotency_key=uuid4()
+        )
+        await deliver()
+
+        response = await staff_client.get(f"{INVENTORY}/stock/to-make")
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["quantity"] == 2
+        (row,) = body["items"]
+        assert (row["model"], row["finish"], row["quantity"]) == (
+            product.product.name,
+            "H0 · Fertigmodell",
+            2,
+        )
+        assert row["product_id"] == str(product.product.id)
+        assert [(o["number"], o["quantity"]) for o in row["orders"]] == [(order.number, 2)]
+        assert_problem(
+            await packer_client.get(f"{INVENTORY}/stock/to-make"), 403, "insufficient_role"
         )

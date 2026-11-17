@@ -45,6 +45,8 @@ import type {
   ProductPageOut,
   ProductPatchIn,
   ProductScaleIn,
+  ProductionIn,
+  ProductionOut,
   PublishedOut,
   QuickEntryIn,
   QuickEntryOut,
@@ -179,7 +181,194 @@ export function useExportArticles<TData = Awaited<ReturnType<typeof exportArticl
 
 
 
-export const getPublishReadyProductsUrl = () => {
+export const getGetProductionUrl = () => {
+
+
+
+
+  return `/api/v1/admin/catalog/production`
+}
+
+/**
+ * @summary The shop's lead time for pieces made again
+ */
+export const getProduction = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ProductionOut> => {
+
+  return apiFetch<ProductionOut>(getGetProductionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductionQueryKey = () => {
+    return [
+    `/api/v1/admin/catalog/production`
+    ] as const;
+    }
+
+
+export const getGetProductionQueryOptions = <TData = Awaited<ReturnType<typeof getProduction>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProduction>>> = ({ signal }) => getProduction({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProductionQueryResult = NonNullable<Awaited<ReturnType<typeof getProduction>>>
+export type GetProductionQueryError = ErrorType<Problem>
+
+
+export function useGetProduction<TData = Awaited<ReturnType<typeof getProduction>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProduction>>,
+          TError,
+          Awaited<ReturnType<typeof getProduction>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProduction<TData = Awaited<ReturnType<typeof getProduction>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProduction>>,
+          TError,
+          Awaited<ReturnType<typeof getProduction>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProduction<TData = Awaited<ReturnType<typeof getProduction>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The shop's lead time for pieces made again
+ */
+
+export function useGetProduction<TData = Awaited<ReturnType<typeof getProduction>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProduction>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetProductionQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getChangeProductionUrl = () => {
+
+
+
+
+  return `/api/v1/admin/catalog/production`
+}
+
+/**
+ * @summary Change the shop's lead time; every variant without its own follows (owner only)
+ */
+export const changeProduction = async (productionIn: ProductionIn, options?: Parameters<typeof apiFetch>[1]): Promise<ProductionOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ProductionOut>(getChangeProductionUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productionIn)
+  }
+);}
+
+
+
+
+
+export const getChangeProductionMutationKey = () => ['changeProduction'] as const;
+
+export const getChangeProductionMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeProduction>>, TError,ChangeProductionMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeProduction>>, TError,ChangeProductionMutationVariables, TContext> => {
+
+const mutationKey = getChangeProductionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeProduction>>, ChangeProductionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  changeProduction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeProductionMutationResult = NonNullable<Awaited<ReturnType<typeof changeProduction>>>
+    export type ChangeProductionMutationBody = ProductionIn
+    export type ChangeProductionMutationError = ErrorType<Problem | ValidationProblem>
+    export type ChangeProductionMutationVariables = {data: ProductionIn}
+
+    /**
+ * @summary Change the shop's lead time; every variant without its own follows (owner only)
+ */
+export const useChangeProduction = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeProduction>>, TError,ChangeProductionMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof changeProduction>>,
+        TError,
+        ChangeProductionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeProductionMutationOptions(options), queryClient);
+    }
+    export const getPublishReadyProductsUrl = () => {
 
 
 

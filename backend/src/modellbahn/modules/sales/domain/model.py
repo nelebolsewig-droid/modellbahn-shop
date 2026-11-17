@@ -30,6 +30,7 @@ from modellbahn.modules.sales.domain.errors import (
 from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
+    OrderDelayed,
     OrderPaid,
     OrderPlaced,
     OrderRefunded,
@@ -555,8 +556,18 @@ class Order:
     channel: SalesChannel = SalesChannel.SHOP
     external_ref: str | None = None
     """The marketplace's order number (empty for the shop's own orders)."""
+    lead_time_min_weeks: int | None = None
+    """When some pieces are made for the customer: the lead time the checkout showed,
+    from and to (ADR 0029). ``None``: everything ships from the shelves."""
+    lead_time_max_weeks: int | None = None
     lines: list[OrderLine] = field(default_factory=list)
     payments: list[Payment] = field(default_factory=list)
+
+    @property
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        if self.lead_time_min_weeks is None or self.lead_time_max_weeks is None:
+            return None
+        return self.lead_time_min_weeks, self.lead_time_max_weeks
 
     @classmethod
     def place(
@@ -571,7 +582,9 @@ class Order:
         checkout_key: UUID,
         checkout_fingerprint: str,
         now: datetime,
+        lead_time_weeks: tuple[int, int] | None = None,
     ) -> tuple["Order", OrderPlaced]:
+        """A new order; ``lead_time_weeks`` when some pieces are made for the customer."""
         if not items:
             msg = "an order needs at least one line"
             raise ValueError(msg)
@@ -611,6 +624,8 @@ class Order:
             checkout_fingerprint=checkout_fingerprint,
             placed_at=now,
             updated_at=now,
+            lead_time_min_weeks=lead_time_weeks[0] if lead_time_weeks else None,
+            lead_time_max_weeks=lead_time_weeks[1] if lead_time_weeks else None,
             lines=lines,
         )
         return order, OrderPlaced(
@@ -957,6 +972,28 @@ class Order:
                 total_cents=self.total_cents,
             )
         ]
+
+    def learn_lead_time(self, weeks: tuple[int, int], now: datetime) -> OrderDelayed | None:
+        """Pieces turned out to be made for the customer after the checkout (the shelf
+        emptied before the payment came in, ADR 0029): the order takes their lead time.
+
+        Only once, and only while the order waits to be packed: an order that already knows
+        a lead time promised one, and its customer needs no word. ``None`` then.
+        """
+        if self.status is not OrderStatus.PAID or self.lead_time_weeks is not None:
+            return None
+        shortest, longest = weeks
+        self.lead_time_min_weeks = shortest
+        self.lead_time_max_weeks = longest
+        self.updated_at = now
+        return OrderDelayed(
+            aggregate_id=self.id,
+            occurred_at=now,
+            number=self.number,
+            total_cents=self.total_cents,
+            lead_time_min_weeks=shortest,
+            lead_time_max_weeks=longest,
+        )
 
     def ship(self, *, carrier: str, tracking_number: str, now: datetime) -> OrderShipped:
         if self.status is not OrderStatus.PAID:

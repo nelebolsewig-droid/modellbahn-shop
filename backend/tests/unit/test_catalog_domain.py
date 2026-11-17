@@ -29,6 +29,7 @@ from modellbahn.modules.catalog.domain.model import (
     GalleryEntry,
     MediaRole,
     Product,
+    ProductionSettings,
     ProductStatus,
     Scale,
     Variant,
@@ -249,32 +250,45 @@ class TestGaugesAndVariants:
         with pytest.raises(VariantNotFoundError):
             item.change_variant(uuid4(), active=False, now=NOW)
 
-    def test_made_to_order_always_has_a_lead_time(self) -> None:
+    def test_made_again_in_the_shops_lead_time_unless_it_has_its_own(self) -> None:
         item = product()
         scale = item.add_scale(H0, Dimensions(), NOW)
-        stocked = item.add_variant(
+        variant = item.add_variant(
             scale.id, VariantDraft(finish=PAINTED, price_cents=4990), gtin="2x", now=NOW
         )
-        assert weeks(stocked) is None
-        # Switched to made to order without a lead time: the default of 1 to 2 weeks.
-        item.change_variant(stocked.id, allow_backorder=True, now=NOW)
-        assert weeks(stocked) == (1, 2)
-        item.change_variant(stocked.id, lead_time_weeks=(8, 12), now=NOW)
-        assert (stocked.lead_time_min_weeks, stocked.lead_time_max_weeks) == (8, 12)
-        # Clearing it while made to order brings the default back.
-        item.change_variant(stocked.id, lead_time_weeks=None, now=NOW)
-        assert weeks(stocked) == (1, 2)
-        item.change_variant(stocked.id, allow_backorder=False, lead_time_weeks=None, now=NOW)
-        assert weeks(stocked) is None
-        made = item.add_variant(
+        # Made again by default, in the shop's lead time (ADR 0029).
+        assert variant.allow_backorder
+        assert weeks(variant) is None
+        assert variant.made_within((2, 4)) == (2, 4)
+        item.change_variant(variant.id, lead_time_weeks=(8, 12), now=NOW)
+        assert variant.made_within((2, 4)) == (8, 12)
+        # Back to the shop's lead time.
+        item.change_variant(variant.id, lead_time_weeks=None, now=NOW)
+        assert variant.made_within((3, 5)) == (3, 5)
+        # Not made again: no lead time at all, and none of its own kept.
+        item.change_variant(variant.id, lead_time_weeks=(6, 6), now=NOW)
+        item.change_variant(variant.id, allow_backorder=False, now=NOW)
+        assert (weeks(variant), variant.made_within((2, 4))) == (None, None)
+        item.change_variant(variant.id, lead_time_weeks=(6, 6), now=NOW)
+        assert weeks(variant) is None
+        one_off = item.add_variant(
             scale.id,
             VariantDraft(
-                finish=UNPAINTED, price_cents=2990, allow_backorder=True, lead_time_weeks=(2, 2)
+                finish=UNPAINTED, price_cents=2990, allow_backorder=False, lead_time_weeks=(2, 2)
             ),
             gtin="2y",
             now=NOW,
         )
-        assert weeks(made) == (2, 2)
+        assert weeks(one_off) is None
+
+    def test_the_shops_lead_time_stays_within_a_year(self) -> None:
+        settings = ProductionSettings(
+            default_lead_time_min_weeks=2, default_lead_time_max_weeks=4, updated_at=NOW
+        )
+        settings.change_default_lead_time((3, 6), NOW)
+        assert settings.default_lead_time_weeks == (3, 6)
+        with pytest.raises(InvalidFieldError):
+            settings.change_default_lead_time((5, 4), NOW)
 
     @pytest.mark.parametrize(
         ("weeks", "field"),

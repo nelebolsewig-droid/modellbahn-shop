@@ -251,6 +251,13 @@ INSERT INTO catalog.scales (code, name, ratio_denominator, track_gauge_mm) VALUE
 """
 
 
+# The shop's lead time as migration 0020 starts it.
+RESET_LEAD_TIME = """
+UPDATE catalog.production_settings
+SET default_lead_time_min_weeks = 2, default_lead_time_max_weeks = 4
+"""
+
+
 @pytest.fixture
 async def clean_database(engine: AsyncEngine) -> None:
     """Empty every table, so that each test starts from scratch."""
@@ -258,6 +265,7 @@ async def clean_database(engine: AsyncEngine) -> None:
         await connection.execute(text(f"TRUNCATE {', '.join(WRITABLE_TABLES)}"))
         await connection.execute(text("DELETE FROM catalog.scales"))
         await connection.execute(text(RESET_SCALES))
+        await connection.execute(text(RESET_LEAD_TIME))
 
 
 @pytest.fixture

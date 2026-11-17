@@ -11,7 +11,11 @@ from uuid import UUID
 from sqlalchemy import Select, and_, delete, exists, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from modellbahn.modules.catalog.contracts.variants import SaleVariant, load_sale_variants
+from modellbahn.modules.catalog.contracts.variants import (
+    SaleVariant,
+    load_sale_variants,
+    load_shop_lead_time,
+)
 from modellbahn.modules.identity.contracts.accounts import (
     find_verified_customer,
     get_account_summary,
@@ -261,6 +265,9 @@ class SqlCatalog:
 
     async def sale_variants(self, variant_ids: Collection[UUID]) -> dict[UUID, SaleVariant]:
         return await load_sale_variants(self._uow, variant_ids)
+
+    async def shop_lead_time(self) -> tuple[int, int]:
+        return await load_shop_lead_time(self._uow)
 
 
 class SqlImages:

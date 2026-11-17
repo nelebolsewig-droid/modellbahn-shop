@@ -573,6 +573,7 @@ class TestShop:
     ) -> None:
         unpainted = variant_id(product, "H0", "unpainted")
         await catalog.change_variant(unpainted, expected_version=None, allow_backorder=True)
+        await catalog.change_default_lead_time((3, 5))
         response = await staff_client.get("/api/v1/admin/catalog/articles.csv")
         assert response.headers["content-type"] == "text/csv; charset=utf-8"
         assert response.content.startswith(b"\xef\xbb\xbf")
@@ -586,7 +587,8 @@ class TestShop:
         assert (painted_line[4], painted_line[5], painted_line[7], painted_line[8]) == (
             "49,90",
             "19",
-            "vorrätig",
+            "nur vorrätig",
             "ja",
         )
-        assert lines[skus["unpainted"]][7] == "auf Bestellung (1-2 Wochen)"
+        # Made again in the shop's lead time, read as it is now.
+        assert lines[skus["unpainted"]][7] == "vorrätig, sonst 3-5 Wochen"

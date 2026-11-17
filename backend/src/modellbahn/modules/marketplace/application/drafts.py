@@ -87,7 +87,7 @@ def build_draft(
             sku=variant.sku,
             quantity=account.listing_quantity(
                 free_units=free_units.get(variant.variant_id, 0),
-                made_to_order=variant.allow_backorder,
+                made_to_order=_made_to_order_on_ebay(variant),
             ),
             price_cents=account.listing_price(variant.price_cents),
             aspects=_choice(variant, with_colour=with_colour),
@@ -180,9 +180,15 @@ def _value(offer: OfferDraft, name: str) -> str:
     return offer.aspects.get(name, [""])[0]
 
 
+def _made_to_order_on_ebay(variant: SaleVariant) -> bool:
+    """eBay sells beyond the stock only what has its own lead time, as it did before every
+    variant was made again in the shop's lead time (ADR 0029); the rest goes by stock."""
+    return variant.allow_backorder and variant.own_lead_time
+
+
 def _choice_line(variant: SaleVariant) -> str:
     finish = f"{variant.finish_name}, {variant.color}" if variant.color else variant.finish_name
-    if variant.allow_backorder and variant.lead_time_weeks:
+    if _made_to_order_on_ebay(variant) and variant.lead_time_weeks:
         low, high = variant.lead_time_weeks
         weeks = f"{low} Woche" if low == high == 1 else f"{low} bis {high} Wochen"
         return f"{finish}: wird auf Bestellung gefertigt, wenn nicht vorrätig ({weeks})"

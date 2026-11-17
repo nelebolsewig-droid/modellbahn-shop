@@ -14,9 +14,9 @@ const TIMES = [
     details: "Wir verschicken sie in der Regel 1–3 Werktage, nachdem deine Zahlung eingegangen ist.",
   },
   {
-    term: "Auf Bestellung gefertigt",
+    term: "Für dich gefertigt",
     details:
-      "Manche Modelle bauen wir erst für dich. Die Lieferzeit steht am Artikel und vor dem Kauf im Warenkorb; bei aufwendigen Modellen sind es bis zu drei Monate.",
+      "Ist ein Modell nicht in der gewünschten Menge vorrätig, fertigen wir die fehlenden Stücke für dich. Wie viele sofort lieferbar sind und wie lange die übrigen dauern, steht am Artikel und vor dem Kauf im Warenkorb. Wir schicken alles zusammen in einem Paket.",
   },
   {
     term: "Unterwegs",

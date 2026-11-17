@@ -2,6 +2,7 @@
 what lies where, and moving, taking out and counting pieces by number."""
 
 from collections.abc import Sequence
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -38,6 +39,7 @@ from modellbahn.modules.inventory.infrastructure.repositories import SqlLocation
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.platform.clock import FixedClock
 from tests.conftest import Deliver
 from tests.inventory_support import staff_member
 from tests.media_support import InMemoryMediaStorage
@@ -400,3 +402,48 @@ class TestHistory:
         assert rows[0].staff_name == "Lagerist"
         with pytest.raises(ProductNotFoundError):
             await stock.history(uuid4())
+
+
+class TestToMake:
+    async def test_what_orders_wait_for_shrinks_as_pieces_come_in(
+        self,
+        catalog: CatalogService,
+        carts: CartService,
+        checkout: CheckoutService,
+        deliver: Deliver,
+        units: UnitService,
+        stock: StockService,
+        clock: FixedClock,
+        shelf: None,
+        painted: UUID,
+        unpainted: UUID,
+    ) -> None:
+        for variant in (painted, unpainted):
+            await catalog.change_variant(variant, expected_version=None, allow_backorder=True)
+        first = await paid_order(carts, checkout, painted, 2)
+        clock.advance(timedelta(hours=1))
+        second = await paid_order(carts, checkout, painted, 1)
+        kit = await paid_order(carts, checkout, unpainted, 1)
+        unpaid = (await place(checkout, carts, await filled_cart(carts, (painted, 4)))).details
+        await deliver()
+
+        rows = await stock.to_make()
+        assert [(row.variant_id, row.quantity) for row in rows] == [(painted, 3), (unpainted, 1)]
+        (fertig, bausatz) = rows
+        assert [(o.order_id, o.quantity) for o in fertig.orders] == [(first, 2), (second, 1)]
+        assert fertig.oldest_at < fertig.orders[1].placed_at
+        assert fertig.variant is not None
+        assert fertig.variant.variant_name == "H0 · Fertigmodell"
+        assert [o.order_id for o in bausatz.orders] == [kit]
+        # An order not paid yet waits for nothing.
+        assert unpaid.order.id not in {o.order_id for row in rows for o in row.orders}
+
+        # Booked in, the pieces serve the oldest order first; the row shrinks, then goes.
+        await book_in(units, painted, 2, TOP)
+        # Both now wait since the same hour; the kit sorts first by name.
+        assert [(row.variant_id, row.quantity) for row in await stock.to_make()] == [
+            (unpainted, 1),
+            (painted, 1),
+        ]
+        await book_in(units, painted, 1, TOP)
+        assert [row.variant_id for row in await stock.to_make()] == [unpainted]

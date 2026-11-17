@@ -63,6 +63,8 @@ from modellbahn.modules.inventory.api.schemas import (
     StockOut,
     StockScrapIn,
     StockScrapOut,
+    ToMakeListOut,
+    ToMakeOut,
     UnitBatchOut,
     UnitCorrectionIn,
     UnitDetailsOut,
@@ -213,6 +215,20 @@ async def list_place_stock(
 ) -> PlaceStockListOut:
     lines = await service.places(product_id=product_id, location_code=location_code)
     return PlaceStockListOut(items=[PlaceStockOut.from_line(line) for line in lines])
+
+
+@router.get(
+    "/stock/to-make",
+    operation_id="listToMake",
+    summary="What the workshop must make for paid orders, per Ausführung (Zu fertigen)",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def list_to_make(_: StockManager, service: StockServiceDep) -> ToMakeListOut:
+    rows = await service.to_make()
+    return ToMakeListOut(
+        items=[ToMakeOut.from_row(row) for row in rows],
+        quantity=sum(row.quantity for row in rows),
+    )
 
 
 @router.get(

@@ -104,7 +104,18 @@ orders = Table(
     # Where the order came from; a marketplace order carries the marketplace's number.
     Column("channel", StrEnumType(SalesChannel), nullable=False, server_default=text("'shop'")),
     Column("external_ref", Text),
+    # The lead time the checkout showed when some pieces are made for the customer.
+    Column("lead_time_min_weeks", SmallInteger),
+    Column("lead_time_max_weeks", SmallInteger),
     CheckConstraint("status IN ('pending_payment', 'paid', 'shipped', 'cancelled')", name="status"),
+    CheckConstraint(
+        "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)", name="lead_time_pair"
+    ),
+    CheckConstraint(
+        "lead_time_min_weeks IS NULL OR (lead_time_min_weeks BETWEEN 1 AND 52 "
+        "AND lead_time_max_weeks BETWEEN lead_time_min_weeks AND 52)",
+        name="lead_time_range",
+    ),
     CheckConstraint("channel IN ('shop', 'ebay')", name="channel"),
     CheckConstraint("(channel = 'shop') = (external_ref IS NULL)", name="external_ref"),
     CheckConstraint("number ~ '^MB-[0-9]{4}-[0-9]{5,}$'", name="number_format"),

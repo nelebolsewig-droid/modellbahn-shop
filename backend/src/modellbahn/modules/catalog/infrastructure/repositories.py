@@ -8,7 +8,7 @@ from functools import partial
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, exists, func, literal, select, tuple_
+from sqlalchemy import ColumnElement, Select, exists, func, literal, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -19,11 +19,13 @@ from modellbahn.modules.catalog.application.ports import (
     ProductOrder,
     ProductQuery,
 )
+from modellbahn.modules.catalog.contracts.variants import made_within
 from modellbahn.modules.catalog.domain.model import (
     Category,
     Epoch,
     Finish,
     Product,
+    ProductionSettings,
     ProductStatus,
     Scale,
 )
@@ -37,6 +39,7 @@ from modellbahn.modules.catalog.infrastructure.tables import (
     product_media,
     product_number_seq,
     product_scales,
+    production_settings,
     products,
     scales,
     variants,
@@ -135,8 +138,7 @@ class SqlProductRepository:
                 variants.c.price_cents,
                 variants.c.active,
                 variants.c.allow_backorder,
-                variants.c.lead_time_min_weeks,
-                variants.c.lead_time_max_weeks,
+                *made_within(),
             )
             .join(product_scales, product_scales.c.id == variants.c.product_scale_id)
             .join(products, products.c.id == product_scales.c.product_id)
@@ -165,8 +167,8 @@ class SqlProductRepository:
                 active=row.active and row.status == ProductStatus.ACTIVE,
                 allow_backorder=row.allow_backorder,
                 lead_time_weeks=(
-                    (row.lead_time_min_weeks, row.lead_time_max_weeks)
-                    if row.lead_time_min_weeks is not None
+                    (row.made_within_min_weeks, row.made_within_max_weeks)
+                    if row.made_within_min_weeks is not None
                     else None
                 ),
             )
@@ -322,6 +324,32 @@ class SqlReferenceData:
         # unique constraint before this check could answer.
         with self._session.no_autoflush:
             return bool(await self._session.scalar(select(exists().where(*conditions))))
+
+    async def production_settings(self, *, for_update: bool = False) -> ProductionSettings:
+        statement = select(
+            production_settings.c.default_lead_time_min_weeks,
+            production_settings.c.default_lead_time_max_weeks,
+            production_settings.c.updated_at,
+        ).where(production_settings.c.id == 1)
+        if for_update:
+            statement = statement.with_for_update()
+        row = (await self._session.execute(statement)).one()
+        return ProductionSettings(
+            default_lead_time_min_weeks=row.default_lead_time_min_weeks,
+            default_lead_time_max_weeks=row.default_lead_time_max_weeks,
+            updated_at=row.updated_at,
+        )
+
+    async def save_production_settings(self, settings: ProductionSettings) -> None:
+        await self._session.execute(
+            update(production_settings)
+            .where(production_settings.c.id == 1)
+            .values(
+                default_lead_time_min_weeks=settings.default_lead_time_min_weeks,
+                default_lead_time_max_weeks=settings.default_lead_time_max_weeks,
+                updated_at=settings.updated_at,
+            )
+        )
 
     async def scale_usage(self) -> dict[str, int]:
         statement = select(product_scales.c.scale_code, func.count()).group_by(

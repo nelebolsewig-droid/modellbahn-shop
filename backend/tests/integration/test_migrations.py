@@ -79,6 +79,7 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "catalog.product_scales",
         "catalog.variants",
         "catalog.product_media",
+        "catalog.production_settings",
         "sales.carts",
         "sales.cart_lines",
         "sales.orders",
@@ -224,4 +225,70 @@ async def test_scales_start_with_rail_and_road_scales(engine: AsyncEngine) -> No
         ("125", "1:25", "25.0", None),
         ("124", "1:24", "24.0", None),
         ("G", "G", "22.5", "45.0"),
+    ]
+
+
+_VARIANTS_BEFORE_0020 = """
+INSERT INTO catalog.products (id, number, slug, name, status, created_at, updated_at)
+VALUES ('00000000-0000-7000-8000-000000000001', 1, 'kipper', 'Kipper', 'draft', now(), now());
+INSERT INTO catalog.product_scales (id, product_id, scale_code)
+VALUES ('00000000-0000-7000-8000-000000000002', '00000000-0000-7000-8000-000000000001', 'H0');
+INSERT INTO catalog.variants (id, product_scale_id, finish_code, color, sku, gtin,
+    price_cents, allow_backorder, lead_time_min_weeks, lead_time_max_weeks,
+    created_at, updated_at)
+VALUES
+    ('00000000-0000-7000-8000-00000000000a', '00000000-0000-7000-8000-000000000002',
+     'unpainted', '', 'MB-000001-H0-B', '2000000000011', 2990, true, 6, 8, now(), now()),
+    ('00000000-0000-7000-8000-00000000000b', '00000000-0000-7000-8000-000000000002',
+     'painted', 'Rot', 'MB-000001-H0-FRO', '2000000000028', 4990, false, 3, 3, now(), now()),
+    ('00000000-0000-7000-8000-00000000000c', '00000000-0000-7000-8000-000000000002',
+     'painted', 'Gelb', 'MB-000001-H0-FGE', '2000000000035', 4990, false, NULL, NULL,
+     now(), now());
+"""
+
+
+async def _variant_rows(database_url: str) -> list[tuple[str, bool, int | None, int | None]]:
+    engine = create_engine(database_url)
+    try:
+        async with engine.connect() as connection:
+            rows = await connection.execute(
+                text(
+                    "SELECT color, allow_backorder, lead_time_min_weeks, lead_time_max_weeks "
+                    "FROM catalog.variants ORDER BY sku"
+                )
+            )
+            return [(row[0], row[1], row[2], row[3]) for row in rows]
+    finally:
+        await engine.dispose()
+
+
+async def _run(database_url: str, sql: str) -> None:
+    engine = create_engine(database_url)
+    try:
+        async with engine.begin() as connection:
+            for statement in filter(str.strip, sql.split(";")):
+                await connection.execute(text(statement))
+    finally:
+        await engine.dispose()
+
+
+def test_0020_makes_every_model_again(scratch_database_url: str) -> None:
+    migrate(scratch_database_url, "0019")
+    asyncio.run(_run(scratch_database_url, _VARIANTS_BEFORE_0020))
+
+    migrate(scratch_database_url)
+    # Made again, all of them. The lead time a made-to-order variant had stays its own;
+    # one that was never used (not made to order) goes, so it follows the shop's.
+    assert asyncio.run(_variant_rows(scratch_database_url)) == [
+        ("", True, 6, 8),
+        ("Gelb", True, None, None),
+        ("Rot", True, None, None),
+    ]
+
+    downgrade(scratch_database_url, "0019")
+    # Back again, the shop's lead time is copied where a variant had none of its own.
+    assert asyncio.run(_variant_rows(scratch_database_url)) == [
+        ("", True, 6, 8),
+        ("Gelb", True, 2, 4),
+        ("Rot", True, 2, 4),
     ]

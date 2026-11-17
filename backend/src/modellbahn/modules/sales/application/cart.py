@@ -73,6 +73,19 @@ class CartView:
     def ready_for_checkout(self) -> bool:
         return bool(self.items) and all(item.available for item in self.items)
 
+    @property
+    def lead_time_weeks(self) -> tuple[int, int] | None:
+        """When some pieces are made for the customer: the longest lead time, from and to,
+        since the parcel leaves complete. ``None`` when everything is on the shelves."""
+        made = [
+            item.variant.lead_time_weeks
+            for item in self.items
+            if item.availability is Availability.MADE_TO_ORDER and item.variant.lead_time_weeks
+        ]
+        if not made:
+            return None
+        return max(weeks[0] for weeks in made), max(weeks[1] for weeks in made)
+
 
 async def price_cart(uow: SalesUnitOfWork, cart: Cart | None) -> CartView:
     zone = shipping_zone(DEFAULT_COUNTRY)
