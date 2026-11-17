@@ -202,8 +202,8 @@ export default function ExplosionScene({
     const abort = new AbortController();
     if (model.meshUrl) {
       loadMeshFile(model.meshUrl, abort.signal).then(
-        (meshes) => {
-          if (!abort.signal.aborted) partsRef.current = build(meshes);
+        (file) => {
+          if (!abort.signal.aborted) partsRef.current = build(file.parts);
         },
         () => {
           if (!abort.signal.aborted) onUnavailable();

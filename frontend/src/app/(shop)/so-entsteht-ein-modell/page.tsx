@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeading } from "@/components/site/page-heading";
 import { Button } from "@/components/ui/button";
 import { ExplosionView } from "@/components/workshop/explosion-view";
+import { MotionStage } from "@/components/workshop/motion-stage";
 import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 
 export const metadata: Metadata = {
@@ -25,6 +26,20 @@ export default function MakingOfPage() {
       </div>
 
       <ExplosionView model={EDK6_MODEL} />
+
+      <section aria-labelledby="in-bewegung" className="mx-auto mt-16 max-w-6xl px-5 sm:px-8 lg:mt-24">
+        <p className="label-caps label-tick text-ink-tertiary">Fertig montiert</p>
+        <h2 id="in-bewegung" className="mt-4 text-title font-semibold tracking-[-0.03em]">
+          Der Kran in <span className="text-spectrum">Bewegung</span>
+        </h2>
+        <p className="mt-4 max-w-2xl text-body-lg text-ink-secondary">
+          Lackiert in Bahnfarben, mit mattem Metall und glänzendem Lack: So steht, fährt und bremst der EDK 6. Der
+          Oberwagen dreht auf seinem Drehkranz, die Seilklappe schwingt auf.
+        </p>
+        <div className="mt-8">
+          <MotionStage model={EDK6_MODEL} />
+        </div>
+      </section>
 
       <section aria-labelledby="eigenes-modell" className="mt-16 border-t border-line lg:mt-24">
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:py-20">

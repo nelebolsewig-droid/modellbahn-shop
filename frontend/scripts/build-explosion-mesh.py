@@ -11,7 +11,7 @@ at and far too coarse to print from (ADR 0030).
 File format, little endian: "ADPM", uint32 length of a JSON header, the header, then for
 each part its vertices (int16 x, y, z; `scale` in the header turns them into the scene's
 millimetres) and its triangles (uint16 indices). The header lists the parts with their
-offsets. The scene's axes: x along the track, y up, z across.
+offsets and the pivots of the moving parts. The scene's axes: x along the track, y up, z across.
 """
 
 import json
@@ -36,11 +36,27 @@ PARTS = {
     "drehgestell-vorn": ("edk6_drehgest.stl", 4500, (0.0, 0.0, 0.0), False),
     "drehgestell-hinten": ("edk6_drehgest.stl", 4500, (0.12, 0.0, 0.0), True),
     # The slewing ring of the base plate sits over the ring of the underframe.
-    "grundplatte": ("edk6_oberwagen_grundplatte.stl", 2400, (0.60, 0.80, 1.65), False),
-    "gehaeuse": ("edk6_oberwagen_geh.stl", 7000, (0.06, 0.0, 1.75), False),
-    "seilklappe": ("edk6_seilklappe.stl", 700, (-1.30, 0.0, 5.50), False),
-    "ausleger": ("edk6_ausleger2.stl", 16000, (2.10, 0.0, 1.95), False),
+    "grundplatte": ("edk6_oberwagen_grundplatte.stl", 2400, (0.54, 0.80, 1.65), False),
+    "gehaeuse": ("edk6_oberwagen_geh.stl", 7000, (0.0, 0.0, 1.75), False),
+    # The flap closes the rope opening in the roof (x -1.3 … -0.65 m of the housing).
+    "seilklappe": ("edk6_seilklappe.stl", 700, (-1.30, 0.0, 5.15), False),
+    "ausleger": ("edk6_ausleger2.stl", 16000, (2.04, 0.0, 1.95), False),
 }
+
+# Where the moving parts turn, in metres of the original (tools/blender/edk6_animation.py
+# uses the same points): the slewing ring of the underframe, the middle of each bogie,
+# and the hinge of the rope flap along its rear edge.
+PIVOTS = {
+    "drehkranz": (0.0, 0.0, 1.45),
+    "drehgestell-vorn": (1.925, 0.0, 0.6),
+    "drehgestell-hinten": (-1.805, 0.0, 0.6),
+    "seilklappe": (-1.30, 0.0, 5.15),
+}
+
+
+def to_scene(point: tuple[float, float, float]) -> list[float]:
+    x, y, z = (np.array(point) - CENTRE) * UNITS_PER_METRE
+    return [round(float(x), 3), round(float(z), 3), round(float(-y), 3)]
 
 
 def load(folder: Path, file: str, keep: int, shift: tuple[float, float, float], mirrored: bool):
@@ -64,7 +80,12 @@ def main(folder: Path) -> None:
     meshes = {name: load(folder, *spec) for name, spec in PARTS.items()}
     reach = max(float(np.abs(vertices).max()) for vertices, _ in meshes.values())
     scale = reach / 32767
-    header: dict[str, object] = {"scale": scale, "parts": []}
+    header: dict[str, object] = {
+        "scale": scale,
+        "unitsPerMetre": UNITS_PER_METRE,
+        "pivots": {name: to_scene(point) for name, point in PIVOTS.items()},
+        "parts": [],
+    }
     body = bytearray()
     for name, (vertices, faces) in meshes.items():
         if len(vertices) > 65535:

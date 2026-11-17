@@ -9,14 +9,26 @@
 
 export type PartMesh = { positions: Float32Array; indices: Uint16Array };
 
+type Point = readonly [number, number, number];
+
+/** The parts by name, and the points the moving parts turn about (scene millimetres). */
+export type MeshFile = {
+  parts: Map<string, PartMesh>;
+  pivots: Readonly<Record<string, Point>>;
+  /** Scene millimetres per metre of the original. */
+  unitsPerMetre: number;
+};
+
 type Header = {
   scale: number;
+  unitsPerMetre?: number;
+  pivots?: Record<string, Point>;
   parts: { name: string; vertices: number; vertexOffset: number; triangles: number; indexOffset: number }[];
 };
 
 const MAGIC = "ADPM";
 
-export function parseMeshFile(buffer: ArrayBuffer): Map<string, PartMesh> {
+export function parseMeshFile(buffer: ArrayBuffer): MeshFile {
   const view = new DataView(buffer);
   const magic = String.fromCharCode(...new Uint8Array(buffer, 0, 4));
   if (buffer.byteLength < 8 || magic !== MAGIC) {
@@ -36,10 +48,10 @@ export function parseMeshFile(buffer: ArrayBuffer): Map<string, PartMesh> {
     const indices = new Uint16Array(buffer.slice(body + part.indexOffset, body + part.indexOffset + part.triangles * 6));
     meshes.set(part.name, { positions, indices });
   }
-  return meshes;
+  return { parts: meshes, pivots: header.pivots ?? {}, unitsPerMetre: header.unitsPerMetre ?? 1 };
 }
 
-export async function loadMeshFile(url: string, signal?: AbortSignal): Promise<Map<string, PartMesh>> {
+export async function loadMeshFile(url: string, signal?: AbortSignal): Promise<MeshFile> {
   const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`mesh file ${url}: ${response.status}`);

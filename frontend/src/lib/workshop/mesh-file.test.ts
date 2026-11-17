@@ -11,7 +11,7 @@ const file = readFileSync(new URL("../../../public/modelle/edk6.mesh", import.me
 const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
 
 describe("the mesh file of the EDK 6", () => {
-  const meshes = parseMeshFile(buffer);
+  const { parts: meshes, pivots } = parseMeshFile(buffer);
 
   it("holds every part the model names", () => {
     const named = EDK6_MODEL.parts.flatMap((part) =>
@@ -35,6 +35,10 @@ describe("the mesh file of the EDK 6", () => {
     expect(file.byteLength).toBeLessThan(400 * 1024);
     const triangles = [...meshes.values()].reduce((sum, mesh) => sum + mesh.indices.length / 3, 0);
     expect(triangles).toBeLessThan(45_000);
+  });
+
+  it("names the points the moving parts turn about", () => {
+    expect(Object.keys(pivots).sort()).toEqual(["drehgestell-hinten", "drehgestell-vorn", "drehkranz", "seilklappe"]);
   });
 
   it("rejects other files", () => {

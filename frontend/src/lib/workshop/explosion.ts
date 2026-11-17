@@ -18,6 +18,16 @@ export type Solid =
   /** A part of a real model, by its name in the model's mesh file (`meshUrl`). */
   | { kind: "mesh"; name: string };
 
+/** Surfaces of a painted model: bare or primed metal, glossy paint, rubber. */
+export type Finish = "matte-metal" | "gloss-paint" | "rubber";
+
+/** Roughness and metalness of each finish, for a physically based material. */
+export const FINISHES: Readonly<Record<Finish, { roughness: number; metalness: number }>> = {
+  "matte-metal": { roughness: 0.62, metalness: 0.75 },
+  "gloss-paint": { roughness: 0.22, metalness: 0.05 },
+  rubber: { roughness: 0.92, metalness: 0 },
+};
+
 /** Solids that move together, along `direction` by `distance` mm when fully exploded. */
 export type Piece = {
   solids: readonly Solid[];
@@ -36,6 +46,8 @@ export type ExplosionPart = {
   order: number;
   /** The colour of the painted part; the put-together model wears it (hex). */
   color?: string;
+  /** How the painted surface takes the light. */
+  finish?: Finish;
   pieces: readonly Piece[];
 };
 
