@@ -26,10 +26,12 @@ export function HeaderNav({ role, pathname }: NavProps) {
               href={entry.href}
               aria-current={entry.key === current ? "page" : undefined}
               className={cn(
-                "inline-flex h-9 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
+                "inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
                 entry.key === current ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
               )}
             >
+              {/* The lit lamp of the section you are in. */}
+              {entry.key === current ? <span aria-hidden="true" className="size-1.5 rounded-full bg-highlight" /> : null}
               {entry.label}
             </Link>
           </li>
@@ -43,7 +45,7 @@ export function HeaderNav({ role, pathname }: NavProps) {
 export function ScanButton({ pathname }: { pathname: string }) {
   const scan = section("scan");
   return (
-    <Button asChild size="sm" className="max-sm:hidden">
+    <Button asChild size="sm" variant="highlight" className="max-sm:hidden">
       <Link href={scan.href} aria-current={activeSection(pathname) === "scan" ? "page" : undefined}>
         <Glyph name="scan" className="size-4" />
         {scan.label}
@@ -117,8 +119,8 @@ function ScanTab({ entry, current }: { entry: Section; current: boolean }) {
     >
       <span
         className={cn(
-          "grid size-10 place-items-center rounded-full bg-selected text-on-selected",
-          current && "ring-4 ring-accent-subtle",
+          "grid size-10 place-items-center rounded-full bg-highlight-fill text-on-highlight",
+          current && "ring-4 ring-highlight-subtle",
         )}
       >
         <Glyph name="scan" />
@@ -166,7 +168,7 @@ function MoreTab({ entries, active }: { entries: readonly Section[]; active: Sec
 /** The current tab's mark: a short bar on the top edge, like a lit section of track. */
 function Marker({ shown }: { shown: boolean }) {
   return shown ? (
-    <span aria-hidden="true" className="absolute inset-x-1/4 top-0 h-0.5 rounded-b-xs bg-selected" />
+    <span aria-hidden="true" className="absolute inset-x-1/4 top-0 h-0.5 rounded-b-xs bg-highlight-fill" />
   ) : null;
 }
 

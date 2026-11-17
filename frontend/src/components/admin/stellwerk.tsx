@@ -16,7 +16,7 @@ export function Stellwerk() {
         const now = new Date();
         return (
           <>
-            <p className="label-caps text-ink-tertiary">Dienst · {formatWeekdayDate(now)}</p>
+            <p className="label-caps label-tick text-ink-tertiary">Dienst · {formatWeekdayDate(now)}</p>
             <h1 className="mt-4 text-heading break-words sm:text-title">
               {greetingFor(now)}, {staff.display_name}
             </h1>

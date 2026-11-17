@@ -12,6 +12,8 @@ export const DRAWING = {
   helper: "fill-none stroke-drawing-helper [stroke-dasharray:4_3]",
   /** Dimension and extension lines. */
   dimension: "fill-none stroke-drawing-dimension",
+  /** One part picked out in signal orange, e.g. the hook of a crane. */
+  mark: "fill-highlight-subtle stroke-highlight-fill",
   /** Dimension figures. */
   figure: "fill-drawing-dimension font-mono text-[7px]",
 } as const;
@@ -24,6 +26,8 @@ type BlueprintDrawingProps = {
   label: string;
   /** The title block under the drawing: model, scale, view, sheet. */
   titleBlock: readonly TitleBlockCell[];
+  /** Lets the drawing appear from left to right, as if a plotter drew it, once. */
+  plotted?: boolean;
   className?: string;
   /** The SVG content; use the {@link DRAWING} classes and `vectorEffect="non-scaling-stroke"`. */
   children: ReactNode;
@@ -33,7 +37,7 @@ type BlueprintDrawingProps = {
  * A technical view of a model, drawn like an architectural plan: fine Prussian-blue
  * lines on a 16 px grid, dimension lines and a title block (docs/KONZEPT.md §11).
  */
-export function BlueprintDrawing({ viewBox, label, titleBlock, className, children }: BlueprintDrawingProps) {
+export function BlueprintDrawing({ viewBox, label, titleBlock, plotted = false, className, children }: BlueprintDrawingProps) {
   return (
     <figure
       className={cn(
@@ -43,7 +47,7 @@ export function BlueprintDrawing({ viewBox, label, titleBlock, className, childr
         className,
       )}
     >
-      <svg viewBox={viewBox} role="img" aria-label={label} className="block h-auto w-full overflow-visible">
+      <svg viewBox={viewBox} role="img" aria-label={label} className={cn("block h-auto w-full overflow-visible", plotted && "animate-plot-in")}>
         {children}
       </svg>
       <figcaption

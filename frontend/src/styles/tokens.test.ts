@@ -50,11 +50,15 @@ export function contrast(foreground: string, background: string): number {
 const GROUNDS = ["canvas", "stage", "surface", "sunken"] as const;
 
 const TEXT_PAIRS: [string, string][] = [
-  ...["ink", "ink-secondary", "ink-tertiary", "accent", "danger", "success", "warning"].flatMap(
+  ...["ink", "ink-secondary", "ink-tertiary", "accent", "highlight-ink", "danger", "success", "warning"].flatMap(
     (text) => GROUNDS.map((ground): [string, string] => [text, ground]),
   ),
   ["on-selected", "selected"],
   ["on-accent", "accent"],
+  ["on-highlight", "highlight-fill"],
+  ["on-highlight", "highlight-ink"],
+  ["ink", "highlight-subtle"],
+  ["highlight-ink", "highlight-subtle"],
   ["on-selected", "danger"],
   ["ink", "accent-subtle"],
   ["accent", "accent-subtle"],
@@ -70,6 +74,9 @@ const TEXT_PAIRS: [string, string][] = [
 ];
 
 const MARK_PAIRS: [string, string][] = [
+  // The highlight as a mark: on white fields and on the matte-black plate of the logo.
+  ["highlight", "surface"],
+  ["highlight", "selected"],
   ...GROUNDS.flatMap((ground): [string, string][] => [
     ["focus", ground],
     ["line-control", ground === "sunken" ? "surface" : ground],

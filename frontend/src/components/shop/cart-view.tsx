@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { ColorDot } from "@/components/ui/color-dot";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CartLineOut, CartOut } from "@/lib/api/generated/model";
 import { finishLabel, formatPrice } from "@/lib/catalog/format";
@@ -19,6 +18,7 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { availabilityNote, cartLeadTime, leadTimeText } from "@/lib/sales/availability";
 import { shippingGroups } from "@/lib/sales/countries";
 import { useCart, useCartChange } from "@/lib/sales/cart";
+import { ModelPhoto } from "@/components/ui/model-photo";
 import { cn } from "@/lib/utils";
 
 /** The cart page: lines with quantities, the totals and the way to the checkout. */
@@ -97,9 +97,9 @@ function CartLine({
         href={productHref}
         tabIndex={-1}
         aria-hidden="true"
-        className={cn("relative aspect-square rounded-md bg-stage p-2", !line.available && "opacity-50 grayscale")}
+        className={cn("relative aspect-square rounded-md bg-stage", !line.available && "opacity-50 grayscale")}
       >
-        {line.image ? <ResponsivePicture image={line.image} alt="" sizes="112px" variant="thumb" /> : null}
+        {line.image ? <ModelPhoto image={line.image} alt="" sizes="112px" variant="thumb" /> : null}
       </Link>
       <div className="min-w-0">
         <h3 className="text-body font-medium">
@@ -209,7 +209,7 @@ function CartSummary({ cart }: { cart: CartOut }) {
       />
       <DeliveryNote cart={cart} className="mt-6" />
       {cart.ready_for_checkout ? (
-        <Button asChild className="mt-8 w-full">
+        <Button asChild variant="highlight" className="mt-8 w-full">
           <Link href="/kasse">Zur Kasse</Link>
         </Button>
       ) : (

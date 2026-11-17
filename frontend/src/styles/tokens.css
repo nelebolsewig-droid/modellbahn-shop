@@ -2,7 +2,7 @@
  * Design tokens of the Modellbahn-Shop (docs/KONZEPT.md §11, ADR 0007).
  *
  * Three levels: raw values (gray-*, prussian-* …) only name colours; semantic tokens
- * (canvas, ink, accent …) say what a colour is for and point at a raw value;
+ * (canvas, ink, accent, highlight …) say what a colour is for and point at a raw value;
  * components use semantic tokens only, through the Tailwind classes that
  * globals.css derives from them (bg-canvas, text-ink-secondary, border-line …).
  * The values match the design system "Modellbahn-Shop Designsystem" (tokens.json);
@@ -36,6 +36,10 @@
   --red-50: #f8e6e4;
   --red-700: #a8322b;
   --red-500: #ff4d3d;
+  --signal-50: #fff1e8;
+  --signal-500: #ff5a1f;
+  --signal-600: #cf430c;
+  --signal-700: #b93a08;
 
   /* Grounds */
   --canvas: var(--gray-50);
@@ -62,6 +66,14 @@
   --accent-subtle: var(--prussian-50);
   --on-accent: var(--gray-0);
   --focus: var(--prussian-800);
+
+  /* Highlight: signal orange, the one loud colour (ADR 0030). `highlight` is a mark
+     (dots, rules, the lamp) and never carries text; fills and text use the darker two. */
+  --highlight: var(--signal-500);
+  --highlight-fill: var(--signal-600);
+  --highlight-ink: var(--signal-700);
+  --highlight-subtle: var(--signal-50);
+  --on-highlight: var(--gray-0);
 
   /* Technical drawings */
   --drawing-line: var(--prussian-800);

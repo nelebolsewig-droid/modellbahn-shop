@@ -20,6 +20,12 @@
   --radius-lg: 24px;
 
   --shadow-overlay: 0 24px 64px rgb(30 33 36 / 0.12);
+  /* A card that lifts under the pointer, and the glow under the highlight button. */
+  --shadow-lift: 0 18px 40px -18px rgb(30 33 36 / 0.28);
+  --shadow-glow: 0 10px 28px -10px rgb(207 67 12 / 0.55);
+
+  /* Movement: things arrive quickly and settle softly. */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Type scale: large and thin; weights 200 and 300 only from 40 px. */
   --text-display-xl: 5rem;
@@ -62,6 +68,68 @@
   --animate-scan-flash: scan-flash 650ms ease-out forwards;
   /* The nozzle of a filament printer in the printer hall goes to and fro while it prints. */
   --animate-nozzle-sweep: nozzle-sweep 2.4s ease-in-out infinite alternate;
+
+  /* Text and cards rise into place; the hero's drawing is plotted from left to right. */
+  --animate-rise-in: rise-in 700ms var(--ease-settle) both;
+  --animate-plot-in: plot-in 1.5s var(--ease-settle) both;
+  /* The stroke under a highlighted word draws itself once. */
+  --animate-stroke-in: stroke-in 900ms var(--ease-settle) 500ms both;
+  /* The cart's counter jumps when a piece lands in it. */
+  --animate-pop: pop 420ms var(--ease-settle);
+  /* The lamp of the logo breathes. */
+  --animate-lamp-glow: lamp-glow 3.2s ease-in-out infinite;
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes plot-in {
+    from {
+      clip-path: inset(-6% 100% -6% -6%);
+    }
+    to {
+      /* Wider than the box: a drawing may reach over its edge. */
+      clip-path: inset(-6% -6% -6% -6%);
+    }
+  }
+
+  @keyframes stroke-in {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.35);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes lamp-glow {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
 
   @keyframes nozzle-sweep {
     from {
@@ -131,6 +199,11 @@
   --color-accent-subtle: var(--accent-subtle);
   --color-on-accent: var(--on-accent);
   --color-focus: var(--focus);
+  --color-highlight: var(--highlight);
+  --color-highlight-fill: var(--highlight-fill);
+  --color-highlight-ink: var(--highlight-ink);
+  --color-highlight-subtle: var(--highlight-subtle);
+  --color-on-highlight: var(--on-highlight);
   --color-drawing-line: var(--drawing-line);
   --color-drawing-helper: var(--drawing-helper);
   --color-drawing-dimension: var(--drawing-dimension);
@@ -159,6 +232,53 @@
   font-weight: var(--text-label--font-weight);
   letter-spacing: var(--text-label--letter-spacing);
   text-transform: uppercase;
+}
+
+/* A caption with the highlight's tick in front, e.g. above a page title. */
+@utility label-tick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  &::before {
+    content: "";
+    width: 1.25rem;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--highlight);
+  }
+}
+
+/* A link whose underline in the highlight colour grows from the left under the pointer. */
+@utility link-sweep {
+  background-image: linear-gradient(var(--highlight), var(--highlight));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 2px;
+  transition:
+    background-size 260ms var(--ease-settle),
+    color 150ms ease-out;
+
+  &:hover,
+  &[aria-current="page"] {
+    background-size: 100% 2px;
+  }
+}
+
+/*
+ * Scroll reveal (components/ui/reveal.tsx). Without JavaScript nothing is hidden: the
+ * component marks only what is still below the fold as "waiting".
+ */
+[data-reveal] {
+  transition:
+    opacity 700ms var(--ease-settle),
+    transform 700ms var(--ease-settle);
+  transition-delay: calc(var(--reveal-index, 0) * 90ms);
+}
+
+[data-reveal="waiting"] {
+  opacity: 0;
+  transform: translateY(24px);
 }
 
 @layer base {

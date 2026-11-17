@@ -29,7 +29,7 @@ export function ScaleGates({ scales }: { scales: readonly NavigationScaleOut[] }
               <Link
                 href={catalogPath({ scale: scale.code })}
                 aria-label={`${scaleLabel(scale)}, ${models(scale.product_count)}`}
-                className="group flex h-full flex-col rounded-lg border border-line bg-surface p-6 transition-[border-color,box-shadow] duration-150 hover:border-ink-secondary hover:shadow-[inset_0_0_0_1px_var(--ink-secondary)]"
+                className="group flex h-full flex-col rounded-lg border border-line bg-surface p-6 transition-[border-color,box-shadow,transform] duration-300 ease-settle hover:-translate-y-1 hover:border-highlight-fill hover:shadow-lift"
               >
                 <span className="flex items-start justify-between gap-4">
                   <span className="text-display leading-none font-extralight tracking-[-0.03em]">{scale.name}</span>
@@ -44,8 +44,11 @@ export function ScaleGates({ scales }: { scales: readonly NavigationScaleOut[] }
                   className="mt-4"
                 />
                 <ScaleRule ratioDenominator={scale.ratio_denominator} longestMillimetres={longest} className="mt-auto pt-8" />
-                <span className="mt-4 text-small font-medium text-accent group-hover:underline group-hover:underline-offset-4">
-                  Zu den Modellen in {scale.name} →
+                <span className="mt-4 text-small font-medium text-accent transition-colors group-hover:text-highlight-ink">
+                  Zu den Modellen in {scale.name}{" "}
+                  <span aria-hidden="true" className="inline-block transition-transform duration-300 ease-settle group-hover:translate-x-1">
+                    →
+                  </span>
                 </span>
               </Link>
             </li>

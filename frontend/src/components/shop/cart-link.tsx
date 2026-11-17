@@ -25,12 +25,14 @@ export function CartLink() {
         <circle cx="7" cy="18" r="1.6" />
         <circle cx="17" cy="18" r="1.6" />
       </svg>
+      {/* Keyed by the count: a new number is a new element, so it jumps once. */}
       <span
+        key={count}
         aria-hidden="true"
         className={cn(
-          "absolute -top-0.5 -right-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-selected px-1",
-          "text-[0.6875rem] leading-none font-semibold text-on-selected tabular-nums transition-transform duration-150",
-          count === 0 && "scale-0",
+          "absolute -top-0.5 -right-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-highlight-fill px-1",
+          "text-[0.6875rem] leading-none font-semibold text-on-highlight tabular-nums",
+          count === 0 ? "scale-0" : "animate-pop",
         )}
       >
         {count > 99 ? "99+" : count}

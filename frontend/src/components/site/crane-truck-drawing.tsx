@@ -11,6 +11,7 @@ export function CraneTruckDrawing({ className }: { className?: string }) {
   return (
     <BlueprintDrawing
       className={className}
+      plotted
       viewBox="10 70 280 128"
       label="Zeichnung eines Autodrehkrans in der Seitenansicht, mit Maßlinien"
       titleBlock={[
@@ -55,19 +56,19 @@ export function CraneTruckDrawing({ className }: { className?: string }) {
         <path className={DRAWING.face} d="M110 88.8 L50 81.7 L50 87.7 L110 94.8 Z" {...STROKE} />
         <path className={DRAWING.face} d="M50 82.7 L10 78 L10 82 L50 86.7 Z" {...STROKE} />
         <circle className={DRAWING.face} cx="178" cy="100" r="2.5" {...STROKE} />
-        <circle className={DRAWING.face} cx="10" cy="80" r="3.5" {...STROKE} />
+        <circle className={DRAWING.mark} cx="10" cy="80" r="3.5" {...STROKE} />
         <path className={DRAWING.line} d="M46 92 V87.5 M42 87 H52" {...STROKE} />
 
         {/* Hook block, hung up for the road. */}
         <path className={DRAWING.line} d="M10 83.5 V98" {...STROKE} />
-        <path className={DRAWING.face} d="M6 98 H14 V106 H6 Z" {...STROKE} />
+        <path className={DRAWING.mark} d="M6 98 H14 V106 H6 Z" {...STROKE} />
         <path className={DRAWING.line} d="M10 106 V110 A3 3 0 1 1 7 113" {...STROKE} />
 
         {/* Wheels: one front axle, a tandem at the back. */}
         {[46, 168, 196].map((x) => (
           <g key={x}>
             <circle className={DRAWING.face} cx={x} cy="147" r="13" {...STROKE} />
-            <circle className={DRAWING.line} cx={x} cy="147" r="5" {...STROKE} />
+            <circle className={DRAWING.mark} cx={x} cy="147" r="5" {...STROKE} />
           </g>
         ))}
 

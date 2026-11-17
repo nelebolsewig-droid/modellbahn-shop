@@ -18,7 +18,6 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { RadioGroup } from "@/components/ui/radio-group";
-import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { WarrantyNotice } from "@/components/shop/warranty-notice";
 import type { AccountOut, CartOut, CheckoutIn, CustomerAddressOut } from "@/lib/api/generated/model";
 import {
@@ -36,6 +35,7 @@ import { cartQueryKey, useCart } from "@/lib/sales/cart";
 import { IDEMPOTENCY_HEADER, useIdempotencyKeys } from "@/lib/sales/idempotency";
 import { totalsFor } from "@/lib/sales/totals";
 import { useCustomerSession } from "@/lib/session/customer";
+import { ModelPhoto } from "@/components/ui/model-photo";
 import { cn } from "@/lib/utils";
 import { checkoutSchema, EMPTY_ADDRESS, type CheckoutNeeds, type CheckoutValues } from "@/lib/validation/checkout";
 
@@ -235,8 +235,8 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
         <ul className="mt-6 space-y-4">
           {cart.lines.map((line) => (
             <li key={line.variant_id} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4">
-              <span className="relative aspect-square rounded-sm bg-stage p-1">
-                {line.image ? <ResponsivePicture image={line.image} alt="" sizes="56px" variant="thumb" /> : null}
+              <span className="relative aspect-square rounded-sm bg-stage">
+                {line.image ? <ModelPhoto image={line.image} alt="" sizes="56px" variant="thumb" /> : null}
               </span>
               <span className="min-w-0 text-small">
                 <span className="block truncate font-medium">{line.product_name}</span>
@@ -252,7 +252,7 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
         {/* The delivery time belongs on the page before the binding order. */}
         <DeliveryNote cart={cart} className="mt-6" />
         <FormError message={formError} className="mt-6" />
-        <Button type="submit" className="mt-6 w-full" disabled={isSubmitting} aria-busy={isSubmitting || undefined}>
+        <Button type="submit" variant="highlight" className="mt-6 w-full" disabled={isSubmitting} aria-busy={isSubmitting || undefined}>
           {isSubmitting ? "Bestellung wird angelegt …" : "Zahlungspflichtig bestellen"}
         </Button>
         <p className="mt-4 text-hint text-ink-tertiary">

@@ -21,9 +21,9 @@ export function Panel({ title, code, actions, className, children }: PanelProps)
       className={cn("rounded-md border border-line bg-surface", className)}
     >
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-center gap-3">
           {code ? (
-            <span className="font-mono text-hint text-ink-tertiary" aria-hidden="true">
+            <span className="rounded-xs bg-highlight-subtle px-1.5 py-0.5 font-mono text-hint text-highlight-ink" aria-hidden="true">
               {code}
             </span>
           ) : null}

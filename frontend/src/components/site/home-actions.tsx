@@ -13,9 +13,14 @@ export function HomeActions() {
   const session = useCustomerSession();
 
   return (
-    <div className="mt-10 flex flex-wrap gap-3">
-      <Button asChild>
-        <Link href="/katalog">Zum Katalog</Link>
+    <div className="mt-10 flex animate-rise-in flex-wrap gap-3 [animation-delay:320ms]">
+      <Button asChild variant="highlight" className="group">
+        <Link href="/katalog">
+          Zum Katalog
+          <span aria-hidden="true" className="transition-transform duration-300 ease-settle group-hover:translate-x-1">
+            →
+          </span>
+        </Link>
       </Button>
       {session.status === "authenticated" ? (
         <Button asChild variant="secondary">

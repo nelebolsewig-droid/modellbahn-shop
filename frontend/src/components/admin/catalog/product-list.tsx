@@ -5,11 +5,11 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { ModelPhoto } from "@/components/ui/model-photo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { PendingNotice } from "@/components/ui/pending-notice";
-import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listProducts, publishReadyProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import { useListProductStock } from "@/lib/api/generated/admin-inventory/admin-inventory";
@@ -192,7 +192,7 @@ function ProductRow({ item, stock, onEbay }: { item: ProductListItemOut; stock: 
       >
         <span className="relative block size-16 overflow-hidden rounded-sm bg-stage">
           {picture ? (
-            <ResponsivePicture image={picture} alt="" sizes="64px" variant="thumb" fit="cover" />
+            <ModelPhoto image={picture} alt="" sizes="64px" variant="thumb" />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-center text-[0.625rem] leading-tight text-ink-tertiary">
               {item.main_image ? "…" : "ohne Foto"}

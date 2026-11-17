@@ -1,10 +1,10 @@
 import type { Route } from "next";
 import Link from "next/link";
 
-import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import type { AddressOut, OrderLineOut, OrderOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatLongDate, formatClock } from "@/lib/format";
+import { ModelPhoto } from "@/components/ui/model-photo";
 import { cn } from "@/lib/utils";
 
 /*
@@ -82,8 +82,8 @@ export function OrderLines({ lines, linkToProducts = true }: { lines: readonly O
     <ul className="divide-y divide-line border-y border-line">
       {lines.map((line) => (
         <li key={`${line.variant_id}-${line.sku}`} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-5 py-4">
-          <span className="relative aspect-square rounded-md bg-stage p-1.5">
-            {line.image ? <ResponsivePicture image={line.image} alt="" sizes="72px" variant="thumb" /> : null}
+          <span className="relative aspect-square rounded-md bg-stage">
+            {line.image ? <ModelPhoto image={line.image} alt="" sizes="72px" variant="thumb" /> : null}
           </span>
           <span className="min-w-0">
             <span className="block font-medium">

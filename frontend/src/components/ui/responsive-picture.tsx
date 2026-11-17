@@ -39,6 +39,11 @@ type ResponsivePictureProps = {
   /** "thumb" uses the square 256 px size only (lists, galleries in the admin area). */
   variant?: "full" | "thumb";
   fit?: "contain" | "cover";
+  /**
+   * Keeps the blurred placeholder behind the photo and lets it fill the whole box, so
+   * a photo of any format sits in a filled frame (see ModelPhoto).
+   */
+  backdrop?: boolean;
   /** Above the fold: load at once instead of lazily. */
   priority?: boolean;
   className?: string;
@@ -55,6 +60,7 @@ export function ResponsivePicture({
   sizes,
   variant = "full",
   fit = "contain",
+  backdrop = false,
   priority = false,
   className,
 }: ResponsivePictureProps) {
@@ -85,9 +91,9 @@ export function ResponsivePicture({
         alt=""
         aria-hidden="true"
         className={cn(
-          "absolute inset-0 size-full scale-105 blur-xl transition-opacity duration-300",
-          objectFit,
-          loaded && "opacity-0",
+          "absolute inset-0 size-full blur-xl transition-opacity duration-300",
+          backdrop ? "scale-125 object-cover" : cn("scale-105", objectFit),
+          loaded && !backdrop && "opacity-0",
         )}
       />
       {fallback ? (

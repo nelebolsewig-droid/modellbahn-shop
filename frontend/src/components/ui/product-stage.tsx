@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { ResponsivePicture, type PictureImage } from "./responsive-picture";
+import { ModelPhoto } from "./model-photo";
+import type { PictureImage } from "./responsive-picture";
 
 export type StageItem = { key: string; image: PictureImage; alt: string };
 
@@ -24,8 +25,8 @@ type ProductStageProps = {
 };
 
 /**
- * The frameless photo stage of a product page: the photo on the light stage with a
- * lot of room around it, so the details of the print show. Thumbnails below switch
+ * The photo stage of a product page: every photo fills the same frame (ModelPhoto),
+ * shown whole, so the details of the print show. Thumbnails below switch
  * the photo, which cross-fades in 320 ms.
  */
 export function ProductStage({
@@ -41,9 +42,7 @@ export function ProductStage({
     <div className={className}>
       <div className={cn("relative rounded-lg bg-stage", ASPECTS[aspect])}>
         {current ? (
-          <div key={current.key} className="absolute inset-6 animate-stage-in sm:inset-12">
-            <ResponsivePicture image={current.image} alt={current.alt} sizes={sizes} priority />
-          </div>
+          <ModelPhoto key={current.key} image={current.image} alt={current.alt} sizes={sizes} priority className="animate-stage-in" />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
             <p className="label-caps text-ink-tertiary">Foto folgt</p>
@@ -63,12 +62,12 @@ export function ProductStage({
                 aria-pressed={position === index}
                 onClick={() => setIndex(position)}
                 className={cn(
-                  "block size-18 cursor-pointer overflow-hidden rounded-sm bg-stage p-1.5",
-                  "border transition-[border-color] duration-150",
-                  position === index ? "border-selected" : "border-transparent hover:border-line-strong",
+                  "relative block size-18 cursor-pointer rounded-sm bg-stage",
+                  "outline-offset-2 transition-[box-shadow,transform] duration-200 ease-settle hover:-translate-y-0.5",
+                  position === index ? "shadow-[0_0_0_2px_var(--highlight-fill)]" : "hover:shadow-[0_0_0_1px_var(--line-control)]",
                 )}
               >
-                <ResponsivePicture image={item.image} alt="" sizes="72px" variant="thumb" />
+                <ModelPhoto image={item.image} alt="" sizes="72px" variant="thumb" />
               </button>
             </li>
           ))}

@@ -3,7 +3,8 @@ import type { Route } from "next";
 
 import { formatPrice } from "@/lib/catalog/format";
 
-import { ResponsivePicture, type PictureImage } from "./responsive-picture";
+import { ModelPhoto } from "./model-photo";
+import type { PictureImage } from "./responsive-picture";
 import { SpecLine } from "./spec-line";
 
 type ProductCardProps = {
@@ -30,24 +31,30 @@ export function ProductCard({
 }: ProductCardProps) {
   return (
     <Link href={href} className="group block rounded-md">
-      <div className="relative aspect-square rounded-md bg-stage transition-colors duration-150 group-hover:bg-sunken">
+      <div className="relative aspect-square rounded-md bg-stage transition-[transform,box-shadow] duration-300 ease-settle group-hover:-translate-y-1 group-hover:shadow-lift">
         {image ? (
-          <div className="absolute inset-6">
-            <ResponsivePicture
-              image={image}
-              alt=""
-              sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-              priority={priority}
-            />
-          </div>
+          <ModelPhoto
+            image={image}
+            alt=""
+            sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+            priority={priority}
+            zoom
+          />
         ) : (
           <p className="absolute inset-0 flex items-center justify-center label-caps text-ink-tertiary">
             Foto folgt
           </p>
         )}
+        {/* An arrow in signal orange slides in under the pointer; the card itself is the link. */}
+        <span
+          aria-hidden="true"
+          className="absolute right-3 bottom-3 grid size-9 translate-y-2 place-items-center rounded-full bg-highlight-fill text-on-highlight opacity-0 transition-[opacity,transform] duration-300 ease-settle group-hover:translate-y-0 group-hover:opacity-100"
+        >
+          →
+        </span>
       </div>
       {/* The name has the whole width; scales and price share the line below. */}
-      <h3 className="mt-4 text-[1.125rem] leading-6 font-normal tracking-[-0.01em] hyphens-auto break-words group-hover:underline group-hover:underline-offset-4">
+      <h3 className="mt-4 text-[1.125rem] leading-6 font-normal tracking-[-0.01em] hyphens-auto break-words transition-colors duration-150 group-hover:text-highlight-ink">
         {name}
       </h3>
       <div className="mt-1 flex items-baseline justify-between gap-4">

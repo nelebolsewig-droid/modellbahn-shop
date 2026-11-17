@@ -60,6 +60,7 @@ export function AddToCart({ variantId, title, availability }: AddToCartProps) {
         />
         <Button
           type="button"
+          variant="highlight"
           onClick={add}
           disabled={change.isPending || cart.isPending || soldOut}
           aria-busy={change.isPending || undefined}

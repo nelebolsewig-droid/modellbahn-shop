@@ -1523,6 +1523,9 @@ keine Hex-Werte.
 | `line-control` | gray-500 | #80858A | Rahmen von Eingabefeldern | 3,4 : 1 |
 | `selected` | gray-900 | #1E2124 | aktive Option, primärer Knopf (Mattschwarz) | Schrift darauf 16,2 : 1 |
 | `accent` | prussian-800 | #003153 | Links, Fokusring, Akzent-Auswahl | 12,2 : 1 |
+| `highlight` | signal-500 | #FF5A1F | Signalorange als Zeichen: Lampe im Logo, Striche, Punkte (ADR 0030) | nie Schrift |
+| `highlight-fill` | signal-600 | #CF430C | die eine Aktion einer Seite, Zähler am Warenkorb | Schrift darauf 4,7 : 1 |
+| `highlight-ink` | signal-700 | #B93A08 | orange Schrift, Schwebezustand | ≥ 4,8 : 1 auf allen Gründen |
 | `drawing-line` | prussian-800 | #003153 | Konturen in Zeichnungen | |
 | `drawing-grid` | prussian-100 | #D9E4EE | Raster hinter Zeichnungen | Zierde |
 | `success`, `warning`, `danger` | green-700, amber-700, red-700 | #2E7046, #8A5A00, #A8322B | Zustände, immer mit Wort | ≥ 5,0 : 1 |
@@ -1546,7 +1549,9 @@ Schatten nur für Dialoge und Popover.
 
 | Komponente | Zweck | Aktiv / Zustände |
 | --- | --- | --- |
-| `Button` | Aktion: primär, sekundär, Textlink | primär Mattschwarz; deaktiviert nur mit Grund daneben |
+| `Button` | Aktion: primär, hervorgehoben, sekundär, Textlink | primär Mattschwarz; die eine Aktion einer Seite in Signalorange; deaktiviert nur mit Grund daneben |
+| `ModelPhoto` | jedes Modellfoto im selben, randvollen Rahmen (ADR 0030) | Foto ganz und mittig, Rest ein Schleier aus dem Foto |
+| `Reveal` | lässt Inhalt beim Scrollen einmal aufsteigen | ohne JavaScript und bei reduzierter Bewegung sichtbar und still |
 | `OptionPill` | Maßstab, Ausführung, Technik, Epoche | Mattschwarz oder Preußischblau; nicht lieferbar gestrichelt |
 | `ScaleTile` | große Maßstab-Wahl: „H0 · 1:87 · Gleis 16,5 mm“ | Kontur in Mattschwarz |
 | `ScaleRule` | Maßband: ein Meter Vorbild im Maßstab, alle Bänder einer Reihe im selben Millimetermaß | Tusche-Striche, Ende in Preußischblau |
@@ -1569,7 +1574,7 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
   `globals.css` macht daraus Tailwind-Klassen (`bg-canvas`, `text-ink-secondary`,
   `border-line`). Komponenten verwenden nur diese Klassen.
 - Die Komponenten liegen unter `frontend/src/components/ui/` und heißen wie im Designsystem.
-- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 52 Kontrastpaare (Text 4,5 : 1,
+- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 64 Kontrastpaare (Text 4,5 : 1,
   Rahmen und Fokus 3 : 1). Wer eine Farbe so ändert, dass Text unlesbar wird, bricht den Build.
 - Das Stellwerk nutzt dieselben Tokens mit `data-density="werkstatt"`: Knöpfe, Pills und
   Felder eine Stufe kompakter.
