@@ -30,6 +30,7 @@ from modellbahn.modules.sales.domain.errors import (
 from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
+    OrderDelayed,
     OrderPaid,
     OrderPlaced,
     OrderRefunded,
@@ -971,6 +972,28 @@ class Order:
                 total_cents=self.total_cents,
             )
         ]
+
+    def learn_lead_time(self, weeks: tuple[int, int], now: datetime) -> OrderDelayed | None:
+        """Pieces turned out to be made for the customer after the checkout (the shelf
+        emptied before the payment came in, ADR 0029): the order takes their lead time.
+
+        Only once, and only while the order waits to be packed: an order that already knows
+        a lead time promised one, and its customer needs no word. ``None`` then.
+        """
+        if self.status is not OrderStatus.PAID or self.lead_time_weeks is not None:
+            return None
+        shortest, longest = weeks
+        self.lead_time_min_weeks = shortest
+        self.lead_time_max_weeks = longest
+        self.updated_at = now
+        return OrderDelayed(
+            aggregate_id=self.id,
+            occurred_at=now,
+            number=self.number,
+            total_cents=self.total_cents,
+            lead_time_min_weeks=shortest,
+            lead_time_max_weeks=longest,
+        )
 
     def ship(self, *, carrier: str, tracking_number: str, now: datetime) -> OrderShipped:
         if self.status is not OrderStatus.PAID:

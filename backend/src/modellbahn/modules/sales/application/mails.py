@@ -143,6 +143,35 @@ def confirmation_mail(order: Order, *, base_url: str, shop_name: str) -> MailCon
     )
 
 
+def _listing(titles: list[str]) -> str:
+    """``A``, ``A und B``, ``A, B und C``."""
+    if len(titles) <= 1:
+        return "".join(titles)
+    return f"{', '.join(titles[:-1])} und {titles[-1]}"
+
+
+def delay_mail(order: Order, *, titles: list[str], base_url: str) -> MailContent:
+    """Once, when pieces turn out to be made for the customer after the checkout saw them
+    on the shelves (ADR 0029): what is made, and when the parcel leaves."""
+    weeks = weeks_text(order.lead_time_weeks or (1, 1))
+    made = _listing(titles)
+    return MailContent(
+        subject=f"Kurze Info zu deiner Bestellung {order.number}",
+        greeting=_greeting(order),
+        paragraphs=(
+            f"nicht alles aus deiner Bestellung {order.number} liegt noch in unserem Regal. "
+            f"Deshalb fertigen wir für dich: {made}.",
+            "Wir schicken alles zusammen in einem Paket, voraussichtlich in "
+            f"{weeks}. Sobald es unterwegs ist, bekommst du eine weitere E-Mail.",
+        ),
+        action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
+        closing=(
+            "Möchtest du lieber nicht so lange warten? Dann antworte nicht auf diese E-Mail, "
+            "sondern schreib uns über den Shop: Wir finden gemeinsam eine Lösung.",
+        ),
+    )
+
+
 DHL_TRACKING_URL: Final = (
     "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="
 )

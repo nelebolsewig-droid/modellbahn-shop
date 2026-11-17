@@ -7,9 +7,12 @@
   Orders from a marketplace get none: their buyer hears from the marketplace.
 * Withdrawals: the confirmation of receipt to the consumer (§ 356a BGB) and a notice to
   the shop's own address.
+* Backorders: a paid order whose checkout saw everything on the shelves learns the lead
+  time of the pieces made for it after all, and its customer hears so once (ADR 0029).
 
-Delivery is at least once. Adopting and removing are idempotent by nature; a notice
-e-mail may in rare cases be sent twice.
+Delivery is at least once. Adopting and removing are idempotent by nature; an order
+learns a late lead time once, however many of its pieces are backordered; a notice e-mail
+may in rare cases be sent twice.
 """
 
 from collections.abc import Sequence
@@ -17,18 +20,20 @@ from collections.abc import Sequence
 import structlog
 
 from modellbahn.modules.identity.contracts.events import AccountDeleted, EmailVerified
+from modellbahn.modules.inventory.contracts.events import AllocationBackordered
 from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
+    OrderDelayed,
     OrderPaid,
     OrderPlaced,
     OrderRefunded,
     OrderShipped,
     WithdrawalReceived,
 )
-from modellbahn.modules.sales.domain.model import Order
+from modellbahn.modules.sales.domain.model import Order, OrderStatus
 from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.clock import Clock
@@ -72,6 +77,8 @@ class SalesHandlers:
         registry.register(OrderCancelled, self.send_cancellation_notice)
         registry.register(OrderRefunded, self.send_refund_notice)
         registry.register(WithdrawalReceived, self.confirm_withdrawal)
+        registry.register(AllocationBackordered, self.learn_lead_time)
+        registry.register(OrderDelayed, self.send_delay_notice)
 
     async def adopt_guest_orders(self, event: EmailVerified) -> None:
         """Guest orders with the now verified address join the customer's order history."""
@@ -129,6 +136,49 @@ class SalesHandlers:
                 order, base_url=self._base_url, shop_name=self._shop_name
             )
             await self._send(event, order, content)
+
+    async def learn_lead_time(self, event: AllocationBackordered) -> None:
+        """A paid piece has to be made: if the order's checkout promised no lead time, the
+        order takes the longest of the pieces waiting now (the parcel leaves complete)."""
+        async with self._uow() as uow:
+            order = await uow.orders.get(event.order_id, for_update=True)
+            if order is None or order.lead_time_weeks is not None:
+                return
+            waiting = set((await uow.inventory.pick_progress(order.id)).waiting_variant_ids)
+            waiting.add(event.variant_id)
+            variants = await uow.catalog.sale_variants(waiting)
+            made = [v.lead_time_weeks for v in variants.values() if v.lead_time_weeks]
+            # A variant no longer made again still has to be made for this paid order.
+            weeks = (
+                (max(w[0] for w in made), max(w[1] for w in made))
+                if made
+                else await uow.catalog.shop_lead_time()
+            )
+            delayed = order.learn_lead_time(weeks, self._clock.now())
+            if delayed is None:
+                return
+            uow.publish(delayed)
+            await uow.commit()
+        _logger.info(
+            "sales.order.delayed",
+            order=order.number,
+            lead_time_weeks=list(weeks),
+        )
+
+    async def send_delay_notice(self, event: OrderDelayed) -> None:
+        """Tell the customer which pieces are made for them, and when the parcel leaves."""
+        order = await self._order(event)
+        if order is None or order.status is not OrderStatus.PAID:
+            # Cancelled or (rarely) shipped meanwhile: their own mail says what matters.
+            return
+        async with self._uow() as uow:
+            waiting = set((await uow.inventory.pick_progress(order.id)).waiting_variant_ids)
+        titles = [line.title for line in order.lines if line.variant_id in waiting]
+        if not titles:
+            # Made already by the time the mail goes out: the parcel is on its way soon.
+            return
+        content = mails.delay_mail(order, titles=titles, base_url=self._base_url)
+        await self._send(event, order, content)
 
     async def send_shipped_notice(self, event: OrderShipped) -> None:
         order = await self._order(event)

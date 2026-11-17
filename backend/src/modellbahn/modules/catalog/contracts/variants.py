@@ -28,6 +28,7 @@ __all__ = [
     "SaleVariant",
     "load_product_variants",
     "load_sale_variants",
+    "load_shop_lead_time",
     "load_variant_by_gtin",
     "load_variants_of_product",
 ]
@@ -193,6 +194,19 @@ async def _load(uow: UnitOfWork, condition: ColumnElement[bool]) -> list[SaleVar
         )
         for row in rows
     ]
+
+
+async def load_shop_lead_time(uow: UnitOfWork) -> tuple[int, int]:
+    """The shop's lead time as it is now, in weeks from and to (ADR 0029)."""
+    row = (
+        await uow.session.execute(
+            select(
+                production_settings.c.default_lead_time_min_weeks,
+                production_settings.c.default_lead_time_max_weeks,
+            ).where(production_settings.c.id == 1)
+        )
+    ).one()
+    return int(row[0]), int(row[1])
 
 
 def made_within() -> tuple[ColumnElement[int | None], ColumnElement[int | None]]:

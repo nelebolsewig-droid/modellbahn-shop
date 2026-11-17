@@ -274,6 +274,9 @@ fertigen wir für dich (Lieferzeit 2–4 Wochen)“. Das Paket geht komplett, we
     leer, ist es ausverkauft.
 - **eBay** verkauft nur, was im Regal liegt. Ausnahme: Ausführungen mit eigener Lieferzeit
   (so wie früher „auf Bestellung“).
+- **Regal leer, bevor das Geld da ist** (etwa bei Vorkasse): Der Kunde bekommt automatisch
+  eine kurze Mail, was für ihn gefertigt wird und wann das Paket voraussichtlich geht. Die
+  Bestellung zeigt ab dann diese Lieferzeit. Nichts zu tun.
 
 ### Zu fertigen
 

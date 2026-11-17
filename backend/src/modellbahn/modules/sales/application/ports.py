@@ -132,6 +132,10 @@ class Catalog(Protocol):
 
     async def sale_variants(self, variant_ids: Collection[UUID]) -> dict[UUID, SaleVariant]: ...
 
+    async def shop_lead_time(self) -> tuple[int, int]:
+        """The shop's lead time in weeks, from and to, for variants without their own."""
+        ...
+
 
 class Images(Protocol):
     """The images of the media module, for cart and order lines."""

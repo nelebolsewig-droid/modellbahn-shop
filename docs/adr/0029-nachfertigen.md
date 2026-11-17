@@ -84,7 +84,14 @@ dass jedes Modell über den Bestand hinaus bestellbar ist: Was fehlt, fertigt di
   eBay-Einrichtung.
 - Lieferzeiten, die vorher auf Bestellung gesetzt waren (oft die damalige Vorgabe 1–2 Wochen),
   bleiben eigene. Sollen sie der des Shops folgen: beim Modell „Standard-Lieferzeit“ wählen.
-- Wer gleichzeitig das letzte Stück kauft, bekommt seins gefertigt. Seine Mail sagt dann
-  „1–3 Werktage“, weil die Kasse es so gesehen hat. Das gab es schon vorher (ADR 0011).
+- Bestand wird erst bei der Zahlung zugeteilt. Wird das Regal zwischen Kasse und Zahlung
+  leer (gleichzeitig gekauft, oder Vorkasse mit bis zu zehn Tagen), sagten Eingangs- und
+  Zahlungsmail „1–3 Werktage“. Deshalb: Meldet das Lager ein Stück als zu fertigen
+  (`inventory.allocation.backordered`) und hat die Bestellung keine Lieferzeit, übernimmt sie
+  die längste der wartenden Ausführungen (für „nicht nachfertigen“ die des Shops) und meldet
+  `sales.order.delayed`. Der Kunde bekommt genau einmal „Kurze Info zu deiner Bestellung …“:
+  was gefertigt wird und wann das Paket voraussichtlich geht. Hatte die Kasse schon eine
+  Lieferzeit genannt, kommt keine Mail. Ist bis zum Versand der Mail alles gefertigt oder
+  die Bestellung storniert, entfällt sie.
 - Die Artikelliste für die Kasse (CSV) schreibt „vorrätig, sonst 2-4 Wochen“ oder
   „nur vorrätig“.
