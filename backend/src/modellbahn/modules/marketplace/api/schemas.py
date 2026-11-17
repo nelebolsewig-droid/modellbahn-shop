@@ -155,7 +155,7 @@ class PoliciesOut(BaseModel):
 class CategoryMappingOut(BaseModel):
     category_id: UUID
     path: str = Field(examples=["Straßenfahrzeuge / LKW"])
-    ebay_category_id: str = Field(examples=["180250"], description="Empty: none chosen.")
+    ebay_category_id: str = Field(examples=["180273"], description="Empty: none chosen.")
 
     @classmethod
     def from_mapping(cls, mapping: CategoryMapping) -> Self:
@@ -172,7 +172,7 @@ class CategoryMappingListOut(BaseModel):
 
 class CategoryMappingIn(_Request):
     category_id: UUID
-    ebay_category_id: str = Field(max_length=10, examples=["180250"])
+    ebay_category_id: str = Field(max_length=10, examples=["180273"])
 
 
 class CategoryMappingListIn(_Request):

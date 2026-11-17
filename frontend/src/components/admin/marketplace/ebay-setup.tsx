@@ -480,8 +480,9 @@ function CategoriesPanel() {
   return (
     <Panel title="Kategorien" code="EBY 03">
       <p className="mb-4 text-hint text-ink-tertiary">
-        Jede Shop-Kategorie bekommt die Nummer einer eBay-Kategorie, z. B. 180250 für Modellbau-LKW. Die Nummer steht
-        auf eBay in der Adresse der Kategorie. Unterkategorien ohne eigene Nummer nehmen die ihrer Oberkategorie.
+        Jede Shop-Kategorie bekommt die Nummer einer eBay-Kategorie, z. B. 180273 für Modellautos, -LKWs & -Busse. Es muss
+        die Kategorie ganz unten im Baum sein (keine Oberkategorie wie 180250 Modelleisenbahnen). Die Nummer steht auf
+        eBay in der Adresse der Kategorie. Unterkategorien ohne eigene Nummer nehmen die ihrer Oberkategorie.
       </p>
       {categories.isPending ? (
         <PendingNotice>Kategorien werden geladen …</PendingNotice>
