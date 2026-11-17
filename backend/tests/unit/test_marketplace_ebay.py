@@ -254,6 +254,37 @@ class TestPublish:
         assert caught.value.code == "25709"
         assert caught.value.message == "Invalid value for imageUrls."
 
+    async def test_wrapper_errors_show_what_ebay_objects_to(self) -> None:
+        recorder = Recorder(
+            {
+                ("PUT", f"{INVENTORY}/inventory_item/X"): httpx.Response(204),
+                ("GET", f"{INVENTORY}/offer"): httpx.Response(404),
+                ("POST", f"{INVENTORY}/offer"): httpx.Response(201, json={"offerId": "O-1"}),
+                ("POST", f"{INVENTORY}/offer/O-1/publish"): httpx.Response(
+                    400,
+                    json={
+                        "errors": [
+                            {
+                                "errorId": 25002,
+                                "message": "Cannot revise listing.",
+                                "parameters": [
+                                    {"name": "0", "value": "Item.Country"},
+                                    {"name": "field", "value": "Item.Description"},
+                                ],
+                            },
+                            {"errorId": 25005, "message": "Invalid category."},
+                        ]
+                    },
+                ),
+            }
+        )
+        with pytest.raises(MarketplaceRejectedError) as caught:
+            await gateway(recorder).publish(TOKEN, draft(offer("X", {})))
+        assert caught.value.code == "25002"
+        assert caught.value.message == (
+            "Cannot revise listing. [Item.Country; field=Item.Description] | Invalid category."
+        )
+
     @pytest.mark.parametrize(
         ("status", "error"),
         [
