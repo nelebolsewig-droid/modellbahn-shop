@@ -10,6 +10,8 @@ the same keys.
 
 import asyncio
 import hashlib
+from datetime import timedelta
+from typing import Final
 from uuid import UUID
 
 import structlog
@@ -35,6 +37,9 @@ from modellbahn.platform.clock import Clock
 from modellbahn.platform.outbox import HandlerRegistry, PostponedError
 
 _logger = structlog.get_logger(__name__)
+
+# How long a photo that is rendered again steps back while new photos are waiting.
+NEW_PHOTOS_FIRST: Final = timedelta(seconds=45)
 
 
 class MediaProcessingHandlers:
@@ -69,12 +74,23 @@ class MediaProcessingHandlers:
         its turn at the gate first (one at a time, only with memory to spare).
         """
         asset_id = event.aggregate_id
+        gate = self._studio_gate
         async with self._uow() as uow:
             asset = await uow.assets.get(asset_id)
-        if asset is None or asset.status is not AssetStatus.UPLOADED:
-            return
+            if asset is None or asset.status is not AssetStatus.UPLOADED:
+                return
+            if not asset.studio:
+                gate = None
+            # A photo rendered before still shows its old sizes; one that is new shows
+            # nothing until it is through. So new photos go first.
+            behind_new = (
+                gate is not None
+                and asset.ready_at is not None
+                and await uow.assets.new_photos_waiting()
+            )
+        if behind_new:
+            raise PostponedError(NEW_PHOTOS_FIRST, "new photos go through the studio first")
         log = _logger.bind(asset_id=str(asset_id))
-        gate = self._studio_gate if asset.studio else None
         if gate is not None and (wait := gate.wait()) is not None:
             # Not a failure: the photo keeps its place and comes back when there is room.
             raise PostponedError(*wait)

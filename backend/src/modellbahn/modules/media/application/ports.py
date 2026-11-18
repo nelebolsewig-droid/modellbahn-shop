@@ -33,6 +33,10 @@ class AssetRepository(Protocol):
         """Finished images whose studio switch is ``enabled``, oldest first, locked."""
         ...
 
+    async def new_photos_waiting(self) -> bool:
+        """Is a photo waiting for the studio that has never been rendered yet?"""
+        ...
+
 
 class MediaUnitOfWork(Protocol):
     """One transaction over the media repositories (see ``platform.uow``)."""

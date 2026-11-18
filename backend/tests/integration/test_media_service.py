@@ -7,10 +7,11 @@ from uuid import UUID
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.services import MediaService, UnitOfWorkFactory
+from modellbahn.modules.media.contracts.images import load_images
 from modellbahn.modules.media.domain.errors import (
     AssetInUseError,
     AssetNotFoundError,
@@ -30,6 +31,7 @@ from modellbahn.modules.media.domain.model import (
 from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.outbox import PostponedError, outbox_table
+from modellbahn.platform.uow import UnitOfWork
 from tests.conftest import Deliver
 from tests.media_support import (
     InMemoryMediaStorage,
@@ -199,6 +201,42 @@ class TestProcessing:
         assert (await media.get(asset.id)).status is AssetStatus.READY
         assert gate.finished == 1
 
+    async def test_new_photos_go_through_the_studio_before_old_ones(
+        self,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        media_uow_factory: UnitOfWorkFactory,
+        image_processor: PillowImageProcessor,
+        deliver: Deliver,
+        clock: FixedClock,
+    ) -> None:
+        class OpenGate:
+            def wait(self) -> tuple[timedelta, str] | None:
+                return None
+
+            def done(self) -> None:
+                pass
+
+        handlers = MediaProcessingHandlers(
+            uow_factory=media_uow_factory,
+            storage=media_storage,
+            processor=image_processor,
+            clock=clock,
+            studio_gate=OpenGate(),
+        )
+        old = await ready_image(media, media_storage, deliver)
+        await media.reprocess(old.id)
+        fresh = await uploaded_image(media, media_storage, photo(700, 500, colour=(20, 120, 200)))
+        again = AssetUploaded(aggregate_id=old.id, occurred_at=clock.now())
+
+        # The old photo still has something to show, the new one has not: it steps back.
+        with pytest.raises(PostponedError):
+            await handlers.process_upload(again)
+        await handlers.process_upload(AssetUploaded(aggregate_id=fresh.id, occurred_at=clock.now()))
+        assert (await media.get(fresh.id)).status is AssetStatus.READY
+        await handlers.process_upload(again)
+        assert (await media.get(old.id)).status is AssetStatus.READY
+
     async def test_a_repeated_delivery_changes_nothing(
         self,
         media: MediaService,
@@ -259,6 +297,7 @@ class TestProcessing:
         self,
         media: MediaService,
         media_storage: InMemoryMediaStorage,
+        session_factory: async_sessionmaker[AsyncSession],
         deliver: Deliver,
     ) -> None:
         asset = await ready_image(media, media_storage, deliver)
@@ -266,6 +305,11 @@ class TestProcessing:
         # A changed original stands in for a changed size catalogue.
         media_storage.upload(asset.id, photo(700, 500, colour=(20, 120, 200)))
         assert (await media.reprocess(asset.id)).status is AssetStatus.UPLOADED
+        # Until the worker is through, the shop keeps showing the sizes from before.
+        async with UnitOfWork(session_factory) as uow:
+            waiting = (await load_images(uow, [asset.id], public_base_url="/medien"))[asset.id]
+        assert waiting.is_ready
+        assert {r.url.removeprefix("/medien/") for r in waiting.renditions} == old_keys
         await deliver()
         again = await media.get(asset.id)
         new_keys = {r.storage_key for r in again.renditions}

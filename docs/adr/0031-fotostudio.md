@@ -74,6 +74,12 @@ Regeln:
   zählt. Das Modell wird je Foto geladen und danach freigegeben. Der Worker-Container
   hat ein Speicherlimit (`WORKER_MEM_LIMIT`, 2 GB): Im schlimmsten Fall startet der
   Worker neu, nicht der Server.
+  Nachtrag am selben Abend: 1800 MB frei und 20 Sekunden Pause waren zu vorsichtig,
+  die Umrechnung kam kaum voran. Jetzt 1000 MB (ein Foto braucht etwa 750 MB über dem
+  Grundbedarf des Workers) und 5 Sekunden.
+- **Neue Fotos zuerst:** Ein Foto, das neu gerechnet wird, zeigt so lange seine
+  bisherigen Größen (`ImageView.is_ready`) und tritt zurück, solange ein frisch
+  hochgeladenes Foto wartet, das noch nichts zu zeigen hat.
 
 ## Verworfen
 
