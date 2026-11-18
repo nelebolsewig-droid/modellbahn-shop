@@ -5,6 +5,8 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
+import { nextSteps, type NextStep } from "@/lib/admin/next-steps";
+
 import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { listProducts } from "@/lib/api/generated/admin-catalog/admin-catalog";
@@ -72,7 +74,7 @@ async function activeModels(signal?: AbortSignal): Promise<ProductListItemOut[]>
 function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () => void }) {
   const office = OFFICE_ROLES.has(staff.role);
   const now = useNow(60_000);
-  const [selected, setSelected] = useState<TileKey>("ship");
+  const [chosen, setChosen] = useState<TileKey | null>(null);
 
   const paid = useOrderLane("paid");
   const unpaid = useOrderLane("pending_payment");
@@ -90,6 +92,15 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
   const waiting = new Set((toMake.data?.items ?? []).flatMap((row) => row.orders.map((order) => order.order_id)));
   const { ready } = splitPaid(paid.data?.items ?? [], waiting);
   const empty = models.data && stock.data ? models.data.filter((item) => withoutStock(item, stock.data)) : undefined;
+  const hall = useHall();
+  const steps = nextSteps({
+    ready,
+    unpaid: unpaid.data?.items ?? [],
+    hall: hall.data,
+    toMake: office ? (toMake.data?.items ?? []) : null,
+    now,
+  });
+  const stepsLoading = paid.isPending || hall.isPending || (office && toMake.isPending);
 
   const tiles: { key: TileKey; label: string; count: string; hint: string }[] = [
     {
@@ -126,6 +137,9 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
       : []),
   ];
 
+  // Until someone picks a count, the first one with work in it is open (and lit).
+  const selected = chosen ?? tiles.find((tile) => tile.count !== "–" && tile.count !== "0")?.key ?? "ship";
+
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-6">
@@ -134,7 +148,7 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
           <h1 className="mt-3 text-title break-words sm:text-display xl:text-[4rem] xl:leading-none">
             {greetingFor(now)}, {staff.display_name}.
           </h1>
-          <p className="mt-3 text-[1.125rem] text-ink-secondary">{dayLine(paid.isSuccess ? ready.length : null)}</p>
+          <p className="mt-3 text-[1.125rem] text-ink-secondary">{dayLine(stepsLoading ? null : steps.length, ready.length)}</p>
         </div>
         <div className="flex flex-wrap gap-2.5">
           {office ? (
@@ -148,6 +162,8 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
         </div>
       </div>
 
+      <NextSteps steps={steps} loading={stepsLoading} />
+
       <div
         role="group"
         aria-label="Was heute ansteht"
@@ -158,15 +174,15 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
             key={tile.key}
             type="button"
             aria-pressed={tile.key === selected}
-            onClick={() => setSelected(tile.key)}
+            onClick={() => setChosen(tile.key)}
             className={cn(
               CUT,
-              "flex min-h-[8.5rem] cursor-pointer flex-col justify-between gap-3 px-4 pt-4 pb-3.5 sm:min-h-[10.5rem] sm:px-5 sm:pt-5 sm:pb-4 text-left text-ink transition-[background-color,transform] duration-200 ease-out hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+              "flex min-h-[6.5rem] cursor-pointer flex-col justify-between gap-2 px-4 pt-3.5 pb-3 sm:min-h-[7.5rem] sm:px-5 sm:pt-4 sm:pb-3.5 text-left text-ink transition-[background-color,transform] duration-200 ease-out hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
               tile.key === selected ? "bg-action" : "bg-surface hover:bg-sunken",
             )}
           >
             <span className="label-caps">{tile.label}</span>
-            <span className="font-display text-[3.5rem] leading-[0.8] sm:text-[5.25rem] font-extrabold tracking-[-0.05em] tabular-nums">
+            <span className="font-display text-[2.5rem] leading-[0.8] sm:text-[3.25rem] font-extrabold tracking-[-0.05em] tabular-nums">
               {tile.count}
             </span>
             <span className="text-small">{tile.hint}</span>
@@ -236,15 +252,95 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
   );
 }
 
-/** The sentence under the greeting: how many parcels wait. */
-function dayLine(ready: number | null): string {
-  if (ready === null) {
+/** The sentence under the greeting: how much is to do, and how many parcels wait. */
+function dayLine(steps: number | null, ready: number): string {
+  if (steps === null) {
     return "Das Stellwerk sieht nach, was ansteht …";
   }
-  if (ready === 0) {
-    return "Gerade muss nichts raus. Der Rest läuft.";
+  if (steps === 0) {
+    return "Gerade ist nichts zu tun. Der Rest läuft.";
   }
-  return ready === 1 ? "Ein Paket wartet auf den Versand." : `${ready} Pakete warten auf den Versand.`;
+  const todo = steps === 1 ? "Eine Sache ist dran" : `${steps} Sachen sind dran`;
+  if (ready === 0) {
+    return `${todo}, kein Paket muss raus.`;
+  }
+  return `${todo}, ${ready === 1 ? "ein Paket" : `${ready} Pakete`} davon für den Versand.`;
+}
+
+/** Shown at first; the rest folds out. */
+const STEPS_SHOWN = 6;
+
+/**
+ * "Als Nächstes": the day's work in the order a workshop does it, one button each. The
+ * first step is the one to do now and gets the orange button.
+ */
+function NextSteps({ steps, loading }: { steps: readonly NextStep[]; loading: boolean }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? steps : steps.slice(0, STEPS_SHOWN);
+  return (
+    <section aria-labelledby="als-naechstes" className="mt-8 border-[1.5px] border-ink bg-surface px-5 pt-5 pb-3 sm:px-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id="als-naechstes" className="text-heading">
+          Als Nächstes
+        </h2>
+        {steps.length > 0 ? (
+          <span className="label-caps text-ink-secondary">
+            {steps.length === 1 ? "1 Aufgabe" : `${steps.length} Aufgaben`}
+          </span>
+        ) : null}
+      </div>
+      {loading ? (
+        <PendingNotice className="py-6">Wird geladen …</PendingNotice>
+      ) : steps.length === 0 ? (
+        <p className="mt-4 border-t border-line py-6 text-ink-secondary">
+          Alles erledigt: Keine Platte wartet, kein Paket muss raus, jede Bestellung hat ihre Stücke.
+        </p>
+      ) : (
+        <ol className="mt-3">
+          {shown.map((step, index) => (
+            <li
+              key={step.key}
+              className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-t border-line py-3 sm:grid-cols-[2rem_6rem_minmax(0,1fr)_auto]"
+            >
+              <span className="font-mono text-hint text-ink-secondary tabular-nums">{String(index + 1).padStart(2, "0")}</span>
+              <span
+                className={cn(
+                  "label-caps max-sm:hidden",
+                  step.tone === "danger" ? "text-danger" : step.tone === "action" ? "text-accent" : "text-ink-secondary",
+                )}
+              >
+                {step.kind}
+              </span>
+              <span className="min-w-0">
+                <span className={cn("block font-semibold break-words", step.tone === "danger" && "text-danger")}>
+                  {step.title}
+                </span>
+                {step.detail ? <span className="block truncate text-small text-ink-secondary">{step.detail}</span> : null}
+              </span>
+              <Button
+                asChild
+                size="sm"
+                variant={index === 0 ? "primary" : "secondary"}
+                className={cn("max-sm:col-start-2 max-sm:justify-self-start", index !== 0 && "border-ink")}
+              >
+                <Link href={step.href}>{step.action}</Link>
+              </Button>
+            </li>
+          ))}
+        </ol>
+      )}
+      {steps.length > STEPS_SHOWN ? (
+        <button
+          type="button"
+          onClick={() => setAll(!all)}
+          aria-expanded={all}
+          className="mb-1 cursor-pointer border-t border-line pt-3 pb-1 text-small font-semibold text-accent hover:underline hover:underline-offset-4"
+        >
+          {all ? "Weniger zeigen" : `${steps.length - STEPS_SHOWN} weitere zeigen`}
+        </button>
+      ) : null}
+    </section>
+  );
 }
 
 /** Orders come newest first, so the last one waits the longest. */

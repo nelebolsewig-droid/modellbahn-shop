@@ -20,7 +20,7 @@ import { partsWord, percentOf, piecesWord, topModels, type ValueRow } from "@/li
 export function StockValuePanel() {
   const value = useGetStockValue();
   return (
-    <Panel title="Lagerwert" code="LG 01">
+    <Panel title="Lagerwert">
       {value.isPending ? <PendingNotice>Der Lagerwert wird berechnet …</PendingNotice> : null}
       {value.isError ? <p className="text-small text-danger">{errorMessage(value.error)}</p> : null}
       {value.isSuccess ? <StockValueBody value={value.data} /> : null}

@@ -50,7 +50,7 @@ export function LeadTimeSettings({ staffRole }: { staffRole: StaffRole }) {
   }
   const weeks = [production.data.default_lead_time_min_weeks, production.data.default_lead_time_max_weeks] as const;
   return (
-    <Panel title="Lieferzeit fürs Nachfertigen" code="EIN 04">
+    <Panel title="Lieferzeit fürs Nachfertigen">
       <p className="max-w-2xl text-small text-ink-secondary">
         Fehlt ein Modell im Regal, fertigt die Werkstatt es nach. Der Shop nennt dann diese Lieferzeit, bei jedem
         Modell ohne eigene. Eine eigene Lieferzeit oder „nicht nachfertigen“ stellt man beim Modell ein. eBay verkauft

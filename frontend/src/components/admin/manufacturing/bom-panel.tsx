@@ -27,7 +27,7 @@ const PARTS_PAGE = "/admin/fertigung/teile" as Route;
  */
 export function ProductBomPanel({ product }: { product: ProductOut }) {
   return (
-    <Panel title="Stückliste" code="PRD 03">
+    <Panel title="Stückliste">
       {product.scales.length === 0 ? (
         <p className="text-small text-ink-secondary">Leg zuerst einen Maßstab an; die Stückliste gilt je Maßstab.</p>
       ) : (

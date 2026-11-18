@@ -140,7 +140,7 @@ export function PartDesk({
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-6">
-          <Panel title="Boxen" code="LG 21">
+          <Panel title="Boxen">
             {stock.places.length === 0 ? (
               <p className="text-small text-ink-secondary">
                 In keiner Box. Teile aus dem Wareneingang kommen per Scan hinein: Box, dann dieses Etikett.
@@ -192,7 +192,7 @@ export function PartDesk({
           </Panel>
           {receipts.length > 0 ? <ReceivingList details={details.data} mayManage={mayManage} /> : null}
         </div>
-        <Panel title="Journal" code="LG 23">
+        <Panel title="Journal">
           {history.length === 0 ? (
             <p className="text-small text-ink-secondary">Noch nichts gebucht.</p>
           ) : (
@@ -223,7 +223,7 @@ function Tile({ label, value, tone }: { label: string; value: number; tone: stri
 
 function ReceivingList({ details, mayManage }: { details: PartDetailsOut; mayManage: boolean }) {
   return (
-    <Panel title="Im Wareneingang" code="LG 22">
+    <Panel title="Im Wareneingang">
       <ul className="divide-y divide-line border-y border-line">
         {details.receipts.map((receipt) => (
           <li key={receipt.id} className="flex items-center justify-between gap-4 py-2.5">

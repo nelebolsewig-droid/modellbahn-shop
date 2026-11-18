@@ -116,7 +116,7 @@ export function PrinterHall({ staffRole, onStreamClosed }: { staffRole: StaffRol
             </p>
           ) : null}
           <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
-            <Panel title="Nachbearbeitung" code="FER 02">
+            <Panel title="Nachbearbeitung">
               {hall.data.post_processing.length === 0 ? (
                 <p className="text-small text-ink-secondary">
                   Nichts in der Nachbearbeitung. Abgenommene Platten warten hier aufs Waschen, Aushärten oder
@@ -130,7 +130,7 @@ export function PrinterHall({ staffRole, onStreamClosed }: { staffRole: StaffRol
                 </ul>
               )}
             </Panel>
-            <Panel title="Zuletzt fertig" code="FER 03">
+            <Panel title="Zuletzt fertig">
               {recent.isPending ? (
                 <PendingNotice>Wird geladen …</PendingNotice>
               ) : recent.isError ? (

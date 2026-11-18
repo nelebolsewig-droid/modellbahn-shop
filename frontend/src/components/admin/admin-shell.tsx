@@ -17,6 +17,7 @@ import { useStaffSession, useStaffSessionCache } from "@/lib/session/staff";
 import { useProtectedArea } from "@/lib/session/use-session-redirects";
 import { OFFICE_ROLES, STAFF_ROLE_LABELS } from "@/lib/staff";
 
+import { QuickFind } from "./quick-find";
 import { useToMakeCount } from "./sales/to-make-list";
 import { StaffPasswordDialog } from "./staff-password-dialog";
 import { PhoneBar, RailNav, ScanButton } from "./stellwerk-nav";
@@ -83,6 +84,8 @@ export function AdminShell({ children }: AdminShellProps) {
           <Wordmark name={SHOP_NAME} className="text-[1.25rem] lg:text-[1.375rem]" />
           <span className="mt-1 block label-caps text-ink-secondary lg:mt-1.5">Stellwerk</span>
         </Link>
+        {/* One search for the whole Stellwerk; ⌘K or Strg+K opens it from anywhere. */}
+        <QuickFind role={role} className="max-lg:ml-auto max-lg:size-10 max-lg:justify-center max-lg:px-0 lg:mx-5 lg:mb-5" />
         <RailNav role={role} pathname={pathname} counts={counts} />
         <div className="flex items-center gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-0 lg:p-5">
           <ScanButton pathname={pathname} />

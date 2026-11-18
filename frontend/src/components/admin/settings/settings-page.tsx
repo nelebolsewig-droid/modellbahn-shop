@@ -11,30 +11,26 @@ const SETTINGS_HREF = "/admin/einstellungen" satisfies Route;
 /** What is set up once and seldom changed, away from the day's work. */
 const ENTRIES = [
   {
-    code: "EIN 01",
     href: "/admin/einstellungen/kategorien",
     title: "Kategorien",
     text: "Wie der Katalog geordnet ist, z. B. Straßenfahrzeuge, LKW, Feuerwehr.",
   },
   {
-    code: "EIN 02",
     href: "/admin/einstellungen/massstaebe",
     title: "Maßstäbe",
     text: "Welche Maßstäbe der Shop führt, mit Verhältnis und Spurweite.",
   },
   {
-    code: "EIN 03",
     href: "/admin/einstellungen/ebay",
     title: "eBay-Einrichtung",
     text: "Verbindung, Versand und Zahlung, eBay-Kategorien und Löschmeldungen. Ändern kann sie nur der Inhaber.",
   },
   {
-    code: "EIN 04",
     href: "/admin/einstellungen/lieferzeit",
     title: "Lieferzeit",
     text: "Wie lange das Nachfertigen dauert, für alle Modelle ohne eigene Lieferzeit. Ändern kann sie nur der Inhaber.",
   },
-] as const satisfies readonly { code: string; href: Route; title: string; text: string }[];
+] as const satisfies readonly { href: Route; title: string; text: string }[];
 
 export function SettingsPage() {
   return (
@@ -64,10 +60,7 @@ export function SettingsOverview() {
             href={entry.href}
             className="group flex h-full flex-col rounded-md border border-line bg-surface p-5 transition-colors hover:border-ink"
           >
-            <span aria-hidden="true" className="font-mono text-hint text-ink-tertiary">
-              {entry.code}
-            </span>
-            <span className="mt-3 text-body-lg font-medium">{entry.title}</span>
+            <span className="text-body-lg font-medium">{entry.title}</span>
             <span className="mt-1 text-small text-ink-secondary">{entry.text}</span>
             <span aria-hidden="true" className="mt-4 text-small font-medium text-accent group-hover:underline">
               Öffnen →

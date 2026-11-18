@@ -48,7 +48,7 @@ export function EventFeed({ onStreamClosed }: { onStreamClosed: () => void }) {
   return (
     <Panel
       title="Ereignisse"
-      code="STW 01"
+     
       actions={<ConnectionLamp state={state} onReconnect={reconnect} />}
       className="min-h-80"
     >
@@ -107,7 +107,7 @@ function FeedItem({ entry, isNewest }: { entry: FeedEntry; isNewest: boolean }) 
 function EmptyFeed() {
   return (
     <div className="rounded-md border border-dashed border-line-strong px-5 py-10 text-center">
-      <p className="label-caps text-ink-tertiary">Gleis frei</p>
+      <p className="label-caps text-ink-tertiary">Alles ruhig</p>
       <p className="mx-auto mt-3 max-w-sm text-small text-ink-secondary">
         Seit dem Öffnen dieser Seite ist nichts passiert. Neue Registrierungen, bestätigte
         E-Mail-Adressen und veröffentlichte Modelle erscheinen hier sofort, ohne Neuladen.

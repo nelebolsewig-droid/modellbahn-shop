@@ -80,7 +80,7 @@ function PartsPanel({ mayPlan }: { mayPlan: boolean }) {
   return (
     <Panel
       title="Teile"
-      code="FER 10"
+     
       actions={
         mayPlan ? (
           <PartDialog
@@ -472,7 +472,7 @@ function PartDialog({ part, scales, trigger }: PartDialogProps) {
 function MaterialsPanel({ mayPlan }: { mayPlan: boolean }) {
   const materials = useMaterials();
   return (
-    <Panel title="Material" code="FER 11">
+    <Panel title="Material">
       {materials.isPending ? (
         <PendingNotice>Material wird geladen …</PendingNotice>
       ) : materials.isError ? (
