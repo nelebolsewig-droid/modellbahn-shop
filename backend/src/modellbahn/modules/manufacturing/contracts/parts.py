@@ -9,9 +9,13 @@ from datetime import datetime
 from typing import Any, Final
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Row, select
+from sqlalchemy import ColumnElement, Row, func, select
 
-from modellbahn.modules.manufacturing.domain.model import PrintJobStatus, Technology
+from modellbahn.modules.manufacturing.domain.model import (
+    PrinterStatus,
+    PrintJobStatus,
+    Technology,
+)
 from modellbahn.modules.manufacturing.infrastructure.tables import (
     bom_lines,
     parts,
@@ -29,11 +33,14 @@ __all__ = [
     "PrintJobInfo",
     "PrintJobYield",
     "Technology",
+    "WorkshopState",
     "load_bill_of_materials",
     "load_part_by_number",
     "load_parts",
+    "load_print_job_parts",
     "load_print_job_yield",
     "load_print_jobs",
+    "load_workshop_state",
 ]
 
 PART_REFERENCE: Final = "manufacturing.parts.id"
@@ -178,3 +185,40 @@ async def load_print_job_yield(uow: UnitOfWork, job_id: UUID) -> PrintJobYield |
         .order_by(print_job_lines.c.position)
     )
     return PrintJobYield(job=job, good={row.part_id: int(row.good) for row in rows})
+
+
+async def load_print_job_parts(uow: UnitOfWork, job_id: UUID) -> set[UUID]:
+    """The parts on the job's plate (empty for an unknown job)."""
+    rows = await uow.session.execute(
+        select(print_job_lines.c.part_id).where(print_job_lines.c.job_id == job_id)
+    )
+    return {row.part_id for row in rows}
+
+
+@dataclass(frozen=True, slots=True)
+class WorkshopState:
+    """The printer hall at a glance, for the morning mail (ADR 0034)."""
+
+    queued: int
+    printing: int
+    post_processing: int
+    down: list[str]
+    """Codes of printers reported defective or in repair."""
+
+
+async def load_workshop_state(uow: UnitOfWork) -> WorkshopState:
+    counted = await uow.session.execute(
+        select(print_jobs.c.status, func.count()).group_by(print_jobs.c.status)
+    )
+    jobs = {row[0]: int(row[1]) for row in counted}
+    down = await uow.session.scalars(
+        select(printers.c.code)
+        .where(printers.c.status.in_([PrinterStatus.DEFECTIVE, PrinterStatus.IN_REPAIR]))
+        .order_by(printers.c.code)
+    )
+    return WorkshopState(
+        queued=jobs.get(PrintJobStatus.QUEUED, 0),
+        printing=jobs.get(PrintJobStatus.PRINTING, 0),
+        post_processing=jobs.get(PrintJobStatus.POST_PROCESSING, 0),
+        down=list(down),
+    )

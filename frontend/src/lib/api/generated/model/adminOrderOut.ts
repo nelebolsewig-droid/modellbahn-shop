@@ -40,6 +40,8 @@ export interface AdminOrderOut {
   /** Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves. */
   lead_time_min_weeks?: number | null;
   lines: OrderLineOut[];
+  /** When the first plate for one of its pieces went on a printer (ADR 0034). */
+  making_started_at?: string | null;
   number: string;
   paid_at: string | null;
   /** Until when a pending order can be paid; afterwards it is cancelled. */

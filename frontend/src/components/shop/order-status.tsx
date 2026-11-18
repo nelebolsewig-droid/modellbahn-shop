@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
 import { OrderLines, OrderTimeline, PostalAddress } from "@/components/shop/order-parts";
+import { WorkshopTicker } from "@/components/shop/workshop-ticker";
 import { OrderTotals } from "@/components/shop/order-totals";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
       ) : null}
 
       <OrderTimeline order={order} className="mt-12 max-w-2xl" />
+      <WorkshopTicker order={order} className="mt-8 max-w-2xl" />
 
       <div className="mt-14 grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-16">
         <section aria-labelledby="artikel">

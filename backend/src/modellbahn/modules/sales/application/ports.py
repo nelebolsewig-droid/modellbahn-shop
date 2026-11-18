@@ -166,6 +166,40 @@ class Inventory(Protocol):
         """How many of the order's pieces are picked for packing."""
         ...
 
+    async def orders_served_by_plate(self, job_id: UUID) -> set[UUID]:
+        """Orders with a piece waiting whose bill of materials has a part on this plate."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class DigestFacts:
+    """What the morning mail says: the day's work and yesterday's sales."""
+
+    to_pack: int
+    """Paid orders with every piece there: the parcels to pack."""
+    oldest_to_pack: str | None
+    making_pieces: int
+    """Paid pieces the workshop still makes, and for how many orders."""
+    making_orders: int
+    unpaid_overdue: int
+    """Orders waiting three days or more for the money."""
+    paid_yesterday: int
+    paid_yesterday_cents: int
+    plates_queued: int
+    plates_printing: int
+    plates_post_processing: int
+    printers_down: list[str]
+
+
+class Digests(Protocol):
+    """The morning mail's figures (ADR 0034), and the claim that it goes out once a day."""
+
+    async def claim(self, day: date, now: datetime) -> bool:
+        """True for the first caller of the day; false if the mail went out already."""
+        ...
+
+    async def facts(self, now: datetime) -> DigestFacts: ...
+
 
 class Fairs(Protocol):
     """What sales may ask the site module: the next fair, for a line in the mails."""
@@ -324,6 +358,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def fairs(self) -> Fairs: ...
+
+    @property
+    def digests(self) -> Digests: ...
 
     @property
     def marketplace(self) -> Marketplace: ...

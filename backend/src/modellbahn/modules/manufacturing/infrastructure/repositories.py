@@ -15,7 +15,9 @@ from modellbahn.modules.catalog.contracts.product_scales import (
     load_product_scale_labels,
     load_scale_names,
 )
+from modellbahn.modules.catalog.contracts.variants import load_sale_variants
 from modellbahn.modules.identity.contracts.accounts import load_display_names
+from modellbahn.modules.inventory.contracts.demand import load_part_supply, load_waiting_pieces
 from modellbahn.modules.manufacturing.application.ports import PartUsage
 from modellbahn.modules.manufacturing.domain.model import (
     OPEN_JOB_STATUSES,
@@ -41,6 +43,7 @@ from modellbahn.modules.manufacturing.infrastructure.tables import (
     printer_status_reports,
     printers,
 )
+from modellbahn.modules.sales.contracts.orders import load_order_numbers
 from modellbahn.platform.uow import UnitOfWork
 
 
@@ -305,6 +308,28 @@ class SqlCatalog:
     async def scale_names(self) -> dict[str, str]:
         return await load_scale_names(self._uow)
 
+    async def variant_scales(self, variant_ids: Collection[UUID]) -> dict[UUID, UUID]:
+        found = await load_sale_variants(self._uow, variant_ids)
+        return {variant_id: variant.product_scale_id for variant_id, variant in found.items()}
+
+
+class SqlStock:
+    """The stock's and the sales' facades for planning, inside this transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def waiting_pieces(self) -> list[tuple[UUID, UUID]]:
+        return [
+            (piece.order_id, piece.variant_id) for piece in await load_waiting_pieces(self._uow)
+        ]
+
+    async def part_supply(self) -> dict[UUID, int]:
+        return await load_part_supply(self._uow)
+
+    async def order_numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]:
+        return await load_order_numbers(self._uow, order_ids)
+
 
 class SqlStaff:
     """The identity module's account facade, inside this transaction."""
@@ -326,6 +351,7 @@ class SqlManufacturingUnitOfWork(UnitOfWork):
     jobs: SqlPrintJobRepository
     catalog: SqlCatalog
     staff: SqlStaff
+    stock: SqlStock
 
     def _attach(self, session: AsyncSession) -> None:
         start_mappers()
@@ -336,6 +362,7 @@ class SqlManufacturingUnitOfWork(UnitOfWork):
         self.jobs = SqlPrintJobRepository(session)
         self.catalog = SqlCatalog(self)
         self.staff = SqlStaff(self)
+        self.stock = SqlStock(self)
 
 
 def manufacturing_uow_factory(

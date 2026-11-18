@@ -140,6 +140,9 @@ class Settings(BaseSettings):
     # Without the file the worker renders photos as uploaded (ADR 0031).
     studio_model_path: Path = Path("/app/models/isnet-general-use.onnx")
 
+    # Paid pieces without stock get their print plates queued by themselves (ADR 0034).
+    autoplan: bool = True
+
     log_level: LogLevel = "INFO"
 
     # The provider details of the imprint and the e-mail footer (§ 5 DDG). Personal data

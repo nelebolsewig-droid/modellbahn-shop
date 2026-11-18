@@ -41,6 +41,8 @@ from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.stock import StockService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.manufacturing.application.automation import AutoPlanner
+from modellbahn.modules.manufacturing.application.handlers import ManufacturingHandlers
 from modellbahn.modules.manufacturing.application.jobs import PrintJobService
 from modellbahn.modules.manufacturing.application.parts import (
     BomService,
@@ -524,6 +526,11 @@ def material_service(
 
 
 @pytest.fixture
+def planner(manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock) -> AutoPlanner:
+    return AutoPlanner(uow_factory=manufacturing_uow, clock=clock)
+
+
+@pytest.fixture
 def part_service(
     manufacturing_uow: ManufacturingUnitOfWorkFactory, clock: FixedClock
 ) -> PartService:
@@ -571,6 +578,7 @@ def deliver(
     marketplace: Marketplace,
     clock: FixedClock,
     orders: OrderService,
+    planner: AutoPlanner,
 ) -> Deliver:
     """Run one batch of the real outbox dispatcher with the handlers of all modules."""
     handlers = HandlerRegistry()
@@ -580,6 +588,7 @@ def deliver(
     WithdrawalAutomation(orders=orders).register(handlers)
     site_handlers.register(handlers)
     InventoryHandlers(allocation=allocation, parts=part_store).register(handlers)
+    ManufacturingHandlers(planner=planner).register(handlers)
     MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)
     MarketplaceHandlers(
         uow_factory=marketplace.uow_factory, orders=marketplace.orders, clock=clock
