@@ -253,6 +253,8 @@ export * from './shippingCountryOut';
 export * from './shippingLabelOut';
 export * from './shippingProduct';
 export * from './shippingSetupOut';
+export * from './sliceFileIn';
+export * from './sliceFileOut';
 export * from './staffOut';
 export * from './staffRole';
 export * from './statusReportOut';

@@ -39,9 +39,17 @@ from modellbahn.modules.manufacturing.api.schemas import (
     PrintJobListOut,
     PrintJobOut,
     PrintJobPlanIn,
+    SliceFileIn,
+    SliceFileOut,
     job_out,
 )
+from modellbahn.modules.manufacturing.domain.errors import InvalidFieldError
 from modellbahn.modules.manufacturing.domain.model import PrintJobStatus, Technology
+from modellbahn.modules.manufacturing.domain.slice_files import (
+    HEAD_BYTES,
+    UnreadableSliceFileError,
+    read_slice_file,
+)
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/admin/manufacturing", tags=["admin-manufacturing"])
@@ -268,6 +276,26 @@ async def update_part(
 async def delete_part(part_id: UUID, _: ProductionPlanner, service: PartServiceDep) -> Response:
     await service.delete(part_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/slice-files/read",
+    operation_id="readSliceFile",
+    summary="What a sliced print file says about its plate: resin, weight, print time",
+    description=(
+        "The body carries the head of a .ctb or .goo file as it came from the slicer, "
+        f"Base64, at most {HEAD_BYTES} bytes: the browser sends only that much of the "
+        "file. Nothing is stored; the answer fills the print data of a part (ADR 0037)."
+    ),
+    responses=problems(STAFF_ACCESS),
+)
+async def read_slice(body: SliceFileIn, _: ProductionPlanner) -> SliceFileOut:
+    try:
+        return SliceFileOut.from_file(read_slice_file(body.head))
+    except UnreadableSliceFileError as error:
+        raise InvalidFieldError(
+            "head", "slice_file_unreadable", f"Keine geslicte Druckdatei: {error}."
+        ) from error
 
 
 # --- Bills of materials ---------------------------------------------------------------

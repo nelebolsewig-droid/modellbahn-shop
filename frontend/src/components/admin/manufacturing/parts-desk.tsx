@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
-import { useDeferredValue, useState, type ReactNode } from "react";
+import { useDeferredValue, useRef, useState, type ReactNode } from "react";
 import { Controller } from "react-hook-form";
 
 import { useReferences } from "@/components/admin/catalog/use-product";
@@ -24,15 +24,24 @@ import {
   createPart,
   deleteMaterial,
   deletePart,
+  readSliceFile,
   updateMaterial,
   updatePart,
 } from "@/lib/api/generated/admin-manufacturing/admin-manufacturing";
-import type { ListPartsParams, MaterialOut, PartOut, StaffRole, Technology } from "@/lib/api/generated/model";
+import type {
+  ListPartsParams,
+  MaterialOut,
+  PartOut,
+  SliceFileOut,
+  StaffRole,
+  Technology,
+} from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { useApiForm } from "@/lib/forms/use-api-form";
-import { errorMessage } from "@/lib/i18n/problems";
+import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
 import { centsToEuroInput } from "@/lib/catalog/format";
 import { formatMinutes, MATERIAL_UNITS, materialPrice, MAY_PLAN, PRICE_UNITS, TECHNOLOGY_LABELS } from "@/lib/manufacturing/hall";
+import { plateValues, printDuration, SLICE_FILE_ACCEPT, sliceHead } from "@/lib/manufacturing/slice-file";
 import {
   EMPTY_PART,
   materialPrice as materialPriceSchema,
@@ -401,6 +410,19 @@ function PartDialog({ part, scales, trigger }: PartDialogProps) {
           </FormField>
           <fieldset className="mt-5">
             <legend className="text-small font-medium">Druckdaten</legend>
+            {technology === "resin" ? (
+              <SliceFilePicker
+                partsPerPlate={perPlate}
+                onRead={(plate) => {
+                  for (const [name, value] of Object.entries(plateValues(plate, perPlate))) {
+                    form.setValue(name as keyof ReturnType<typeof plateValues>, value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }
+                }}
+              />
+            ) : null}
             <div className="mt-2 grid gap-4 sm:grid-cols-4">
               <FormField label="Volle Platte (min)" error={errors.plate_minutes?.message}>
                 {(field) => (
@@ -473,6 +495,70 @@ function PartDialog({ part, scales, trigger }: PartDialogProps) {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function sliceError(error: ApiProblem): string {
+  const field = error.fieldErrors[0];
+  return field ? fieldErrorMessage(field.field, field.code) : errorMessage(error);
+}
+
+/**
+ * „Aus Druckdatei“: the sliced .ctb from Chitubox fills plate time, layer height and the
+ * resin of one part (ADR 0037). Only the head of the file leaves the computer.
+ */
+function SliceFilePicker({ onRead, partsPerPlate }: { onRead: (plate: SliceFileOut) => void; partsPerPlate: number }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [read, setRead] = useState<{ name: string; plate: SliceFileOut } | null>(null);
+  const reading = useMutation<SliceFileOut, ApiProblem, File>({
+    mutationFn: async (file) => readSliceFile({ head: await sliceHead(file) }),
+    onSuccess(plate, file) {
+      setRead({ name: file.name, plate });
+      onRead(plate);
+    },
+  });
+  const parts = partsPerPlate >= 1 ? Math.round(partsPerPlate) : 1;
+  return (
+    <div className="mt-2 border border-line bg-sunken px-3 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-hint text-ink-secondary">
+          Die geslicte Datei aus Chitubox (.ctb) trägt Plattenzeit, Schicht und Harz je Teil ein.
+        </p>
+        <input
+          ref={input}
+          type="file"
+          accept={SLICE_FILE_ACCEPT}
+          className="sr-only"
+          aria-label="Druckdatei wählen"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) reading.mutate(file);
+          }}
+        />
+        <Button type="button" variant="secondary" size="sm" disabled={reading.isPending} onClick={() => input.current?.click()}>
+          {reading.isPending ? "Liest …" : "Aus Druckdatei"}
+        </Button>
+      </div>
+      {reading.isError ? (
+        <p role="alert" className="mt-2 text-hint text-danger">
+          {sliceError(reading.error)}
+        </p>
+      ) : read ? (
+        <p className="mt-2 text-hint text-ink" aria-live="polite">
+          <span className="font-medium">{read.plate.machine || read.name}</span>
+          {" · "}
+          <span className="tabular-nums">
+            {decimal.format(read.plate.volume_ml)} ml · {decimal.format(read.plate.grams)} g ·{" "}
+            {printDuration(read.plate.print_seconds)}
+          </span>
+          {" · "}
+          {parts > 1
+            ? `geteilt durch ${parts} Teile je Platte`
+            : "die ganze Platte als ein Teil: Teile je Platte anpassen, wenn mehrere darauf liegen"}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

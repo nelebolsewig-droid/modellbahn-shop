@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Base64Bytes, BaseModel, ConfigDict, Field
 
 from modellbahn.modules.catalog.contracts.product_scales import ProductScaleLabel
 from modellbahn.modules.manufacturing.application.jobs import JobView
@@ -51,6 +51,7 @@ from modellbahn.modules.manufacturing.domain.model import (
     StatusReport,
     Technology,
 )
+from modellbahn.modules.manufacturing.domain.slice_files import HEAD_BYTES, SliceFile
 
 
 class _Request(BaseModel):
@@ -627,3 +628,38 @@ class PrintJobCompleteIn(_Request):
 
 class PrintJobFailIn(_Request):
     reason: str = Field(default="", max_length=FAILURE_REASON_MAX_LENGTH, examples=["Haftung"])
+
+
+class SliceFileIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    head: Base64Bytes = Field(
+        max_length=(HEAD_BYTES + 2) // 3 * 4,
+        description="The first bytes of the file, Base64.",
+    )
+
+
+class SliceFileOut(BaseModel):
+    """A plate as the slicer computed it, read from the head of its print file."""
+
+    format: str = Field(description="``ctb`` or ``goo``.")
+    machine: str = Field(description="The printer profile in the file; empty if it has none.")
+    volume_ml: float = Field(description="Resin of the whole plate, in millilitres.")
+    grams: float
+    cost: float = Field(description="The slicer's own price, in the currency set there.")
+    print_seconds: int
+    layer_height_um: int
+    layer_count: int
+
+    @classmethod
+    def from_file(cls, plate: SliceFile) -> Self:
+        return cls(
+            format=plate.format,
+            machine=plate.machine,
+            volume_ml=round(plate.volume_ml, 3),
+            grams=round(plate.grams, 3),
+            cost=round(plate.cost, 3),
+            print_seconds=plate.print_seconds,
+            layer_height_um=round(plate.layer_height_mm * 1000),
+            layer_count=plate.layer_count,
+        )
