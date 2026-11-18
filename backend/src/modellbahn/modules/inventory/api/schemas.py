@@ -730,11 +730,18 @@ class ValueShareOut(BaseModel):
     name: str = Field(examples=["Fertigmodell"])
     pieces: int
     value_cents: int
+    cost_cents: int = Field(description="Material of the pieces whose cost is known.")
+    cost_pieces: int = Field(description="Pieces whose cost is known.")
 
     @classmethod
     def from_share(cls, share: ValueShare) -> Self:
         return cls(
-            key=share.key, name=share.name, pieces=share.pieces, value_cents=share.value_cents
+            key=share.key,
+            name=share.name,
+            pieces=share.pieces,
+            value_cents=share.value_cents,
+            cost_cents=share.cost_cents,
+            cost_pieces=share.cost_pieces,
         )
 
 
@@ -755,6 +762,15 @@ class StockValueOut(BaseModel):
     by_model: list[ValueShareOut] = Field(description="Per model, most valuable first.")
     part_pieces: int = Field(description="Printed parts in the boxes: no price of their own.")
     part_kinds: int = Field(description="Different parts among them.")
+    cost_cents: int = Field(
+        description="Herstellwert: material of the pieces whose cost is known (ADR 0035)."
+    )
+    cost_pieces: int = Field(
+        description="Pieces whose kit has every amount and price; the rest lack one."
+    )
+    cost_value_cents: int = Field(
+        description="Shop value of the pieces whose cost is known, to compare with."
+    )
 
     @classmethod
     def from_value(cls, value: StockValue) -> Self:
@@ -771,6 +787,9 @@ class StockValueOut(BaseModel):
             by_model=[ValueShareOut.from_share(s) for s in value.by_model],
             part_pieces=value.part_pieces,
             part_kinds=value.part_kinds,
+            cost_cents=value.cost_cents,
+            cost_pieces=value.cost_pieces,
+            cost_value_cents=value.cost_value_cents,
         )
 
 

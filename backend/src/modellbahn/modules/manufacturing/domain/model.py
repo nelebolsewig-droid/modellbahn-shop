@@ -64,6 +64,8 @@ STATUS_NOTE_MAX_LENGTH: Final = 200
 NOTES_MAX_LENGTH: Final = 500
 
 MATERIAL_NAME_MAX_LENGTH: Final = 60
+MATERIAL_PRICE_MAX_CENTS: Final = 1_000_000
+"""Ten thousand euros per litre or kilogram: more is a typing error."""
 
 PART_NUMBER: Final = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)*")
 PART_NUMBER_MAX_LENGTH: Final = 40
@@ -308,7 +310,11 @@ class Printer:
 
 @dataclass(eq=False, kw_only=True)
 class Material:
-    """A filament or a resin, as the workshop calls it (``PLA grau``, ``Resin ABS-like``)."""
+    """A filament or a resin, as the workshop calls it (``PLA grau``, ``Resin ABS-like``).
+
+    Its price is what a litre of resin or a kilogram of filament costs, gross, in cents:
+    with the amount each part takes it gives what a kit costs to print (ADR 0035).
+    """
 
     id: UUID
     name: str
@@ -317,9 +323,18 @@ class Material:
     active: bool
     created_at: datetime
     updated_at: datetime
+    price_cents: int | None = None
 
     @classmethod
-    def create(cls, *, name: str, technology: Technology, notes: str, now: datetime) -> "Material":
+    def create(
+        cls,
+        *,
+        name: str,
+        technology: Technology,
+        notes: str,
+        now: datetime,
+        price_cents: int | None = None,
+    ) -> "Material":
         material = cls(
             id=new_id(),
             name="",
@@ -329,13 +344,22 @@ class Material:
             created_at=now,
             updated_at=now,
         )
-        material.change(name=name, notes=notes, active=True, now=now)
+        material.change(name=name, notes=notes, active=True, price_cents=price_cents, now=now)
         return material
 
-    def change(self, *, name: str, notes: str, active: bool, now: datetime) -> None:
+    def change(
+        self,
+        *,
+        name: str,
+        notes: str,
+        active: bool,
+        now: datetime,
+        price_cents: int | None = None,
+    ) -> None:
         self.name = _text(name, "name", MATERIAL_NAME_MAX_LENGTH, required=True)
         self.notes = _multiline(notes, "notes", NOTES_MAX_LENGTH)
         self.active = active
+        self.price_cents = _in_range(price_cents, "price_cents", 1, MATERIAL_PRICE_MAX_CENTS)
         self.updated_at = now
 
 
@@ -822,3 +846,34 @@ class PrintJob:
 def _planned(minutes: int) -> int:
     _in_range(minutes, "planned_minutes", 1, PLATE_MINUTES_MAX)
     return minutes
+
+
+# --- What a kit costs to print -----------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CostLine:
+    """One line of a bill of materials with what its part takes and its material costs."""
+
+    quantity: int
+    material_per_part: Decimal | None
+    """Millilitres of resin or grams of filament for one part."""
+    price_cents: int | None
+    """The material's price per litre or kilogram."""
+
+
+def kit_material_cost(lines: Sequence[CostLine]) -> Decimal | None:
+    """Cents the material of one kit costs: each part's amount times its material's price
+    per litre or kilogram, supports included (ADR 0035).
+
+    ``None`` while it cannot be told: no bill of materials, or a part without its amount
+    or a material without its price. Half a figure would make the store look cheaper.
+    """
+    if not lines:
+        return None
+    total = Decimal(0)
+    for line in lines:
+        if line.material_per_part is None or line.price_cents is None:
+            return None
+        total += line.quantity * line.material_per_part * line.price_cents / 1000
+    return total

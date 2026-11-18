@@ -9,7 +9,7 @@ import { useGetStockValue } from "@/lib/api/generated/admin-inventory/admin-inve
 import type { StockValueOut, ValueShareOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { errorMessage } from "@/lib/i18n/problems";
-import { partsWord, percentOf, piecesWord, topModels, type ValueRow } from "@/lib/inventory/value";
+import { materialShare, partsWord, percentOf, piecesWord, topModels, type ValueRow } from "@/lib/inventory/value";
 
 /**
  * Lagerwert: what the finished models on the shelves are worth at today's shop price,
@@ -41,14 +41,21 @@ export function StockValueBody({ value }: { value: StockValueOut }) {
           <p className="mt-1 text-small text-ink-secondary">
             {piecesWord(value.pieces)} fertige Modelle · zum heutigen Shoppreis, brutto
           </p>
-          {value.pieces > 0 ? <SplitBar value={value} /> : <EmptyNote />}
+          {value.pieces > 0 ? (
+            <>
+              <SplitBar value={value} />
+              <ProductionValue value={value} />
+            </>
+          ) : (
+            <EmptyNote />
+          )}
         </div>
         {value.pieces > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2">
             <ShareList title="Nach Ausführung" shares={value.by_finish} total={value.value_cents} />
             <ShareList title="Nach Maßstab" shares={value.by_scale} total={value.value_cents} />
             <div className="sm:col-span-2">
-              <ShareList title="Wertvollste Modelle" shares={rows} rest={rest} total={value.value_cents} />
+              <ShareList title="Wertvollste Modelle" shares={rows} rest={rest} total={value.value_cents} showCost />
             </div>
           </div>
         ) : null}
@@ -106,31 +113,85 @@ function SplitBar({ value }: { value: StockValueOut }) {
   );
 }
 
+/**
+ * Herstellwert (ADR 0035): what the material of the same pieces cost, from the bills of
+ * materials and the materials' prices. Pieces whose kit lacks an amount or a price are
+ * named, with the way to the place where they are entered.
+ */
+function ProductionValue({ value }: { value: StockValueOut }) {
+  const missing = value.pieces - value.cost_pieces;
+  const share = materialShare(value.cost_cents, value.cost_value_cents);
+  return (
+    <section aria-label="Herstellwert" className="mt-8 border-t border-ink pt-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 className="text-label text-ink-secondary uppercase">Herstellwert · Material</h3>
+        {share ? (
+          <p className="text-hint text-ink-tertiary">
+            <span className="font-medium text-ink tabular-nums">{share}</span> vom Verkaufswert
+          </p>
+        ) : null}
+      </div>
+      {value.cost_pieces > 0 ? (
+        <>
+          <p className="mt-1.5 font-display text-heading text-ink tabular-nums">{formatPrice(value.cost_cents)}</p>
+          <p className="mt-1 text-small text-ink-secondary">
+            {missing > 0 ? `für ${piecesWord(value.cost_pieces)} von ${piecesWord(value.pieces)}` : `für alle ${piecesWord(value.pieces)}`}
+            {" · "}Harz laut Stückliste zum Literpreis
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-small text-ink-secondary">Noch keine Herstellkosten bekannt.</p>
+      )}
+      {missing > 0 ? (
+        <p className="mt-3 border-l-2 border-warning bg-warning-subtle px-3 py-2 text-hint text-ink">
+          {piecesWord(missing)} ohne Herstellkosten: Es fehlt eine Stückliste, die Menge je Teil oder der Preis eines Materials.{" "}
+          <Link href={"/admin/fertigung/teile" as Route} className="font-medium text-accent underline underline-offset-2 hover:no-underline">
+            Teile &amp; Material
+          </Link>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function ShareList({
   title,
   shares,
   rest = null,
   total,
+  showCost = false,
 }: {
   title: string;
   shares: readonly (ValueShareOut | ValueRow)[];
   rest?: ValueShareOut | null;
   total: number;
+  /** The material of each row: in the wide list of models, where it fits. */
+  showCost?: boolean;
 }) {
   return (
     <section aria-label={title}>
       <h3 className="border-b border-ink pb-1.5 text-label text-ink-secondary uppercase">{title}</h3>
       <ul className="mt-3 space-y-3">
         {shares.map((share) => (
-          <ShareRow key={share.key} share={share} total={total} />
+          <ShareRow key={share.key} share={share} total={total} showCost={showCost} />
         ))}
-        {rest ? <ShareRow share={rest} total={total} muted /> : null}
+        {rest ? <ShareRow share={rest} total={total} showCost={showCost} muted /> : null}
       </ul>
     </section>
   );
 }
 
-function ShareRow({ share, total, muted = false }: { share: ValueShareOut | ValueRow; total: number; muted?: boolean }) {
+function ShareRow({
+  share,
+  total,
+  muted = false,
+  showCost = false,
+}: {
+  share: ValueShareOut | ValueRow;
+  total: number;
+  muted?: boolean;
+  showCost?: boolean;
+}) {
   const href = "href" in share ? share.href : null;
   const percent = percentOf(share.value_cents, total);
   return (
@@ -144,7 +205,10 @@ function ShareRow({ share, total, muted = false }: { share: ValueShareOut | Valu
           ) : (
             share.name
           )}
-          <span className="ml-2 text-hint text-ink-tertiary tabular-nums">{piecesWord(share.pieces)}</span>
+          <span className="ml-2 text-hint text-ink-tertiary tabular-nums">
+            {piecesWord(share.pieces)}
+            {showCost && share.cost_pieces > 0 ? ` · Material ${formatPrice(share.cost_cents)}` : ""}
+          </span>
         </span>
         <span className="shrink-0 font-medium tabular-nums">{formatPrice(share.value_cents)}</span>
       </div>

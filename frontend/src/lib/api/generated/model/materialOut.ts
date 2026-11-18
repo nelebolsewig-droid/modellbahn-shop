@@ -20,5 +20,7 @@ export interface MaterialOut {
   notes: string;
   /** Parts made of it. */
   part_count: number;
+  /** Gross cents per litre of resin or kilogram of filament; null if unknown. */
+  price_cents: number | null;
   technology: Technology;
 }

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parseEuroToCents } from "@/lib/catalog/format";
+
 /*
  * Client-side mirror of the manufacturing input rules (backend/src/modellbahn/modules/
  * manufacturing: domain/model.py and api/schemas.py). The backend stays authoritative
@@ -103,6 +105,22 @@ export const statusReportSchema = z.object({
 
 export type StatusReportValues = z.input<typeof statusReportSchema>;
 
+/** MATERIAL_PRICE_MAX_CENTS: ten thousand euros per litre or kilogram. */
+const MATERIAL_PRICE_MAX_CENTS = 1_000_000;
+
+/** A material's price in euros ("39,90"); empty means unknown. The result is cents. */
+export const materialPrice = z.string().transform((value, context) => {
+  if (value.trim() === "") {
+    return null;
+  }
+  const cents = parseEuroToCents(value);
+  if (cents === null || cents < 1 || cents > MATERIAL_PRICE_MAX_CENTS) {
+    context.addIssue({ code: "custom", message: "Bitte einen Preis wie 39,90 eingeben oder leer lassen." });
+    return z.NEVER;
+  }
+  return cents;
+});
+
 export const materialSchema = z.object({
   name: z
     .string()
@@ -111,6 +129,7 @@ export const materialSchema = z.object({
     .refine((value) => codePoints(value) <= 60, { error: "Der Name darf höchstens 60 Zeichen lang sein." }),
   technology: z.enum(["fdm", "resin"]),
   notes: bounded(500, "Die Notiz darf höchstens 500 Zeichen lang sein."),
+  price_cents: materialPrice,
 });
 
 export type MaterialValues = z.input<typeof materialSchema>;

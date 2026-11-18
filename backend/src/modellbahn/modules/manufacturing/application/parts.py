@@ -111,10 +111,16 @@ class MaterialService:
             counts = await uow.materials.part_counts()
         return [MaterialEntry(material, counts.get(material.id, 0)) for material in materials]
 
-    async def create(self, *, name: str, technology: Technology, notes: str) -> MaterialEntry:
+    async def create(
+        self, *, name: str, technology: Technology, notes: str, price_cents: int | None = None
+    ) -> MaterialEntry:
         async with self._uow() as uow:
             material = Material.create(
-                name=name, technology=technology, notes=notes, now=self._clock.now()
+                name=name,
+                technology=technology,
+                notes=notes,
+                price_cents=price_cents,
+                now=self._clock.now(),
             )
             await _check_name(uow, material.name, except_id=None)
             uow.materials.add(material)
@@ -122,11 +128,26 @@ class MaterialService:
         return MaterialEntry(material, 0)
 
     async def change(
-        self, material_id: UUID, *, name: str, notes: str, active: bool
+        self,
+        material_id: UUID,
+        *,
+        name: str,
+        notes: str,
+        active: bool,
+        price_cents: int | None = None,
+        keep_price: bool = False,
     ) -> MaterialEntry:
+        """Name, notes and state; the price too unless ``keep_price`` (a request that does
+        not mention it, as the archive button sends, leaves it as it is)."""
         async with self._uow() as uow:
             material = await _material(uow, material_id, for_update=True)
-            material.change(name=name, notes=notes, active=active, now=self._clock.now())
+            material.change(
+                name=name,
+                notes=notes,
+                active=active,
+                price_cents=material.price_cents if keep_price else price_cents,
+                now=self._clock.now(),
+            )
             await _check_name(uow, material.name, except_id=material.id)
             await commit(uow)
             counts = await uow.materials.part_counts()

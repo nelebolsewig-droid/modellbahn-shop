@@ -23,6 +23,12 @@ export interface StockValueOut {
   by_model: ValueShareOut[];
   /** Per scale, most valuable first. */
   by_scale: ValueShareOut[];
+  /** Herstellwert: material of the pieces whose cost is known (ADR 0035). */
+  cost_cents: number;
+  /** Pieces whose kit has every amount and price; the rest lack one. */
+  cost_pieces: number;
+  /** Shop value of the pieces whose cost is known, to compare with. */
+  cost_value_cents: number;
   /** The part the shop can still sell. */
   free_cents: number;
   free_pieces: number;

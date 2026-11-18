@@ -21,4 +21,6 @@ export interface MaterialIn {
   name: string;
   /** @maxLength 500 */
   notes?: string;
+  /** Gross cents per litre of resin or kilogram of filament; null if unknown. */
+  price_cents?: number | null;
 }

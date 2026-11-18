@@ -5,6 +5,7 @@ Repositories only read and stage changes; committing is the unit of work's job.
 
 from collections.abc import Collection
 from datetime import datetime
+from decimal import Decimal
 from functools import partial
 from uuid import UUID
 
@@ -48,6 +49,7 @@ from modellbahn.modules.manufacturing.contracts.parts import (
     PrintJobInfo,
     PrintJobYield,
     load_bill_of_materials,
+    load_kit_material_costs,
     load_part_by_number,
     load_parts,
     load_print_job_yield,
@@ -576,6 +578,11 @@ class SqlManufacturing:
 
     async def bill_of_materials(self, product_scale_id: UUID) -> list[KitPart]:
         return await load_bill_of_materials(self._uow, product_scale_id)
+
+    async def kit_material_costs(
+        self, product_scale_ids: Collection[UUID]
+    ) -> dict[UUID, Decimal | None]:
+        return await load_kit_material_costs(self._uow, product_scale_ids)
 
     async def print_jobs(self, job_ids: Collection[UUID]) -> dict[UUID, PrintJobInfo]:
         return await load_print_jobs(self._uow, job_ids)

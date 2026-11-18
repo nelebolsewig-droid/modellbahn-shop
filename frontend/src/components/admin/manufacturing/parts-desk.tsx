@@ -31,8 +31,15 @@ import type { ListPartsParams, MaterialOut, PartOut, StaffRole, Technology } fro
 import type { ApiProblem } from "@/lib/api/problem";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { errorMessage } from "@/lib/i18n/problems";
-import { formatMinutes, MATERIAL_UNITS, MAY_PLAN, TECHNOLOGY_LABELS } from "@/lib/manufacturing/hall";
-import { EMPTY_PART, materialSchema, partSchema, type PartValues } from "@/lib/validation/manufacturing";
+import { centsToEuroInput } from "@/lib/catalog/format";
+import { formatMinutes, MATERIAL_UNITS, materialPrice, MAY_PLAN, PRICE_UNITS, TECHNOLOGY_LABELS } from "@/lib/manufacturing/hall";
+import {
+  EMPTY_PART,
+  materialPrice as materialPriceSchema,
+  materialSchema,
+  partSchema,
+  type PartValues,
+} from "@/lib/validation/manufacturing";
 
 import { useManufacturingRefresh, useMaterials, useParts } from "./use-manufacturing";
 
@@ -514,12 +521,16 @@ function MaterialRow({ material, mayPlan }: { material: MaterialOut; mayPlan: bo
           <p className={material.active ? "font-medium" : "font-medium text-ink-tertiary"}>{material.name}</p>
           <p className="text-hint text-ink-tertiary">
             {TECHNOLOGY_LABELS[material.technology]} ·{" "}
-            {material.part_count === 1 ? "1 Teil" : `${material.part_count} Teile`}
+            {material.part_count === 1 ? "1 Teil" : `${material.part_count} Teile`} ·{" "}
+            <span className={material.price_cents === null ? "text-warning" : "text-ink-secondary tabular-nums"}>
+              {materialPrice(material.price_cents, material.technology)}
+            </span>
             {material.active ? "" : " · archiviert"}
           </p>
         </div>
         {mayPlan ? (
           <div className="flex shrink-0 gap-3 pt-1 text-hint font-medium">
+            <MaterialPriceDialog material={material} />
             <button
               type="button"
               className="text-accent hover:underline disabled:text-ink-disabled"
@@ -550,9 +561,81 @@ function MaterialRow({ material, mayPlan }: { material: MaterialOut; mayPlan: bo
   );
 }
 
+/**
+ * The price of a litre or kilogram, as the bill or the slicer shows it: with each part's
+ * amount it gives what a kit costs to print, the Herstellwert of the store (ADR 0035).
+ */
+function MaterialPriceDialog({ material }: { material: MaterialOut }) {
+  const refresh = useManufacturingRefresh();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const parsed = materialPriceSchema.safeParse(text);
+  const save = useMutation<MaterialOut, ApiProblem, number | null>({
+    mutationFn: (price) =>
+      updateMaterial(material.id, { name: material.name, notes: material.notes, active: material.active, price_cents: price }),
+    onSuccess() {
+      refresh();
+      setOpen(false);
+    },
+  });
+  const unit = PRICE_UNITS[material.technology];
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setText(material.price_cents === null ? "" : centsToEuroInput(material.price_cents));
+          save.reset();
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <button type="button" className="text-accent hover:underline">
+          Preis
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogTitle>Preis von {material.name}</DialogTitle>
+        <DialogDescription>
+          Was ein {unit} kostet, brutto. Mit der Menge je Teil ergibt das die Herstellkosten der Modelle im Lagerwert.
+        </DialogDescription>
+        <form
+          noValidate
+          className="mt-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (parsed.success) {
+              save.mutate(parsed.data);
+            }
+          }}
+        >
+          <FormField
+            label={`Preis je ${unit} in Euro`}
+            hint="Leer lassen, wenn er nicht bekannt ist."
+            error={text.trim() !== "" && !parsed.success ? parsed.error.issues[0]?.message : undefined}
+          >
+            {(field) => (
+              <Input {...field} value={text} onChange={(event) => setText(event.target.value)} inputMode="decimal" placeholder="z. B. 39,90" className="w-40" />
+            )}
+          </FormField>
+          <p role="alert" className="text-small text-danger not-empty:mt-3">
+            {save.error ? errorMessage(save.error) : null}
+          </p>
+          <div className="mt-6 flex justify-end">
+            <SubmitButton pending={save.isPending} pendingLabel="Speichert …" size="sm" disabled={!parsed.success}>
+              Preis speichern
+            </SubmitButton>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NewMaterial() {
   const refresh = useManufacturingRefresh();
-  const empty = { name: "", technology: "resin" as const, notes: "" };
+  const empty = { name: "", technology: "resin" as const, notes: "", price_cents: "" };
   const { form, onSubmit, formError } = useApiForm({
     schema: materialSchema,
     defaultValues: empty,
@@ -565,8 +648,10 @@ function NewMaterial() {
   const {
     register,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = form;
+  const technology = watch("technology");
   return (
     <form noValidate onSubmit={onSubmit} className="mt-5 border-t border-line pt-5" aria-label="Neues Material">
       <FormError message={formError?.message} className="mb-3" />
@@ -583,6 +668,14 @@ function NewMaterial() {
           </OptionGroup>
         )}
       />
+      <FormField
+        label={`Preis je ${PRICE_UNITS[technology]} (optional)`}
+        hint="Brutto in Euro, z. B. 39,90. Daraus rechnet das Lager den Herstellwert."
+        error={errors.price_cents?.message}
+        className="mt-4"
+      >
+        {(field) => <Input {...field} {...register("price_cents")} inputMode="decimal" className="w-40" />}
+      </FormField>
       <SubmitButton pending={isSubmitting} pendingLabel="Speichert …" size="sm" className="mt-4">
         Material anlegen
       </SubmitButton>

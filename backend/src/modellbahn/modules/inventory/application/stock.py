@@ -276,13 +276,17 @@ class StockService:
         ]
 
     async def value(self) -> StockValue:
-        """What the finished pieces on the shelves are worth at today's shop price, and
-        how many printed parts lie in the boxes (:func:`stock_value`)."""
+        """What the finished pieces on the shelves are worth at today's shop price, what
+        their material cost, and how many printed parts lie in the boxes
+        (:func:`stock_value`)."""
         async with self._uow() as uow:
             counts = [c for c in await uow.units.counts() if c.status in ON_SHELF]
             variants = await uow.catalog.variants({c.variant_id for c in counts})
             part_totals = await uow.part_stock.totals()
-        return stock_value(counts, variants, part_totals)
+            kit_costs = await uow.manufacturing.kit_material_costs(
+                {variant.product_scale_id for variant in variants.values()}
+            )
+        return stock_value(counts, variants, part_totals, kit_costs)
 
     async def to_make(self) -> list[ToMake]:
         """Every Ausführung with pieces paid orders wait for, the longest waiting first.

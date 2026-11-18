@@ -1,6 +1,7 @@
 """The store's worth: finished pieces on the shelves at today's price, parts by number."""
 
 from dataclasses import replace
+from decimal import Decimal
 from uuid import uuid4
 
 from modellbahn.modules.catalog.contracts.variants import SaleVariant
@@ -31,8 +32,22 @@ KRAN = SaleVariant(
 KRAN_KIT = replace(
     KRAN, variant_id=uuid4(), finish_code="unpainted", finish_name="Bausatz", price_cents=3990
 )
-KRAN_TT = replace(KRAN, variant_id=uuid4(), scale_code="TT", scale_name="TT", price_cents=7490)
-LOK = replace(KRAN, variant_id=uuid4(), product_id=uuid4(), product_name="BR 01", price_cents=20000)
+KRAN_TT = replace(
+    KRAN,
+    variant_id=uuid4(),
+    product_scale_id=uuid4(),
+    scale_code="TT",
+    scale_name="TT",
+    price_cents=7490,
+)
+LOK = replace(
+    KRAN,
+    variant_id=uuid4(),
+    product_id=uuid4(),
+    product_scale_id=uuid4(),
+    product_name="BR 01",
+    price_cents=20000,
+)
 VARIANTS = {v.variant_id: v for v in (KRAN, KRAN_KIT, KRAN_TT, LOK)}
 
 
@@ -99,3 +114,26 @@ def test_deleted_variants_and_parts_are_counted_not_priced() -> None:
 def test_an_empty_store_is_worth_nothing() -> None:
     value = stock_value([], VARIANTS, {})
     assert (value.pieces, value.value_cents, value.part_pieces) == (0, 0, 0)
+
+
+def test_the_material_of_each_kit_is_the_herstellwert() -> None:
+    # Bausatz and Fertigmodell share the kit; the Lok's kit lacks a price.
+    value = stock_value(
+        [
+            count(KRAN, UnitStatus.IN_STOCK, 2),
+            count(KRAN_KIT, UnitStatus.ALLOCATED, 1),
+            count(LOK, UnitStatus.IN_STOCK, 3),
+        ],
+        VARIANTS,
+        {},
+        {KRAN.product_scale_id: Decimal("70.4"), LOK.product_scale_id: None},
+    )
+    assert (value.cost_cents, value.cost_pieces) == (211, 3)
+    assert value.cost_value_cents == 2 * 8990 + 3990
+    by_model = {share.name: (share.cost_cents, share.cost_pieces) for share in value.by_model}
+    assert by_model == {"EDK 6": (211, 3), "BR 01": (0, 0)}
+
+
+def test_without_bills_of_materials_nothing_is_known() -> None:
+    value = stock_value([count(KRAN, UnitStatus.IN_STOCK, 2)], VARIANTS, {})
+    assert (value.pieces, value.cost_cents, value.cost_pieces) == (2, 0, 0)

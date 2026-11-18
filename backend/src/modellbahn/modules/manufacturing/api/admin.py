@@ -156,20 +156,30 @@ async def list_materials(_: PrinterOperator, service: MaterialServiceDep) -> Mat
 async def create_material(
     body: MaterialCreateIn, _: ProductionPlanner, service: MaterialServiceDep
 ) -> MaterialOut:
-    entry = await service.create(name=body.name, technology=body.technology, notes=body.notes)
+    entry = await service.create(
+        name=body.name, technology=body.technology, notes=body.notes, price_cents=body.price_cents
+    )
     return MaterialOut.from_entry(entry)
 
 
 @router.put(
     "/materials/{material_id}",
     operation_id="updateMaterial",
-    summary="Rename, describe or archive a material",
+    summary="Rename, describe, price or archive a material",
+    description="A body without `price_cents` keeps the price; `null` removes it.",
     responses=problems({**STAFF_ACCESS, **_MATERIAL_NOT_FOUND}),
 )
 async def update_material(
     material_id: UUID, body: MaterialIn, _: ProductionPlanner, service: MaterialServiceDep
 ) -> MaterialOut:
-    entry = await service.change(material_id, name=body.name, notes=body.notes, active=body.active)
+    entry = await service.change(
+        material_id,
+        name=body.name,
+        notes=body.notes,
+        active=body.active,
+        price_cents=body.price_cents,
+        keep_price="price_cents" not in body.model_fields_set,
+    )
     return MaterialOut.from_entry(entry)
 
 

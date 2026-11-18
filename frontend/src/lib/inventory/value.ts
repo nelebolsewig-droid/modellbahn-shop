@@ -35,6 +35,8 @@ export function topModels(models: readonly ValueShareOut[], shown = MODELS_SHOWN
       name: others.length === 1 ? "1 weiteres Modell" : `${others.length} weitere Modelle`,
       pieces: others.reduce((sum, model) => sum + model.pieces, 0),
       value_cents: others.reduce((sum, model) => sum + model.value_cents, 0),
+      cost_cents: others.reduce((sum, model) => sum + model.cost_cents, 0),
+      cost_pieces: others.reduce((sum, model) => sum + model.cost_pieces, 0),
     },
   };
 }
@@ -47,4 +49,13 @@ export function piecesWord(count: number): string {
 /** `1 Teil`, `1.204 Teile`: printed parts. */
 export function partsWord(count: number): string {
   return `${new Intl.NumberFormat("de-DE").format(count)} ${count === 1 ? "Teil" : "Teile"}`;
+}
+
+/** The material as a share of what the same pieces bring in the shop: `8 %`; null if unknown. */
+export function materialShare(costCents: number, valueCents: number): string | null {
+  if (costCents <= 0 || valueCents <= 0) {
+    return null;
+  }
+  const percent = (costCents / valueCents) * 100;
+  return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: percent < 10 ? 1 : 0 }).format(percent)} %`;
 }
