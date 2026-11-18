@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Stellwerk-Handbuch · adp-Modelle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Tinos:ital,wght@1,700&family=Arimo:wght@700&display=block" rel="stylesheet">
+<style>
+:root{
+  --alabaster:#FAF6F0; --sand:#EFE7DC; --sand-deep:#E4D8C8; --line:#D9CBB8;
+  --mandarin:#E8632B; --terra:#C94B1A; --terra-deep:#9E380F; --espresso:#26211E; --ink2:#5C524B;
+  --green:#2F6B3E;
+}
+@page{ size:A4; margin:16mm 16mm 20mm 16mm; background:#FAF6F0; }
+@page cover{ margin:0; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; background:var(--alabaster); color:var(--espresso); }
+body{ font-family:Geist, Arial, sans-serif; font-size:10.4pt; line-height:1.55; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+h1,h2,h3{ font-family:"Bricolage Grotesque", Arial, sans-serif; font-weight:800; letter-spacing:-0.02em; line-height:1.08; margin:0; }
+p{ margin:0 0 .7em; }
+.mono{ font-family:"Geist Mono", monospace; }
+b,strong{ font-weight:600; }
+
+/* Wordmark */
+.wm{ white-space:nowrap; }
+.wm .a{ font-family:"Times New Roman", Tinos, serif; font-style:italic; font-weight:700; color:#C8102E; }
+.wm .m{ font-family:Arial, Arimo, sans-serif; font-weight:700; color:#000; }
+
+/* Cover */
+.cover{ page:cover; height:297mm; width:210mm; position:relative; overflow:hidden; background:var(--alabaster); break-after:page; }
+.cover .band{ position:absolute; left:0; right:0; bottom:0; height:92mm; background:var(--sand); }
+.cover .track{ position:absolute; left:18mm; right:0; bottom:92mm; height:0; border-top:2.2pt solid var(--espresso); }
+.cover .track::before{ content:""; position:absolute; left:0; right:0; top:3pt; border-top:1pt dashed var(--espresso); opacity:.5; }
+.cover .kran{ position:absolute; right:-6mm; bottom:84mm; width:132mm; }
+.cover .top{ position:absolute; left:18mm; top:18mm; right:18mm; display:flex; justify-content:space-between; align-items:baseline; }
+.cover .top .wm{ font-size:20pt; }
+.cover .top .tag{ font-size:8pt; letter-spacing:.14em; text-transform:uppercase; color:var(--ink2); }
+.cover .title{ position:absolute; left:18mm; top:52mm; width:110mm; }
+.cover .kicker{ font-size:9pt; letter-spacing:.16em; text-transform:uppercase; color:var(--terra-deep); font-weight:600; margin-bottom:5mm; }
+.cover h1{ font-size:58pt; letter-spacing:-0.035em; }
+.cover .sub{ margin-top:7mm; font-size:13pt; color:var(--ink2); line-height:1.45; width:92mm; }
+.cover .foot{ position:absolute; left:18mm; right:18mm; bottom:16mm; display:grid; grid-template-columns:repeat(3,1fr); gap:8mm; }
+.cover .foot div{ border-top:1pt solid var(--espresso); padding-top:3mm; font-size:8.6pt; color:var(--ink2); }
+.cover .foot b{ display:block; color:var(--espresso); font-size:10pt; margin-bottom:1mm; }
+.cover .stamp{ position:absolute; left:18mm; bottom:62mm; background:var(--mandarin); color:var(--espresso); font-weight:600; padding:2.4mm 4mm; font-size:9.5pt; }
+
+/* Inhalt */
+.toc{ break-after:page; }
+.toc h2{ font-size:30pt; margin-bottom:8mm; }
+.toc ol{ list-style:none; padding:0; margin:0; columns:1; }
+.toc li{ display:grid; grid-template-columns:12mm 1fr auto; align-items:baseline; padding:2.4mm 0; border-bottom:.6pt solid var(--line); }
+.toc li .no{ font-family:"Geist Mono",monospace; font-size:8.5pt; color:var(--ink2); }
+.toc li .t{ font-weight:600; font-size:11.5pt; }
+.toc li .d{ font-size:8.8pt; color:var(--ink2); grid-column:2; }
+.toc li .r{ grid-row:1 / span 2; grid-column:3; font-size:8pt; }
+.howto{ margin-top:9mm; display:grid; grid-template-columns:1fr 1fr; gap:4mm; }
+.howto div{ background:var(--sand); padding:4mm 5mm; }
+.howto h3{ font-size:12pt; margin-bottom:2mm; }
+.howto p{ font-size:9pt; margin:0; color:var(--ink2); }
+
+/* Chapter */
+.chapter{ break-before:page; }
+.ch-head{ display:grid; grid-template-columns:auto 1fr; gap:6mm; align-items:end; padding-bottom:5mm; border-bottom:2.2pt solid var(--espresso); margin-bottom:6mm; position:relative; }
+.ch-head .lever{ font-family:"Geist Mono",monospace; font-size:9pt; background:var(--espresso); color:var(--alabaster); padding:2mm 3mm; align-self:start; margin-top:2mm; }
+.ch-head .kick{ font-size:8pt; letter-spacing:.16em; text-transform:uppercase; color:var(--terra-deep); font-weight:600; margin-bottom:2mm; }
+.ch-head h2{ font-size:28pt; }
+.ch-head .lead{ grid-column:2; font-size:11.5pt; color:var(--ink2); margin-top:3mm; max-width:150mm; }
+.who{ display:inline-flex; gap:1.5mm; margin-top:3mm; grid-column:2; }
+.role{ font-size:7.8pt; font-weight:600; letter-spacing:.04em; padding:.8mm 2.2mm; border:.8pt solid var(--espresso); }
+.role.on{ background:var(--espresso); color:var(--alabaster); }
+.role.off{ color:#A89C90; border-color:#C9BCAD; text-decoration:line-through; }
+
+h3.sec{ font-size:16pt; margin:7mm 0 3mm; break-after:avoid; }
+figure.w70{ width:72% !important; } figure.w78{ width:78% !important; }
+h4{ font-family:Geist,sans-serif; font-size:10.5pt; font-weight:600; margin:4mm 0 1.5mm; }
+
+/* Figure */
+figure{ margin:3mm 0 5mm; break-inside:avoid; }
+.chapter > figure, .cont > figure{ width:88%; margin-left:auto; margin-right:auto; }
+figure .shot{ border:.8pt solid var(--line); background:#fff; box-shadow:2.2mm 2.2mm 0 var(--sand-deep); }
+figure img{ display:block; width:100%; }
+figcaption{ margin-top:3.5mm; font-size:8.6pt; color:var(--ink2); }
+figcaption .n{ margin-right:2.5mm; }
+figcaption .n{ font-family:"Geist Mono",monospace; color:var(--terra-deep); white-space:nowrap; }
+.phone-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; align-items:start; }
+.phone-row figure .shot{ border:2.4mm solid var(--espresso); border-radius:5mm; overflow:hidden; box-shadow:none; }
+.split{ display:grid; grid-template-columns:1fr 1fr; gap:6mm; align-items:start; }
+.split-3-2{ display:grid; grid-template-columns:3fr 2fr; gap:7mm; align-items:start; }
+
+/* Task box */
+.task{ background:var(--sand); margin:4mm 0 6mm; break-inside:avoid; border-left:2.2mm solid var(--mandarin); }
+.task .th{ display:flex; justify-content:space-between; align-items:baseline; padding:4mm 5mm 2mm; }
+.task .th h3{ font-size:14.5pt; }
+.task .th .q{ font-size:7.6pt; letter-spacing:.16em; text-transform:uppercase; color:var(--terra-deep); font-weight:600; }
+.task ol{ counter-reset:s; list-style:none; margin:0; padding:1mm 5mm 4mm; }
+.task ol li{ counter-increment:s; position:relative; padding:1.6mm 0 1.6mm 10mm; border-top:.6pt solid var(--line); }
+.task ol li:first-child{ border-top:0; }
+.task ol li::before{ content:counter(s); position:absolute; left:0; top:1.6mm; width:6.2mm; height:6.2mm; display:grid; place-items:center; background:var(--espresso); color:var(--alabaster); font-family:"Geist Mono",monospace; font-size:8pt; }
+.task .after{ padding:0 5mm 4mm; font-size:9.2pt; color:var(--ink2); }
+
+.btn{ display:inline-block; font-weight:600; font-size:.92em; padding:0 1.6mm; border:.7pt solid var(--espresso); background:var(--alabaster); white-space:nowrap; line-height:1.45; }
+.btn.go{ background:var(--mandarin); border-color:var(--mandarin); }
+.key{ font-family:"Geist Mono",monospace; font-size:.9em; background:var(--sand); padding:0 1.2mm; }
+
+/* Notes */
+.note{ display:grid; grid-template-columns:20mm 1fr; gap:3mm; padding:3.4mm 4mm; margin:3mm 0 5mm; break-inside:avoid; border:.8pt solid var(--espresso); background:var(--alabaster); }
+.note .lbl{ font-size:7.6pt; letter-spacing:.14em; text-transform:uppercase; font-weight:600; }
+.note p:last-child{ margin:0; }
+.note.tip .lbl{ color:var(--green); }
+.note.warn{ border-color:var(--terra); background:#FBEDE4; }
+.note.warn .lbl{ color:var(--terra-deep); }
+.note.soon{ border-style:dashed; }
+.note.soon .lbl{ color:var(--terra-deep); }
+
+/* Tables */
+table{ width:100%; border-collapse:collapse; margin:2mm 0 5mm; font-size:9.4pt; break-inside:avoid; }
+th{ text-align:left; font-size:7.6pt; letter-spacing:.12em; text-transform:uppercase; color:var(--ink2); font-weight:600; padding:2mm 2.5mm; border-bottom:1.4pt solid var(--espresso); }
+td{ padding:2.2mm 2.5mm; border-bottom:.6pt solid var(--line); vertical-align:top; }
+td.c{ text-align:center; font-weight:600; }
+.yes{ color:var(--green); } .no{ color:#B3A698; }
+
+/* Stations (Gleisbild explainer) */
+.stations{ display:grid; grid-template-columns:repeat(4,1fr); margin:4mm 0 6mm; position:relative; break-inside:avoid; }
+.stations::before{ content:""; position:absolute; left:0; right:0; top:4.2mm; border-top:1.8pt solid var(--espresso); }
+.stations div{ position:relative; padding-top:11mm; padding-right:4mm; }
+.stations div::before{ content:""; position:absolute; left:0; top:1.6mm; width:5mm; height:5mm; background:var(--alabaster); border:1.8pt solid var(--espresso); }
+.stations div.hot::before{ background:var(--mandarin); }
+.stations b{ display:block; font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:13pt; }
+.stations span{ font-size:8.8pt; color:var(--ink2); }
+
+/* Flow diagram */
+.flow{ display:grid; grid-template-columns:1fr 7mm 1fr 7mm 1fr 7mm 1fr; align-items:stretch; margin:4mm 0 6mm; break-inside:avoid; }
+.flow .box{ background:var(--sand); padding:3.5mm 3.5mm; }
+.flow .box .k{ font-family:"Geist Mono",monospace; font-size:7.6pt; color:var(--terra-deep); }
+.flow .box b{ display:block; font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:12.5pt; margin:.6mm 0 1mm; }
+.flow .box span{ font-size:8.6pt; color:var(--ink2); line-height:1.4; display:block; }
+.flow .box.hot{ background:var(--mandarin); }
+.flow .box.hot .k,.flow .box.hot span{ color:var(--espresso); }
+.flow .arr{ display:grid; place-items:center; font-family:"Geist Mono",monospace; font-size:12pt; }
+
+/* FAQ, glossary */
+.faq{ break-inside:avoid; padding:3mm 0; border-bottom:.6pt solid var(--line); }
+.faq h4{ margin:0 0 1mm; font-size:10.6pt; }
+.faq p{ margin:0; }
+.gloss{ columns:2; column-gap:9mm; }
+.gloss div{ break-inside:avoid; padding:2mm 0 2.4mm; border-bottom:.6pt solid var(--line); }
+.gloss dt{ font-weight:600; }
+.gloss dd{ margin:0; font-size:9.2pt; color:var(--ink2); }
+.small{ font-size:8.8pt; color:var(--ink2); }
+ul.dots{ padding-left:4.5mm; margin:0 0 4mm; }
+ul.dots li{ margin:.8mm 0; }
+.end{ margin-top:10mm; background:var(--espresso); color:var(--alabaster); padding:7mm 8mm; break-inside:avoid; }
+.end h3{ font-size:18pt; color:var(--alabaster); margin-bottom:2mm; }
+.end p{ color:#E9DFD2; margin:0; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="top"><span class="wm"><span class="a">adp</span><span class="m">-Modelle</span></span><span class="tag">Für das Team · Stand November 2026</span></div>
+  <div class="title">
+    <div class="kicker">Handbuch</div>
+    <h1>Das Stell&shy;werk.</h1>
+    <p class="sub">Wie wir Bestellungen packen, Modelle einbuchen, scannen und fertigen. Schritt für Schritt erklärt, zum Einarbeiten und zum Nachschlagen.</p>
+  </div>
+  <div class="track"></div>
+  <img class="kran" src="img/kran.webp" alt="">
+  <div class="band"></div>
+  <div class="stamp">Für Inhaber, Mitarbeiter und Packer</div>
+  <div class="foot">
+    <div><b>Nachschlagen</b>Jede Aufgabe steht für sich. Im Inhalt die Frage suchen, hinblättern, loslegen.</div>
+    <div><b>Am Rechner und am Handy</b>Das Stellwerk läuft im Browser. Nichts zu installieren.</div>
+    <div><b>Fragen?</b>Erst „Häufige Fragen“ ab Seite 23, dann Nele oder Johann.</div>
+  </div>
+</section>
+
+<!-- ============ INHALT ============ -->
+<section class="toc">
+  <h2>Inhalt</h2>
+  <ol>
+    <li><span class="no">01</span><span class="t">So hängt alles zusammen</span><span class="d">Shop, eBay, Stellwerk, Werkstatt und Lager</span><span class="r">3</span></li>
+    <li><span class="no">02</span><span class="t">Wer darf was</span><span class="d">Inhaber, Mitarbeiter, Packer</span><span class="r">4</span></li>
+    <li><span class="no">03</span><span class="t">Anmelden und zurechtfinden</span><span class="d">Anmelden, Passwort, Leiste links, Handy</span><span class="r">5</span></li>
+    <li><span class="no">04</span><span class="t">Der Tag beginnt: Heute</span><span class="d">Die vier Zahlen und was sie bedeuten</span><span class="r">7</span></li>
+    <li><span class="no">05</span><span class="t">Bestellungen</span><span class="d">Gleisbild, Liste, packen, versenden, Vorkasse, stornieren, erstatten</span><span class="r">8</span></li>
+    <li><span class="no">06</span><span class="t">Modelle</span><span class="d">Typenschild, Seite eines Modells, neues Modell anlegen</span><span class="r">13</span></li>
+    <li><span class="no">07</span><span class="t">Lager</span><span class="d">Regale, einbuchen, ausbuchen, umlagern, zählen, Etiketten</span><span class="r">16</span></li>
+    <li><span class="no">08</span><span class="t">Scannen</span><span class="d">Einlagern, Messe-Verkauf, Auskunft, Rückgängig</span><span class="r">18</span></li>
+    <li><span class="no">09</span><span class="t">Fertigung</span><span class="d">Zu fertigen, Druckerhalle, Platten melden</span><span class="r">20</span></li>
+    <li><span class="no">10</span><span class="t">Messen, eBay, Einstellungen</span><span class="d">Was Inhaber und Mitarbeiter sonst noch pflegen</span><span class="r">22</span></li>
+    <li><span class="no">11</span><span class="t">Häufige Fragen</span><span class="d">Wenn etwas hakt</span><span class="r">23</span></li>
+    <li><span class="no">12</span><span class="t">Begriffe von A bis Z</span><span class="d">Bausatz, Boden, Kommissionieren, Vorkasse …</span><span class="r">25</span></li>
+  </ol>
+  <div class="howto">
+    <div><h3>Neu im Team?</h3><p>Lies die Kapitel 01 bis 04 einmal ganz. Danach reicht es, bei einer Aufgabe nachzuschlagen. Packer brauchen vor allem 05 und 08.</p></div>
+    <div><h3>So liest du die Aufgaben</h3><p>Orange umrandete Kästen sind Aufgaben zum Nachmachen. <span class="btn go">Orange</span> steht für den Hauptknopf, <span class="btn">umrandet</span> für einen normalen Knopf im Stellwerk.</p></div>
+  </div>
+</section>
+
+<!-- ============ 01 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">01</span>
+    <div><div class="kick">Überblick</div><h2>So hängt alles zusammen</h2></div>
+    <p class="lead">Das <b>Stellwerk</b> ist unser internes System. Hier kommen alle Bestellungen an, hier steht, was im Regal liegt, und hier sehen wir, was die Drucker gerade machen.</p>
+  </div>
+
+  <p>Kunden kaufen an zwei Stellen: im eigenen <b>Shop</b> auf unserer Website und bei <b>eBay</b>. Beide Wege landen im selben Stellwerk und werden gleich gepackt. Was nicht im Regal liegt, fertigt die Werkstatt nach.</p>
+
+  <div class="flow">
+    <div class="box"><span class="k">KUNDE</span><b>Shop oder eBay</b><span>Kunde bestellt und bezahlt (SumUp oder Überweisung).</span></div>
+    <div class="arr">→</div>
+    <div class="box hot"><span class="k">STELLWERK</span><b>Bestellung</b><span>Bezahlte Stücke werden im Regal für die Bestellung reserviert.</span></div>
+    <div class="arr">→</div>
+    <div class="box"><span class="k">FEHLT WAS?</span><b>Fertigung</b><span>Die Werkstatt druckt und baut nach, dann wird eingebucht.</span></div>
+    <div class="arr">→</div>
+    <div class="box"><span class="k">VERSAND</span><b>Paket</b><span>Packen, wiegen, DHL-Label drucken. Kunde bekommt die Mail.</span></div>
+  </div>
+
+  <h3 class="sec">Was das Stellwerk dir abnimmt</h3>
+  <ul class="dots">
+    <li><b>Mails an Kunden</b> gehen von allein: Eingangsbestätigung, Zahlung, Versand mit Sendungsnummer, Storno.</li>
+    <li><b>Reservieren:</b> Sobald bezahlt ist, hält das Stellwerk die Stücke im Regal für diese Bestellung fest. Niemand verkauft sie aus Versehen ein zweites Mal.</li>
+    <li><b>eBay-Abgleich:</b> Bestand und Preise gehen automatisch an eBay, eBay-Bestellungen kommen automatisch herein, die Sendungsnummer geht beim Versand zurück an eBay.</li>
+    <li><b>Live:</b> Was ein Kollege bucht, siehst du sofort. Neu laden ist nicht nötig. Oben rechts steht dann <span class="key">LIVE VERBUNDEN</span>.</li>
+  </ul>
+
+  <h3 class="sec">Die wichtigsten Wörter vorab</h3>
+  <table>
+    <tr><th style="width:30%">Wort</th><th>Bedeutung</th></tr>
+    <tr><td><b>Modell</b></td><td>Ein Fahrzeug aus unserem Programm, z. B. „MAZ-504 Autodrehkran SMK-101“.</td></tr>
+    <tr><td><b>Ausführung</b></td><td>Wie es verkauft wird: Maßstab (z. B. H0) und <b>Bausatz</b> oder <b>Fertigmodell</b> in einer Farbe. Jede Ausführung hat ein eigenes Etikett.</td></tr>
+    <tr><td><b>Stück</b></td><td>Ein echtes Exemplar im Regal. „3 frei“ heißt: drei Stücke liegen da und gehören noch keiner Bestellung.</td></tr>
+    <tr><td><b>Platz</b> (Regal, Boden)</td><td>Wo ein Stück liegt, z. B. „Regal 1, Boden 3“ mit dem Code <span class="key">R01-B03</span> auf dem Etikett.</td></tr>
+  </table>
+  <p class="small">Alle Begriffe stehen auch noch einmal in Kapitel 12.</p>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">02</span>
+    <div><div class="kick">Rollen</div><h2>Wer darf was</h2></div>
+    <p class="lead">Jedes Konto hat eine von drei Rollen. Das Stellwerk zeigt dir nur, was du mit deiner Rolle auch benutzen kannst.</p>
+  </div>
+
+  <div class="split">
+    <div class="task" style="border-left-color:var(--espresso)"><div class="th"><h3>Inhaber</h3><span class="q">Nele, Johann</span></div><div class="after">Darf alles. Nur Inhaber ändern die Standard-Lieferzeit und die eBay-Einrichtung.</div></div>
+    <div class="task" style="border-left-color:var(--terra)"><div class="th"><h3>Mitarbeiter</h3><span class="q">Büro und Werkstatt</span></div><div class="after">Pflegt Modelle, Preise, Messen, plant Drucke und bucht neue Stücke ein.</div></div>
+  </div>
+  <div class="task"><div class="th"><h3>Packer</h3><span class="q">Lager und Versand, auch in anderen Städten</span></div><div class="after">Packt und versendet Bestellungen, scannt, zählt im Lager und meldet Drucke an der Druckerhalle. Sieht keine Modellpflege, Messen, eBay und Einstellungen.</div></div>
+
+  <table>
+    <tr><th>Bereich</th><th style="width:16%">Inhaber</th><th style="width:16%">Mitarbeiter</th><th style="width:16%">Packer</th></tr>
+    <tr><td>Heute, Bestellungen packen und versenden</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+    <tr><td>Scannen: Einlagern, Kommissionieren, Ausbuchen, Auskunft</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓ <span class="small">(keine neuen Stücke)</span></td></tr>
+    <tr><td>Lager ansehen, Böden zählen</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+    <tr><td>Druckerhalle: Platte starten, abnehmen, fertig melden, Zustand melden</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+    <tr><td>Neue Stücke einbuchen, „Zu fertigen“</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">–</td></tr>
+    <tr><td>Modelle anlegen und ändern, Preise, Fotos</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">–</td></tr>
+    <tr><td>Drucke planen, Drucker und Teile anlegen</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">–</td></tr>
+    <tr><td>Messen, Kategorien, Maßstäbe</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">–</td></tr>
+    <tr><td>Standard-Lieferzeit, eBay-Einrichtung</td><td class="c yes">✓</td><td class="c no">–</td><td class="c no">–</td></tr>
+  </table>
+
+  <div class="note"><span class="lbl">Neues Konto</span><p>Konten legt Johann für dich an. Du bekommst deine E-Mail-Adresse und ein erstes Passwort. Ändere es gleich nach der ersten Anmeldung (Seite 5). Wer das Team verlässt, dessen Konto wird gelöscht; alle Anmeldungen enden dann sofort.</p></div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">03</span>
+    <div><div class="kick">Erste Schritte</div><h2>Anmelden und zurecht&shy;finden</h2></div>
+    <p class="lead">Das Stellwerk öffnest du im Browser unter <b>adp-modelle.de/admin</b>, am Rechner genauso wie am Handy.</p>
+  </div>
+
+  <div class="split-3-2">
+    <figure><div class="shot"><img src="img/01-anmelden.jpg" alt=""></div><figcaption><span class="n">Bild 1</span>Die Anmeldung. Nach zu vielen falschen Versuchen wird das Konto gesperrt; Johann gibt es wieder frei.</figcaption></figure>
+    <div>
+      <div class="task" style="margin-top:3mm"><div class="th"><h3>Anmelden</h3></div>
+        <ol><li>Adresse <b>adp-modelle.de/admin</b> öffnen.</li><li>E-Mail-Adresse und Passwort eintragen.</li><li><span class="btn go">Anmelden</span>. Du landest auf <b>Heute</b>.</li></ol>
+        <div class="after">Du bleibst 12 Stunden angemeldet. Am geteilten Rechner danach unten links <b>Abmelden</b>.</div></div>
+      <div class="task"><div class="th"><h3>Passwort ändern</h3></div>
+        <ol><li>Unten links (Handy: Schlüssel oben) <b>Passwort ändern</b>.</li><li>Altes und neues Passwort eintragen, speichern.</li></ol></div>
+    </div>
+  </div>
+
+  <h3 class="sec">Die Leiste links</h3>
+  <p>Am Rechner steht links eine Leiste mit nummerierten Bereichen, wie die Hebel in einem Stellwerk: <b>01 Heute</b>, <b>02 Bestellungen</b>, <b>03 Modelle</b>, <b>04 Lager</b>, <b>05 Fertigung</b>, <b>06 Messen</b>, <b>07 eBay</b>, <b>08 Einstellungen</b>. Die Zahl neben Bestellungen sagt, wie viele Stücke für Bestellungen gefertigt werden müssen. Darunter der große Knopf <span class="btn go">Scannen</span>.</p>
+
+  <h3 class="sec">Am Handy</h3>
+  <p>Am Handy sitzt die Leiste unten, gut mit dem Daumen erreichbar: Modelle, Bestellungen, <b>Scannen</b> in der Mitte, Lager. Alles Weitere liegt hinter <b>Mehr</b>. Packer sehen statt Modelle direkt Bestellungen, Scannen, Lager.</p>
+  <div class="phone-row">
+    <figure><div class="shot"><img src="img/30-handy-heute.jpg" alt=""></div><figcaption><span class="n">Bild 2</span>Heute am Handy</figcaption></figure>
+    <figure><div class="shot"><img src="img/32-handy-mehr.jpg" alt=""></div><figcaption><span class="n">Bild 3</span>Hinter „Mehr“</figcaption></figure>
+    <figure><div class="shot"><img src="img/34-packer-heute.jpg" alt=""></div><figcaption><span class="n">Bild 4</span>So sieht ein Packer das Stellwerk</figcaption></figure>
+  </div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">04</span>
+    <div><div class="kick">Startseite</div><h2>Der Tag beginnt: Heute</h2></div>
+    <p class="lead">„Heute“ ist die erste Seite nach dem Anmelden. Sie beantwortet eine Frage: Was ist jetzt zu tun?</p>
+  </div>
+  <figure class="w70"><div class="shot"><img src="img/02-heute.jpg" alt=""></div><figcaption><span class="n">Bild 5</span>Heute mit den vier Zahlen, der Liste „Heute zu versenden“, der Druckerhalle und der nächsten Messe.</figcaption></figure>
+
+  <table>
+    <tr><th style="width:24%">Zahl</th><th>Was sie zählt</th><th style="width:32%">Was du tust</th></tr>
+    <tr><td><b>Zu versenden</b></td><td>Bezahlte Bestellungen, deren Stücke alle im Regal liegen.</td><td>Packen, Seite 9. Ein Klick auf die Kachel öffnet die Liste.</td></tr>
+    <tr><td><b>Zu fertigen</b></td><td>Stücke, auf die bezahlte Bestellungen warten, weil das Regal leer ist.</td><td>Werkstatt: bauen und einbuchen, Seite 20.</td></tr>
+    <tr><td><b>Zahlung offen</b></td><td>Bestellungen, die auf Geld warten, meist per Überweisung (Vorkasse).</td><td>Kontoauszug prüfen, Seite 11.</td></tr>
+    <tr><td><b>Ohne Bestand</b></td><td>Modelle im Shop, von denen gerade nichts im Regal liegt.</td><td>Nachfertigen oder einbuchen.</td></tr>
+  </table>
+  <p style="margin-bottom:2mm">Darunter: <b>Heute zu versenden</b> mit der ältesten Bestellung zuerst und je einem Knopf <span class="btn go">Packen</span>. Rechts die <b>Druckerhalle</b> (was jeder Drucker druckt und wie lange noch) und die <b>nächste Messe</b>.</p>
+  <div class="note tip"><span class="lbl">Tipp</span><p><span class="btn">Bestellung suchen</span> oben rechts findet eine Bestellung über Nummer, E-Mail-Adresse oder eBay-Nummer, z. B. wenn ein Kunde anruft.</p></div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">05</span>
+    <div><div class="kick">Verkauf</div><h2>Bestellungen</h2></div>
+    <p class="lead">Jede Bestellung ist ein Wagen, der durch vier Bahnhöfe fährt. Das <b>Gleisbild</b> zeigt auf einen Blick, wo jeder Wagen gerade steht.</p>
+  </div>
+
+  <div class="stations">
+    <div><b>Eingang</b><span>Neu, noch nicht bezahlt. Shop und eBay („Zufahrt eBay“) kommen hier an.</span></div>
+    <div><b>Fertigung</b><span>Bezahlt, aber es fehlt noch ein Stück. Die Werkstatt baut nach.</span></div>
+    <div class="hot"><b>Versand</b><span>Bezahlt und vollständig im Regal. Abfahrbereit: jetzt packen.</span></div>
+    <div><b>Unterwegs</b><span>Versendet. Der Kunde hat die Sendungsnummer.</span></div>
+  </div>
+
+  <figure><div class="shot"><img src="img/03-gleisbild.jpg" alt=""></div><figcaption><span class="n">Bild 6</span>Das Gleisbild. Ein Klick auf einen Wagen öffnet die Bestellung, unter jedem Bahnhof führt ein Knopf zur ganzen Liste.</figcaption></figure>
+
+  <h3 class="sec">Die Liste</h3>
+  <p>Oben rechts schaltest du von <span class="btn">Gleisbild</span> auf <span class="btn">Liste</span>. Die Liste filtert nach Zustand (Zu versenden, Zahlung offen, Versendet, Storniert, Alle) und sucht nach Nummer, E-Mail oder eBay-Nummer. Neue Bestellungen bekommen ein Lämpchen, bis jemand sie öffnet. Steht über der Liste ein <b>Widerruf</b>, siehe Seite 12.</p>
+  <figure><div class="shot"><img src="img/04-liste.jpg" alt=""></div><figcaption><span class="n">Bild 7</span>Die Liste, hier gefiltert auf „Zu versenden“.</figcaption></figure>
+</section>
+
+<section class="cont">
+  <div class="task" style="margin-top:0"><div class="th"><h3>Wie versende ich eine Bestellung?</h3><span class="q">Alle Rollen</span></div>
+    <ol>
+      <li><b>Bestellungen</b> → Bahnhof <b>Versand</b> (oder auf Heute <span class="btn go">Packen</span>) → Bestellung öffnen.</li>
+      <li>Unter <b>Kommissionieren</b> steht für jedes Stück, wo es liegt, z. B. <span class="key">Regal 1, Boden 2</span>. Das oberste ist „als nächstes“ dran. Stücke holen, prüfen, einpacken.</li>
+      <li>Das Paket mit Karton und Füllmaterial wiegen. Rechts unter <b>Versand</b> das Gewicht in Gramm eintragen.</li>
+      <li><span class="btn go">Versandlabel drucken</span>. Das bucht das DHL-Label und meldet die Bestellung als versendet, in einem Schritt.</li>
+      <li>Das PDF öffnet sich. Im Druckdialog den Etikettendrucker wählen, Papier 100 × 150 mm, „Tatsächliche Größe“. Label aufkleben, fertig.</li>
+    </ol>
+    <div class="after">Der Kunde bekommt automatisch eine Mail mit Sendungsnummer und Verfolgungslink. Bei eBay-Bestellungen geht die Nummer auch an eBay.</div>
+  </div>
+  <figure><div class="shot"><img src="img/06-bestellung-packen.jpg" alt=""></div><figcaption><span class="n">Bild 8</span>Das Bestellpult: links Verlauf, Modelle und die Pickliste mit den Plätzen, rechts das Paket mit Gewicht und Label-Knopf.</figcaption></figure>
+  <div class="split">
+    <div class="note tip"><span class="lbl">Tipp</span><p><b>Abhaken mit dem Scanner</b> geht weiter („Mit dem Scanner abhaken“), ist aber nicht mehr nötig. Die Pickliste reicht.</p></div>
+    <div class="note"><span class="lbl">Ohne DHL</span><p>Geht ein Paket anders raus: Versanddienst und Sendungsnummer eintragen, <span class="btn go">Als versendet melden</span>.</p></div>
+  </div>
+  <div class="note warn"><span class="lbl">Achtung</span><p><b>Label falsch?</b> (falsches Gewicht, Adresse) <span class="btn">Label stornieren</span>, dann neu buchen. Das geht nur vor dem Versand. Druckt die Druckerapp nur Bilder (Brother iPrint&amp;Label), „Als Bild“ wählen. Nochmal drucken: <span class="btn">Label drucken</span>.</p></div>
+</section>
+
+<section class="cont">
+  <div class="split-3-2">
+    <figure><div class="shot"><img src="img/07-vorkasse.jpg" alt=""></div><figcaption><span class="n">Bild 9</span>Eine Vorkasse-Bestellung: rechts oben Verwendungszweck, Betrag und Frist.</figcaption></figure>
+    <div class="task" style="margin-top:3mm"><div class="th"><h3>Überweisung ist da</h3><span class="q">Vorkasse</span></div>
+      <ol>
+        <li>Im Kontoauszug die Überweisung mit dem Verwendungszweck <span class="key">MB-2026-…</span> suchen.</li>
+        <li>Diese Bestellung im Stellwerk öffnen (Liste → „Zahlung offen“ oder suchen).</li>
+        <li>Betrag vergleichen. Stimmt er, <span class="btn go">Überweisung eingegangen</span>.</li>
+      </ol>
+      <div class="after">Der Kunde bekommt die Bestätigung, die Bestellung rückt zu Fertigung oder Versand. Stimmt der Betrag nicht: erst mit dem Kunden klären, dann buchen. Nach 10 Tagen ohne Geld storniert das System die Bestellung von selbst.</div>
+    </div>
+  </div>
+
+  <h3 class="sec" style="break-before:page;margin-top:0">Stornieren, erstatten, Widerruf</h3>
+  <p class="small">Diese Schritte erledigen in der Regel Inhaber oder Mitarbeiter. Im Zweifel nachfragen, denn hier fließt Geld zurück.</p>
+  <table>
+    <tr><th style="width:28%">Fall</th><th>So geht es</th></tr>
+    <tr><td><b>Bestellung stornieren</b><br><span class="small">noch nicht versendet</span></td><td>Bestellung öffnen → <span class="btn">Bestellung stornieren …</span>. Eine SumUp-Zahlung geht automatisch zurück, der Kunde bekommt eine Mail, reservierte Stücke werden wieder frei.</td></tr>
+    <tr><td><b>Einzelne Modelle erstatten</b></td><td>Unter <b>Erstattung</b> die Modelle ankreuzen, <span class="btn">… € erstatten</span>. Versandkosten gehen nur bei der ganzen Bestellung zurück.</td></tr>
+    <tr><td><b>Widerruf, noch nicht versendet</b></td><td>Nichts zu tun. Das System storniert und erstattet von selbst.</td></tr>
+    <tr><td><b>Widerruf, schon versendet</b></td><td>Ist die Ware zurück: <span class="btn">Rücksendung erhalten – erstatten</span>. Nur ein Teil zurück: „Einzelne Modelle“ wählen. Frist: 14 Tage nach dem Widerruf, das System erinnert per Mail.</td></tr>
+    <tr><td><b>Vorkasse zurückzahlen</b></td><td>Das System kann keine Überweisung auslösen. Es kommt eine Mail „Rücküberweisung …“; den Betrag auf das Konto zurücküberweisen, von dem er kam.</td></tr>
+    <tr><td><b>SumUp lehnt ab</b></td><td>Das Stellwerk zeigt die Antwort von SumUp. Dann im SumUp-Konto selbst erstatten und im Stellwerk „im SumUp-Konto erstattet, nur vermerken“ wählen.</td></tr>
+  </table>
+  <div class="note"><span class="lbl">eBay</span><p>eBay-Bestellungen tragen das Zeichen „eBay“ und werden genauso gepackt. Erstattungen für eBay-Käufe laufen über eBay selbst.</p></div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">06</span>
+    <div><div class="kick">Katalog</div><h2>Modelle</h2></div>
+    <p class="lead">Unter „Modelle“ liegt alles, was wir verkaufen: Fotos, Ausführungen, Preise, Bestand, eBay. Nur für Inhaber und Mitarbeiter.</p>
+  </div>
+  <figure><div class="shot"><img src="img/09-modelle.jpg" alt=""></div><figcaption><span class="n">Bild 10</span>Die Werkbank: links die Liste mit Bestand und Plätzen, rechts das <b>Typenschild</b> des gewählten Modells.</figcaption></figure>
+  <p>Links filterst du nach <b>Alle</b>, <b>Entwürfe</b> (noch nicht im Shop) und <b>Ohne Bestand</b>. Das Typenschild rechts zeigt die vier wichtigsten Zahlen: <b>frei im Regal</b>, <b>reserviert</b> für bezahlte Bestellungen, <b>zu fertigen</b> und <b>Preis ab</b>. Darunter der Bestand je Ausführung und wo die Stücke liegen. <span class="btn go">Bearbeiten</span> öffnet die ganze Seite des Modells. <b>Liste für die Kasse (CSV)</b> lädt alle Artikel mit EAN und Preis für die Messekasse.</p>
+</section>
+
+<section class="cont">
+  <h3 class="sec" style="margin-top:0">Die Seite eines Modells</h3>
+  <figure><div class="shot"><img src="img/10-modell-seite.jpg" alt=""></div><figcaption><span class="n">Bild 11</span>Oben Foto, Name, Status. Darunter der Bestand mit Einbuchen, Ausbuchen, Etiketten. Alles Weitere in den zugeklappten Abschnitten.</figcaption></figure>
+  <table>
+    <tr><th style="width:34%">Abschnitt</th><th>Was du dort machst</th></tr>
+    <tr><td><b>Fotos</b></td><td>Fotos hochladen und sortieren. Das erste ist das Hauptbild. Bei Fertigmodellen jedem Foto seine <b>Farbe</b> zuordnen, damit der Shop zur gewählten Farbe das richtige Bild zeigt.</td></tr>
+    <tr><td><b>Maßstäbe, Ausführungen und Preise</b></td><td>Maßstab dazu, Bausatz oder Fertigmodell, Farben, Preise. Bei <b>Nachfertigen</b>: Standard-Lieferzeit, eigene Lieferzeit (von–bis Wochen) oder „nicht nachfertigen“ für Einzelstücke.</td></tr>
+    <tr><td><b>Beschreibung und Kategorie</b></td><td>Texte für den Shop, Kategorie, Epochen.</td></tr>
+    <tr><td><b>Shop: veröffentlichen, archivieren, löschen</b></td><td>Ins Shop stellen, aus dem Shop nehmen (archivieren) oder ein Testmodell endgültig löschen.</td></tr>
+    <tr><td><b>eBay</b></td><td>Für jeden Maßstab einstellen, ob er bei eBay angeboten wird.</td></tr>
+    <tr><td><b>Stückliste für die Fertigung</b></td><td>Aus welchen Druckteilen das Modell besteht.</td></tr>
+  </table>
+  <div class="note"><span class="lbl">Nachfertigen</span><p>Jedes Modell bleibt bestellbar, auch wenn das Regal leer ist. Der Shop sagt dann ehrlich, z. B. „Nur noch 3 Stück sofort lieferbar – weitere fertigen wir für dich (Lieferzeit 2–4 Wochen)“. Das Paket geht komplett raus, wenn alles da ist.</p></div>
+</section>
+
+<section class="cont">
+  <div class="task" style="margin-top:0"><div class="th"><h3>Wie lege ich ein neues Modell an?</h3><span class="q">Inhaber, Mitarbeiter</span></div>
+    <ol>
+      <li><b>Modelle</b> → <span class="btn go">Neues Modell</span>. <b>Name und Fotos:</b> Name, Kategorie (wenn schon klar), Fotos wählen. Das erste Foto ist das Hauptbild. <span class="btn">Weiter</span>.</li>
+      <li><b>Ausführungen und Preis:</b> Maßstab antippen, Bausatz und/oder Fertigmodell ankreuzen, je einen Preis eintragen. Beim Fertigmodell die Farben mit „Farbe dazu“ anlegen.</li>
+      <li><b>Bestand:</b> Wie viele Stücke liegen schon fertig da, und auf welchem Boden? Ohne Stücke: „Überspringen“.</li>
+      <li><b>Etiketten und Shop:</b> Etiketten drucken (die Anzahl steht schon da). „Gleich im Shop zeigen“ ankreuzen, wenn es sofort zu kaufen sein soll. <span class="btn go">Fertig</span>.</li>
+    </ol>
+    <div class="after">Danach öffnet sich die Seite des Modells. Beschreibung, weitere Fotos und eBay ergänzt du dort in Ruhe.</div>
+  </div>
+  <figure><div class="shot"><img src="img/14-neues-modell.jpg" alt=""></div><figcaption><span class="n">Bild 12</span>Schritt 1 von 4. Der Balken oben zeigt, wie weit du bist.</figcaption></figure>
+  <div class="note warn"><span class="lbl">Löschen</span><p>„Modell löschen“ ist nur für Testmodelle gedacht und lässt sich nicht rückgängig machen. Ein echtes Modell, das nicht mehr verkauft wird: <b>Archivieren</b>. Es verschwindet aus dem Shop, die Geschichte bleibt.</p></div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">07</span>
+    <div><div class="kick">Bestand</div><h2>Lager</h2></div>
+    <p class="lead">Das Lager zeigt jedes Regal, darin die Böden, darauf die Modelle mit Anzahl. Ein Klick auf ein Modell öffnet seine Seite.</p>
+  </div>
+  <figure><div class="shot"><img src="img/15-lager.jpg" alt=""></div><figcaption><span class="n">Bild 13</span>Regal 1 mit vier Böden. „1 reserviert“ heißt: Dieses Stück gehört schon einer bezahlten Bestellung.</figcaption></figure>
+  <div class="split">
+    <div class="task"><div class="th"><h3>Neues Regal anlegen</h3></div>
+      <ol><li><b>Lager</b> → <span class="btn go">Neues Regal</span>.</li><li>Name (leer lassen ergibt „Regal 1“, „Regal 2“ …) und Zahl der Böden. <span class="btn go">Anlegen</span>.</li><li>Gleich <b>Etiketten</b> drucken und an die Böden kleben.</li></ol>
+      <div class="after">Ein Regal ohne Böden (z. B. die Messekiste) ist selbst der Platz.</div></div>
+    <figure style="margin-top:4mm"><div class="shot"><img src="img/16-neues-regal.jpg" alt=""></div><figcaption><span class="n">Bild 14</span>Neues Regal</figcaption></figure>
+  </div>
+</section>
+
+<section class="cont">
+  <h3 class="sec" style="margin-top:0">Stücke buchen</h3>
+  <p>Alles Buchen passiert auf der Seite des Modells (Modelle → Modell) oder per Scanner (Kapitel 08). Jede Buchung steht unten im <b>Verlauf</b>: wer, wann, wie viele, wohin.</p>
+  <table>
+    <tr><th style="width:20%">Aktion</th><th>Wann</th><th style="width:44%">So geht es</th></tr>
+    <tr><td><b>Einbuchen</b></td><td>Neue Stücke sind fertig gebaut.</td><td><span class="btn go">Einbuchen</span>, Anzahl und Platz, „Etiketten drucken“ bleibt angehakt. Nur Inhaber und Mitarbeiter.</td></tr>
+    <tr><td><b>Ausbuchen</b></td><td>Verkauft (Messe, Laden), kaputt, verschwunden, Versehen.</td><td><span class="btn">Ausbuchen</span>, Anzahl und Grund. Reservierte Stücke bleiben bei ihrer Bestellung.</td></tr>
+    <tr><td><b>Umlagern</b></td><td>Stücke ziehen auf einen anderen Boden.</td><td>Beim Platz <b>Umlagern</b>, Anzahl und wohin.</td></tr>
+    <tr><td><b>Zählen</b></td><td>Inventur, oder die Zahl stimmt nicht mehr.</td><td><span class="btn">Zählen</span>, je Platz die Zahl eintragen, die wirklich daliegt, <span class="btn go">Zählung buchen</span>.</td></tr>
+    <tr><td><b>Etiketten</b></td><td>Etikett fehlt, Preis geändert.</td><td><b>Etiketten</b>, Anzahl, drucken, überkleben.</td></tr>
+  </table>
+  <div class="split">
+    <figure><div class="shot"><img src="img/11-einbuchen.jpg" alt=""></div><figcaption><span class="n">Bild 15</span>Einbuchen: Ausführung, Anzahl, Platz.</figcaption></figure>
+    <figure><div class="shot"><img src="img/12-zaehlen.jpg" alt=""></div><figcaption><span class="n">Bild 16</span>Zählen: „bisher“ steht daneben, eintragen, was wirklich da ist.</figcaption></figure>
+  </div>
+  <div class="note tip"><span class="lbl">Etiketten</span><p>Ein Etikett nennt das Modell: EAN für Kasse und Scanner, Name, Ausführung, Artikelnummer, Preis. <b>Dasselbe Etikett klebt auf jedem Stück</b> dieser Ausführung. Drucker: A4-Bogen oder Brother-Rolle 62 mm; für die Brother-App „Als Bilder“ wählen.</p></div>
+  <div class="note"><span class="lbl">Zu viel ausgebucht?</span><p>Beim richtigen Boden <b>Zählen</b> und die Zahl eintragen, die wirklich daliegt. Das Stellwerk bucht die fehlenden Stücke wieder ein. Sind weniger da, als reserviert sind, bucht es nichts und sagt es; dann erst die Bestellung klären.</p></div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">08</span>
+    <div><div class="kick">Lager</div><h2>Scannen</h2></div>
+    <p class="lead">Der schnellste Weg im Lager. Funktioniert mit einem Handscanner am Rechner oder mit der Kamera des Handys.</p>
+  </div>
+  <p>Oben wählst du den <b>Modus</b>: <b>Einlagern</b>, <b>Kommissionieren</b>, <b>Ausbuchen</b> oder <b>Auskunft</b>. Kamera: <span class="btn">Kamera starten</span> und das Etikett in den Rahmen halten. Handscanner: einfach scannen. Ohne beides: Code unten bei „Code eintippen“ eingeben.</p>
+  <div class="task"><div class="th"><h3>Wie lagere ich neue Stücke ein?</h3><span class="q">Modus Einlagern</span></div>
+    <ol>
+      <li>Etikett am <b>Boden</b> scannen. Oben steht dann „Einlagern nach R02-B01“.</li>
+      <li>Bei <b>Anzahl</b> die Zahl der Stücke einstellen (mit + und –).</li>
+      <li>Etikett des <b>Modells</b> scannen. Rechts erscheint groß die Antwort, z. B. <b>„+3 · jetzt 8 hier“</b>.</li>
+    </ol>
+    <div class="after">Danach steht die Anzahl wieder auf 1. Der Boden bleibt gewählt, bis du <span class="btn">Platz wechseln</span> drückst. Neue Stücke einbuchen dürfen nur Inhaber und Mitarbeiter; Packer nehmen „Umlagern“ beim Modell.</div>
+  </div>
+  <figure><div class="shot"><img src="img/18-scan-ergebnis.jpg" alt=""></div><figcaption><span class="n">Bild 17</span>Nach dem Scan: grüne Karte „Gebucht“ mit Modell, Platz und neuem Stand. <span class="btn">Rückgängig</span> geht zehn Sekunden lang.</figcaption></figure>
+</section>
+
+<section class="cont">
+  <div class="split">
+    <div>
+      <div class="task" style="margin-top:0"><div class="th"><h3>Verkauft auf der Messe</h3><span class="q">Modus Ausbuchen</span></div>
+        <ol><li>Modus <b>Ausbuchen</b>.</li><li>Grund wählen, meist „Verkauft (Messe, Laden, privat)“, und die Anzahl.</li><li>Etikett des Modells scannen.</li></ol>
+        <div class="after">Ohne Platz gehen die ältesten freien Stücke raus, egal wo sie liegen. Soll es aus der Messekiste sein: vorher das Etikett der Messekiste scannen.</div></div>
+      <div class="task"><div class="th"><h3>Was ist das für ein Stück?</h3><span class="q">Modus Auskunft</span></div>
+        <ol><li>Modus <b>Auskunft</b>, Etikett scannen.</li><li>Du siehst Modell, Ausführung, Preis und wo überall Stücke liegen. Nichts wird gebucht.</li></ol></div>
+    </div>
+    <figure style="margin:0"><div class="shot" style="border:2.4mm solid var(--espresso);border-radius:5mm;overflow:hidden;box-shadow:none;width:72%;margin:0 auto"><img src="img/31-handy-scannen.jpg" alt=""></div><figcaption style="text-align:center"><span class="n">Bild 18</span>Scannen am Handy</figcaption></figure>
+  </div>
+  <figure class="w70"><div class="shot"><img src="img/19-scan-ausbuchen.jpg" alt=""></div><figcaption><span class="n">Bild 19</span>Modus Ausbuchen mit Grund. „alle“ heißt: ohne festen Platz.</figcaption></figure>
+  <div class="note tip"><span class="lbl">Vertippt?</span><p><span class="btn">Rückgängig</span> auf der Antwortkarte. Später geht es über die Seite des Modells (Zählen). Der <b>Verlauf dieser Sitzung</b> rechts zeigt alle Scans seit dem Öffnen der Seite.</p></div>
+</section>
+
+<!-- ============ 09 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">09</span>
+    <div><div class="kick">Werkstatt</div><h2>Fertigung</h2></div>
+    <p class="lead">Hier steht, was für Bestellungen gebaut werden muss, und was die Resin-Drucker gerade drucken.</p>
+  </div>
+  <div class="split-3-2">
+    <figure style="margin-top:0"><div class="shot"><img src="img/05-zu-fertigen.jpg" alt=""></div><figcaption><span class="n">Bild 20</span>Bestellungen → Liste → „Zu fertigen“. Die längste wartende steht oben.</figcaption></figure>
+    <div class="task" style="margin-top:0"><div class="th"><h3>Fertig gebaut: einbuchen</h3></div>
+      <ol><li><b>Bestellungen</b> → <span class="btn">Liste</span> → <b>Zu fertigen</b>.</li><li>Je Zeile: Modell, Ausführung, Farbe, wie viele, für welche Bestellung.</li><li>Fertig? Auf der Seite des Modells <span class="btn go">Einbuchen</span>, Anzahl und Boden.</li></ol>
+      <div class="after">Die Stücke gehen automatisch an die älteste wartende Bestellung. Die Zeile wird kürzer; die Bestellung rückt in den Bahnhof Versand.</div></div>
+  </div>
+  <h3 class="sec">Die Druckerhalle</h3>
+  <figure class="w70" style="width:56%!important"><div class="shot"><img src="img/20-fertigung.jpg" alt=""></div><figcaption><span class="n">Bild 21</span>Jeder Drucker als Karte: was er druckt, wie lange noch, was danach wartet.</figcaption></figure>
+</section>
+
+<section class="cont">
+  <p>Eine <b>Platte</b> (ein Druckauftrag) fährt diesen Weg: <b>wartet</b> → <b>druckt</b> → <b>Nachbearbeitung</b> (waschen, aushärten, entstützen) → <b>fertig</b>. Die Knöpfe auf jeder Druckerkarte passen immer zum gerade nötigen Schritt.</p>
+  <table>
+    <tr><th style="width:26%">Knopf</th><th>Wann</th><th style="width:22%">Wer</th></tr>
+    <tr><td><span class="btn">Platte planen</span> / <span class="btn go">Druckauftrag planen</span></td><td>Neue Platte für einen Drucker anlegen: welche Teile, wie viele.</td><td>Inhaber, Mitarbeiter</td></tr>
+    <tr><td><span class="btn go">Druck … starten</span></td><td>Ist der Drucker frei, steht die nächste Platte „Als Nächstes“ auf der Karte. Platte einlegen, starten.</td><td>Alle</td></tr>
+    <tr><td><b>planen</b> bei einer wartenden Platte</td><td>Wartende Platte auf einen anderen Drucker schieben, Dauer oder Notiz ändern, abbrechen.</td><td>Inhaber, Mitarbeiter</td></tr>
+    <tr><td><span class="btn">Abnehmen</span></td><td>Druck ist durch. Die Platte geht in die Nachbearbeitung, der Drucker ist frei.</td><td>Alle</td></tr>
+    <tr><td><span class="btn go">Fertig</span></td><td>Gute Teile je Teil eintragen; der Rest zählt als Ausschuss. Die Teile kommen in den Wareneingang.</td><td>Alle</td></tr>
+    <tr><td><b>Fehldruck melden</b></td><td>Die ganze Platte ist hin.</td><td>Alle</td></tr>
+    <tr><td><b>Zustand melden</b></td><td>Drucker defekt, in Reparatur, wieder in Betrieb. Mit Hinweis, z. B. „Ersatzteil bestellt“. Defekt mitten im Druck macht die Platte zum Fehldruck.</td><td>Alle</td></tr>
+  </table>
+  <div class="note"><span class="lbl">Teile ins Lager</span><p>Fertige Teile warten im <b>Wareneingang</b> (Lager, ganz unten). Einlagern: Scannen, Modus Einlagern, erst die Box scannen, dann das <b>Teileetikett</b>. Aus Teilen werden unter <b>Lager → Montage</b> fertige Stücke.</p></div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">10</span>
+    <div><div class="kick">Büro</div><h2>Messen, eBay, Einstellungen</h2></div>
+    <p class="lead">Für Inhaber und Mitarbeiter. Packer brauchen dieses Kapitel nicht.</p>
+  </div>
+  <div class="split">
+    <div>
+      <h3 class="sec" style="margin-top:0">Messen</h3>
+      <p>Unter <b>Neue Messe</b> Name, Tage, Ort, Stand und Öffnungszeiten eintragen. Die Messe erscheint auf der Termine-Seite im Shop und auf Heute. <span class="btn go">Ankündigen</span> schickt sie einmal an alle, die die <b>Messe-Post</b> bestellt haben.</p>
+      <h3 class="sec">eBay</h3>
+      <p>eBay ist unser zweiter Verkaufsweg. Welche Maßstäbe eines Modells bei eBay stehen, stellst du auf der Seite des Modells unter „eBay“ ein. Die Seite <b>eBay</b> zeigt alle Angebote und eBay-Bestellungen. Bezahlte eBay-Bestellungen landen von selbst unter Bestellungen. Die Verbindung zu eBay richtet nur der Inhaber ein.</p>
+      <h3 class="sec">Einstellungen</h3>
+      <p><b>Kategorien</b> (wie der Katalog geordnet ist), <b>Maßstäbe</b>, <b>eBay-Einrichtung</b> und <b>Lieferzeit</b> fürs Nachfertigen. Die Lieferzeit gilt sofort für jedes Modell ohne eigene und kann nur der Inhaber ändern.</p>
+    </div>
+    <div>
+      <figure style="margin-top:0"><div class="shot"><img src="img/21-messen.jpg" alt=""></div><figcaption><span class="n">Bild 22</span>Messen mit Messe-Post.</figcaption></figure>
+      <figure><div class="shot"><img src="img/22-einstellungen.jpg" alt=""></div><figcaption><span class="n">Bild 23</span>Einstellungen.</figcaption></figure>
+    </div>
+  </div>
+  <div class="note soon"><span class="lbl">Kommt bald</span><p><b>Lagerwert:</b> Im Lager steht bald, was der ganze Bestand wert ist. <b>Fotobearbeitung:</b> Fotos direkt im Stellwerk zuschneiden und aufhellen. Beides wird ergänzt, sobald es fertig ist.</p></div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">11</span>
+    <div><div class="kick">Wenn etwas hakt</div><h2>Häufige Fragen</h2></div>
+  </div>
+  <div class="faq"><h4>Ich komme nicht mehr rein.</h4><p>Nach zu vielen falschen Passwörtern ist das Konto gesperrt. Johann kann es freigeben und dir ein neues Passwort geben.</p></div>
+  <div class="faq"><h4>Oben rechts steht „VERBINDET …“ statt „LIVE VERBUNDEN“.</h4><p>Die Live-Verbindung ist kurz weg (WLAN, Handy im Standby). Sie kommt von selbst wieder. Im Zweifel die Seite neu laden. Gebucht wird trotzdem.</p></div>
+  <div class="faq"><h4>Eine Bestellung steht im Bahnhof Fertigung, ich soll sie aber packen.</h4><p>Es fehlt noch ein Stück. Das Bestellpult sagt, welches. Versendet wird erst, wenn es eingebucht ist. Liegt es doch im Regal, ist es nicht eingebucht: einbuchen lassen, dann rückt die Bestellung nach Versand.</p></div>
+  <div class="faq"><h4>Das Stück liegt nicht auf dem Boden, den die Pickliste nennt.</h4><p>Erst die Nachbarböden prüfen. Ist es weg: Auf der Seite des Modells beim Boden <b>Zählen</b> und die echte Zahl eintragen. Ist noch ein anderes Stück frei, bekommt die Bestellung das; sonst wird nachgefertigt. Bitte Nele kurz Bescheid geben.</p></div>
+  <div class="faq"><h4>DHL lehnt das Label ab.</h4><p>Unter der Meldung steht DHLs Grund, meist Adresse oder Gewicht. Gewicht prüfen und neu versuchen. Bei der Adresse: mit dem Kunden klären. Notfalls das Label im DHL-Geschäftskundenportal buchen und die Nummer bei „Als versendet melden“ eintragen.</p></div>
+  <div class="faq"><h4>Ich habe das falsche Label gedruckt.</h4><p>Vor dem Versand: <span class="btn">Label stornieren</span>, neu buchen. Nach dem Versand geht das nicht mehr; dann Nele oder Johann fragen.</p></div>
+  <div class="faq"><h4>Ich habe falsch gescannt.</h4><p>Sofort: <span class="btn">Rückgängig</span> auf der Antwortkarte; der Knopf steht zehn Sekunden lang da. Später: auf der Seite des Modells beim Boden <b>Zählen</b> und die echte Zahl eintragen.</p></div>
+  <div class="faq"><h4>Auf dem Etikett steht die falsche Ausführung.</h4><p>Bei neuen Stücken: bei der falschen Ausführung ausbuchen (Grund „Versehen“), bei der richtigen einbuchen und das neue Etikett aufkleben.</p></div>
+  <div class="faq"><h4>Der Scanner liest das Etikett nicht.</h4><p>Etikett gerade und ruhig in den Rahmen halten, mehr Licht. Klappt es nicht: Code unten bei „Code eintippen“ eingeben. Die Zahl steht unter dem Strichcode.</p></div>
+  <div class="faq"><h4>Ein Kunde fragt, wann sein Paket kommt.</h4><p>Bestellung suchen (Nummer oder E-Mail). Versendet: Sendungsnummer steht im Bestellpult. Wartet auf Fertigung: Die Bestellung zeigt die Lieferzeit, die der Kunde beim Kauf gesehen hat.</p></div>
+  <div class="faq"><h4>Ein Modell ist ausverkauft, wird aber trotzdem bestellt.</h4><p>Das ist gewollt: Wir fertigen nach. Soll es wirklich nicht mehr bestellbar sein (Einzelstück), unter „Maßstäbe, Ausführungen und Preise“ bei Nachfertigen „nicht nachfertigen“ wählen.</p></div>
+  <div class="faq"><h4>Eine Überweisung kam nach der Frist.</h4><p>Die Bestellung ist dann schon storniert. Das Geld zurücküberweisen, oder mit dem Kunden eine neue Bestellung machen.</p></div>
+  <div class="faq"><h4>Ich sehe „Modelle“ oder „Einstellungen“ nicht.</h4><p>Dein Konto ist ein Packer-Konto. Das ist so gewollt. Brauchst du mehr, sprich mit Nele.</p></div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section class="chapter">
+  <div class="ch-head">
+    <span class="lever">12</span>
+    <div><div class="kick">Nachschlagen</div><h2>Begriffe von A bis Z</h2></div>
+  </div>
+  <dl class="gloss">
+    <div><dt>Abnehmen</dt><dd>Fertig gedruckte Platte vom Drucker nehmen. Sie geht in die Nachbearbeitung.</dd></div>
+    <div><dt>Archivieren</dt><dd>Modell aus dem Shop nehmen, ohne es zu löschen.</dd></div>
+    <div><dt>Ausbuchen</dt><dd>Stücke aus dem Bestand nehmen, mit Grund (verkauft, kaputt, verschwunden, Versehen).</dd></div>
+    <div><dt>Ausführung</dt><dd>Maßstab plus Bausatz oder Fertigmodell in einer Farbe. Hat eine eigene Artikelnummer und EAN.</dd></div>
+    <div><dt>Bahnhof</dt><dd>Station im Gleisbild: Eingang, Fertigung, Versand, Unterwegs.</dd></div>
+    <div><dt>Bausatz</dt><dd>Unbemaltes Modell zum Selberbauen. Artikelnummer endet auf <span class="key">-B</span>.</dd></div>
+    <div><dt>Boden</dt><dd>Eine Ebene in einem Regal; ein Platz mit eigenem Etikett, z. B. <span class="key">R01-B03</span>.</dd></div>
+    <div><dt>Druckerhalle</dt><dd>Übersicht aller Drucker unter Fertigung.</dd></div>
+    <div><dt>EAN</dt><dd>Die 13-stellige Nummer im Strichcode des Etiketts. Für Kasse und Scanner.</dd></div>
+    <div><dt>Einbuchen</dt><dd>Neue, fertige Stücke auf einen Platz in den Bestand nehmen.</dd></div>
+    <div><dt>Entwurf</dt><dd>Modell, das angelegt, aber noch nicht im Shop ist.</dd></div>
+    <div><dt>Fehldruck</dt><dd>Platte, die ganz misslungen ist. Alle Teile zählen als Ausschuss.</dd></div>
+    <div><dt>Fertigmodell</dt><dd>Fertig gebautes, lackiertes Modell in einer Farbe. Artikelnummer endet auf <span class="key">-F</span>.</dd></div>
+    <div><dt>frei</dt><dd>Stück im Regal, das noch keiner Bestellung gehört.</dd></div>
+    <div><dt>Gleisbild</dt><dd>Ansicht der Bestellungen als Wagen auf einer Strecke.</dd></div>
+    <div><dt>Kommissionieren</dt><dd>Die Stücke einer Bestellung aus dem Regal holen. Die Pickliste sagt, wo.</dd></div>
+    <div><dt>Maßstab</dt><dd>Verkleinerung, z. B. H0 (1:87), TT (1:120), N (1:160).</dd></div>
+    <div><dt>Messe-Post</dt><dd>Mail an Kunden, die über Messen informiert werden wollen.</dd></div>
+    <div><dt>Montage</dt><dd>Aus gedruckten Teilen fertige Stücke machen und dabei die Teile ausbuchen.</dd></div>
+    <div><dt>Nachfertigen</dt><dd>Leeres Regal? Wir bauen nach, in der eingestellten Lieferzeit.</dd></div>
+    <div><dt>Packer</dt><dd>Rolle für Lager und Versand.</dd></div>
+    <div><dt>Platte</dt><dd>Ein Druckauftrag: alles, was auf einmal im Drucker gedruckt wird.</dd></div>
+    <div><dt>reserviert</dt><dd>Stück, das einer bezahlten Bestellung gehört. Wird nicht anders verkauft.</dd></div>
+    <div><dt>Stellwerk</dt><dd>Unser internes System, dieses Handbuch.</dd></div>
+    <div><dt>Stückliste</dt><dd>Welche Druckteile ein Modell in einem Maßstab braucht.</dd></div>
+    <div><dt>SumUp</dt><dd>Dienst für Kartenzahlung im Shop.</dd></div>
+    <div><dt>Typenschild</dt><dd>Die Übersicht eines Modells rechts in der Modell-Liste.</dd></div>
+    <div><dt>Vorkasse</dt><dd>Kunde zahlt per Überweisung. 10 Tage Frist.</dd></div>
+    <div><dt>Wareneingang</dt><dd>Fertig gemeldete Druckteile, die noch in eine Box müssen.</dd></div>
+    <div><dt>Widerruf</dt><dd>Kunde tritt innerhalb der Frist vom Kauf zurück.</dd></div>
+    <div><dt>Zählen</dt><dd>Die echte Zahl je Platz eintragen; das Stellwerk bucht den Unterschied.</dd></div>
+    <div><dt>Zu fertigen</dt><dd>Stücke, auf die bezahlte Bestellungen warten.</dd></div>
+  </dl>
+  <div class="end"><h3>Etwas fehlt in diesem Handbuch?</h3><p>Sag Nele Bescheid. Das Handbuch wächst mit dem Stellwerk. Die aktuelle Fassung liegt im Stellwerk unter „Hilfe“.</p></div>
+</section>
+
+</body>
+</html>
