@@ -142,6 +142,8 @@ class Settings(BaseSettings):
 
     # Paid pieces without stock get their print plates queued by themselves (ADR 0034).
     autoplan: bool = True
+    digest_emails: str = ""
+    """More addresses for the morning mail, comma-separated, beside MB_IMPRINT_EMAIL."""
 
     log_level: LogLevel = "INFO"
 
@@ -437,6 +439,15 @@ class Settings(BaseSettings):
     def shop_name(self) -> str:
         """Display name of the shop, taken from the sender of outgoing e-mails."""
         return parseaddr(self.smtp_from)[0] or _DEFAULT_SHOP_NAME
+
+    @property
+    def digest_recipients(self) -> tuple[str, ...]:
+        """Who gets the morning mail: the shop's address first, then MB_DIGEST_EMAILS."""
+        found: dict[str, str] = {}
+        for address in (self.imprint_email, *self.digest_emails.split(",")):
+            if address := address.strip():
+                found.setdefault(address.lower(), address)
+        return tuple(found.values())
 
     @property
     def imprint(self) -> Imprint:

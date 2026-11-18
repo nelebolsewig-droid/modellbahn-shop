@@ -170,7 +170,7 @@ class TestMorningDigest:
             uow_factory=sales_uow,
             clock=clock,
             mailer=mailer,
-            shop_email=SHOP_EMAIL,
+            recipients=(SHOP_EMAIL, "werkstatt@example.com"),
             public_base_url=PUBLIC_BASE_URL,
             shop_name=SHOP_NAME,
         )
@@ -199,3 +199,7 @@ class TestMorningDigest:
         assert "Freitag, 23.10." in mail.text
         assert "2 Stück für 1 Bestellung" in mail.text
         assert "1 Bestellung ·" in mail.text  # paid yesterday
+        [copy] = [
+            m for m in mails_to(mailer, "werkstatt@example.com") if m.subject.startswith("Heute")
+        ]
+        assert copy.text == mail.text
