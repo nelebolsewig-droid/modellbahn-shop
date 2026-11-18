@@ -33,6 +33,7 @@ from modellbahn.platform.uow import ForeignKeyViolationError, UniqueViolationErr
 type UnitOfWorkFactory = Callable[[], MediaUnitOfWork]
 
 STALE_UPLOAD_BATCH: Final = 100
+STUDIO_SWITCH_BATCH: Final = 100
 
 _logger = structlog.get_logger(__name__)
 
@@ -173,6 +174,30 @@ class MediaService:
                 uow.publish(event)
             await uow.commit()
             return asset
+
+    async def set_studio_for_all(self, *, enabled: bool) -> int:
+        """Switch the photo studio for every finished photo that is set otherwise.
+
+        Each one is rendered again from its original, one after the other in the
+        worker; returns how many. Photos still uploading keep their own setting.
+        """
+        now = self._clock.now()
+        switched = 0
+        while True:
+            async with self._uow() as uow:
+                batch = await uow.assets.rendered_with_studio(
+                    enabled=not enabled, limit=STUDIO_SWITCH_BATCH
+                )
+                for asset in batch:
+                    event = asset.set_studio(enabled, now)
+                    if event is not None:
+                        uow.publish(event)
+                await uow.commit()
+            switched += len(batch)
+            if len(batch) < STUDIO_SWITCH_BATCH:
+                break
+        _logger.info("media.studio_switched_for_all", enabled=enabled, count=switched)
+        return switched
 
     async def delete(self, asset_id: UUID) -> None:
         """Delete an asset nothing refers to; the worker then removes its files."""

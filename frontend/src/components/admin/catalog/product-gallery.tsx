@@ -38,6 +38,7 @@ import {
 } from "@/lib/media/upload";
 import { cn } from "@/lib/utils";
 
+import { StudioForAll } from "./studio-for-all";
 import { productQueryKey, useProductCommand } from "./use-product";
 
 const STATUS_TONES = {
@@ -234,6 +235,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
           Das Fotostudio stellt jedes Modell frei, gleicht Licht und Farbe an und stellt es auf dieselbe Linie. Das
           Original bleibt erhalten.
         </p>
+        <StudioForAll />
         <Button type="button" variant="secondary" size="sm" onClick={() => picker.current?.click()}>
           Fotos auswählen
         </Button>

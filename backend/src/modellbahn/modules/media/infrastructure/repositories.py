@@ -52,6 +52,20 @@ class SqlAssetRepository:
         )
         return list((await self._session.execute(statement)).scalars())
 
+    async def rendered_with_studio(self, *, enabled: bool, limit: int) -> list[Asset]:
+        statement = (
+            select(Asset)
+            .where(
+                assets.c.kind == AssetKind.IMAGE,
+                assets.c.studio.is_(enabled),
+                assets.c.status.in_([AssetStatus.READY, AssetStatus.FAILED]),
+            )
+            .order_by(assets.c.created_at)
+            .limit(limit)
+            .with_for_update(key_share=True, skip_locked=True)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
 
 class SqlMediaUnitOfWork(UnitOfWork):
     """Unit of work with the media repositories attached."""

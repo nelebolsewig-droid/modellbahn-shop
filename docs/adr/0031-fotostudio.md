@@ -25,8 +25,13 @@ Der Worker bringt jedes hochgeladene Modellfoto selbst in eine Form (`media`,
    herausgerechnet, damit auf Sand kein heller Saum bleibt.
 4. **Bühne:** quadratisch, 2048 px. Das Modell füllt ein festes Feld (84 % der Breite,
    64 % der Höhe), steht waagrecht mittig und mit dem tiefsten Punkt auf der **Standlinie**
-   bei 80 % der Höhe (`domain/studio.py`). Darunter ein weicher Bodenschatten und eine
-   dunkle Fuge in Espresso.
+   bei 80 % der Höhe (`domain/studio.py`). Darunter liegt der **eigene Schatten aus dem
+   Foto**: Was neben dem Modell dunkler ist als der glatt angenommene Hintergrund, wird
+   als Schatten in Espresso übernommen, nur nah am Modell, nur am Boden und ohne das,
+   was eine ganze Bildzeile verdunkelt (Wand, Knick im Hintergrund). So steht jedes
+   Modell auf dem Schatten, den es wirklich wirft; ein gezeichneter Schatten ließ die
+   Fahrzeuge schweben oder lag als Platte unter ihnen. Nur Fotos ohne eigenen Schatten
+   (bearbeitet, auf reinem Weiß) bekommen einen weichen gezeichneten.
 5. **Durchsichtiger Grund:** Die Bühne hat keinen eigenen Hintergrund. Im Shop scheint der
    Token `stage` (Sand `#EFE7DC`) durch, auch beim Überfahren der Karte. Nur das
    Vorschaubild für geteilte Links (`og`) steht fest auf Sand.
@@ -39,8 +44,11 @@ Regeln:
   „Fotostudio“; `PUT /admin/media/{id}/studio`). Umschalten rendert das Foto neu.
 - **Neue Fotos** gehen durchs Fotostudio. **Fotos, die schon im Shop sind,** bleiben, wie
   sie sind (Migration 0022 setzt sie auf „aus“), und lassen sich einzeln einschalten.
-- **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß oder an drei Rändern
-  abgeschnitten), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
+- **Alle auf einmal:** „Alle Fotos umstellen …“ in der Galerie
+  (`PUT /admin/media/studio`) schaltet das Fotostudio für jedes fertige Foto ein, das noch
+  aus ist; der Worker rechnet sie nacheinander neu. Der Haken je Foto bleibt.
+- **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß, an drei Rändern
+  abgeschnitten oder überwiegend unsicher, etwa bei einem Foto einer ganzen Kiste), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
   gezeigt wird, die Galerie schreibt es dazu.
 - **Fehlt die Modelldatei**, rendert der Worker alle Fotos wie hochgeladen und meldet es
   beim Start (`media.studio_unavailable`). Kein Upload scheitert daran.
