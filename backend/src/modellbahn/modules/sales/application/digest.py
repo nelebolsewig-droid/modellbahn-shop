@@ -1,4 +1,5 @@
-"""The morning mail „Heute dran“ (ADR 0034): once a day, to the shop's own address, what
+"""The morning mail „Heute dran“ (ADR 0034): once a day, to the shop's own address and
+whoever else is set, what
 waits to be packed, made and printed, and what came in yesterday.
 
 The worker asks every few minutes; from 7 o'clock shop time the first ask of the day
@@ -29,7 +30,7 @@ class MorningDigest:
         uow_factory: UnitOfWorkFactory,
         clock: Clock,
         mailer: Mailer,
-        shop_email: str,
+        recipients: tuple[str, ...],
         public_base_url: str,
         shop_name: str,
         sender: tuple[str, ...] = (),
@@ -37,14 +38,14 @@ class MorningDigest:
         self._uow = uow_factory
         self._clock = clock
         self._mailer = mailer
-        self._shop_email = shop_email
+        self._recipients = recipients
         self._base_url = public_base_url
         self._shop_name = shop_name
         self._sender = sender
 
     async def send_if_due(self) -> bool:
         """Send today's mail if it is time and nobody has; True if this call sent it."""
-        if not self._shop_email:
+        if not self._recipients:
             return False
         now = self._clock.now()
         local = now.astimezone(mails.SHOP_TIME_ZONE)
@@ -55,11 +56,15 @@ class MorningDigest:
                 return False
             facts = await uow.digests.facts(now)
             content = mails.morning_mail(facts, day=local.date(), base_url=self._base_url)
-            await self._mailer.send(
-                compose(
-                    content, to=self._shop_email, shop_name=self._shop_name, sender=self._sender
+            for address in self._recipients:
+                await self._mailer.send(
+                    compose(content, to=address, shop_name=self._shop_name, sender=self._sender)
                 )
-            )
             await uow.commit()
-        _logger.info("sales.digest.sent", day=local.date().isoformat(), to_pack=facts.to_pack)
+        _logger.info(
+            "sales.digest.sent",
+            day=local.date().isoformat(),
+            to_pack=facts.to_pack,
+            recipients=len(self._recipients),
+        )
         return True

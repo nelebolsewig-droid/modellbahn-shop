@@ -207,7 +207,7 @@ async def run_worker(
                 uow_factory=sales_uow,
                 clock=clock,
                 mailer=mailer,
-                shop_email=settings.imprint.email,
+                recipients=settings.digest_recipients,
                 public_base_url=settings.public_base_url,
                 shop_name=settings.shop_name,
                 sender=settings.imprint.mail_footer(),

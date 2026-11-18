@@ -28,6 +28,18 @@ IMPRINT: Final[dict[str, Any]] = {
 
 
 class TestSettings:
+    def test_morning_mail_goes_to_the_shop_and_the_extra_addresses(self) -> None:
+        settings = Settings(
+            imprint_email="info@example.com",
+            digest_emails=" chef@example.com, ,INFO@example.com,werkstatt@example.com ",
+        )
+        assert settings.digest_recipients == (
+            "info@example.com",
+            "chef@example.com",
+            "werkstatt@example.com",
+        )
+        assert Settings(imprint_email="").digest_recipients == ()
+
     def test_reads_prefixed_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MB_PUBLIC_BASE_URL", "https://shop.example/")
         monkeypatch.setenv("MB_LOG_LEVEL", "debug")
