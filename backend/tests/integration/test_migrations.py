@@ -293,3 +293,57 @@ def test_0020_makes_every_model_again(scratch_database_url: str) -> None:
         ("Gelb", True, 2, 4),
         ("Rot", True, 2, 4),
     ]
+
+
+_ASSETS_BEFORE_0025 = """
+INSERT INTO media.assets
+    (id, kind, status, original_key, original_filename, mime_type, size_bytes, sha256,
+     created_at, updated_at, studio, failure_code, ready_at)
+VALUES
+    ('00000000-0000-7000-8000-0000000000a1', 'image', 'ready', 'o/a1', 'a1.jpg', 'image/jpeg',
+     1, repeat('1', 64), now() - interval '3 days', now(), false, NULL, now()),
+    ('00000000-0000-7000-8000-0000000000a2', 'image', 'failed', 'o/a2', 'a2.jpg', 'image/jpeg',
+     1, repeat('2', 64), now() - interval '2 days', now(), false, 'processing_error', NULL),
+    ('00000000-0000-7000-8000-0000000000a3', 'image', 'ready', 'o/a3', 'a3.jpg', 'image/jpeg',
+     1, repeat('3', 64), now() - interval '1 day', now(), true, NULL, now()),
+    ('00000000-0000-7000-8000-0000000000a4', 'image', 'pending_upload', 'o/a4', 'a4.jpg',
+     'image/jpeg', 1, repeat('4', 64), now(), now(), false, NULL, NULL)
+"""
+
+
+async def _studio_rows(database_url: str) -> tuple[list[tuple[str, str, bool]], list[float]]:
+    engine = create_engine(database_url)
+    try:
+        async with engine.connect() as connection:
+            assets = await connection.execute(
+                text("SELECT original_filename, status, studio FROM media.assets ORDER BY sha256")
+            )
+            due = await connection.execute(
+                text(
+                    "SELECT extract(epoch FROM o.next_attempt_at - o.occurred_at) "
+                    "FROM platform.outbox o JOIN media.assets a ON a.id = o.aggregate_id "
+                    "WHERE o.event_type = 'media.asset.uploaded' AND o.status = 'pending' "
+                    "ORDER BY a.sha256"
+                )
+            )
+            return [(r[0], r[1], r[2]) for r in assets], [float(r[0]) for r in due]
+    finally:
+        await engine.dispose()
+
+
+def test_0025_sends_the_existing_photos_through_the_studio(scratch_database_url: str) -> None:
+    migrate(scratch_database_url, "0024")
+    asyncio.run(_run(scratch_database_url, _ASSETS_BEFORE_0025))
+
+    migrate(scratch_database_url)
+    assets, due = asyncio.run(_studio_rows(scratch_database_url))
+    # Finished photos are switched on and rendered again; the one already on and the one
+    # still uploading are left alone.
+    assert assets == [
+        ("a1.jpg", "uploaded", True),
+        ("a2.jpg", "uploaded", True),
+        ("a3.jpg", "ready", True),
+        ("a4.jpg", "pending_upload", False),
+    ]
+    # One event per switched photo, twenty seconds apart, oldest photo first.
+    assert due == [0.0, 20.0]

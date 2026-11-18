@@ -47,6 +47,10 @@ Regeln:
 - **Alle auf einmal:** „Alle Fotos umstellen …“ in der Galerie
   (`PUT /admin/media/studio`) schaltet das Fotostudio für jedes fertige Foto ein, das noch
   aus ist; der Worker rechnet sie nacheinander neu. Der Haken je Foto bleibt.
+- **Beim Ausspielen von selbst:** Migration 0025 schaltet einmalig jedes fertige Foto
+  ein, das noch aus ist, und lässt es neu rechnen, ohne Klick. Die Aufträge werden im
+  Abstand von 20 Sekunden fällig, damit Bestellungen und Mails nicht hinter den Fotos
+  warten. Wer danach ein Foto ausschaltet, behält es aus.
 - **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß, an drei Rändern
   abgeschnitten oder überwiegend unsicher, etwa bei einem Foto einer ganzen Kiste), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
   gezeigt wird, die Galerie schreibt es dazu.
