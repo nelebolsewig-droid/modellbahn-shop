@@ -10510,7 +10510,7 @@
             "type": "array"
           },
           "cost_cents": {
-            "description": "Herstellwert: material of the pieces whose cost is known (ADR 0032).",
+            "description": "Herstellwert: material of the pieces whose cost is known (ADR 0035).",
             "title": "Cost Cents",
             "type": "integer"
           },
