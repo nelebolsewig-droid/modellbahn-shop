@@ -197,7 +197,7 @@ export function ScrollFilm({ actions }: { actions: ReactNode }) {
         </div>
       </section>
 
-      <section className="f-schluss" data-film="schluss" aria-label="Zum Katalog">
+      <section className="f-schluss" data-film="schluss" aria-label="Zu den Modellen">
         <div className="belt" data-film="beltA" aria-hidden="true">
           Kleinserie · Handarbeit · seit 1992 · Kleinserie · Handarbeit · seit 1992 ·
         </div>
@@ -205,9 +205,9 @@ export function ScrollFilm({ actions }: { actions: ReactNode }) {
           N · TT · H0 · Spur 0 · N · TT · H0 · Spur 0 · N · TT · H0 · Spur 0 ·
         </div>
         <div className="close rise">
-          <p>Das war ein Kran. Im Katalog warten die anderen Modelle, und wenn dein Vorbild fehlt, bauen wir es.</p>
+          <p>Das war ein Kran. Die anderen Modelle warten schon, und wenn dein Vorbild fehlt, bauen wir es.</p>
           <Link className="cta" href="/katalog">
-            Zum Katalog
+            Zu den Modellen
             <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>

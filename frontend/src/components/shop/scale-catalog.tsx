@@ -81,7 +81,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
         <ol className="flex flex-wrap items-center gap-2 text-hint text-ink-tertiary">
           <li>
             <Link href="/katalog" className="hover:text-ink">
-              Katalog
+              Modelle
             </Link>
           </li>
           <li className="flex items-center gap-2">
@@ -143,7 +143,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
         <section aria-label="Modelle">
           {items.length > 0 ? <CatalogSort location={location} className="mb-8 lg:justify-end" /> : null}
           {items.length === 0 ? (
-            <EmptyState title={filtered ? "Nichts gefunden" : "Bald im Katalog"}>
+            <EmptyState title={filtered ? "Nichts gefunden" : "Kommt bald"}>
               <p>
                 {filtered
                   ? `Zu dieser Auswahl gibt es in ${scale.name} noch kein Modell.`

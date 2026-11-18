@@ -16,7 +16,7 @@ export function HomeActions() {
   return (
     <div className="mt-10 flex flex-wrap gap-3">
       <Button asChild>
-        <CatalogLink>Zum Katalog</CatalogLink>
+        <CatalogLink>Zu den Modellen</CatalogLink>
       </Button>
       {session.status === "authenticated" ? (
         <Button asChild variant="secondary">

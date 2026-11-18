@@ -58,7 +58,7 @@ function OrderList() {
             Sobald du etwas bestellst, findest du es hier – mit Status, Sendungsnummer und Rechnungsbetrag.
           </p>
           <Button asChild className="mt-8">
-            <Link href="/katalog">Zum Katalog</Link>
+            <Link href="/katalog">Zu den Modellen</Link>
           </Button>
         </div>
       ) : (

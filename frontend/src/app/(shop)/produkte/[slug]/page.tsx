@@ -45,7 +45,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         <ol className="flex flex-wrap items-center gap-2 text-hint text-ink-tertiary">
           <li>
             <Link href="/katalog" className="hover:text-ink">
-              Katalog
+              Modelle
             </Link>
           </li>
           {scale ? (

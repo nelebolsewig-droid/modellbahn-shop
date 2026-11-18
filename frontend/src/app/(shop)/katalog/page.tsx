@@ -16,7 +16,7 @@ import { firstParam } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Katalog",
+  title: "Modelle",
   description: "Handgefertigte Modelle für Schiene und Straße: erst den Maßstab wählen, dann die Kategorie.",
 };
 
@@ -64,7 +64,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
     <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 lg:py-20">
       <header className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div>
-          <p className="label-caps text-ink-tertiary">Katalog</p>
+          <p className="label-caps text-ink-tertiary">Modelle</p>
           <h1 className="mt-4 text-title sm:text-display">{suche ? `Suche: „${suche}“` : "Welcher Maßstab?"}</h1>
           <p className="mt-5 max-w-xl text-body-lg text-ink-secondary">
             {suche
@@ -91,7 +91,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/katalog"
         ) : navigation ? (
           <ScaleGates scales={navigation.scales} />
         ) : (
-          <EmptyState title="Der Katalog ist gerade nicht erreichbar">
+          <EmptyState title="Die Modelle sind gerade nicht erreichbar">
             <p>Bitte versuche es gleich noch einmal.</p>
           </EmptyState>
         )}
