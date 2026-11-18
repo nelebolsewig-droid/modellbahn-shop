@@ -164,6 +164,16 @@ class MediaService:
             await uow.commit()
             return asset
 
+    async def set_studio(self, asset_id: UUID, *, enabled: bool) -> Asset:
+        """Switch the photo studio for one photo and render it again from its original."""
+        async with self._uow() as uow:
+            asset = await self._require(uow, asset_id, for_update=True)
+            event = asset.set_studio(enabled, self._clock.now())
+            if event is not None:
+                uow.publish(event)
+            await uow.commit()
+            return asset
+
     async def delete(self, asset_id: UUID) -> None:
         """Delete an asset nothing refers to; the worker then removes its files."""
         async with self._uow() as uow:

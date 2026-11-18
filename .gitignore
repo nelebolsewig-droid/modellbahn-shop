@@ -41,3 +41,6 @@ npm-debug.log*
 *.swp
 .DS_Store
 Thumbs.db
+
+# The photo studio model, when brought to the build by hand (ADR 0031)
+backend/models/*.onnx

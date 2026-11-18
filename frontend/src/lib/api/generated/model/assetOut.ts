@@ -29,4 +29,6 @@ export interface AssetOut {
   renditions: RenditionOut[];
   size_bytes: number;
   status: AssetStatus;
+  studio: boolean;
+  studio_applied: boolean;
 }

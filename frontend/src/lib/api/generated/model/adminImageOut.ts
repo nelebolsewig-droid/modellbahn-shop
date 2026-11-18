@@ -26,5 +26,7 @@ export interface AdminImageOut {
   lqip: string | null;
   renditions: ImageRenditionOut[];
   status: AssetStatus;
+  studio: boolean;
+  studio_applied: boolean;
   width: number | null;
 }

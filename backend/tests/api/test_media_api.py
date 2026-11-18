@@ -127,6 +127,36 @@ async def test_completion_needs_the_file(
     assert_problem(await staff_client.get(f"{MEDIA}/{uuid4()}"), 404, "asset_not_found")
 
 
+async def test_studio_switch_renders_the_photo_again(
+    staff_client: AsyncClient, media_storage: InMemoryMediaStorage, deliver: Deliver
+) -> None:
+    data = photo(1000, 700)
+    ticket = (await staff_client.post(f"{MEDIA}/uploads", json=announcement(data))).json()
+    asset_id = ticket["asset"]["id"]
+    # New uploads go through the studio; this worker has none, so the photo stays as it is.
+    assert ticket["asset"]["studio"] is True
+    media_storage.upload(UUID(asset_id), data)
+    await staff_client.post(f"{MEDIA}/{asset_id}/complete")
+    await deliver()
+    ready = (await staff_client.get(f"{MEDIA}/{asset_id}")).json()
+    assert (ready["status"], ready["studio_applied"]) == ("ready", False)
+
+    switched = await staff_client.put(f"{MEDIA}/{asset_id}/studio", json={"enabled": False})
+    assert switched.status_code == 202, switched.text
+    assert (switched.json()["studio"], switched.json()["status"]) == (False, "uploaded")
+    await deliver()
+    again = (await staff_client.get(f"{MEDIA}/{asset_id}")).json()
+    assert (again["status"], again["studio"]) == ("ready", False)
+
+    same = await staff_client.put(f"{MEDIA}/{asset_id}/studio", json={"enabled": False})
+    assert same.json()["status"] == "ready"
+    assert_problem(
+        await staff_client.put(f"{MEDIA}/{uuid4()}/studio", json={"enabled": True}),
+        404,
+        "asset_not_found",
+    )
+
+
 async def test_delete(staff_client: AsyncClient) -> None:
     ticket = (await staff_client.post(f"{MEDIA}/uploads", json=announcement(photo()))).json()
     asset_id = ticket["asset"]["id"]

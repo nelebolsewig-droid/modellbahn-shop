@@ -6,7 +6,12 @@ from fastapi import APIRouter, Response, status
 
 from modellbahn.modules.media.api.deps import MediaEditor, MediaServiceDep, PublicBaseUrl
 from modellbahn.modules.media.api.errors import ACCESS, NOT_FOUND
-from modellbahn.modules.media.api.schemas import AssetOut, UploadRequestIn, UploadTicketOut
+from modellbahn.modules.media.api.schemas import (
+    AssetOut,
+    StudioIn,
+    UploadRequestIn,
+    UploadTicketOut,
+)
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/admin/media", tags=["admin-media"])
@@ -73,6 +78,29 @@ async def reprocess_asset(
 ) -> AssetOut:
     """For failed or ready assets; the result arrives as ``media.asset.ready`` or ``failed``."""
     return AssetOut.from_asset(await service.reprocess(asset_id), public_base_url=base_url)
+
+
+@router.put(
+    "/{asset_id}/studio",
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="setMediaStudio",
+    summary="Switch the photo studio for one photo",
+    responses=problems({**ACCESS, **NOT_FOUND}),
+)
+async def set_studio(
+    asset_id: UUID,
+    body: StudioIn,
+    _: MediaEditor,
+    service: MediaServiceDep,
+    base_url: PublicBaseUrl,
+) -> AssetOut:
+    """On: cut out and staged like every model photo. Off: shown as uploaded.
+
+    The sizes are rendered again from the original, which is always kept; the result
+    arrives as ``media.asset.ready``.
+    """
+    asset = await service.set_studio(asset_id, enabled=body.enabled)
+    return AssetOut.from_asset(asset, public_base_url=base_url)
 
 
 @router.delete(

@@ -111,6 +111,9 @@ class ImageDetails:
     lqip: str
     # 64-bit difference hash (signed, to fit a bigint) for finding near-duplicates.
     phash: int
+    # True when the sizes show the photo studio's version (cut out, on the stage), False
+    # when they show the photo as uploaded: switched off, or no model was found in it.
+    studio_applied: bool = False
 
 
 @dataclass(eq=False, kw_only=True)
@@ -149,6 +152,9 @@ class Asset:
     created_at: datetime
     updated_at: datetime
     ready_at: datetime | None
+    # Whether the photo studio may finish this photo (ADR 0031). The original is kept
+    # either way, so this can be switched at any time.
+    studio: bool = True
     image: ImageDetails | None = None
     renditions: list[Rendition] = field(default_factory=list)
     # Maintained by the persistence layer for optimistic locking.
@@ -269,6 +275,20 @@ class Asset:
         self.last_error = None
         self.updated_at = now
         return AssetUploaded(aggregate_id=self.id, occurred_at=now)
+
+    def set_studio(self, enabled: bool, now: datetime) -> AssetUploaded | None:
+        """Switch the photo studio for this photo; a finished photo is rendered again.
+
+        Returns the event that starts the rendering, or ``None`` when nothing changes
+        or the photo is not rendered yet (it then picks the setting up by itself).
+        """
+        if self.studio == enabled:
+            return None
+        self.studio = enabled
+        self.updated_at = now
+        if self.status in {AssetStatus.FAILED, AssetStatus.READY}:
+            return self.reprocess(now)
+        return None
 
     def delete(self, now: datetime) -> AssetDeleted:
         """The event that removes the files; the repository removes the row."""

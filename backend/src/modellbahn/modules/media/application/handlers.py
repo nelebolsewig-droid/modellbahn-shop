@@ -73,7 +73,9 @@ class MediaProcessingHandlers:
             original = await self._storage.read_original(
                 asset.original_key, max_bytes=IMAGE_MAX_BYTES
             )
-            processed = await asyncio.to_thread(self._processor.process, original)
+            processed = await asyncio.to_thread(
+                self._processor.process, original, studio=asset.studio
+            )
             renditions = await self._publish(asset_id, processed)
         except ImageRejectedError as exc:
             log.info("media.image_rejected", failure_code=exc.code.value, detail=exc.detail)
@@ -88,7 +90,7 @@ class MediaProcessingHandlers:
                 return
             raise
         await self._finish(asset_id, processed, renditions)
-        log.info("media.asset_ready", renditions=len(renditions))
+        log.info("media.asset_ready", renditions=len(renditions), studio=processed.studio_applied)
 
     async def remove_files(self, event: AssetDeleted) -> None:
         """Delete the files of a deleted asset from both buckets."""
@@ -138,6 +140,7 @@ class MediaProcessingHandlers:
                 dominant_color=processed.dominant_color,
                 lqip=processed.lqip,
                 phash=processed.phash,
+                studio_applied=processed.studio_applied,
             )
             uow.publish(
                 asset.mark_ready(image=details, renditions=renditions, now=self._clock.now())
