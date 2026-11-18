@@ -57,8 +57,8 @@ NEUTRAL_BACKDROP_CHROMA: Final = 0.5
 MAX_UNSURE_SHARE: Final = 0.5
 # Espresso #26211e, the ink of the shop, as shadow colour.
 SHADOW_RGB: Final = (0x26, 0x21, 0x1E)
-CONTACT_SHADOW_OPACITY: Final = 0.5
-FLOOR_SHADOW_OPACITY: Final = 0.2
+CONTACT_SHADOW_OPACITY: Final = 0.45
+FLOOR_SHADOW_OPACITY: Final = 0.34
 
 
 class Segmenter(Protocol):
@@ -324,41 +324,66 @@ def _stage(cut: Image.Image, subject: Box) -> Image.Image:
 
     model = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
     model.paste(scaled, (origin_x, origin_y))
-    shadow = _shadow(model.getchannel("A"), placement.y + placement.height, placement.width)
+    shadow = _shadow(
+        model.getchannel("A"),
+        placement.y + placement.height,
+        max(placement.width, placement.height),
+    )
     stage = Image.new("RGBA", (CANVAS, CANVAS), (*SHADOW_RGB, 0))
     stage.putalpha(shadow)
     return Image.alpha_composite(stage, model)
 
 
-def _shadow(alpha: Image.Image, standline: int, model_width: int) -> Image.Image:
-    """A soft shadow lying flat on the standing line, and a dark seam under the model.
+def _shadow(alpha: Image.Image, standline: int, model_size: int) -> Image.Image:
+    """The shadow on the floor under the model, following where it touches the floor.
 
-    The floor shadow spans what comes down close to the floor (a crane's jib casts
-    none), fading out at both ends. The seam is the model's own outline, moved down a
-    little: it shows only as a thin dark line where the model meets the floor.
+    A model seen at an angle touches the floor along a slanted line: the near wheels
+    low, the far ones higher. That line is the lower convex hull of the outline (a taut
+    string under the wheels). The shadow is dark right on it, fills the gap between the
+    floor and the underside, and fades out below; a straight bar would make the far
+    wheels float. What does not come down to the floor (a crane's jib) casts none.
     """
     mask = np.asarray(alpha, dtype=np.float32) / 255.0
     height = mask.shape[0]
     solid = mask > 0.5
     present = solid.any(axis=0)
     underside = height - 1 - np.argmax(solid[::-1], axis=0)
-    reach = round(model_width * 0.12)
-    grounded = (present & (underside >= standline - reach)).astype(np.float32)
-    bridge = max(3, round(model_width * 0.08)) | 1
-    grounded = ndimage.maximum_filter1d(grounded, bridge)
-    strength = ndimage.gaussian_filter1d(grounded, max(2.0, model_width * 0.03))
-    rows = np.arange(height, dtype=np.float32)[:, None]
-    floor_height = max(5.0, model_width * 0.022)
-    floor = np.exp(-0.5 * ((rows - standline) / floor_height) ** 2) * strength[None, :]
+    reach = round(model_size * 0.22)
+    grounded = np.flatnonzero(present & (underside >= standline - reach))
+    if grounded.size < 2:
+        return Image.new("L", alpha.size, 0)
+    hull = _lower_hull(grounded, underside[grounded])
+    columns = np.arange(mask.shape[1])
+    floor_line = np.interp(columns, hull[:, 0], hull[:, 1]).astype(np.float32)
+    inside = ((columns >= grounded[0]) & (columns <= grounded[-1])).astype(np.float32)
+    strength = ndimage.gaussian_filter1d(inside, max(2.0, model_size * 0.012))
 
-    offset = max(2, round(model_width * 0.006))
-    seam = np.zeros_like(mask)
-    seam[offset:] = mask[:-offset]
-    # Only near the floor: higher up the outline would read as a second contour.
-    seam *= np.clip((rows - (standline - reach)) / max(reach, 1), 0.0, 1.0)
-    contact = ndimage.gaussian_filter(seam, max(1.5, model_width * 0.004))
+    distance = np.arange(height, dtype=np.float32)[:, None] - floor_line[None, :]
+    below = max(4.0, model_size * 0.016)
+    above = max(6.0, model_size * 0.035)
+    spread = np.where(distance > 0, below, above)
+    floor = np.exp(-0.5 * (distance / spread) ** 2) * strength[None, :]
+    floor = ndimage.gaussian_filter(floor, max(3.0, model_size * 0.008))
+    seam = max(1.5, model_size * 0.003)
+    contact = np.exp(-0.5 * ((distance - seam) / seam) ** 2) * strength[None, :]
+    contact = ndimage.gaussian_filter(contact, max(1.0, model_size * 0.002))
     combined = 1.0 - (1.0 - CONTACT_SHADOW_OPACITY * contact) * (1.0 - FLOOR_SHADOW_OPACITY * floor)
     return Image.fromarray(np.clip(combined * 255.0 + 0.5, 0, 255).astype(np.uint8), "L")
+
+
+def _lower_hull(xs: NDArray[np.intp], ys: NDArray[np.intp]) -> NDArray[np.float32]:
+    """The lower convex hull of the points, left to right (image rows grow downwards)."""
+    hull: list[tuple[float, float]] = []
+    for x, y in zip(xs.tolist(), ys.tolist(), strict=True):
+        while len(hull) >= 2:
+            (x1, y1), (x2, y2) = hull[-2], hull[-1]
+            # Keep the last point only if it lies below the line to the new one.
+            if (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1) >= 0:
+                hull.pop()
+            else:
+                break
+        hull.append((float(x), float(y)))
+    return np.asarray(hull, dtype=np.float32)
 
 
 # --- Pixels ---------------------------------------------------------------------------
