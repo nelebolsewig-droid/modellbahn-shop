@@ -24,6 +24,7 @@ from modellbahn.modules.inventory.application.common import (
 )
 from modellbahn.modules.inventory.application.ports import InventoryUnitOfWork
 from modellbahn.modules.inventory.application.units import label_new_units, put_away
+from modellbahn.modules.inventory.application.valuation import StockValue, stock_value
 from modellbahn.modules.inventory.domain.errors import (
     CountOutdatedError,
     CountTakesReservedError,
@@ -273,6 +274,15 @@ class StockService:
             )
             for product_id in sorted(product_ids)
         ]
+
+    async def value(self) -> StockValue:
+        """What the finished pieces on the shelves are worth at today's shop price, and
+        how many printed parts lie in the boxes (:func:`stock_value`)."""
+        async with self._uow() as uow:
+            counts = [c for c in await uow.units.counts() if c.status in ON_SHELF]
+            variants = await uow.catalog.variants({c.variant_id for c in counts})
+            part_totals = await uow.part_stock.totals()
+        return stock_value(counts, variants, part_totals)
 
     async def to_make(self) -> list[ToMake]:
         """Every Ausführung with pieces paid orders wait for, the longest waiting first.

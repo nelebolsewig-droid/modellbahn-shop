@@ -2,7 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LocationNodeOut, PlaceStockOut, StockLineOut } from "@/lib/api/generated/model";
+import type { LocationNodeOut, PlaceStockOut, StockLineOut, StockValueOut } from "@/lib/api/generated/model";
+import { formatPrice } from "@/lib/catalog/format";
 import { FakeEventSource } from "@/test/event-source";
 import { requestsTo, routeFetch, type RouteHandler } from "@/test/fetch-routes";
 import { jsonResponse, renderWithQueryClient } from "@/test/render";
@@ -59,11 +60,30 @@ function stockLine(labeled: number): StockLineOut {
   return { variant_id: "v1", variant: null, labeled, in_stock: 6, allocated: 1, picked: 0, backordered: 0 };
 }
 
+const VALUE: StockValueOut = {
+  pieces: 7,
+  value_cents: 6 * 4990 + 2990,
+  free_pieces: 6,
+  free_cents: 5 * 4990 + 2990,
+  reserved_pieces: 1,
+  reserved_cents: 4990,
+  unpriced_pieces: 2,
+  by_finish: [
+    { key: "painted", name: "Fertigmodell", pieces: 6, value_cents: 6 * 4990 },
+    { key: "unpainted", name: "Bausatz", pieces: 1, value_cents: 2990 },
+  ],
+  by_scale: [{ key: "H0", name: "H0", pieces: 7, value_cents: 6 * 4990 + 2990 }],
+  by_model: [{ key: "p1", name: "Stellwerk Altenau", pieces: 7, value_cents: 6 * 4990 + 2990 }],
+  part_pieces: 1204,
+  part_kinds: 12,
+};
+
 function store(routes: Record<string, RouteHandler> = {}) {
   routeFetch(fetchMock, {
     [`GET ${INVENTORY}/locations`]: () => jsonResponse({ items: TREE }),
     [`GET ${INVENTORY}/stock/places`]: () => jsonResponse({ items: [LINE] }),
     [`GET ${INVENTORY}/stock`]: () => jsonResponse({ items: [stockLine(0)] }),
+    [`GET ${INVENTORY}/stock/value`]: () => jsonResponse(VALUE),
     [`GET ${INVENTORY}/receiving`]: () => jsonResponse({ items: [] }),
     [`GET ${INVENTORY}/parts`]: () => jsonResponse({ items: [] }),
     ...routes,
@@ -110,6 +130,32 @@ describe("Lager", () => {
     // Packers look; they make no shelves and count nothing.
     expect(screen.queryByRole("button", { name: "Neues Regal" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Zählen" })).toBeNull();
+  });
+
+  it("shows owner and staff what the store is worth, split and per model", async () => {
+    store();
+    renderWithQueryClient(<InventoryOverview staffRole="owner" onStreamClosed={vi.fn()} />);
+
+    const panel = await screen.findByRole("region", { name: "Lagerwert" });
+    expect(await within(panel).findByText("329,30 €", { selector: "p" })).toBeInTheDocument();
+    expect(within(panel).getByRole("img")).toHaveAccessibleName(`${formatPrice(27940)} frei verkäuflich, ${formatPrice(4990)} reserviert`);
+    const finishes = within(panel).getByRole("region", { name: "Nach Ausführung" });
+    expect(within(finishes).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      `Fertigmodell6 Stück${formatPrice(29940)}`,
+      `Bausatz1 Stück${formatPrice(2990)}`,
+    ]);
+    expect(within(panel).getByRole("link", { name: "Stellwerk Altenau" })).toHaveAttribute("href", "/admin/modelle/p1");
+    expect(panel).toHaveTextContent("1.204 Teile in Boxen (12 Teilenummern)");
+    expect(panel).toHaveTextContent("2 Stück gelöschter Modelle");
+  });
+
+  it("does not show packers the worth of the store", async () => {
+    store();
+    renderWithQueryClient(<InventoryOverview staffRole="packer" onStreamClosed={vi.fn()} />);
+
+    await screen.findByRole("region", { name: "Regal 1" });
+    expect(screen.queryByRole("region", { name: "Lagerwert" })).toBeNull();
+    expect(requestsTo(fetchMock, `GET ${INVENTORY}/stock/value`)).toHaveLength(0);
   });
 
   it("makes a shelf with its Böden in one step and offers all their labels", async () => {

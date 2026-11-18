@@ -66,6 +66,7 @@ import type {
   StockOut,
   StockScrapIn,
   StockScrapOut,
+  StockValueOut,
   ToMakeListOut,
   UnitBatchOut,
   UnitCorrectionIn,
@@ -2502,6 +2503,107 @@ export function useListToMake<TData = Awaited<ReturnType<typeof listToMake>>, TE
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListToMakeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetStockValueUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/stock/value`
+}
+
+/**
+ * Pieces lying in a place, free or reserved, at the gross price of their variant now. Unbooked and picked pieces do not count; parts are counted, not priced.
+ * @summary What the store is worth: finished pieces at today's shop price, and the parts
+ */
+export const getStockValue = async ( options?: Parameters<typeof apiFetch>[1]): Promise<StockValueOut> => {
+
+  return apiFetch<StockValueOut>(getGetStockValueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStockValueQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/stock/value`
+    ] as const;
+    }
+
+
+export const getGetStockValueQueryOptions = <TData = Awaited<ReturnType<typeof getStockValue>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStockValueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockValue>>> = ({ signal }) => getStockValue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStockValueQueryResult = NonNullable<Awaited<ReturnType<typeof getStockValue>>>
+export type GetStockValueQueryError = ErrorType<Problem>
+
+
+export function useGetStockValue<TData = Awaited<ReturnType<typeof getStockValue>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockValue>>,
+          TError,
+          Awaited<ReturnType<typeof getStockValue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockValue<TData = Awaited<ReturnType<typeof getStockValue>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStockValue>>,
+          TError,
+          Awaited<ReturnType<typeof getStockValue>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStockValue<TData = Awaited<ReturnType<typeof getStockValue>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What the store is worth: finished pieces at today's shop price, and the parts
+ */
+
+export function useGetStockValue<TData = Awaited<ReturnType<typeof getStockValue>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStockValue>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStockValueQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

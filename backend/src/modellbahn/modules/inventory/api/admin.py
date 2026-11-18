@@ -63,6 +63,7 @@ from modellbahn.modules.inventory.api.schemas import (
     StockOut,
     StockScrapIn,
     StockScrapOut,
+    StockValueOut,
     ToMakeListOut,
     ToMakeOut,
     UnitBatchOut,
@@ -215,6 +216,18 @@ async def list_place_stock(
 ) -> PlaceStockListOut:
     lines = await service.places(product_id=product_id, location_code=location_code)
     return PlaceStockListOut(items=[PlaceStockOut.from_line(line) for line in lines])
+
+
+@router.get(
+    "/stock/value",
+    operation_id="getStockValue",
+    summary="What the store is worth: finished pieces at today's shop price, and the parts",
+    description="Pieces lying in a place, free or reserved, at the gross price of their "
+    "variant now. Unbooked and picked pieces do not count; parts are counted, not priced.",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def get_stock_value(_: StockManager, service: StockServiceDep) -> StockValueOut:
+    return StockValueOut.from_value(await service.value())
 
 
 @router.get(
