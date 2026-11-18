@@ -7,6 +7,7 @@ They mirror migration ``0002_media_catalog`` exactly, including constraint names
 from sqlalchemy import (
     CHAR,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -50,6 +51,8 @@ assets = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("ready_at", DateTime(timezone=True)),
+    # May the photo studio finish this photo (ADR 0031)?
+    Column("studio", Boolean, nullable=False, server_default=text("true")),
     Column("version", Integer, nullable=False, server_default=text("1")),
     # The same file uploaded twice is the same asset.
     UniqueConstraint("kind", "sha256"),
@@ -87,6 +90,8 @@ image_details = Table(
     Column("dominant_color", CHAR(7), nullable=False),
     Column("lqip", Text, nullable=False),
     Column("phash", BigInteger, nullable=False),
+    # Do the rendered sizes show the photo studio's version?
+    Column("studio_applied", Boolean, nullable=False, server_default=text("false")),
     CheckConstraint("asset_kind = 'image'", name="asset_kind"),
     CheckConstraint("width > 0 AND height > 0", name="dimensions_positive"),
     CheckConstraint("dominant_color ~ '^#[0-9a-f]{6}$'", name="dominant_color_format"),

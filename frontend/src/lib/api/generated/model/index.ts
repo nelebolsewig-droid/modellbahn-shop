@@ -273,6 +273,7 @@ export * from './storeProductOut';
 export * from './storeProductPageOut';
 export * from './storeScaleOut';
 export * from './storeVariantOut';
+export * from './studioIn';
 export * from './subscriptionCountsOut';
 export * from './subscriptionIn';
 export * from './technology';

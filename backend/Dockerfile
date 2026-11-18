@@ -33,6 +33,19 @@ RUN --mount=type=secret,id=build_ca,required=false \
 
 WORKDIR /app
 
+# The photo studio's cut-out model (ISNet "general use", Apache 2.0; ADR 0031), about
+# 170 MB. Fetched once and checked against its SHA-256; a build without network access to
+# GitHub can put the file into backend/models/ beforehand, the COPY below then brings it.
+ARG STUDIO_MODEL_URL=https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx
+ARG STUDIO_MODEL_SHA256=60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a
+RUN mkdir -p /models \
+    && python -c "import hashlib, sys, urllib.request; \
+url, want, path = sys.argv[1:4]; \
+urllib.request.urlretrieve(url, path); \
+got = hashlib.sha256(open(path, 'rb').read()).hexdigest(); \
+sys.exit(0 if got == want else f'studio model: checksum {got} != {want}')" \
+        "$STUDIO_MODEL_URL" "$STUDIO_MODEL_SHA256" /models/isnet-general-use.onnx
+
 # Dependencies first, so that a code change does not invalidate this layer.
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -42,6 +55,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
+# Where MB_STUDIO_MODEL_PATH points by default; a file brought in backend/models/ wins.
+RUN mkdir -p /app/models \
+    && if [ ! -s /app/models/isnet-general-use.onnx ]; then \
+        mv /models/isnet-general-use.onnx /app/models/; \
+    fi
 
 
 FROM ${PYTHON_IMAGE} AS runtime

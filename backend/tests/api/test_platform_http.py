@@ -170,6 +170,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/admin/media/{asset_id}/complete"): ("completeMediaUpload", "admin-media"),
     ("GET", "/api/v1/admin/media/{asset_id}"): ("getMediaAsset", "admin-media"),
     ("POST", "/api/v1/admin/media/{asset_id}/reprocess"): ("reprocessMediaAsset", "admin-media"),
+    ("PUT", "/api/v1/admin/media/{asset_id}/studio"): ("setMediaStudio", "admin-media"),
     ("DELETE", "/api/v1/admin/media/{asset_id}"): ("deleteMediaAsset", "admin-media"),
     ("GET", "/api/v1/store/cart"): ("getCart", "store-sales"),
     ("PUT", "/api/v1/store/cart/lines/{variant_id}"): ("setCartLine", "store-sales"),

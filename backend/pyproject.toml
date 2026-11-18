@@ -26,6 +26,9 @@ dependencies = [
     "httpx>=0.28.1,<0.29",
     "cryptography>=46.0.7,<46.1",
     "segno>=1.6,<2",
+    "numpy>=2.5.5,<2.6",
+    "scipy>=1.18.1,<1.19",
+    "onnxruntime>=1.32.0,<1.33",
 ]
 
 [project.scripts]
@@ -115,6 +118,11 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 [[tool.mypy.overrides]]
 # asyncpg ships no type information.
 module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# onnxruntime and scipy ship no type information.
+module = ["onnxruntime", "onnxruntime.*", "scipy", "scipy.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -20,11 +20,13 @@ from modellbahn.modules.media.domain.errors import FailureCode, ImageRejectedErr
 from modellbahn.modules.media.domain.model import IMAGE_MAX_PIXELS
 from modellbahn.modules.media.domain.renditions import (
     MIN_EDGE,
+    OPEN_GRAPH,
     RENDITION_FORMATS,
     PlannedRendition,
     RenditionFormat,
     plan_renditions,
 )
+from modellbahn.modules.media.infrastructure.studio import PhotoStudio
 
 # HEIC is what iPhones take photos in.
 pillow_heif.register_heif_opener()
@@ -42,29 +44,48 @@ LQIP_QUALITY: Final = 40
 _DOMINANT_SAMPLE: Final = 64
 _DOMINANT_COLOURS: Final = 6
 _SRGB: Final = ImageCms.createProfile("sRGB")
+WHITE: Final = (255, 255, 255)
+# The shop's stage (token ``stage``, sand #efe7dc): what a staged photo stands on.
+STAGE_GROUND: Final = (0xEF, 0xE7, 0xDC)
 
 
 class PillowImageProcessor:
-    """:class:`~modellbahn.modules.media.application.ports.ImageProcessor` with Pillow."""
+    """:class:`~modellbahn.modules.media.application.ports.ImageProcessor` with Pillow.
 
-    def process(self, data: bytes) -> ProcessedImage:
+    With a :class:`~modellbahn.modules.media.infrastructure.studio.PhotoStudio` the
+    photos that ask for it are finished there first (ADR 0031).
+    """
+
+    def __init__(self, *, studio: PhotoStudio | None = None) -> None:
+        self._studio = studio
+
+    def process(self, data: bytes, *, studio: bool = False) -> ProcessedImage:
         image = _open(data)
         width, height = image.size
         if min(width, height) < MIN_EDGE:
             msg = f"{width} x {height} px, at least {MIN_EDGE} px needed on the shorter side"
             raise ImageRejectedError(FailureCode.TOO_SMALL, msg)
+        # The fingerprint is the original's: it finds the same shot again whatever the
+        # studio made of it.
+        phash = _difference_hash(image)
+        staged = self._studio.finish(image).image if studio and self._studio else None
+        if staged is not None:
+            image = staged
+            width, height = image.size
+        ground = STAGE_GROUND if staged is not None else WHITE
         renditions = [
             encoded
             for planned in plan_renditions(width, height)
-            for encoded in _render(image, planned)
+            for encoded in _render(image, planned, staged=staged is not None)
         ]
         return ProcessedImage(
             width=width,
             height=height,
-            dominant_color=_dominant_color(image),
-            lqip=_lqip(image),
-            phash=_difference_hash(image),
+            dominant_color=_dominant_color(image, ground),
+            lqip=_lqip(image, ground),
+            phash=phash,
             renditions=renditions,
+            studio_applied=staged is not None,
         )
 
 
@@ -116,9 +137,17 @@ def _to_srgb(image: Image.Image, icc_profile: object) -> Image.Image:
     return image.convert(target_mode)
 
 
-def _render(image: Image.Image, planned: PlannedRendition) -> list[EncodedRendition]:
+def _render(
+    image: Image.Image, planned: PlannedRendition, *, staged: bool = False
+) -> list[EncodedRendition]:
     size = (planned.width, planned.height)
-    if planned.cropped:
+    if staged and planned.name == OPEN_GRAPH.name:
+        # A link preview has no page behind it: the whole stage, on its ground.
+        scaled = Image.new("RGB", size, STAGE_GROUND)
+        edge = min(size)
+        stage = image.resize((edge, edge), Image.Resampling.LANCZOS, reducing_gap=3.0)
+        scaled.paste(stage, ((size[0] - edge) // 2, (size[1] - edge) // 2), stage)
+    elif planned.cropped:
         scaled = ImageOps.fit(image, size, Image.Resampling.LANCZOS, centering=(0.5, 0.5))
     elif size == image.size:
         scaled = image
@@ -145,27 +174,27 @@ def _encode(image: Image.Image, rendition_format: RenditionFormat) -> bytes:
     return buffer.getvalue()
 
 
-def _flattened(image: Image.Image) -> Image.Image:
-    """The image on white: transparent parts must not count as black."""
+def _flattened(image: Image.Image, ground: tuple[int, int, int] = WHITE) -> Image.Image:
+    """The image on ``ground``: transparent parts must not count as black."""
     if image.mode != "RGBA":
         return image.convert("RGB")
-    background = Image.new("RGB", image.size, (255, 255, 255))
+    background = Image.new("RGB", image.size, ground)
     background.paste(image, mask=image.getchannel("A"))
     return background
 
 
-def _lqip(image: Image.Image) -> str:
+def _lqip(image: Image.Image, ground: tuple[int, int, int] = WHITE) -> str:
     """A 16 px wide WebP as data URI; blurred by the browser while scaling it up."""
     height = max(1, round(image.height * LQIP_WIDTH / image.width))
-    tiny = _flattened(image).resize((LQIP_WIDTH, height), Image.Resampling.BOX)
+    tiny = _flattened(image, ground).resize((LQIP_WIDTH, height), Image.Resampling.BOX)
     buffer = io.BytesIO()
     tiny.save(buffer, "WEBP", quality=LQIP_QUALITY)
     return "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def _dominant_color(image: Image.Image) -> str:
+def _dominant_color(image: Image.Image, ground: tuple[int, int, int] = WHITE) -> str:
     """The most frequent of a few representative colours, as ``#rrggbb``."""
-    sample = _flattened(image)
+    sample = _flattened(image, ground)
     sample.thumbnail((_DOMINANT_SAMPLE, _DOMINANT_SAMPLE), Image.Resampling.BOX)
     palette_image = sample.quantize(colors=_DOMINANT_COLOURS, method=Image.Quantize.MEDIANCUT)
     # A palette image counts palette indices.

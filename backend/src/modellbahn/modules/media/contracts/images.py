@@ -61,6 +61,9 @@ class ImageView:
     dominant_color: str | None
     lqip: str | None
     renditions: tuple[ImageRendition, ...]
+    # May the photo studio finish this photo, and do the sizes show its version?
+    studio: bool = True
+    studio_applied: bool = False
 
     @property
     def is_ready(self) -> bool:
@@ -85,6 +88,8 @@ async def load_images(
                 assets.c.status,
                 assets.c.original_filename,
                 assets.c.failure_code,
+                assets.c.studio,
+                image_details.c.studio_applied,
                 image_details.c.width,
                 image_details.c.height,
                 image_details.c.dominant_color,
@@ -128,6 +133,8 @@ async def load_images(
             dominant_color=row.dominant_color,
             lqip=row.lqip,
             renditions=tuple(sizes[row.id]),
+            studio=row.studio,
+            studio_applied=bool(row.studio_applied),
         )
         for row in rows
     }
