@@ -30,7 +30,7 @@ export function SystemStatus() {
   const checkedAt = Math.max(readiness.dataUpdatedAt, readiness.errorUpdatedAt);
 
   return (
-    <Panel title="Systemstatus" code="STW 02">
+    <Panel title="Systemstatus">
       <dl className="divide-y divide-line">
         <StatusRow label="API" status={status.api} />
         <StatusRow label="Datenbank" status={status.database} />

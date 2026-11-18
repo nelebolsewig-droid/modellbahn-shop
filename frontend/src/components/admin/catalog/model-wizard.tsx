@@ -21,16 +21,16 @@ import { finishLabel } from "@/lib/catalog/format";
 import { scaleLabel } from "@/lib/catalog/scales";
 import { ifMatch } from "@/lib/catalog/versions";
 import { errorMessage, fieldErrorMessage } from "@/lib/i18n/problems";
-import { IMAGE_PICKER_ACCEPT, uploadImage } from "@/lib/media/upload";
+import { type FinishChoice, templateFrom } from "@/lib/catalog/model-template";
+import { uploadImage } from "@/lib/media/upload";
 import { colorName, euroPrice } from "@/lib/validation/catalog";
 
+import { ModelTemplatePicker } from "./model-template-picker";
+import { PhotoDrop } from "./photo-drop";
 import { categoryOptions } from "./product-details-form";
 import { ADMIN_PRODUCTS_KEY, productQueryKey, useCategories, useReferences } from "./use-product";
 
 type Photo = { key: string; previewUrl: string; assetId: string | null; error: string | null };
-
-/** What step 2 asks per finish: chosen or not, its price, and (if painted) its colours. */
-type FinishChoice = { chosen: boolean; price: string; colors: string[]; draft: string };
 
 /** An Ausführung the wizard made; ``key`` is what step 2 planned (scale, finish, colour). */
 type Made = { key: string; variantId: string; label: string; sku: string; colored: boolean };
@@ -90,6 +90,7 @@ export function ModelWizard() {
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [template, setTemplate] = useState<ProductOut | null>(null);
   // Step 2
   const [scaleCode, setScaleCode] = useState("");
   const [choices, setChoices] = useState<Record<string, FinishChoice>>({});
@@ -133,6 +134,15 @@ export function ModelWizard() {
         .then((asset) => update({ assetId: asset.id }))
         .catch((error: unknown) => update({ error: isApiProblem(error) ? errorMessage(error) : "Das Foto ließ sich nicht hochladen." }));
     }
+  }
+
+  /** „Wie ein vorhandenes Modell“: steps 1 and 2 start filled in; null empties them again. */
+  function takeOver(source: ProductOut | null) {
+    setTemplate(source);
+    const filled = source ? templateFrom(source, finishes) : { categoryId: "", scaleCode: "", choices: {} };
+    setCategoryId(filled.categoryId);
+    setScaleCode(filled.scaleCode);
+    setChoices(filled.choices);
   }
 
   function choose(code: string, change: Partial<FinishChoice>) {
@@ -295,6 +305,7 @@ export function ModelWizard() {
       <div className="mt-8 space-y-6">
         {step === 0 ? (
           <>
+            <ModelTemplatePicker chosenId={template?.id ?? null} onChoose={takeOver} />
             <Field label="Name" htmlFor="wizard-name">
               <Input id="wizard-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} placeholder="z. B. IFA W50 Kipper" />
             </Field>
@@ -309,9 +320,12 @@ export function ModelWizard() {
                 ))}
               </Select>
             </Field>
-            <Field label="Fotos" htmlFor="wizard-photos" hint="Das erste ist das Hauptbild.">
-              <Input id="wizard-photos" type="file" accept={IMAGE_PICKER_ACCEPT} multiple onChange={(event) => addPhotos(event.target.files)} />
-            </Field>
+            <div>
+              <p className="text-small font-medium">Fotos</p>
+              <div className="mt-2">
+                <PhotoDrop count={photos.length} onFiles={addPhotos} />
+              </div>
+            </div>
             {photos.length > 0 ? (
               <ul className="grid grid-cols-4 gap-2">
                 {photos.map((photo) => (
@@ -326,7 +340,12 @@ export function ModelWizard() {
               </ul>
             ) : null}
             <Actions>
-              <Button type="button" disabled={name.trim() === ""} onClick={() => setStep(1)}>
+              {name.trim() === "" ? (
+                <p id="wizard-next-hint" className="self-center text-hint text-ink-tertiary max-sm:basis-full max-sm:text-center">
+                  Erst einen Namen eingeben, dann geht es weiter.
+                </p>
+              ) : null}
+              <Button type="button" disabled={name.trim() === ""} aria-describedby={name.trim() === "" ? "wizard-next-hint" : undefined} onClick={() => setStep(1)}>
                 Weiter
               </Button>
             </Actions>
@@ -335,6 +354,11 @@ export function ModelWizard() {
 
         {step === 1 ? (
           <>
+            {template ? (
+              <p className="border-l-2 border-accent bg-accent-subtle px-3 py-2 text-small">
+                Wie <strong className="font-medium">{template.name}</strong> vorbelegt. Alles lässt sich hier noch ändern.
+              </p>
+            ) : null}
             <OptionGroup label="Maßstab" value={scaleCode} onValueChange={setScaleCode}>
               {references.data.scales.map((scale) => (
                 <OptionPill key={scale.code} value={scale.code}>

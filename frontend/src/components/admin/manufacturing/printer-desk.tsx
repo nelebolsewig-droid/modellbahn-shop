@@ -89,7 +89,7 @@ export function PrinterDesk({ printerId, staffRole, onStreamClosed }: PrinterDes
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <div className="space-y-6">
           <PrinterCard desk={printer} printers={hall.data?.printers ?? [printer]} mayPlan={mayPlan} now={now} />
-          <Panel title="Daten" code="DRU 02">
+          <Panel title="Daten">
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-small">
               <dt className="text-ink-tertiary">Drucktechnik</dt>
               <dd>{TECHNOLOGY_LABELS[printer.technology]}</dd>
@@ -110,10 +110,10 @@ export function PrinterDesk({ printerId, staffRole, onStreamClosed }: PrinterDes
           </Panel>
         </div>
         <div className="space-y-6">
-          <Panel title="Verlauf" code="DRU 03">
+          <Panel title="Verlauf">
             <History reports={printer.history} />
           </Panel>
-          <Panel title="Letzte Drucke" code="DRU 04">
+          <Panel title="Letzte Drucke">
             {printer.jobs.length === 0 ? (
               <p className="text-small text-ink-secondary">Auf diesem Drucker lag noch keine Platte.</p>
             ) : (

@@ -127,7 +127,7 @@ export function OrderList({
   }
 
   return (
-    <Panel title="Bestellungen" code="VK 01" actions={<ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />}>
+    <Panel title="Bestellungen" actions={<ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <OptionGroup label="Zustand" value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
           {filters.map((filter) => (

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useForm, useWatch, type FieldErrors, type Resolver } from "react-hook-form";
 
 import { FormError } from "@/components/forms/form-error";
@@ -129,6 +129,11 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
     formState: { errors, isSubmitting },
   } = form;
   const typedCountry = useWatch({ control, name: "country_code" });
+  const [postalCode, city] = useWatch({ control, name: ["postal_code", "city"] });
+  const setCity = useCallback(
+    (town: string) => form.setValue("city", town, { shouldValidate: form.getFieldState("city").isTouched }),
+    [form],
+  );
   const countryCode = entry?.country_code ?? typedCountry;
   const country = cart.countries.find((c) => c.code === countryCode) ?? cart.shipping_country;
   const totals = totalsFor(cart.totals.subtotal_cents, country);
@@ -219,7 +224,11 @@ function CheckoutForm({ cart, customer, onPlaced }: CheckoutFormProps) {
           ) : null}
           {entry === undefined ? (
             <div className="max-w-lg space-y-5">
-              <AddressFields register={register} errors={errors} />
+              <AddressFields
+                register={register}
+                errors={errors}
+                town={{ postalCode, city, countryCode: typedCountry, setCity }}
+              />
               {customer !== null ? (
                 <label className="flex items-center gap-3 text-small">
                   <input type="checkbox" {...register("save_address")} className="size-4 accent-[var(--selected)]" />

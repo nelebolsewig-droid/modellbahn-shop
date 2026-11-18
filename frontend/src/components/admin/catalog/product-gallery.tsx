@@ -208,7 +208,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
   return (
     <Panel
       title="Galerie"
-      code="PRD 04"
+     
       actions={
         <span className="text-hint text-ink-tertiary">
           {draft.length === 1 ? "1 Foto" : `${draft.length} Fotos`} · das erste ist das Hauptbild

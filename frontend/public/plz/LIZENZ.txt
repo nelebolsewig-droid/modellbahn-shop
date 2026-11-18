@@ -1,0 +1,3 @@
+Postleitzahlen und Orte: GeoNames (https://www.geonames.org), Lizenz CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). Gekürzt auf Postleitzahl und Ort,
+erzeugt mit scripts/plz_orte.py.

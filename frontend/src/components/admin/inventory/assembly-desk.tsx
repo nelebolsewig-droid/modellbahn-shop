@@ -102,7 +102,7 @@ export function AssemblyDesk({ staffRole, onStreamClosed }: { staffRole: StaffRo
         {done ? (
           <Assembled result={done.result} variant={done.variant} onAgain={restart} />
         ) : (
-          <Panel title="Auftrag" code="MT 01">
+          <Panel title="Auftrag">
             <div className="space-y-5">
               {chosen ? (
                 <div className="flex items-center justify-between gap-4 rounded-sm border border-line bg-canvas px-4 py-3">
@@ -166,7 +166,7 @@ export function AssemblyDesk({ staffRole, onStreamClosed }: { staffRole: StaffRo
             </div>
           </Panel>
         )}
-        <Panel title="Entnahmeliste" code="MT 02">
+        <Panel title="Entnahmeliste">
           {chosen === null && !done ? (
             <p className="text-small text-ink-secondary">
               Wähle ein Modell. Hier steht dann, welche Teile es braucht und aus welchen Boxen sie kommen.
@@ -306,7 +306,7 @@ function Assembled({ result, variant, onAgain }: { result: AssemblyOut; variant:
   return (
     <Panel
       title={result.units.length === 1 ? "1 Stück montiert" : `${result.units.length} Stück montiert`}
-      code="MT 01"
+     
     >
       <p className="text-small font-medium">{variant.title}</p>
       <p className="mt-1 text-small text-ink-secondary">

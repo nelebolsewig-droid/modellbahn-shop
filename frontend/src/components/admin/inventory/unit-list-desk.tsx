@@ -178,7 +178,7 @@ export function UnitListDesk({ variantId, initialFilter, staffRole, onStreamClos
 
       <Panel
         title={units.isSuccess ? `${filter.label} · ${pieces(items.length)}` : filter.label}
-        code="LG 31"
+       
         className="mt-6"
         actions={items.length > 0 ? <SelectAllCheckbox units={items} selection={selection} /> : null}
       >

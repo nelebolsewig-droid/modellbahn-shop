@@ -55,7 +55,7 @@ export function ScalesManager() {
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel title="Maßstäbe" code="KAT 04">
+      <Panel title="Maßstäbe">
         {scales.isPending ? (
           <PendingNotice>Maßstäbe werden geladen …</PendingNotice>
         ) : scales.isError ? (
@@ -230,7 +230,7 @@ function ScaleForm({ scale, longest, onDone, onCancel }: ScaleFormProps) {
 function NewScaleForm({ longest }: { longest: number }) {
   const refresh = useRefresh();
   return (
-    <Panel title="Neuer Maßstab" code="KAT 05">
+    <Panel title="Neuer Maßstab">
       <ScaleForm longest={longest} onDone={refresh} />
     </Panel>
   );

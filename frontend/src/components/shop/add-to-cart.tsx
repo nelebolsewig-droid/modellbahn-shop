@@ -11,6 +11,7 @@ import type { VariantAvailabilityOut } from "@/lib/api/generated/model";
 import { errorMessage } from "@/lib/i18n/problems";
 import { availabilityFor, availabilityNote, orderableMax } from "@/lib/sales/availability";
 import { useCart, useCartChange } from "@/lib/sales/cart";
+import { announceCartAdded } from "@/lib/sales/cart-added";
 
 type AddToCartProps = {
   variantId: string;
@@ -35,7 +36,11 @@ export function AddToCart({ variantId, title, availability }: AddToCartProps) {
   const soldOut = state === "unavailable";
 
   const add = () => {
-    change.mutate({ variantId, quantity: Math.min(99, inCart + quantity) });
+    const added = Math.min(99, inCart + quantity) - inCart;
+    change.mutate(
+      { variantId, quantity: inCart + added },
+      { onSuccess: () => announceCartAdded({ variantId, title, quantity: added }) },
+    );
   };
 
   return (

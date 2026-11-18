@@ -73,7 +73,7 @@ export function EbayDesk() {
         <Alert tone="info" title="Angebote gehen noch nicht online">
           <p>
             In der <TextLink href={EBAY_SETUP_HREF}>Einrichtung</TextLink> {open === 1 ? "steht" : "stehen"} noch{" "}
-            {open} von {READINESS_STEPS.length} Signalen auf Rot.
+            {open} von {READINESS_STEPS.length} Schritten offen.
           </p>
         </Alert>
       ) : null}
@@ -98,7 +98,7 @@ function ListingsPanel({ account }: { account: EbayStatusOut }) {
   return (
     <Panel
       title="Angebote"
-      code="EBY 04"
+     
       actions={
         listings.data ? (
           <span className="text-hint text-ink-tertiary">{`${online} online von ${listings.data.length}`}</span>
@@ -224,7 +224,7 @@ function OrdersPanel({ account }: { account: EbayStatusOut }) {
   return (
     <Panel
       title="Bestellungen von eBay"
-      code="EBY 05"
+     
       actions={
         connected ? (
           <Button
@@ -362,7 +362,7 @@ function TestMarketPanel() {
   });
 
   return (
-    <Panel title="Testmarktplatz" code="EBY 06">
+    <Panel title="Testmarktplatz">
       <p className="mb-4 text-hint text-ink-tertiary">
         Kauf ein Angebot, wie es ein Käufer auf eBay täte: Die Bestellung kommt sofort herein und läuft durch Lager,
         Packen und Versand. Es fließt kein Geld, nichts verlässt den Server.

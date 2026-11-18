@@ -169,7 +169,7 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
         <div className="min-w-0 space-y-6">
           <Panel
               title={units.length === 1 ? "Inhalt · 1 Stück" : `Inhalt · ${units.length} Stück`}
-              code="LG 11"
+             
               actions={units.length > 0 ? <SelectAllCheckbox units={units} selection={selection} /> : null}
             >
               {units.length === 0 ? (
@@ -182,13 +182,13 @@ export function LocationDesk({ code, staffRole, onStreamClosed }: { code: string
               <UnitSelectionBar selection={selection} mayScrap={mayManage} />
             </Panel>
           {parts.length > 0 ? (
-            <Panel title={`Teile · ${parts.reduce((sum, entry) => sum + entry.quantity, 0)}`} code="LG 13">
+            <Panel title={`Teile · ${parts.reduce((sum, entry) => sum + entry.quantity, 0)}`}>
               <PartTable parts={parts} here={location.code} />
             </Panel>
           ) : null}
         </div>
         {canHaveChildren ? (
-          <Panel title="Plätze darin" code="LG 12">
+          <Panel title="Plätze darin">
             {below.length <= 1 ? (
               <p className="text-small text-ink-secondary">Noch keine.</p>
             ) : (

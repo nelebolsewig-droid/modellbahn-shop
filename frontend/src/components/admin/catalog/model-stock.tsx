@@ -59,7 +59,7 @@ export function ModelStock({ product, references }: { product: ProductOut; refer
   return (
     <Panel
       title="Bestand"
-      code="PRD 05"
+     
       actions={
         lines.length > 0 ? (
           <CountDialog
@@ -214,7 +214,7 @@ export function ModelHistory({ productId }: { productId: string }) {
   // Labelling belongs to the booking-in right after it; it says nothing of its own.
   const rows = (history.data?.items ?? []).filter((row) => row.reason !== "label");
   return (
-    <Panel title="Verlauf" code="PRD 09">
+    <Panel title="Verlauf">
       {history.isPending ? <PendingNotice>Der Verlauf wird geladen …</PendingNotice> : null}
       {history.isError ? <p className="text-small text-danger">{errorMessage(history.error)}</p> : null}
       {history.isSuccess && rows.length === 0 ? <p className="text-small text-ink-secondary">Noch nichts gebucht.</p> : null}

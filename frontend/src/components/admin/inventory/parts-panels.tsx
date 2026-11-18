@@ -35,7 +35,7 @@ export function ReceivingPanel({ mayManage }: { mayManage: boolean }) {
   return (
     <Panel
       title={waiting > 0 ? `Wareneingang · ${partCount(waiting)}` : "Wareneingang"}
-      code="LG 03"
+     
       actions={
         slips.length > 0 ? (
           <Button asChild size="sm" variant="ghost" className="-mr-3">
@@ -177,7 +177,7 @@ export function PartStockPanel() {
   const total = lines.reduce((sum, line) => sum + line.total, 0);
 
   return (
-    <Panel title="Teilelager" code="LG 04">
+    <Panel title="Teilelager">
       {stock.isPending ? <PendingNotice>Das Teilelager wird geladen …</PendingNotice> : null}
       {stock.isError ? <p className="text-small text-danger">{errorMessage(stock.error)}</p> : null}
       {stock.isSuccess && lines.length === 0 ? (

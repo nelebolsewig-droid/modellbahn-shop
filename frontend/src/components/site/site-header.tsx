@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { CartLink } from "@/components/shop/cart-link";
+import { CatalogLink } from "@/components/shop/catalog-link";
 import { SHOP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -24,18 +25,22 @@ export function SiteHeader() {
         </Link>
         <div className="flex items-center gap-1 sm:gap-6">
           <nav aria-label="Shop" className="flex items-center">
-            {SECTIONS.map((section) => (
-              <Link
-                key={section.href}
-                href={section.href}
-                className={cn(
-                  "px-1 py-1 text-small font-medium text-ink-secondary hover:text-ink sm:px-2 sm:text-[0.9375rem]",
-                  !section.narrow && "max-[23.5rem]:hidden",
-                )}
-              >
-                {section.label}
-              </Link>
-            ))}
+            {SECTIONS.map((section) => {
+              const className = cn(
+                "px-1 py-1 text-small font-medium text-ink-secondary hover:text-ink sm:px-2 sm:text-[0.9375rem]",
+                !section.narrow && "max-[23.5rem]:hidden",
+              );
+              // The catalogue opens in the scale browsed last.
+              return section.href === "/katalog" ? (
+                <CatalogLink key={section.href} className={className}>
+                  {section.label}
+                </CatalogLink>
+              ) : (
+                <Link key={section.href} href={section.href} className={className}>
+                  {section.label}
+                </Link>
+              );
+            })}
           </nav>
           <CartLink />
           <nav aria-label="Kundenkonto">

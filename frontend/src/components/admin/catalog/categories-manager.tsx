@@ -32,7 +32,7 @@ export function CategoriesManager() {
   const categories = useCategories();
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel title="Kategorien" code="KAT 03">
+      <Panel title="Kategorien">
         {categories.isPending ? (
           <PendingNotice>Kategorien werden geladen …</PendingNotice>
         ) : categories.isError ? (
@@ -133,7 +133,7 @@ function NewCategoryForm({ categories }: { categories: readonly CategoryOut[] })
   });
 
   return (
-    <Panel title="Neue Kategorie" code="KAT 04">
+    <Panel title="Neue Kategorie">
       <form
         noValidate
         onSubmit={(event) => {

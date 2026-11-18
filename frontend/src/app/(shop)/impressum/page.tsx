@@ -115,6 +115,25 @@ export default async function ImprintPage() {
                 finden eine Lösung.
               </p>
             </section>
+            <section aria-labelledby="datenquellen" className="sm:col-span-2">
+              <h2 id="datenquellen" className="text-body font-medium text-ink">
+                Datenquellen
+              </h2>
+              <p className="mt-2 max-w-2xl text-small">
+                Postleitzahlen und Orte, mit denen die Kasse den Ort vorschlägt: GeoNames (
+                <a href="https://www.geonames.org" className="underline underline-offset-4 hover:text-ink">
+                  geonames.org
+                </a>
+                ), Lizenz{" "}
+                <a
+                  href="https://creativecommons.org/licenses/by/4.0/deed.de"
+                  className="underline underline-offset-4 hover:text-ink"
+                >
+                  CC BY 4.0
+                </a>
+                , gekürzt auf Postleitzahl und Ort.
+              </p>
+            </section>
           </div>
         </div>
       )}

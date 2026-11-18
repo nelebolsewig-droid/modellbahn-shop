@@ -65,7 +65,7 @@ export function FairsManager() {
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
-      <Panel title="Messen" code="MES 01">
+      <Panel title="Messen">
         {fairs.isPending ? (
           <PendingNotice>Messen werden geladen …</PendingNotice>
         ) : fairs.isError ? (
@@ -81,7 +81,7 @@ export function FairsManager() {
         )}
       </Panel>
       <div className="space-y-6">
-        <Panel title="Messe-Post" code="MES 02">
+        <Panel title="Messe-Post">
           {counts.isError ? (
             <p role="alert" className="text-small text-danger">
               {errorMessage(counts.error)}
@@ -99,7 +99,7 @@ export function FairsManager() {
             </>
           )}
         </Panel>
-        <Panel title="Neue Messe" code="MES 03">
+        <Panel title="Neue Messe">
           <NewFair />
         </Panel>
       </div>

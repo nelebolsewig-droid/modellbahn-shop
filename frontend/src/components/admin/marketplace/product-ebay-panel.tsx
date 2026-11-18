@@ -29,7 +29,7 @@ export function ProductEbayPanel({ product }: { product: ProductOut }) {
   return (
     <Panel
       title="eBay"
-      code="PRD 02"
+     
       actions={<span className="text-hint text-ink-tertiary">{MODE_LABELS[status.data.mode]}</span>}
     >
       {product.scales.length === 0 ? (

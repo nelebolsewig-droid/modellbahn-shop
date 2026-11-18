@@ -189,7 +189,7 @@ function PublishPanel({ product }: { product: ProductOut }) {
   const error = command.error;
 
   return (
-    <Panel title={product.status === "active" ? "Im Shop" : "Veröffentlichen"} code="PRD 01">
+    <Panel title={product.status === "active" ? "Im Shop" : "Veröffentlichen"}>
       <ul aria-label="Regeln für den Shop" className="space-y-2">
         {PUBLISH_RULES.map((rule) => {
           const met = !blockers.has(rule);

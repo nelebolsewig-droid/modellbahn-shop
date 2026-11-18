@@ -5,6 +5,7 @@ import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import type { AddressOut, OrderLineOut, OrderOut } from "@/lib/api/generated/model";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatLongDate, formatClock } from "@/lib/format";
+import { readyBy, type LeadTime } from "@/lib/sales/availability";
 import { cn } from "@/lib/utils";
 
 /*
@@ -12,7 +13,16 @@ import { cn } from "@/lib/utils";
  * order history and the admin area.
  */
 
-type Station = { label: string; at: string | null };
+type Station = { label: string; at: string | null; done?: boolean; note?: string | undefined };
+
+function leadTime(order: OrderOut): LeadTime {
+  return [order.lead_time_min_weeks ?? 0, order.lead_time_max_weeks ?? 0];
+}
+
+/** Some pieces were made for the customer (the checkout named a lead time). */
+function madeToOrder(order: OrderOut): boolean {
+  return (order.lead_time_max_weeks ?? 0) > 0;
+}
 
 /**
  * The order's way as a timetable line: placed, paid, shipped. Reached stations are
@@ -29,14 +39,33 @@ export function OrderTimeline({ order, className }: { order: OrderOut; className
       : [
           { label: "Bestellt", at: order.placed_at },
           { label: "Bezahlt", at: order.paid_at },
+          // Made for the customer: a station of its own, so the weeks between paying and
+          // shipping read as work in progress, not as standing still.
+          ...(madeToOrder(order)
+            ? [
+                {
+                  label: order.shipped_at ? "Gefertigt" : "Wird gefertigt",
+                  at: null,
+                  done: order.shipped_at !== null,
+                  note:
+                    order.shipped_at || !order.paid_at
+                      ? undefined
+                      : `bis ca. ${formatLongDate(readyBy(order.paid_at, leadTime(order)))}`,
+                },
+              ]
+            : []),
           { label: "Versendet", at: order.shipped_at },
         ];
-  const reached = stations.filter((station) => station.at !== null).length;
+  const isDone = (station: Station) => station.at !== null || station.done === true;
+  const reached = stations.filter(isDone).length;
+  // The station being worked on right now: paid, not yet shipped, made to order.
+  const working = order.status === "paid" && madeToOrder(order) ? reached : -1;
 
   return (
     <ol aria-label="Verlauf der Bestellung" className={cn("grid", className)} style={{ gridTemplateColumns: `repeat(${stations.length}, minmax(0, 1fr))` }}>
       {stations.map((station, index) => {
-        const done = station.at !== null;
+        const done = isDone(station);
+        const current = index === working;
         const cancelled = order.status === "cancelled" && index === stations.length - 1;
         return (
           <li key={station.label} className="relative pt-7">
@@ -54,14 +83,22 @@ export function OrderTimeline({ order, className }: { order: OrderOut; className
               aria-hidden="true"
               className={cn(
                 "absolute top-1 left-0 size-6 rounded-full border-2",
-                done ? (cancelled ? "border-ink-secondary bg-ink-secondary" : "border-selected bg-selected") : "border-line-strong bg-canvas",
+                done
+                  ? cancelled
+                    ? "border-ink-secondary bg-ink-secondary"
+                    : "border-selected bg-selected"
+                  : current
+                    ? "border-accent bg-canvas"
+                    : "border-line-strong bg-canvas",
+                current && "motion-safe:animate-lamp-pulse",
                 done && index === reached - 1 && !cancelled && order.status !== "shipped" && "ring-4 ring-accent-subtle",
               )}
             />
-            <p className={cn("text-small font-medium", !done && "text-ink-tertiary")}>
+            <p className={cn("text-small font-medium", !done && !current && "text-ink-tertiary", current && "text-accent")}>
               {station.label}
-              <span className="sr-only">{done ? "" : " (noch nicht)"}</span>
+              <span className="sr-only">{done ? "" : current ? " (gerade)" : " (noch nicht)"}</span>
             </p>
+            {station.note ? <p className="mt-0.5 text-hint text-ink-tertiary">{station.note}</p> : null}
             {station.at ? (
               <p className="mt-0.5 text-hint text-ink-tertiary">
                 <time dateTime={station.at}>

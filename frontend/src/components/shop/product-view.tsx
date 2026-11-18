@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { AddToCart } from "@/components/shop/add-to-cart";
+import { BuyBar } from "@/components/shop/buy-bar";
 import { ColorDot } from "@/components/ui/color-dot";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
 import { ProductStage, type StageItem } from "@/components/ui/product-stage";
@@ -80,6 +81,9 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
   const availability = useGetProductAvailability(product.slug, { query: { refetchOnWindowFocus: true } });
   // German compounds ("Löschgruppenfahrzeug") do not fit the column in display size.
   const longWord = product.name.split(/\s+/).some((word) => word.length > 14);
+  const buyBlock = useRef<HTMLDivElement>(null);
+  const title = scale ? [product.name, scale.name, ...(finishName ? [finishName] : [])].join(" · ") : product.name;
+  const variantAvailability = availability.data?.items.find((item) => item.variant_id === variant?.id);
 
   // Keep finish and colour where the new choice has them, otherwise take the next best.
   function chooseScale(code: string) {
@@ -88,7 +92,8 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
 
   // On the phone one column that never grows past the screen, however long a word is.
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+    <>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
       {/* A new selection starts the stage at its best matching photo. */}
       <ProductStage key={`${selection.scale}-${selection.finish}-${selection.color}`} items={items} aspect="4/5" />
 
@@ -190,15 +195,17 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
                   Versand
                 </Link>
               </p>
-              <div className="mt-6">
+              <div ref={buyBlock} className="mt-6">
                 {/* A new selection starts with quantity 1 and without the last confirmation. */}
-                <AddToCart
-                  key={variant.id}
-                  variantId={variant.id}
-                  title={[product.name, scale.name, ...(finishName ? [finishName] : [])].join(" · ")}
-                  availability={availability.data?.items.find((item) => item.variant_id === variant.id)}
-                />
+                <AddToCart key={variant.id} variantId={variant.id} title={title} availability={variantAvailability} />
               </div>
+              <BuyBar
+                target={buyBlock}
+                variantId={variant.id}
+                title={title}
+                priceCents={variant.price_cents}
+                availability={variantAvailability}
+              />
             </div>
 
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 border-t border-line pt-8 text-small">
@@ -220,6 +227,9 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
           </div>
         ) : null}
       </div>
-    </div>
+      </div>
+      {/* Room for the buy bar on the phone, so it never covers the end of the page. */}
+      <div aria-hidden="true" className="h-20 lg:hidden" />
+    </>
   );
 }

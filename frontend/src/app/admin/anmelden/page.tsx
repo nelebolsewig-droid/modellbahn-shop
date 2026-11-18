@@ -29,7 +29,7 @@ export default async function StaffLoginPage({ searchParams }: PageProps<"/admin
         <div className="mt-8 rounded-lg bg-surface">
           <div className="flex items-center gap-2 border-b border-line px-6 py-3">
             <SignalLamp color="red" />
-            <p className="label-caps text-ink-tertiary">Fahrstraße gesperrt bis zur Anmeldung</p>
+            <p className="label-caps text-ink-tertiary">Nur für das Team</p>
           </div>
           <div className="p-6 sm:p-8">
             <StaffLogin returnTo={returnTo} />
