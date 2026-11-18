@@ -93,6 +93,16 @@ export function AdminShell({ children }: AdminShellProps) {
             {displayName} · {STAFF_ROLE_LABELS[role]}
           </p>
           <div className="flex items-center gap-2 lg:mt-2 lg:-ml-4 lg:flex-wrap lg:gap-0">
+            <Button asChild variant="ghost" size="sm" className="max-sm:px-2.5">
+              <Link href="/admin/hilfe" aria-current={pathname === "/admin/hilfe" ? "page" : undefined}>
+                {/* A question mark on the phone, beside the key of the password. */}
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5 sm:hidden">
+                  <circle cx="10" cy="10" r="7.5" />
+                  <path d="M7.75 7.75a2.25 2.25 0 1 1 3.1 2.08c-.5.2-.85.68-.85 1.22v.45M10 14.25v.01" strokeLinecap="round" />
+                </svg>
+                <span className="max-sm:sr-only">Hilfe</span>
+              </Link>
+            </Button>
             <StaffPasswordDialog />
             <Button
               type="button"
