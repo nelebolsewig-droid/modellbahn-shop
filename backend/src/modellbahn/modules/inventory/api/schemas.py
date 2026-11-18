@@ -58,6 +58,7 @@ from modellbahn.modules.inventory.application.units import (
     UnitScrap,
     UnitView,
 )
+from modellbahn.modules.inventory.application.valuation import StockValue, ValueShare
 from modellbahn.modules.inventory.domain.availability import Availability
 from modellbahn.modules.inventory.domain.codes import format_unit_code
 from modellbahn.modules.inventory.domain.model import (
@@ -722,6 +723,55 @@ class ProductStockOut(BaseModel):
 
 class ProductStockListOut(BaseModel):
     items: list[ProductStockOut]
+
+
+class ValueShareOut(BaseModel):
+    key: str = Field(description="Finish or scale code, or the product id.")
+    name: str = Field(examples=["Fertigmodell"])
+    pieces: int
+    value_cents: int
+
+    @classmethod
+    def from_share(cls, share: ValueShare) -> Self:
+        return cls(
+            key=share.key, name=share.name, pieces=share.pieces, value_cents=share.value_cents
+        )
+
+
+class StockValueOut(BaseModel):
+    """The store's worth: finished pieces lying in a place at today's gross shop price."""
+
+    pieces: int = Field(description="Finished pieces lying in the store, free and reserved.")
+    value_cents: int = Field(description="Their value at today's shop price, gross.")
+    free_pieces: int
+    free_cents: int = Field(description="The part the shop can still sell.")
+    reserved_pieces: int
+    reserved_cents: int = Field(description="The part promised to orders.")
+    unpriced_pieces: int = Field(
+        description="Pieces of variants the catalogue no longer has: not in the value."
+    )
+    by_finish: list[ValueShareOut] = Field(description="Per Ausführung, most valuable first.")
+    by_scale: list[ValueShareOut] = Field(description="Per scale, most valuable first.")
+    by_model: list[ValueShareOut] = Field(description="Per model, most valuable first.")
+    part_pieces: int = Field(description="Printed parts in the boxes: no price of their own.")
+    part_kinds: int = Field(description="Different parts among them.")
+
+    @classmethod
+    def from_value(cls, value: StockValue) -> Self:
+        return cls(
+            pieces=value.pieces,
+            value_cents=value.value_cents,
+            free_pieces=value.free_pieces,
+            free_cents=value.free_cents,
+            reserved_pieces=value.reserved_pieces,
+            reserved_cents=value.reserved_cents,
+            unpriced_pieces=value.unpriced_pieces,
+            by_finish=[ValueShareOut.from_share(s) for s in value.by_finish],
+            by_scale=[ValueShareOut.from_share(s) for s in value.by_scale],
+            by_model=[ValueShareOut.from_share(s) for s in value.by_model],
+            part_pieces=value.part_pieces,
+            part_kinds=value.part_kinds,
+        )
 
 
 class WaitingOrderOut(BaseModel):

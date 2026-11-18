@@ -10389,6 +10389,94 @@
         "title": "StockScrapOut",
         "type": "object"
       },
+      "StockValueOut": {
+        "description": "The store's worth: finished pieces lying in a place at today's gross shop price.",
+        "properties": {
+          "by_finish": {
+            "description": "Per Ausführung, most valuable first.",
+            "items": {
+              "$ref": "#/components/schemas/ValueShareOut"
+            },
+            "title": "By Finish",
+            "type": "array"
+          },
+          "by_model": {
+            "description": "Per model, most valuable first.",
+            "items": {
+              "$ref": "#/components/schemas/ValueShareOut"
+            },
+            "title": "By Model",
+            "type": "array"
+          },
+          "by_scale": {
+            "description": "Per scale, most valuable first.",
+            "items": {
+              "$ref": "#/components/schemas/ValueShareOut"
+            },
+            "title": "By Scale",
+            "type": "array"
+          },
+          "free_cents": {
+            "description": "The part the shop can still sell.",
+            "title": "Free Cents",
+            "type": "integer"
+          },
+          "free_pieces": {
+            "title": "Free Pieces",
+            "type": "integer"
+          },
+          "part_kinds": {
+            "description": "Different parts among them.",
+            "title": "Part Kinds",
+            "type": "integer"
+          },
+          "part_pieces": {
+            "description": "Printed parts in the boxes: no price of their own.",
+            "title": "Part Pieces",
+            "type": "integer"
+          },
+          "pieces": {
+            "description": "Finished pieces lying in the store, free and reserved.",
+            "title": "Pieces",
+            "type": "integer"
+          },
+          "reserved_cents": {
+            "description": "The part promised to orders.",
+            "title": "Reserved Cents",
+            "type": "integer"
+          },
+          "reserved_pieces": {
+            "title": "Reserved Pieces",
+            "type": "integer"
+          },
+          "unpriced_pieces": {
+            "description": "Pieces of variants the catalogue no longer has: not in the value.",
+            "title": "Unpriced Pieces",
+            "type": "integer"
+          },
+          "value_cents": {
+            "description": "Their value at today's shop price, gross.",
+            "title": "Value Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pieces",
+          "value_cents",
+          "free_pieces",
+          "free_cents",
+          "reserved_pieces",
+          "reserved_cents",
+          "unpriced_pieces",
+          "by_finish",
+          "by_scale",
+          "by_model",
+          "part_pieces",
+          "part_kinds"
+        ],
+        "title": "StockValueOut",
+        "type": "object"
+      },
       "StoreGalleryItemOut": {
         "properties": {
           "alt_text": {
@@ -11698,6 +11786,38 @@
           "errors"
         ],
         "title": "ValidationProblem",
+        "type": "object"
+      },
+      "ValueShareOut": {
+        "properties": {
+          "key": {
+            "description": "Finish or scale code, or the product id.",
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Fertigmodell"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "pieces": {
+            "title": "Pieces",
+            "type": "integer"
+          },
+          "value_cents": {
+            "title": "Value Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "pieces",
+          "value_cents"
+        ],
+        "title": "ValueShareOut",
         "type": "object"
       },
       "VariantAvailabilityOut": {
@@ -16368,6 +16488,63 @@
           }
         ],
         "summary": "What the workshop must make for paid orders, per Ausführung (Zu fertigen)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/stock/value": {
+      "get": {
+        "description": "Pieces lying in a place, free or reserved, at the gross price of their variant now. Unbooked and picked pieces do not count; parts are counted, not priced.",
+        "operationId": "getStockValue",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockValueOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What the store is worth: finished pieces at today's shop price, and the parts",
         "tags": [
           "admin-inventory"
         ]

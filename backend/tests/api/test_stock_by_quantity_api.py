@@ -183,6 +183,40 @@ class TestStockByQuantity:
         )
 
 
+class TestStockValue:
+    async def test_owner_and_staff_see_the_worth_packers_do_not(
+        self,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        product: ProductDetails,
+        painted: UUID,
+    ) -> None:
+        empty = await staff_client.get(f"{INVENTORY}/stock/value")
+        assert empty.status_code == 200, empty.text
+        assert (empty.json()["pieces"], empty.json()["value_cents"]) == (0, 0)
+
+        await staff_client.post(
+            f"{INVENTORY}/locations/shelves", json={"name": "Regal 1", "levels": 1}
+        )
+        kit = variant_id(product, "H0", "unpainted")
+        await book_in(staff_client, painted, 3, "R01-B01")
+        await book_in(staff_client, kit, 2, "R01-B01")
+        body = (await staff_client.get(f"{INVENTORY}/stock/value")).json()
+        assert (body["pieces"], body["value_cents"]) == (5, 3 * 4990 + 2 * 2990)
+        assert (body["free_pieces"], body["reserved_pieces"]) == (5, 0)
+        assert [(s["key"], s["pieces"]) for s in body["by_finish"]] == [
+            ("painted", 3),
+            ("unpainted", 2),
+        ]
+        assert [(s["key"], s["name"]) for s in body["by_model"]] == [
+            (str(product.product.id), product.product.name)
+        ]
+        assert (body["part_pieces"], body["unpriced_pieces"]) == (0, 0)
+        assert_problem(
+            await packer_client.get(f"{INVENTORY}/stock/value"), 403, "insufficient_role"
+        )
+
+
 class TestToMake:
     async def test_owner_and_staff_see_what_to_make_packers_do_not(
         self,

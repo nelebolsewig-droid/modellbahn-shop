@@ -31,6 +31,7 @@ import { LabelPrinter } from "./label-printer";
 import { useInventoryRefresh } from "./part-dialogs";
 import { PartStockPanel, ReceivingPanel } from "./parts-panels";
 import { CountDialog } from "./stock-dialogs";
+import { StockValuePanel } from "./stock-value-panel";
 
 /** Owner and staff run the store; packers look and scan. */
 export const MAY_MANAGE_STOCK: ReadonlySet<StaffRole> = new Set(["owner", "staff"]);
@@ -99,6 +100,7 @@ export function InventoryOverview({ staffRole, onStreamClosed }: { staffRole: St
       </div>
       {mayManage ? <UnbookedHint /> : null}
       <div className="mt-8 space-y-6">
+        {mayManage ? <StockValuePanel /> : null}
         <ShelfBoard mayManage={mayManage} />
         <ReceivingPanel mayManage={mayManage} />
         <PartStockPanel />
