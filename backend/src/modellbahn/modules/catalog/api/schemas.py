@@ -274,10 +274,15 @@ class AdminImageOut(BaseModel):
     dominant_color: str | None
     lqip: str | None
     renditions: list[ImageRenditionOut]
+    # May the photo studio finish this photo, and do the sizes show its version?
+    studio: bool
+    studio_applied: bool
 
     @classmethod
     def from_view(cls, view: ImageView) -> Self:
         return cls(
+            studio=view.studio,
+            studio_applied=view.studio_applied,
             asset_id=view.asset_id,
             status=view.status,
             filename=view.filename,

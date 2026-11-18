@@ -5,6 +5,7 @@ import binascii
 import re
 from email.utils import parseaddr
 from enum import StrEnum
+from pathlib import Path
 from typing import Literal, Self
 
 from argon2 import DEFAULT_MEMORY_COST, DEFAULT_PARALLELISM, DEFAULT_TIME_COST
@@ -135,6 +136,9 @@ class Settings(BaseSettings):
     media_public_bucket: str = "mb-media-public"
     # Prefix of public image URLs. Relative by default: Caddy serves /medien on the site.
     media_public_base_url: str = "/medien"
+    # The photo studio's cut-out model (ISNet, ONNX); the backend image ships it here.
+    # Without the file the worker renders photos as uploaded (ADR 0031).
+    studio_model_path: Path = Path("/app/models/isnet-general-use.onnx")
 
     log_level: LogLevel = "INFO"
 

@@ -102,11 +102,16 @@ class ProcessedImage:
     lqip: str
     phash: int
     renditions: list[EncodedRendition]
+    # True when the photo studio finished the photo, False when it is shown as uploaded.
+    studio_applied: bool = False
 
 
 class ImageProcessor(Protocol):
-    def process(self, data: bytes) -> ProcessedImage:
+    def process(self, data: bytes, *, studio: bool = False) -> ProcessedImage:
         """Decode, check and render an original. CPU-bound and blocking: run it in a thread.
+
+        With ``studio`` the photo studio finishes the photo first (cut out, light evened
+        out, placed on the stage); a photo it finds no model in is rendered as it is.
 
         Raises :class:`~modellbahn.modules.media.domain.errors.ImageRejectedError` for
         files that are no usable image.

@@ -31,6 +31,7 @@ from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
+from modellbahn.modules.media.infrastructure.studio import default_studio
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.labels import ShippingLabelService
@@ -131,7 +132,8 @@ async def run_worker(
     MediaProcessingHandlers(
         uow_factory=media_uow,
         storage=storage,
-        processor=image_processor or PillowImageProcessor(),
+        processor=image_processor
+        or PillowImageProcessor(studio=default_studio(settings.studio_model_path)),
         clock=clock,
     ).register(handlers)
     media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)

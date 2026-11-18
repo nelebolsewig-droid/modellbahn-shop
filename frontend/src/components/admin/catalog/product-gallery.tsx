@@ -12,6 +12,7 @@ import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { Select } from "@/components/ui/select";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { arrangeProductGallery, attachProductImage } from "@/lib/api/generated/admin-catalog/admin-catalog";
+import { setMediaStudio } from "@/lib/api/generated/admin-media/admin-media";
 import type {
   AdminImageOut,
   AssetStatus,
@@ -117,6 +118,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
   const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [studioError, setStudioError] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const images = new Map(product.media.map((item) => [item.asset_id, item.image]));
   const dirty = edits !== null;
@@ -169,6 +171,17 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
     }
   }
 
+  /** Switch the photo studio for one photo; the worker renders it again from the original. */
+  async function switchStudio(assetId: string, enabled: boolean) {
+    setStudioError(null);
+    try {
+      await setMediaStudio(assetId, { enabled });
+      await queryClient.invalidateQueries({ queryKey: productQueryKey(product.id) });
+    } catch (error) {
+      setStudioError(isApiProblem(error) ? errorMessage(error) : "Das Fotostudio ließ sich nicht umschalten.");
+    }
+  }
+
   function addFiles(files: FileList | null) {
     for (const file of Array.from(files ?? [])) {
       void upload(file);
@@ -217,6 +230,10 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
         <p className="text-small text-ink-secondary">
           Fotos hierher ziehen oder auswählen. JPEG, PNG, WebP, AVIF oder HEIC bis 50 MB.
         </p>
+        <p className="max-w-prose text-hint text-ink-tertiary">
+          Das Fotostudio stellt jedes Modell frei, gleicht Licht und Farbe an und stellt es auf dieselbe Linie. Das
+          Original bleibt erhalten.
+        </p>
         <Button type="button" variant="secondary" size="sm" onClick={() => picker.current?.click()}>
           Fotos auswählen
         </Button>
@@ -238,6 +255,12 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
             <UploadRow key={item.id} upload={item} onDismiss={() => setUploads((c) => c.filter((u) => u.id !== item.id))} />
           ))}
         </ul>
+      ) : null}
+
+      {studioError ? (
+        <Callout tone="danger" title="Fotostudio" className="mt-5">
+          <p className="text-small">{studioError}</p>
+        </Callout>
       ) : null}
 
       {draft.length > 0 && unshown.length > 0 ? (
@@ -264,6 +287,7 @@ export function ProductGallery({ product, references }: ProductGalleryProps) {
               onMove={move}
               onEdit={edit}
               onRemove={() => remove(index)}
+              onStudio={(enabled) => switchStudio(entry.asset_id, enabled)}
             />
           ))}
         </ol>
@@ -344,7 +368,21 @@ type GalleryTileProps = {
   onMove: (from: number, to: number) => void;
   onEdit: (index: number, patch: Partial<GalleryEntryIn>) => void;
   onRemove: () => void;
+  onStudio: (enabled: boolean) => Promise<void>;
 };
+
+/** What the photo studio did with a photo, in the words of the gallery. */
+function studioHint(image: AdminImageOut | null): string {
+  if (!image || !image.studio) {
+    return "Aus: Das Foto erscheint so, wie es hochgeladen wurde.";
+  }
+  if (image.status !== "ready") {
+    return "Das Foto wird gerade bearbeitet.";
+  }
+  return image.studio_applied
+    ? "Freigestellt, Licht angeglichen, auf der Standlinie."
+    : "Kein Modell erkannt: Das Foto erscheint unverändert.";
+}
 
 function GalleryTile({
   entry,
@@ -357,7 +395,9 @@ function GalleryTile({
   onMove,
   onEdit,
   onRemove,
+  onStudio,
 }: GalleryTileProps) {
+  const [switching, setSwitching] = useState(false);
   const picture = readyPicture(image);
   // A tag from before keeps its option even when no variant has the colour any more.
   const tileColors = entry.color && !colors.some((c) => sameColor(c, entry.color ?? "")) ? [...colors, entry.color] : colors;
@@ -470,6 +510,22 @@ function GalleryTile({
             </label>
           ) : null}
         </div>
+        <label className="flex items-start gap-2.5 border-t border-line pt-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-[var(--selected)]"
+            checked={image?.studio ?? false}
+            disabled={!image || switching}
+            onChange={(event) => {
+              setSwitching(true);
+              void onStudio(event.target.checked).finally(() => setSwitching(false));
+            }}
+          />
+          <span>
+            <span className="block text-small font-medium">Fotostudio</span>
+            <span className="block text-hint text-ink-tertiary">{studioHint(image)}</span>
+          </span>
+        </label>
         <div className="flex flex-wrap gap-1">
           <Button type="button" variant="ghost" size="sm" disabled={index === 0} onClick={() => onMove(index, 0)}>
             Als Hauptbild

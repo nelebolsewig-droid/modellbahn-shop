@@ -24,6 +24,14 @@ class UploadRequestIn(BaseModel):
     sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
 
 
+class StudioIn(BaseModel):
+    """Switch the photo studio for one photo."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+
+
 class RenditionOut(BaseModel):
     name: str = Field(examples=["md"])
     format: RenditionFormat
@@ -50,6 +58,9 @@ class AssetOut(BaseModel):
     failure_code: FailureCode | None
     created_at: datetime
     ready_at: datetime | None
+    # May the photo studio finish this photo, and do the sizes show its version?
+    studio: bool
+    studio_applied: bool
     image: ImageFactsOut | None
     renditions: list[RenditionOut]
 
@@ -66,6 +77,8 @@ class AssetOut(BaseModel):
             failure_code=asset.failure_code,
             created_at=asset.created_at,
             ready_at=asset.ready_at,
+            studio=asset.studio,
+            studio_applied=image is not None and image.studio_applied,
             image=None
             if image is None
             else ImageFactsOut(
