@@ -30,6 +30,19 @@
 	}
 }
 
+# Further names of the shop, e.g. "adp-modelle.de, neu.adp-modelle.de" once www has moved
+# here (ADR 0036): each gets its own certificate and sends every request to SITE_ADDRESS,
+# path and query kept. Unset, the block only answers the reserved name below over plain
+# HTTP, which never resolves, so it serves nothing and asks for no certificate.
+{$SITE_ALIASES:http://alias.invalid} {
+	tls {$CADDY_TLS:internal}
+	log {
+		output stdout
+		import redact_tokens
+	}
+	redir https://{$SITE_ADDRESS:localhost}{uri} permanent
+}
+
 {$SITE_ADDRESS:localhost} {
 	# "internal" for localhost; an e-mail address switches to Let's Encrypt for a real domain.
 	tls {$CADDY_TLS:internal}

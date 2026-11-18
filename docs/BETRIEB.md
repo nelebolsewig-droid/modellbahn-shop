@@ -625,13 +625,27 @@ Der Umzug von Shopify ist ein eigener Schritt. Er setzt voraus:
     mit Hetzner für die Storage Box ebenso (siehe „Sicherung außer Haus einrichten“).
   - Der EU-Gewährleistungshinweis (Pflicht seit 27.09.2026) ist eingebunden (ADR 0020).
 
+Vorher (ADR 0036): den Produkt-Export von Shopify (Produkte → Exportieren) durch
+`python3 scripts/shopify_weiterleitungen.py products_export.csv --schreiben` schicken, die
+Treffer „ähnlich“ prüfen, `frontend/src/lib/site/shopify-produkte.json` committen und
+ausrollen. Solange Shopify läuft, `www.adp-modelle.de/sitemap.xml` speichern: Sie listet
+jede alte Adresse.
+
 Dann:
 
-1. In `.env` `SITE_ADDRESS` und `MB_PUBLIC_BASE_URL` auf `www.adp-modelle.de` umstellen.
-2. Im Strato-Kundenlogin den A-Record von `www` auf den Server setzen.
+1. In `.env` `SITE_ADDRESS=www.adp-modelle.de`, `MB_PUBLIC_BASE_URL=https://www.adp-modelle.de`
+   und `SITE_ALIASES=adp-modelle.de, neu.adp-modelle.de` setzen.
+2. Im Strato-Kundenlogin die A-Records (und AAAA) von `www` und `adp-modelle.de` auf den
+   Server setzen. MX-, SPF- und DKIM-Einträge des Postfachs nicht ändern.
 3. Bei Shopify die Domain lösen.
-4. Im eBay-Entwicklerkonto die beiden Adressen (Rücksprung nach der Anmeldung und
-   Löschmeldungen) auf die neue Domain ändern.
+4. `docker compose up --detach --wait`; Caddy holt die Zertifikate für alle drei Namen.
+5. Im eBay-Entwicklerkonto die beiden Adressen (Rücksprung nach der Anmeldung und
+   Löschmeldungen) auf die neue Domain ändern, bei healthchecks.io die `/readyz`-Adresse.
+6. Prüfen: `curl -sI https://www.adp-modelle.de/products/<handle>` zeigt `301` und unter
+   `location` die neue Adresse; `https://adp-modelle.de` springt auf `www`.
+7. Nach einer echten Bestellung auf `www`: `CADDY_HSTS=max-age=31536000`.
+8. In der Google Search Console `https://www.adp-modelle.de/sitemap.xml` einreichen.
 
-Alte Shopify-Adressen leitet der Shop schon weiter. Die Weiterleitung von `adp-modelle.de`
-und `neu.adp-modelle.de` auf `www` kommt mit diesem Schritt.
+Alte Shopify-Adressen (Produkte, Kollektionen, Seiten, Richtlinien, Suche) leitet der Shop
+weiter (ADR 0036). Produkte ohne Eintrag und ohne gleichen Slug landen vorläufig (302) auf
+der Katalogsuche.

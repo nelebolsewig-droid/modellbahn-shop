@@ -234,6 +234,8 @@ services:
     image: modellbahn-shop/frontend:local
     environment:
       API_INTERNAL_URL: http://api:8000
+      # Absolute addresses in /sitemap.xml and /robots.txt (ADR 0036).
+      MB_PUBLIC_BASE_URL: ${MB_PUBLIC_BASE_URL:-https://localhost}
     init: true
     networks:
       - edge
@@ -248,6 +250,7 @@ services:
       - NET_BIND_SERVICE
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      SITE_ALIASES: ${SITE_ALIASES:-http://alias.invalid}
       CADDY_TLS: ${CADDY_TLS:-internal}
       CADDY_HSTS: ${CADDY_HSTS:-max-age=0}
     ports:
