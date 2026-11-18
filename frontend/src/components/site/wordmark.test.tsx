@@ -9,9 +9,10 @@ describe("Wordmark", () => {
     const mark = screen.getByLabelText("adp-Modelle");
     const [head, rest] = [...mark.children];
     expect(head).toHaveTextContent("adp");
-    expect(head).toHaveClass("italic", "lowercase");
+    expect(head).toHaveClass("italic", "lowercase", "text-wordmark");
     expect(rest).toHaveTextContent("-Modelle");
     expect(rest).not.toHaveClass("italic");
+    expect(rest).not.toHaveClass("text-wordmark");
   });
 
   it("sets a name without a hyphen as one word", () => {

@@ -57,6 +57,8 @@ const TEXT_PAIRS: [string, string][] = [
   ["on-accent", "accent"],
   ["on-action", "action"],
   ["on-action-hover", "action-hover"],
+  ["wordmark", "canvas"],
+  ["wordmark", "stage"],
   ["on-selected", "danger"],
   ["ink", "accent-subtle"],
   ["accent", "accent-subtle"],

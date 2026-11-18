@@ -55,8 +55,8 @@ Daraus abgeleitet, damit jede Schrift 4,5 : 1 erreicht:
 
 ### Wortmarke
 
-`Wordmark` setzt den Shop-Namen (`NEXT_PUBLIC_SHOP_NAME`): der Teil vor dem Bindestrich klein,
-Times New Roman fett kursiv; Bindestrich und Rest Arial fett. Wo ein Gerät die beiden
+`Wordmark` setzt den Shop-Namen (`NEXT_PUBLIC_SHOP_NAME`): der Teil vor dem Bindestrich klein und
+rot (`wordmark` `#CC0000`), Times New Roman fett kursiv; Bindestrich und Rest in Espresso, Arial fett. Wo ein Gerät die beiden
 Schriften nicht hat, springen die metrisch gleichen Tinos und Arimo ein (über `next/font`
 selbst gehostet). Das Signet (`LogoMark`) bleibt als Marke des Stellwerks, jetzt kantig mit
 mandarinfarbener Lampe.

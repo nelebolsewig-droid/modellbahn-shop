@@ -139,6 +139,7 @@
   --color-action-hover: var(--action-hover);
   --color-on-action-hover: var(--on-action-hover);
   --color-highlight: var(--highlight);
+  --color-wordmark: var(--wordmark);
   --color-focus: var(--focus);
   --color-drawing-line: var(--drawing-line);
   --color-drawing-helper: var(--drawing-helper);

@@ -1564,7 +1564,7 @@ Scroll-Film.
 | `TextField` | Formulareingabe | Fehler in `danger`, Text nennt die Lösung |
 | `ProductCard` | Modell im Katalog, ganze Karte ein Link | kein Knopf auf der Karte |
 | `ScrollFilm` | Startseite als Scroll-Film in fünf Kapiteln um den gerenderten EDK 6 (ADR 0030) | bei reduzierter Bewegung still und vollständig lesbar |
-| `Wordmark` | Wortmarke „adp-Modelle“: Times New Roman fett kursiv, Bindestrich, Arial fett | |
+| `Wordmark` | Wortmarke „adp-Modelle“: „adp“ rot in Times New Roman fett kursiv, Bindestrich und „Modelle“ dunkel in Arial fett | |
 | `EventFeed` | Live-Ereignisse im Stellwerk | neues Ereignis auf `accent-subtle` |
 | `PrinterCard` | ein Drucker der Druckerhalle wie ein Typenschild: Code vom Etikett, Lampe, Zeichnung, Platte, Warteschlange (ADR 0017) | Lampe blau beim Drucken, rot defekt, gelb in Reparatur; im Druck wächst das Teil in der Zeichnung |
 

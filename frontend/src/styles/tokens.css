@@ -37,6 +37,7 @@
   --red-50: #f6e1dd;
   --red-700: #9c2e27;
   --red-500: #ff4d3d;
+  --logo-red: #cc0000;
 
   /* Grounds: the page is alabaster, cards and sections are sand. */
   --canvas: var(--alabaster);
@@ -74,6 +75,9 @@
   --on-accent: var(--white);
   --highlight: var(--terracotta-600);
   --focus: var(--terracotta-700);
+
+  /* The wordmark: "adp" is red, as in the workshop's own logo; the hyphen and "Modelle" are ink. */
+  --wordmark: var(--logo-red);
 
   /* Technical drawings */
   --drawing-line: var(--espresso-900);
