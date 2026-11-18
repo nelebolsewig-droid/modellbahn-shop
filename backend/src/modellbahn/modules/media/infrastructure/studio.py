@@ -53,6 +53,8 @@ MIN_EXPOSURE_GAIN: Final = 0.6
 MAX_EXPOSURE_GAIN: Final = 2.4
 # A backdrop more colourful than this is not a white photo box: correct only partly.
 NEUTRAL_BACKDROP_CHROMA: Final = 0.5
+# Share of the found area that may be a mere maybe; real models stay below 0.15.
+MAX_UNSURE_SHARE: Final = 0.5
 # Espresso #26211e, the ink of the shop, as shadow colour.
 SHADOW_RGB: Final = (0x26, 0x21, 0x1E)
 CONTACT_SHADOW_OPACITY: Final = 0.5
@@ -82,7 +84,10 @@ class PhotoStudio:
     def finish(self, image: Image.Image) -> StudioResult:
         work = _downscaled(image.convert("RGB"))
         rgb = _to_float(work)
-        alpha = _clean_matte(self._segmenter.matte(work))
+        matte = self._segmenter.matte(work)
+        if _hesitant(matte):
+            return StudioResult(None, "the cut-out is unsure what the model is")
+        alpha = _clean_matte(matte)
         solid = alpha > 0.5
         subject = _bounding_box(solid)
         total = solid.size
@@ -173,6 +178,18 @@ def default_studio(model_path: Path | None) -> PhotoStudio | None:
 
 
 # --- Cut-out --------------------------------------------------------------------------
+
+
+def _hesitant(matte: FloatImage) -> bool:
+    """True when most of what the cut-out found is a maybe.
+
+    A model in the photo box comes out nearly black and white (a few percent of soft
+    edge, a little more for a lattice jib). A photo of something else, a tray full of
+    models, say, comes out as a grey haze: staging that would show scraps.
+    """
+    found = matte > 0.15
+    unsure = found & (matte < 0.85)
+    return bool(unsure.sum() > MAX_UNSURE_SHARE * max(int(found.sum()), 1))
 
 
 def _clean_matte(matte: FloatImage) -> FloatImage:

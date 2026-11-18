@@ -42,8 +42,8 @@ Regeln:
 - **Alle auf einmal:** „Alle Fotos umstellen …“ in der Galerie
   (`PUT /admin/media/studio`) schaltet das Fotostudio für jedes fertige Foto ein, das noch
   aus ist; der Worker rechnet sie nacheinander neu. Der Haken je Foto bleibt.
-- **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß oder an drei Rändern
-  abgeschnitten), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
+- **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß, an drei Rändern
+  abgeschnitten oder überwiegend unsicher, etwa bei einem Foto einer ganzen Kiste), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
   gezeigt wird, die Galerie schreibt es dazu.
 - **Fehlt die Modelldatei**, rendert der Worker alle Fotos wie hochgeladen und meldet es
   beim Start (`media.studio_unavailable`). Kein Upload scheitert daran.

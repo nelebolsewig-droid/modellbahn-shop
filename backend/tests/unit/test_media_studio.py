@@ -26,6 +26,13 @@ class ColourSegmenter:
         return (distance > 0.12).astype(np.float32)
 
 
+class HazeSegmenter:
+    """A cut-out that is unsure everywhere, as with a photo that shows no single model."""
+
+    def matte(self, image: Image.Image) -> FloatImage:
+        return np.full((image.height, image.width), 0.4, dtype=np.float32)
+
+
 class NothingSegmenter:
     def matte(self, image: Image.Image) -> FloatImage:
         return np.zeros((image.height, image.width), dtype=np.float32)
@@ -129,6 +136,11 @@ class TestStudio:
 
     def test_photo_without_a_model_is_left_alone(self) -> None:
         result = PhotoStudio(NothingSegmenter()).finish(shot((230, 230, 230), (0, 0, 0, 0)))
+        assert result.image is None
+        assert result.reason
+
+    def test_photo_the_cut_out_is_unsure_about_is_left_alone(self) -> None:
+        result = PhotoStudio(HazeSegmenter()).finish(shot((230, 230, 230), (300, 300, 900, 600)))
         assert result.image is None
         assert result.reason
 
