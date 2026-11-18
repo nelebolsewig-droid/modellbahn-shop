@@ -136,7 +136,7 @@ export function HelpPage() {
             ))}
           </ul>
           <p className="mt-10 max-w-2xl text-small text-ink-secondary">
-            Etwas fehlt oder ist unklar? Sag Nele Bescheid; das Handbuch wächst mit dem Stellwerk. Konten, gesperrte
+            Etwas fehlt oder ist unklar? Sag einem der Inhaber Bescheid (Nele, Johann, Hannes); das Handbuch wächst mit dem Stellwerk. Konten, gesperrte
             Anmeldungen und neue Passwörter regelt Johann.
           </p>
         </>
