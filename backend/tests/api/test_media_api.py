@@ -157,6 +157,35 @@ async def test_studio_switch_renders_the_photo_again(
     )
 
 
+async def test_studio_switch_for_all_photos(
+    staff_client: AsyncClient, media_storage: InMemoryMediaStorage, deliver: Deliver
+) -> None:
+    ids = []
+    for width in (1000, 1100):
+        data = photo(width, 700)
+        ticket = (await staff_client.post(f"{MEDIA}/uploads", json=announcement(data))).json()
+        ids.append(ticket["asset"]["id"])
+        media_storage.upload(UUID(ids[-1]), data)
+        await staff_client.post(f"{MEDIA}/{ids[-1]}/complete")
+    await deliver()
+    await staff_client.put(f"{MEDIA}/{ids[0]}/studio", json={"enabled": False})
+    await deliver()
+
+    # Only the photo that is set otherwise is switched and rendered again.
+    response = await staff_client.put(f"{MEDIA}/studio", json={"enabled": True})
+    assert response.status_code == 202, response.text
+    assert response.json() == {"switched": 1}
+    first = (await staff_client.get(f"{MEDIA}/{ids[0]}")).json()
+    assert (first["studio"], first["status"]) == (True, "uploaded")
+    await deliver()
+    assert (await staff_client.get(f"{MEDIA}/{ids[0]}")).json()["status"] == "ready"
+
+    again = await staff_client.put(f"{MEDIA}/studio", json={"enabled": True})
+    assert again.json() == {"switched": 0}
+    off = await staff_client.put(f"{MEDIA}/studio", json={"enabled": False})
+    assert off.json() == {"switched": 2}
+
+
 async def test_delete(staff_client: AsyncClient) -> None:
     ticket = (await staff_client.post(f"{MEDIA}/uploads", json=announcement(photo()))).json()
     asset_id = ticket["asset"]["id"]

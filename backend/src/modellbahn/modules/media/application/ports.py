@@ -29,6 +29,10 @@ class AssetRepository(Protocol):
         """Assets still waiting for their upload, locked; rows locked elsewhere are skipped."""
         ...
 
+    async def rendered_with_studio(self, *, enabled: bool, limit: int) -> list[Asset]:
+        """Finished images whose studio switch is ``enabled``, oldest first, locked."""
+        ...
+
 
 class MediaUnitOfWork(Protocol):
     """One transaction over the media repositories (see ``platform.uow``)."""

@@ -9,6 +9,7 @@ from modellbahn.modules.media.api.errors import ACCESS, NOT_FOUND
 from modellbahn.modules.media.api.schemas import (
     AssetOut,
     StudioIn,
+    StudioSwitchedOut,
     UploadRequestIn,
     UploadTicketOut,
 )
@@ -38,6 +39,24 @@ async def request_upload(
         uploaded_by=staff.id,
     )
     return UploadTicketOut.from_ticket(ticket, public_base_url=base_url)
+
+
+@router.put(
+    "/studio",
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="setMediaStudioForAll",
+    summary="Switch the photo studio for every photo",
+    responses=problems(ACCESS),
+)
+async def set_studio_for_all(
+    body: StudioIn, _: MediaEditor, service: MediaServiceDep
+) -> StudioSwitchedOut:
+    """Every finished photo set otherwise is rendered again from its original.
+
+    The worker takes them one after the other; each arrives as ``media.asset.ready``.
+    The switch of a single photo stays available afterwards.
+    """
+    return StudioSwitchedOut(switched=await service.set_studio_for_all(enabled=body.enabled))
 
 
 @router.post(

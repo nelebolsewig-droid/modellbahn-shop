@@ -39,6 +39,9 @@ Regeln:
   „Fotostudio“; `PUT /admin/media/{id}/studio`). Umschalten rendert das Foto neu.
 - **Neue Fotos** gehen durchs Fotostudio. **Fotos, die schon im Shop sind,** bleiben, wie
   sie sind (Migration 0022 setzt sie auf „aus“), und lassen sich einzeln einschalten.
+- **Alle auf einmal:** „Alle Fotos umstellen …“ in der Galerie
+  (`PUT /admin/media/studio`) schaltet das Fotostudio für jedes fertige Foto ein, das noch
+  aus ist; der Worker rechnet sie nacheinander neu. Der Haken je Foto bleibt.
 - **Findet das Fotostudio kein Modell** (Ausschnitt zu klein, zu groß oder an drei Rändern
   abgeschnitten), erscheint das Foto unverändert; `image_details.studio_applied` sagt, was
   gezeigt wird, die Galerie schreibt es dazu.

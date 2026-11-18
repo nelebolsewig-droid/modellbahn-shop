@@ -32,6 +32,12 @@ class StudioIn(BaseModel):
     enabled: bool
 
 
+class StudioSwitchedOut(BaseModel):
+    """How many photos are being rendered again."""
+
+    switched: int
+
+
 class RenditionOut(BaseModel):
     name: str = Field(examples=["md"])
     format: RenditionFormat
