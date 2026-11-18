@@ -6,7 +6,7 @@ Repositories only read and stage changes; committing is the unit of work's job.
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modellbahn.modules.media.domain.model import Asset, AssetKind, AssetStatus
@@ -65,6 +65,17 @@ class SqlAssetRepository:
             .with_for_update(key_share=True, skip_locked=True)
         )
         return list((await self._session.execute(statement)).scalars())
+
+    async def new_photos_waiting(self) -> bool:
+        statement = select(
+            exists().where(
+                assets.c.kind == AssetKind.IMAGE,
+                assets.c.status == AssetStatus.UPLOADED,
+                assets.c.studio.is_(True),
+                assets.c.ready_at.is_(None),
+            )
+        )
+        return bool((await self._session.execute(statement)).scalar())
 
 
 class SqlMediaUnitOfWork(UnitOfWork):

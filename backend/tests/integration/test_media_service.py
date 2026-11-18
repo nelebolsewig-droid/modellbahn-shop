@@ -201,6 +201,42 @@ class TestProcessing:
         assert (await media.get(asset.id)).status is AssetStatus.READY
         assert gate.finished == 1
 
+    async def test_new_photos_go_through_the_studio_before_old_ones(
+        self,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        media_uow_factory: UnitOfWorkFactory,
+        image_processor: PillowImageProcessor,
+        deliver: Deliver,
+        clock: FixedClock,
+    ) -> None:
+        class OpenGate:
+            def wait(self) -> tuple[timedelta, str] | None:
+                return None
+
+            def done(self) -> None:
+                pass
+
+        handlers = MediaProcessingHandlers(
+            uow_factory=media_uow_factory,
+            storage=media_storage,
+            processor=image_processor,
+            clock=clock,
+            studio_gate=OpenGate(),
+        )
+        old = await ready_image(media, media_storage, deliver)
+        await media.reprocess(old.id)
+        fresh = await uploaded_image(media, media_storage, photo(700, 500, colour=(20, 120, 200)))
+        again = AssetUploaded(aggregate_id=old.id, occurred_at=clock.now())
+
+        # The old photo still has something to show, the new one has not: it steps back.
+        with pytest.raises(PostponedError):
+            await handlers.process_upload(again)
+        await handlers.process_upload(AssetUploaded(aggregate_id=fresh.id, occurred_at=clock.now()))
+        assert (await media.get(fresh.id)).status is AssetStatus.READY
+        await handlers.process_upload(again)
+        assert (await media.get(old.id)).status is AssetStatus.READY
+
     async def test_a_repeated_delivery_changes_nothing(
         self,
         media: MediaService,
