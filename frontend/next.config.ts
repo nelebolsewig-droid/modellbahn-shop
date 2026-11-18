@@ -21,6 +21,38 @@ export const STELLWERK_REDIRECTS = [
   { source: "/admin/erfassen", destination: "/admin/modelle/neu" },
 ] as const;
 
+/**
+ * Fixed pages of the former Shopify shop on www.adp-modelle.de and where they live now
+ * (ADR 0036), sent with 301 like Shopify's own redirects. Products, collections and the
+ * search need a look at the catalogue: route handlers under src/app/(shopify).
+ */
+export const SHOPIFY_PAGE_REDIRECTS = [
+  { source: "/collections", destination: "/katalog" },
+  { source: "/products", destination: "/katalog" },
+  { source: "/policies/terms-of-service", destination: "/agb" },
+  { source: "/policies/refund-policy", destination: "/widerruf" },
+  { source: "/policies/privacy-policy", destination: "/datenschutz" },
+  { source: "/policies/shipping-policy", destination: "/versand" },
+  { source: "/policies/legal-notice", destination: "/impressum" },
+  { source: "/policies/contact-information", destination: "/impressum" },
+  { source: "/pages/impressum", destination: "/impressum" },
+  { source: "/pages/agb", destination: "/agb" },
+  { source: "/pages/datenschutz", destination: "/datenschutz" },
+  { source: "/pages/widerruf", destination: "/widerruf" },
+  { source: "/pages/widerrufsbelehrung", destination: "/widerruf" },
+  { source: "/pages/versand", destination: "/versand" },
+  { source: "/pages/versandkosten", destination: "/versand" },
+  { source: "/pages/ueber-uns", destination: "/ueber-uns" },
+  { source: "/pages/about-us", destination: "/ueber-uns" },
+  { source: "/pages/kontakt", destination: "/impressum" },
+  { source: "/pages/contact", destination: "/impressum" },
+  { source: "/pages/sonderanfertigung", destination: "/sonderanfertigung" },
+  { source: "/pages/termine", destination: "/termine" },
+  { source: "/cart", destination: "/warenkorb" },
+  { source: "/account", destination: "/konto" },
+  { source: "/account/:path*", destination: "/konto" },
+] as const;
+
 export default function nextConfig(phase: string): NextConfig {
   const isDevServer = phase === PHASE_DEVELOPMENT_SERVER;
   const apiOrigin = process.env.API_INTERNAL_URL || "http://localhost:8000";
@@ -35,7 +67,10 @@ export default function nextConfig(phase: string): NextConfig {
     // `next dev` forwards to the API: the events would sit in the compressor's buffer.
     compress: false,
     async redirects() {
-      return STELLWERK_REDIRECTS.map((redirect) => ({ ...redirect, permanent: true }));
+      return [
+        ...STELLWERK_REDIRECTS.map((redirect) => ({ ...redirect, permanent: true })),
+        ...SHOPIFY_PAGE_REDIRECTS.map((redirect) => ({ ...redirect, statusCode: 301 as const })),
+      ];
     },
     ...(isDevServer && {
       async rewrites() {
