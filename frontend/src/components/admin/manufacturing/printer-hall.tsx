@@ -177,7 +177,7 @@ function HallBoard({ counts }: { counts: HallCountsOut }) {
               <SignalLamp color={quiet ? "off" : entry.lamp} className="-ml-1" />
               <span className="truncate">{entry.label}</span>
             </dt>
-            <dd className="text-title font-extralight tabular-nums">{value}</dd>
+            <dd className="text-title font-display font-extrabold tabular-nums">{value}</dd>
           </div>
         );
       })}

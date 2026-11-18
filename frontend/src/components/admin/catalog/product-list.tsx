@@ -22,12 +22,15 @@ import type {
   PublishedOut,
 } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
+import { useMediaQuery } from "@/lib/browser/use-media-query";
 import { formatPrice, formatProductNumber } from "@/lib/catalog/format";
 import { readyPicture } from "@/lib/catalog/images";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalog/labels";
 import { placesLine } from "@/lib/inventory/stock";
 import { errorMessage } from "@/lib/i18n/problems";
+import { cn } from "@/lib/utils";
 
+import { ModelPlate } from "./model-plate";
 import { ADMIN_PRODUCTS_KEY } from "./use-product";
 
 const PAGE_SIZE = 50;
@@ -75,14 +78,21 @@ export function withoutStock(item: ProductListItemOut, stock: ReadonlyMap<string
   return line === undefined || line.free + line.reserved === 0;
 }
 
+/** From this width on, the list shares the page with the chosen model's Typenschild. */
+const BENCH = "(min-width: 80rem)";
+
 /**
  * Every model, newest first: photo, name, where it stands (shop, draft, archive, eBay),
- * how many pieces are free or reserved and where they lie. A tap opens the model.
+ * how many pieces are free or reserved and where they lie. A tap opens the model. On a
+ * wide desk it is a Werkbank (ADR 0030): the list on the left, the chosen model's
+ * Typenschild on the right; there a tap chooses, and "Bearbeiten" opens the model.
  */
 export function ProductList() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const bench = useMediaQuery(BENCH);
   const products = useInfiniteQuery<ProductPageOut, ApiProblem>({
     queryKey: [...ADMIN_PRODUCTS_KEY, { status: filter === "draft" ? "draft" : null, query }],
     queryFn: ({ pageParam, signal }) =>
@@ -110,13 +120,15 @@ export function ProductList() {
   const stockByProduct = stock.data ?? new Map<string, ProductStockOut>();
   const all = products.data?.pages.flatMap((page) => page.items) ?? [];
   const items = filter === "empty" ? all.filter((item) => withoutStock(item, stockByProduct)) : all;
+  // Until someone chooses, and when the chosen model leaves the list: the first one.
+  const chosen = bench ? (items.find((item) => item.id === chosenId) ?? items[0]) : undefined;
 
   function onSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setQuery(search.trim());
   }
 
-  return (
+  const list = (
     <section aria-label="Modelle">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <OptionGroup label="Zeigen" value={filter} onValueChange={(value) => setFilter(value as Filter)}>
@@ -159,7 +171,14 @@ export function ProductList() {
         ) : (
           <ul className="divide-y divide-line border-y border-line">
             {items.map((item) => (
-              <ProductRow key={item.id} item={item} stock={stockByProduct.get(item.id)} onEbay={ebay.data?.has(item.id) ?? false} />
+              <ProductRow
+                key={item.id}
+                item={item}
+                stock={stockByProduct.get(item.id)}
+                onEbay={ebay.data?.has(item.id) ?? false}
+                chosen={item.id === chosen?.id}
+                onChoose={bench ? () => setChosenId(item.id) : undefined}
+              />
             ))}
           </ul>
         )}
@@ -178,9 +197,32 @@ export function ProductList() {
       </div>
     </section>
   );
+  if (!bench) {
+    return list;
+  }
+  return (
+    <div className="grid grid-cols-[minmax(0,25rem)_minmax(0,1fr)] items-start gap-9">
+      {list}
+      {chosen ? (
+        <div className="sticky top-6 border-l border-line pl-9">
+          <ModelPlate item={chosen} stock={stockByProduct.get(chosen.id)} onEbay={ebay.data?.has(chosen.id) ?? false} />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
-function ProductRow({ item, stock, onEbay }: { item: ProductListItemOut; stock: ProductStockOut | undefined; onEbay: boolean }) {
+type ProductRowProps = {
+  item: ProductListItemOut;
+  stock: ProductStockOut | undefined;
+  onEbay: boolean;
+  /** Shown on the Typenschild beside the list. */
+  chosen?: boolean;
+  /** On the Werkbank a tap chooses the model instead of opening it. */
+  onChoose?: (() => void) | undefined;
+};
+
+function ProductRow({ item, stock, onEbay, chosen = false, onChoose }: ProductRowProps) {
   const picture = readyPicture(item.main_image);
   const free = stock?.free ?? 0;
   const reserved = stock?.reserved ?? 0;
@@ -188,7 +230,22 @@ function ProductRow({ item, stock, onEbay }: { item: ProductListItemOut; stock: 
     <li>
       <Link
         href={`/admin/modelle/${item.id}` as Route}
-        className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-4 py-3 hover:bg-stage sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
+        aria-current={chosen ? "true" : undefined}
+        onClick={
+          onChoose
+            ? (event) => {
+                // With a modifier key the browser opens the model in a new tab, as always.
+                if (!event.metaKey && !event.ctrlKey && !event.shiftKey) {
+                  event.preventDefault();
+                  onChoose();
+                }
+              }
+            : undefined
+        }
+        className={cn(
+          "grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-4 border-l-[5px] px-2 py-3 transition-colors hover:bg-stage sm:grid-cols-[4rem_minmax(0,1fr)_auto]",
+          chosen ? "border-action bg-stage" : "border-transparent",
+        )}
       >
         <span className="relative block size-16 overflow-hidden rounded-sm bg-stage">
           {picture ? (

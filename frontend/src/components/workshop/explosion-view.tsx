@@ -186,7 +186,7 @@ export function ExplosionView({ model }: { model: ExplosionModel }) {
                   <li
                     key={step.short}
                     className={cn(
-                      "rounded-full border px-2.5 py-0.5 transition-colors duration-150 ease-out",
+                      "rounded-none border px-2.5 py-0.5 transition-colors duration-150 ease-out",
                       index === shownPhase
                         ? "border-selected bg-selected text-on-selected"
                         : "border-line-strong bg-stage text-ink-tertiary",
@@ -255,7 +255,7 @@ export function ExplosionView({ model }: { model: ExplosionModel }) {
                 <button
                   type="button"
                   onClick={() => setSpinning((value) => !value)}
-                  className="h-9 rounded-full border border-line-control bg-surface px-4 text-small hover:bg-stage"
+                  className="h-9 rounded-none border border-line-control bg-surface px-4 text-small hover:bg-stage"
                 >
                   {spinning ? "Drehung anhalten" : "Drehung starten"}
                 </button>
@@ -335,7 +335,7 @@ function ProcessAndParts({ model, phase, highlighted, onHighlight }: ProcessAndP
         ].map(([value, label]) => (
           <div key={label} className="grid">
             <dt className="text-hint text-ink-tertiary">{label}</dt>
-            <dd className="order-first m-0 text-title font-extralight tabular-nums">{value}</dd>
+            <dd className="order-first m-0 text-title font-display font-extrabold tabular-nums">{value}</dd>
           </div>
         ))}
       </dl>

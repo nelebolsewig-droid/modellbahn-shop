@@ -137,7 +137,7 @@ function ScaleBlock({ product, scale, productScale, finishes }: ScaleBlockProps)
     <section aria-label={`Maßstab ${scaleLabel(scale)}`} className="rounded-md border border-line">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-stage px-4 py-3">
         <div className="flex items-baseline gap-4">
-          <span className="text-heading font-extralight">{scale.name}</span>
+          <span className="text-heading font-display font-extrabold">{scale.name}</span>
           <SpecLine values={scaleSpec(scale).slice(1)} size="small" />
         </div>
         <Button

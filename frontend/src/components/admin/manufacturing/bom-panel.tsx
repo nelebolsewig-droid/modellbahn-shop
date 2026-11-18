@@ -198,7 +198,7 @@ function BomEditor({ bom, onDone }: { bom: BomOut; onDone: () => void }) {
                 <button
                   type="button"
                   onClick={() => setLines((current) => [...current, { part, quantity: 1 }])}
-                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-small transition-colors hover:border-ink"
+                  className="inline-flex max-w-full items-center gap-2 rounded-none border border-line-strong bg-surface px-3 py-1.5 text-small transition-colors hover:border-ink"
                 >
                   <span aria-hidden="true" className="text-accent">
                     +

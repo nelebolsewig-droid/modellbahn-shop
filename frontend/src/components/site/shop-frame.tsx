@@ -11,7 +11,7 @@ export function ShopFrame({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-col">
       <a
         href={`#${MAIN_ID}`}
-        className="sr-only z-50 rounded-full bg-selected px-5 py-3 text-small font-medium text-on-selected focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        className="sr-only z-50 rounded-none bg-selected px-5 py-3 text-small font-medium text-on-selected focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
         Zum Inhalt springen
       </a>

@@ -194,7 +194,7 @@ function KitGauge({ plan }: { plan: AssemblyPlanOut }) {
         <p className="label-caps text-ink-tertiary">Aus dem Lager möglich</p>
         <p
           className={cn(
-            "mt-1 text-[2.5rem] leading-[2.75rem] font-extralight tabular-nums",
+            "mt-1 text-[2.5rem] leading-[2.75rem] font-display font-extrabold tabular-nums",
             plan.possible === 0 && "text-ink-disabled",
           )}
         >
@@ -271,9 +271,9 @@ function PickLine({
         </div>
         {!booked ? (
           <div className="mt-2 flex items-center gap-3">
-            <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-sunken">
+            <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-none bg-sunken">
               <span
-                className={cn("block h-full rounded-full", share >= 1 ? "bg-success" : "bg-danger")}
+                className={cn("block h-full rounded-none", share >= 1 ? "bg-success" : "bg-danger")}
                 style={{ width: `${Math.round(share * 100)}%` }}
               />
             </span>

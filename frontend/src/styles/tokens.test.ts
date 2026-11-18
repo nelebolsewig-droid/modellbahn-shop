@@ -55,6 +55,10 @@ const TEXT_PAIRS: [string, string][] = [
   ),
   ["on-selected", "selected"],
   ["on-accent", "accent"],
+  ["on-action", "action"],
+  ["on-action-hover", "action-hover"],
+  ["wordmark", "canvas"],
+  ["wordmark", "stage"],
   ["on-selected", "danger"],
   ["ink", "accent-subtle"],
   ["accent", "accent-subtle"],
@@ -88,8 +92,17 @@ describe("design tokens", () => {
 
   it("has no pure black and no dark ground", () => {
     expect(hex("ink")).not.toBe("#000000");
+    // Sand is the darkest ground; its deepest step (sunken) has a luminance of 0.72.
     for (const ground of GROUNDS) {
-      expect(luminance(hex(ground))).toBeGreaterThan(0.8);
+      expect(luminance(hex(ground))).toBeGreaterThan(0.7);
     }
+  });
+
+  it("keeps the palette of adp-Modelle (ADR 0030)", () => {
+    expect(hex("canvas")).toBe("#faf6f0");
+    expect(hex("surface")).toBe("#efe7dc");
+    expect(hex("action")).toBe("#e8632b");
+    expect(hex("action-hover")).toBe("#c94b1a");
+    expect(hex("ink")).toBe("#26211e");
   });
 });

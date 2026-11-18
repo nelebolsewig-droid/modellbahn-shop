@@ -213,7 +213,7 @@ function Tile({ label, value, tone }: { label: string; value: number; tone: stri
     <div className="bg-surface px-4 py-3">
       <dt className="label-caps text-ink-tertiary">{label}</dt>
       <dd
-        className={cn("mt-1 text-[1.75rem] leading-9 font-light tabular-nums", value > 0 ? tone : "text-ink-disabled")}
+        className={cn("mt-1 text-[1.75rem] leading-9 font-display font-extrabold tabular-nums", value > 0 ? tone : "text-ink-disabled")}
       >
         {value}
       </dd>

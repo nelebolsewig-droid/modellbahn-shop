@@ -104,7 +104,7 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
               aria-checked={mode === value}
               onClick={() => setMode(value)}
               className={cn(
-                "rounded-full border px-4 py-1.5 font-medium transition-colors",
+                "rounded-none border px-4 py-1.5 font-medium transition-colors",
                 mode === value
                   ? "border-selected bg-selected text-on-selected"
                   : "border-line-control text-ink hover:border-ink",

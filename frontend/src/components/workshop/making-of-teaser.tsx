@@ -39,7 +39,7 @@ export function MakingOfTeaser() {
               ].map(([value, label]) => (
                 <div key={label} className="grid">
                   <dt className="text-hint text-ink-tertiary">{label}</dt>
-                  <dd className="order-first m-0 text-title font-extralight tabular-nums">{value}</dd>
+                  <dd className="order-first m-0 text-title font-display font-extrabold tabular-nums">{value}</dd>
                 </div>
               ))}
             </dl>

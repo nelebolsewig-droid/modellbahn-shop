@@ -62,7 +62,7 @@ export function FairDate({ fair, size = "large" }: { fair: FairOut; size?: "larg
       <span
         aria-hidden="true"
         className={cn(
-          "font-extralight tabular-nums",
+          "font-display font-extrabold tabular-nums",
           size === "large" && (block.long ? "text-title" : "text-display"),
           size === "medium" && (block.long ? "text-heading" : "text-title"),
         )}

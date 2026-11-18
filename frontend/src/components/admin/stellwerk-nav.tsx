@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogTitle, DialogTrigger, SheetContent } from "@/components/ui/dialog";
 import type { StaffRole } from "@/lib/api/generated/model";
 import { cn } from "@/lib/utils";
 
-import { activeSection, barSections, headerSections, moreSections, section, type Section, type SectionKey } from "./sections";
+import { activeSection, barSections, railSections, moreSections, section, type Section, type SectionKey } from "./sections";
 
 /** Counts beside entries: the pieces paid orders wait for, beside Bestellungen. */
 export type NavCounts = Partial<Record<SectionKey, number>>;
@@ -15,26 +14,31 @@ export type NavCounts = Partial<Record<SectionKey, number>>;
 type NavProps = { role: StaffRole; pathname: string; counts?: NavCounts };
 
 /**
- * The entries in the header on a desk, only those the role can use. "Neues Modell" lives
- * under Modelle, so it lights up Modelle.
+ * The rail on a desk: every place the role can use, numbered like the levers of a signal
+ * box. "Neues Modell" lives under Modelle, so it lights up Modelle.
  */
-export function HeaderNav({ role, pathname, counts = {} }: NavProps) {
+export function RailNav({ role, pathname, counts = {} }: NavProps) {
   const current = activeSection(pathname);
   return (
-    <nav aria-label="Stellwerk" className="max-sm:hidden sm:flex-1">
-      <ul className="flex flex-wrap gap-1">
-        {headerSections(role).map((entry) => (
+    <nav aria-label="Stellwerk" className="max-lg:hidden">
+      <ul>
+        {railSections(role).map((entry, index) => (
           <li key={entry.key}>
             <Link
               href={entry.href}
               aria-current={entry.key === current ? "page" : undefined}
+              // The lever's number is decoration: drawn by CSS, so it is not read out.
+              data-no={String(index + 1).padStart(2, "0")}
               className={cn(
-                "inline-flex h-9 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
-                entry.key === current ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
+                "flex min-h-11 items-center gap-3 px-5 text-[0.9375rem] transition-colors",
+                "before:font-mono before:text-[0.6875rem] before:tabular-nums before:opacity-60 before:content-[attr(data-no)]",
+                entry.key === current
+                  ? "bg-selected font-semibold text-on-selected"
+                  : "font-medium text-ink hover:bg-sunken",
               )}
             >
               {entry.label}
-              <Count value={counts[entry.key]} className="ml-1.5" />
+              <Count value={counts[entry.key]} className="ml-auto" />
             </Link>
           </li>
         ))}
@@ -52,7 +56,7 @@ function Count({ value, className }: { value: number | undefined; className?: st
     <>
       <span
         aria-hidden="true"
-        className={cn("inline-grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[0.6875rem] leading-5 font-medium text-on-accent tabular-nums", className)}
+        className={cn("inline-grid min-w-5 place-items-center bg-action px-1.5 font-mono text-[0.6875rem] leading-5 font-medium text-on-action tabular-nums", className)}
       >
         {value}
       </span>
@@ -61,16 +65,18 @@ function Count({ value, className }: { value: number | undefined; className?: st
   );
 }
 
-/** Scannen beside the account actions on a desk; on the phone it sits in the bottom bar. */
+/** Scannen at the foot of the rail, large enough to hit in passing; on the phone it sits in the bottom bar. */
 export function ScanButton({ pathname }: { pathname: string }) {
   const scan = section("scan");
   return (
-    <Button asChild size="sm" className="max-sm:hidden">
-      <Link href={scan.href} aria-current={activeSection(pathname) === "scan" ? "page" : undefined}>
-        <Glyph name="scan" className="size-4" />
-        {scan.label}
-      </Link>
-    </Button>
+    <Link
+      href={scan.href}
+      aria-current={activeSection(pathname) === "scan" ? "page" : undefined}
+      className="flex h-14 items-center justify-center gap-2.5 bg-action text-[1.0625rem] font-semibold text-on-action shadow-hard transition-[transform,box-shadow,background-color,color] duration-150 hover:translate-[3px] hover:bg-action-hover hover:text-on-action-hover hover:shadow-hard-pressed max-lg:hidden"
+    >
+      <Glyph name="scan" className="size-5" />
+      {scan.label}
+    </Link>
   );
 }
 
@@ -87,7 +93,7 @@ export function PhoneBar({ role, pathname, counts = {} }: NavProps) {
   return (
     <nav
       aria-label="Stellwerk"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur lg:hidden"
     >
       <ul className={cn("grid h-16", tabs.length + (more.length > 0 ? 1 : 0) > 4 ? "grid-cols-5" : "grid-cols-4")}>
         {tabs.map((entry) => (

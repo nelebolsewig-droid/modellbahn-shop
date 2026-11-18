@@ -24,7 +24,7 @@ const SECTIONS = {
   orders: { href: "/admin/bestellungen", label: "Bestellungen", roles: EVERYONE },
   scan: { href: "/admin/scanner", label: "Scannen", roles: EVERYONE },
   stock: { href: "/admin/lager", label: "Lager", roles: EVERYONE },
-  overview: { href: "/admin", label: "Übersicht", roles: EVERYONE },
+  overview: { href: "/admin", label: "Heute", roles: EVERYONE },
   manufacturing: { href: "/admin/fertigung", label: "Fertigung", roles: EVERYONE },
   fairs: { href: "/admin/messen", label: "Messen", roles: OFFICE_ROLES },
   ebay: { href: "/admin/ebay", label: "eBay", roles: OFFICE_ROLES },
@@ -32,10 +32,10 @@ const SECTIONS = {
 } as const satisfies Record<SectionKey, { href: Route; label: string; roles: ReadonlySet<StaffRole> }>;
 
 /**
- * The header on a desk: the day's work (Modelle, Bestellungen, Lager) first, the rest
- * after it. Scannen is a button beside it, the Übersicht behind the Stellwerk's name.
+ * The rail on a desk (ADR 0030): Heute first, then the day's work, the rest after it.
+ * Scannen is the large button at the rail's foot.
  */
-const HEADER_KEYS: readonly SectionKey[] = ["models", "orders", "stock", "manufacturing", "fairs", "ebay", "settings"];
+const RAIL_KEYS: readonly SectionKey[] = ["overview", "orders", "models", "stock", "manufacturing", "fairs", "ebay", "settings"];
 
 /** The phone's bottom bar: the day's work, Scannen in the middle; the rest is behind "Mehr". */
 const BAR_KEYS: readonly SectionKey[] = ["models", "orders", "scan", "stock"];
@@ -57,8 +57,8 @@ function sectionsFor(role: StaffRole, keys: readonly SectionKey[]): Section[] {
   return keys.filter((key) => mayOpen(role, key)).map(section);
 }
 
-export function headerSections(role: StaffRole): Section[] {
-  return sectionsFor(role, HEADER_KEYS);
+export function railSections(role: StaffRole): Section[] {
+  return sectionsFor(role, RAIL_KEYS);
 }
 
 export function barSections(role: StaffRole): Section[] {

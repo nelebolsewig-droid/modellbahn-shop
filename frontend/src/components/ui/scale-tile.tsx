@@ -32,7 +32,7 @@ export function ScaleTile({ name, spec, note, className, ...props }: ScaleTilePr
       )}
       {...props}
     >
-      <span className="text-title leading-none font-extralight">{name}</span>
+      <span className="text-title leading-none font-display font-extrabold">{name}</span>
       <SpecLine values={spec} size="small" className="mt-2 flex-nowrap whitespace-nowrap" />
       {note ? <span className="mt-2 text-hint text-ink-tertiary">{note}</span> : null}
     </Item>
