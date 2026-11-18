@@ -106,7 +106,7 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
   const formError = errors.root?.server?.message;
 
   return (
-    <Panel title="Stammdaten" code="PRD 02">
+    <Panel title="Stammdaten">
       <form noValidate onSubmit={onSubmit} className="space-y-5">
         <FormError message={formError} />
         <FormField label="Name" error={errors.name?.message}>

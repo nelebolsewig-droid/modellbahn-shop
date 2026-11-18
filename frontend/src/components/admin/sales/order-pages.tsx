@@ -28,7 +28,7 @@ export function OrderListPage() {
           <div className="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
             <div>
               <p className="label-caps text-ink-secondary">
-                {view.mode === "track" ? "Gleisbild · jede Bestellung ist ein Wagen" : "Verkauf · Liste"}
+                {view.mode === "track" ? "Übersicht · von der Bestellung bis zum Paket" : "Verkauf · Liste"}
               </p>
               <h1 className="mt-3 text-title sm:text-display">{view.mode === "track" ? "Wo steht was?" : "Bestellungen"}</h1>
             </div>
@@ -37,7 +37,7 @@ export function OrderListPage() {
               value={view.mode}
               onValueChange={(mode) => setView(mode === "list" ? { mode: "list", status: "paid" } : { mode: "track" })}
             >
-              <OptionPill value="track">Gleisbild</OptionPill>
+              <OptionPill value="track">Übersicht</OptionPill>
               <OptionPill value="list">Liste</OptionPill>
             </OptionGroup>
           </div>

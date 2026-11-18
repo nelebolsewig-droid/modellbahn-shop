@@ -97,16 +97,16 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <Panel title="Lebenslauf" code="LG 21">
+        <Panel title="Lebenslauf">
           <History entries={data.history} />
         </Panel>
         <div className="space-y-6">
-          <Panel title="Steckbrief" code="LG 22">
+          <Panel title="Steckbrief">
             <Facts unit={data} />
             {SELECTABLE_STATUSES.has(data.status) || (data.status === "scrapped" && mayManage) ? <MoveUnit unit={data} /> : null}
           </Panel>
           {mayManage && mayCorrect(data) ? (
-            <Panel title="Ausführung" code="LG 26">
+            <Panel title="Ausführung">
               <p className="text-small text-ink-secondary">
                 Falsch etikettiert, etwa als Bausatz statt Fertigmodell? Die Ausführung ändern und das Etikett neu drucken.
               </p>
@@ -121,18 +121,18 @@ export function UnitDesk({ code: raw, staffRole, onStreamClosed }: { code: strin
             </Panel>
           ) : null}
           {data.parts.length > 0 ? (
-            <Panel title="Aus diesen Teilen" code="LG 25">
+            <Panel title="Aus diesen Teilen">
               <AssembledFrom unit={data} />
             </Panel>
           ) : null}
           {!gone ? (
-            <Panel title="Etikett" code="LG 23">
+            <Panel title="Etikett">
               <p className="text-small text-ink-secondary">Abgerissen oder unlesbar? Gleicher Code, neues Etikett.</p>
               <ReprintDialog code={data.code} />
             </Panel>
           ) : null}
           {mayManage && !gone ? (
-            <Panel title="Ausbuchen" code="LG 24">
+            <Panel title="Ausbuchen">
               <ScrapUnit unit={data} />
             </Panel>
           ) : null}

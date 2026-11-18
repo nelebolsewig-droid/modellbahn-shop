@@ -30,6 +30,7 @@ import {
   COUNTING_MODES,
   initialSession,
   latestAnswer,
+  modeOf,
   quantityOf,
   SCAN_QUANTITY_MAX,
   scanSession,
@@ -55,6 +56,11 @@ const MAY_ALLOCATE: ReadonlySet<StaffRole> = new Set(["owner", "staff"]);
 const RETRY_MS = 20_000;
 
 const MODES = [ScanMode.put_away, ScanMode.pick, ScanMode.scrap, ScanMode.lookup] as const;
+
+const AUTO = "auto";
+
+const AUTO_HINT =
+  "Einfach scannen. Ein Platz öffnet ihn zum Einlagern, jedes Etikett danach kommt hinein. Ein Etikett ohne Platz zeigt, was dazu im Lager steht.";
 
 const MODE_HINTS: Readonly<Record<ScanMode, string>> = {
   put_away:
@@ -105,7 +111,7 @@ type ScannerDeskProps = {
 export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: ScannerDeskProps) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState(() =>
-    initialSession(initialOrderId ? ScanMode.pick : ScanMode.put_away, initialOrderId),
+    initialSession(initialOrderId ? ScanMode.pick : "auto", initialOrderId),
   );
   const sessionRef = useRef(session);
   const [waiting, setWaiting] = useState(0);
@@ -224,13 +230,18 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
       }
       // One scan after the other: the answer to a location scan sets the context of the next.
       chain.current = chain.current.then(async () => {
-        const current = sessionRef.current;
+        // An automatic scan chose its mode when it was scanned; the context follows it.
+        const mode = modeOf(sessionRef.current, scanId);
+        const current = { ...sessionRef.current, mode };
         const scan: ScanIn = {
           scan_id: scanId,
           raw: text,
-          mode: current.mode,
+          mode,
           source,
-          context: contextFor(current),
+          // A location opened automatically is not the context of its own scan.
+          context: contextFor(
+            current.auto && interpretations(text)[0]?.kind === "location" ? { ...current, locationCode: null } : current,
+          ),
           quantity,
         };
         // Scans that wait go first, so the server sees them in the order they happened.
@@ -374,17 +385,20 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
 
       <OptionGroup
         label="Modus"
-        value={session.mode}
-        onValueChange={(value) => dispatch({ type: "mode", mode: value as ScanMode })}
+        value={session.auto ? AUTO : session.mode}
+        onValueChange={(value) =>
+          dispatch(value === AUTO ? { type: "auto" } : { type: "mode", mode: value as ScanMode })
+        }
         className="mt-6"
       >
+        <OptionPill value={AUTO}>Automatisch</OptionPill>
         {modes.map((mode) => (
           <OptionPill key={mode} value={mode}>
             {SCAN_MODE_LABELS[mode]}
           </OptionPill>
         ))}
       </OptionGroup>
-      <p className="mt-3 text-small text-ink-secondary">{MODE_HINTS[session.mode]}</p>
+      <p className="mt-3 text-small text-ink-secondary">{session.auto ? AUTO_HINT : MODE_HINTS[session.mode]}</p>
 
       {waiting > 0 ? (
         <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-warning bg-warning-subtle px-4 py-3">
@@ -400,18 +414,23 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="space-y-5">
+          {session.mode === ScanMode.pick ? (
+            <OrderChooser orderId={session.orderId} onChoose={(orderId) => dispatch({ type: "order", orderId })} />
+          ) : null}
+          {/* The camera comes first: on the phone it is what the scanner page is for. */}
+          <CameraView onFrame={onCameraFrame} onStart={unlockSound} flash={flash} />
           {session.mode === ScanMode.scrap ? (
             <ReasonChooser reason={session.reason} onChoose={(reason) => dispatch({ type: "reason", reason })} />
           ) : null}
           {COUNTING_MODES.has(session.mode) ? (
             <PlaceBar
-              mode={session.mode === ScanMode.scrap ? "scrap" : "put_away"}
+              mode={session.mode === ScanMode.scrap ? "scrap" : session.auto ? "auto" : "put_away"}
               code={session.locationCode}
               name={session.locationName}
               onLeave={() => dispatch({ type: "leave_location" })}
             />
           ) : null}
-          {COUNTING_MODES.has(session.mode) ? (
+          {COUNTING_MODES.has(session.mode) && (!session.auto || session.locationCode !== null) ? (
             <CountField
               key={session.quantity}
               value={session.quantity}
@@ -419,10 +438,6 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
               onCode={(code) => submit(code, "scanner")}
             />
           ) : null}
-          {session.mode === ScanMode.pick ? (
-            <OrderChooser orderId={session.orderId} onChoose={(orderId) => dispatch({ type: "order", orderId })} />
-          ) : null}
-          <CameraView onFrame={onCameraFrame} onStart={unlockSound} flash={flash} />
           <form onSubmit={onManual} className="flex gap-2" aria-label="Code eintippen">
             <label htmlFor="scan-manual" className="sr-only">
               Code eintippen
@@ -453,7 +468,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
               onUndo={(scanId) => void undo(scanId)}
             />
           ) : (
-            <IdleCard mode={session.mode} />
+            <IdleCard mode={session.auto ? null : session.mode} />
           )}
           {session.mode === ScanMode.pick && session.orderId !== null ? (
             <PickPanel orderId={session.orderId} mayAllocate={MAY_ALLOCATE.has(staffRole)} />
@@ -465,7 +480,7 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
   );
 }
 
-function IdleCard({ mode }: { mode: ScanMode }) {
+function IdleCard({ mode }: { mode: ScanMode | null }) {
   return (
     <div className="rounded-md border border-dashed border-line-strong px-5 py-8 text-center">
       <ScanGlyph className="mx-auto h-10 w-24 text-ink-tertiary" />
@@ -622,7 +637,7 @@ function PlaceBar({
   name,
   onLeave,
 }: {
-  mode: "put_away" | "scrap";
+  mode: "auto" | "put_away" | "scrap";
   code: string | null;
   name: string | null;
   onLeave: () => void;
@@ -631,12 +646,14 @@ function PlaceBar({
     return (
       <div className="flex items-center gap-3 rounded-md border border-dashed border-line-control px-4 py-3">
         <span aria-hidden="true" className="font-mono text-heading text-ink-disabled">
-          {mode === "scrap" ? "alle" : "leer"}
+          {mode === "scrap" ? "alle" : mode === "auto" ? "frei" : "leer"}
         </span>
         <p className="text-small text-ink-secondary">
           {mode === "scrap"
             ? "Ohne Platz: die ältesten freien Stücke, wo sie auch liegen. Für einen Platz sein Etikett scannen."
-            : "Noch kein Platz gewählt: zuerst das Etikett am Fach scannen."}
+            : mode === "auto"
+              ? "Kein Platz offen: Ein Etikett zeigt, was dazu im Lager steht. Zum Einlagern zuerst das Fach scannen."
+              : "Noch kein Platz gewählt: zuerst das Etikett am Fach scannen."}
         </p>
       </div>
     );
@@ -655,7 +672,7 @@ function PlaceBar({
         onClick={onLeave}
         className="border-on-selected/40 text-on-selected hover:border-on-selected hover:bg-on-selected/10"
       >
-        {mode === "scrap" ? "Ohne Platz" : "Platz wechseln"}
+        {mode === "scrap" ? "Ohne Platz" : mode === "auto" ? "Platz schließen" : "Platz wechseln"}
       </Button>
     </div>
   );

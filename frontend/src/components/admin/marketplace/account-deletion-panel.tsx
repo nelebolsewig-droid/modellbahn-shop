@@ -23,7 +23,7 @@ import { useAccountDeletionSetup, useEbayRefresh } from "./use-ebay";
 export function AccountDeletionPanel() {
   const setup = useAccountDeletionSetup();
   return (
-    <Panel title="Löschmeldungen von eBay" code="EBY 07">
+    <Panel title="Löschmeldungen von eBay">
       {setup.isPending ? (
         <PendingNotice>Wird geladen …</PendingNotice>
       ) : setup.isError ? (

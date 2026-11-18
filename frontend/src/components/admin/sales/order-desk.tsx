@@ -69,6 +69,8 @@ import {
   ORDER_STATUS_TONES,
   paymentLabel,
 } from "@/lib/sales/labels";
+import { ACTION_ANCHORS, type NextAction, nextAction } from "@/lib/sales/next-action";
+import { cn } from "@/lib/utils";
 import { cancelSchema, shipSchema } from "@/lib/validation/orders";
 
 /** Packers ship, but cancelling (and with it refunding) is for owner and staff. */
@@ -159,22 +161,31 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
         <ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />
       </div>
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <NextActionBar
+        action={nextAction({
+          order: data,
+          pickList: hasPickList(data) ? pickList.data : undefined,
+          awaitingTransfer: awaitedTransfer(data) !== undefined,
+          mayManage: MAY_CANCEL.has(staffRole),
+        })}
+      />
+
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         {/* In one column (the phone, where the packer works) the pick list comes first; with
             two columns it goes below history and items. */}
         <div className="flex min-w-0 flex-col gap-6">
           <OrderWithdrawals orderId={orderId} />
           {hasPickList(data) ? (
-            <Panel title="Kommissionieren" code="VK 16" className="lg:order-last">
+            <Panel title="Packen" id={ACTION_ANCHORS.picking} className="lg:order-last">
               <Picking order={data} list={pickList.data} error={pickList.error} mayAllocate={MAY_CANCEL.has(staffRole)} />
             </Panel>
           ) : null}
-          <Panel title="Verlauf" code="VK 11">
+          <Panel title="Verlauf">
             <OrderTimeline order={data} />
             <StateNote order={data} />
             {data.payments.length > 0 ? <Payments order={data} /> : null}
           </Panel>
-          <Panel title="Modelle" code="VK 12">
+          <Panel title="Modelle">
             <OrderLines lines={data.lines} linkToProducts={false} />
             <OrderTotals totals={data.totals} countryName={data.shipping_address.country_name} className="mt-5 sm:ml-auto sm:max-w-sm" />
           </Panel>
@@ -182,17 +193,17 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
 
         <div className="space-y-6">
           {awaitedTransfer(data) && MAY_CANCEL.has(staffRole) ? (
-            <Panel title="Überweisung" code="VK 19">
+            <Panel title="Überweisung" id={ACTION_ANCHORS.transfer}>
               <TransferBooking order={data} onBooked={store} />
             </Panel>
           ) : null}
-          <Panel title="Versand" code="VK 13">
+          <Panel title="Versand" id={ACTION_ANCHORS.dispatch}>
             <ParcelLabel order={data} />
             <div className="mt-5">
               <Dispatch order={data} pickList={pickList.data} onShipped={store} />
             </div>
           </Panel>
-          <Panel title="Kunde" code="VK 14">
+          <Panel title="Kunde">
             <dl className="space-y-4 text-small">
               <div>
                 <dt className="label-caps text-ink-tertiary">E-Mail-Adresse</dt>
@@ -215,11 +226,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
             </dl>
           </Panel>
           {cancellable ? (
-            <Panel title="Stornieren" code="VK 15">
+            <Panel title="Stornieren">
               <CancelOrder order={data} onCancelled={store} />
             </Panel>
           ) : fromEbay && data.status === "paid" ? (
-            <Panel title="Stornieren" code="VK 15">
+            <Panel title="Stornieren">
               <p className="text-small text-ink-secondary">
                 Bestellungen von eBay storniert der Käufer oder du auf eBay; eBay erstattet den Betrag. Der Shop
                 übernimmt die Stornierung beim nächsten Abgleich, die Ware geht zurück ins Lager.
@@ -227,13 +238,42 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
             </Panel>
           ) : null}
           {!fromEbay && MAY_CANCEL.has(staffRole) && (data.status === "shipped" || data.status === "paid") ? (
-            <Panel title="Erstattung" code="VK 18">
+            <Panel title="Erstattung">
               <RefundPanel order={data} onRefunded={store} />
             </Panel>
           ) : null}
         </div>
       </div>
     </>
+  );
+}
+
+const ACTION_TONES = {
+  act: { frame: "border-accent bg-accent-subtle", lamp: "bg-accent animate-lamp-pulse", caps: "Als Nächstes" },
+  wait: { frame: "border-line-strong bg-surface", lamp: "bg-ink-tertiary", caps: "Wartet" },
+  done: { frame: "border-success bg-success-subtle", lamp: "bg-success", caps: "Fertig" },
+} as const;
+
+/** The order's one main action, above everything else (ADR 0033). */
+function NextActionBar({ action }: { action: NextAction }) {
+  const tone = ACTION_TONES[action.tone];
+  const target = action.action;
+  return (
+    <section aria-label="Als Nächstes" className={cn("mt-6 flex flex-wrap items-center gap-x-6 gap-y-4 border-l-4 px-5 py-4", tone.frame)}>
+      <div className="min-w-0 flex-1 basis-72">
+        <p className="flex items-center gap-2 label-caps text-ink-secondary">
+          <span aria-hidden="true" className={cn("size-2 rounded-full", tone.lamp)} />
+          {tone.caps}
+        </p>
+        <p className="mt-1 font-display text-heading">{action.title}</p>
+        {action.text ? <p className="mt-1 text-small text-ink-secondary">{action.text}</p> : null}
+      </div>
+      {target ? (
+        <Button asChild variant={action.tone === "act" ? "primary" : "secondary"} className="max-sm:w-full">
+          {target.href.startsWith("#") ? <a href={target.href}>{target.label}</a> : <Link href={target.href as Route}>{target.label}</Link>}
+        </Button>
+      ) : null}
+    </section>
   );
 }
 

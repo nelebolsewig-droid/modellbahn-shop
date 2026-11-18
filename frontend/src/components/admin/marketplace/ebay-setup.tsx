@@ -58,7 +58,7 @@ export function EbaySetupDesk({ outcome }: { outcome: string | null }) {
       {returned ? (
         <Alert tone={returned.tone} title={returned.text}>
           {returned.tone === "success" ? (
-            <p>Prüfe unten die Fahrstraße: Erst wenn alle Signale grün sind, gehen Angebote online.</p>
+            <p>Prüfe unten die Liste: Erst wenn alle Punkte grün sind, gehen Angebote online.</p>
           ) : null}
         </Alert>
       ) : null}
@@ -100,7 +100,7 @@ function ConnectionPanel({ account }: { account: EbayStatusOut }) {
   return (
     <Panel
       title="Verbindung"
-      code="EBY 01"
+     
       actions={
         <StatusBadge tone={account.mode === "production" ? "success" : "accent"}>
           {MODE_LABELS[account.mode]}
@@ -166,9 +166,9 @@ function RouteSignals({ account }: { account: EbayStatusOut }) {
   return (
     <div className="mt-6 rounded-sm bg-sunken px-4 py-4">
       <p className="flex items-center gap-2 label-caps text-ink-tertiary">
-        Fahrstraße
+        Stand
         <span className={cn("font-medium normal-case tracking-normal", ready ? "text-success" : "text-warning")}>
-          {ready ? "frei: Angebote gehen online" : "noch nicht frei"}
+          {ready ? "bereit: Angebote gehen online" : "noch nicht bereit"}
         </span>
       </p>
       <ol className="relative mt-4 grid gap-3 sm:grid-cols-5 sm:gap-2">
@@ -247,7 +247,7 @@ function SettingsPanel({ account }: { account: EbayStatusOut }) {
   const connected = account.status === "connected";
   const policies = useEbayPolicies(connected && owner);
   return (
-    <Panel title="Einstellungen" code="EBY 02">
+    <Panel title="Einstellungen">
       {!connected ? (
         <p className="text-small text-ink-secondary">
           Nach dem Verbinden wählst du hier Versand, Zahlung und Rücknahme.
@@ -478,7 +478,7 @@ function CategoriesPanel() {
   const owner = useIsOwner();
   const categories = useEbayCategories(true);
   return (
-    <Panel title="Kategorien" code="EBY 03">
+    <Panel title="Kategorien">
       <p className="mb-4 text-hint text-ink-tertiary">
         Jede Shop-Kategorie bekommt die Nummer einer eBay-Kategorie, z. B. 180273 für Modellautos, -LKWs & -Busse. Es muss
         die Kategorie ganz unten im Baum sein (keine Oberkategorie wie 180250 Modelleisenbahnen). Die Nummer steht auf

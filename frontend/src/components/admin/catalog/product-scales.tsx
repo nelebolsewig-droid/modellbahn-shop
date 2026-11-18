@@ -59,7 +59,7 @@ export function ProductScales({ product, references }: Props) {
   });
 
   return (
-    <Panel title="Maßstäbe und Ausführungen" code="PRD 03">
+    <Panel title="Maßstäbe und Ausführungen">
       <datalist id={PAINT_LIST}>
         {PAINT_SUGGESTIONS.map((name) => (
           <option key={name} value={name} />

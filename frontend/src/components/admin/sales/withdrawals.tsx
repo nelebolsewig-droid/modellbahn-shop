@@ -74,7 +74,7 @@ export function WithdrawalsPanel() {
     return null;
   }
   return (
-    <Panel title="Widerrufe" code="VK 17" className="mb-8">
+    <Panel title="Widerrufe" className="mb-8">
       <ul className="divide-y divide-line">
         {items.map((withdrawal) => (
           <li key={withdrawal.id} className="grid gap-1 py-3 text-small sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6">

@@ -110,7 +110,7 @@ export function OrderTrack({ staffRole, onStreamClosed, onOpenList }: OrderTrack
     {
       key: "ready",
       name: "Versand",
-      sub: office ? "vollständig, abfahrbereit" : "bezahlt, zu packen",
+      sub: office ? "vollständig, kann raus" : "bezahlt, zu packen",
       count: laneCount(paid.data, ready.length),
       wagons: oldestFirst(ready),
       empty: "Gerade muss nichts raus.",
@@ -132,11 +132,11 @@ export function OrderTrack({ staffRole, onStreamClosed, onOpenList }: OrderTrack
   const columns = office ? "lg:grid-cols-4" : "lg:grid-cols-3";
 
   return (
-    <section aria-label="Gleisbild">
+    <section aria-label="Übersicht der Bestellungen">
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <dl className="flex flex-wrap gap-x-7 gap-y-2 text-small">
-          <Figure value={paid.isSuccess && unpaid.isSuccess ? String(open) : "–"} label="Wagen im Netz" />
-          <Figure value={paid.isSuccess ? String(ready.length) : "–"} label="abfahrbereit" highlight />
+          <Figure value={paid.isSuccess && unpaid.isSuccess ? String(open) : "–"} label="offen" />
+          <Figure value={paid.isSuccess ? String(ready.length) : "–"} label="versandfertig" highlight />
         </dl>
         <ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />
       </div>
@@ -146,7 +146,7 @@ export function OrderTrack({ staffRole, onStreamClosed, onOpenList }: OrderTrack
           {errorMessage(failed.error)}
         </p>
       ) : queries.some((query) => query.isPending) ? (
-        <PendingNotice className="mt-8">Das Gleisbild wird aufgebaut …</PendingNotice>
+        <PendingNotice className="mt-8">Die Übersicht wird geladen …</PendingNotice>
       ) : (
         <>
           {/* The line with its stations: on a desk only, where the columns stand side by side. */}

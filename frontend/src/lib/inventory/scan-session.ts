@@ -35,6 +35,12 @@ export type ScanEntry = {
 };
 
 export type ScanSession = {
+  /**
+   * Automatic: no mode to choose. A location opens it for putting away, a label then goes
+   * into it; a label without a location shows what is known about it (ADR 0033).
+   * `mode` is then the putting away the location belongs to.
+   */
+  auto: boolean;
   mode: ScanMode;
   /** Putting away: the location the next pieces go into; booking out: the one they leave. */
   locationCode: string | null;
@@ -56,6 +62,7 @@ export const COUNTING_MODES: ReadonlySet<ScanMode> = new Set(["put_away", "scrap
 export const SCAN_QUANTITY_MAX = 200;
 
 export type ScanEvent =
+  | { type: "auto" }
   | { type: "mode"; mode: ScanMode }
   | { type: "order"; orderId: string | null }
   | { type: "leave_location" }
@@ -70,8 +77,30 @@ export type ScanEvent =
 
 export const HISTORY_LENGTH = 30;
 
-export function initialSession(mode: ScanMode = "put_away", orderId: string | null = null): ScanSession {
-  return { mode, locationCode: null, locationName: null, orderId, quantity: 1, reason: "sold", entries: [] };
+/** Starts automatic, unless a mode is asked for (picking an order from the order desk). */
+export function initialSession(mode: ScanMode | "auto" = "auto", orderId: string | null = null): ScanSession {
+  return {
+    auto: mode === "auto",
+    mode: mode === "auto" ? "put_away" : mode,
+    locationCode: null,
+    locationName: null,
+    orderId,
+    quantity: 1,
+    reason: "sold",
+    entries: [],
+  };
+}
+
+/**
+ * The mode an automatic scan goes out in: a location is put-away's place; a label goes
+ * into the open place, or, without one, is looked up.
+ */
+export function autoModeFor(session: Pick<ScanSession, "locationCode">, raw: string): ScanMode {
+  const kind = interpretations(raw)[0]?.kind;
+  if (kind === "location" || session.locationCode !== null) {
+    return "put_away";
+  }
+  return "lookup";
 }
 
 /** A whole number from 1 to the most one scan books. */
@@ -85,10 +114,14 @@ function updateEntry(session: ScanSession, scanId: string, change: Partial<ScanE
 
 export function scanSession(session: ScanSession, event: ScanEvent): ScanSession {
   switch (event.type) {
-    case "mode":
-      return event.mode === session.mode
+    case "auto":
+      return session.auto
         ? session
-        : { ...session, mode: event.mode, locationCode: null, locationName: null, quantity: 1 };
+        : { ...session, auto: true, mode: "put_away", locationCode: null, locationName: null, quantity: 1 };
+    case "mode":
+      return event.mode === session.mode && !session.auto
+        ? session
+        : { ...session, auto: false, mode: event.mode, locationCode: null, locationName: null, quantity: 1 };
     case "order":
       return { ...session, orderId: event.orderId };
     case "leave_location":
@@ -100,18 +133,24 @@ export function scanSession(session: ScanSession, event: ScanEvent): ScanSession
     case "reason":
       return { ...session, reason: event.reason };
     case "scanned": {
-      const counts = COUNTING_MODES.has(session.mode) && namesModel(event.raw);
+      const mode = session.auto ? autoModeFor(session, event.raw) : session.mode;
+      const counts = COUNTING_MODES.has(mode) && namesModel(event.raw);
       const entry: ScanEntry = {
         scanId: event.scanId,
         raw: event.raw,
         source: event.source,
-        mode: session.mode,
+        mode,
         quantity: counts ? session.quantity : 1,
         at: event.at,
         state: "sending",
       };
+      // Automatic: a location opens at once, so a label scanned before the answer
+      // comes already goes into it. The answer names it, or closes it again.
+      const reading = interpretations(event.raw)[0];
+      const opens = session.auto && reading?.kind === "location";
       return {
         ...session,
+        ...(opens && { locationCode: reading.code, locationName: null }),
         quantity: counts ? 1 : session.quantity,
         entries: [entry, ...session.entries].slice(0, HISTORY_LENGTH),
       };
@@ -122,6 +161,17 @@ export function scanSession(session: ScanSession, event: ScanEvent): ScanSession
       // A location scanned while putting away or booking out becomes the place for what follows.
       if (answer.outcome === "selected" && answer.location !== null) {
         return { ...session, entries, locationCode: answer.location.code, locationName: answer.location.name };
+      }
+      // An automatic location the server does not know closes again.
+      const scannedEntry = session.entries.find((candidate) => candidate.scanId === answer.scan_id);
+      if (
+        session.auto &&
+        scannedEntry !== undefined &&
+        interpretations(scannedEntry.raw)[0]?.kind === "location" &&
+        session.locationCode === interpretations(scannedEntry.raw)[0]?.code &&
+        session.locationName === null
+      ) {
+        return { ...session, entries, locationCode: null };
       }
       return { ...session, entries };
     }
@@ -157,6 +207,11 @@ export function quantityFor(session: ScanSession): number {
 function namesModel(raw: string): boolean {
   const kind = interpretations(raw)[0]?.kind;
   return kind === "variant" || kind === "unit";
+}
+
+/** The mode a scan was taken in (automatic scans choose theirs when scanned). */
+export function modeOf(session: ScanSession, scanId: string): ScanMode {
+  return session.entries.find((entry) => entry.scanId === scanId)?.mode ?? session.mode;
 }
 
 /** The Anzahl a scan took along when it was scanned (1 for anything but a model label). */
