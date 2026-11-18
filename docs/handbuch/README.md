@@ -12,5 +12,5 @@ Anmeldung erreichbar (`proxy.ts`).
 Nach Änderungen am Text stimmen Seitenzahlen im Inhalt und in `help-page.tsx` vielleicht
 nicht mehr: im PDF nachsehen und angleichen.
 
-Offen: Lagerwert und Fotobearbeitung stehen als „Kommt bald“ in Kapitel 10 und werden
-ergänzt, sobald sie im Stellwerk sind.
+Offen: Die Fotobearbeitung steht als „Kommt bald“ in Kapitel 10 und wird
+ergänzt, sobald sie im Stellwerk ist. Der Lagerwert steht in Kapitel 07.

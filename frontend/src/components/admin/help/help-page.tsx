@@ -40,7 +40,7 @@ const TASKS: readonly Task[] = [
       "Etikett des Modells scannen. Vertippt? „Rückgängig“ auf der Antwortkarte.",
     ],
     href: "/admin/scanner",
-    page: 18,
+    page: 19,
   },
   {
     question: "Auf der Messe verkauft: wie buche ich aus?",
@@ -50,7 +50,7 @@ const TASKS: readonly Task[] = [
       "Etikett des Modells scannen.",
     ],
     href: "/admin/scanner",
-    page: 19,
+    page: 20,
   },
   {
     question: "Die Zahl im Regal stimmt nicht.",
@@ -80,7 +80,7 @@ const TASKS: readonly Task[] = [
       "Die Stücke gehen von selbst an die älteste Bestellung.",
     ],
     href: "/admin/bestellungen",
-    page: 20,
+    page: 21,
     office: true,
   },
   {
@@ -154,7 +154,7 @@ function Handbook() {
     >
       <div>
         <p aria-hidden="true" className="font-mono text-hint text-ink-tertiary">
-          HLP 01 · PDF · 26 Seiten
+          HLP 01 · PDF · 27 Seiten
         </p>
         <h2 id="handbook-heading" className="mt-3 text-heading">
           Das Stellwerk-Handbuch
