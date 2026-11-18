@@ -56,6 +56,17 @@ MAX_EXPOSURE_GAIN: Final = 2.4
 NEUTRAL_BACKDROP_CHROMA: Final = 0.5
 # Share of the found area that may be a mere maybe; real models stay below 0.15.
 MAX_UNSURE_SHARE: Final = 0.5
+# Black parts in the model's own black shadow (tyres under a car): what is this dark
+# against the backdrop and hangs on the model belongs to it. Fully from DARK_SURE
+# down, not at all above DARK_MAYBE (shares of the backdrop's brightness), and only
+# this far from what the cut-out found (in model sizes).
+DARK_SURE: Final = 0.035
+DARK_MAYBE: Final = 0.12
+DARK_REACH: Final = 0.12
+# Only in front of a light backdrop, and never more than this share of the model:
+# anything else is not a tyre in a photo box but a dark room.
+DARK_MIN_BACKDROP: Final = 0.2
+DARK_MAX_SHARE: Final = 0.25
 # Espresso #26211e, the ink of the shop, as shadow colour.
 SHADOW_RGB: Final = (0x26, 0x21, 0x1E)
 # The photo's own shadow: how far around the model it counts (in model sizes), below
@@ -100,7 +111,8 @@ class PhotoStudio:
         matte = self._segmenter.matte(work)
         if _hesitant(matte):
             return StudioResult(None, "the cut-out is unsure what the model is")
-        alpha = _clean_matte(matte)
+        linear = _to_linear(rgb)
+        alpha = _with_dark_parts(_clean_matte(matte), _luminance(linear))
         solid = alpha > 0.5
         subject = _bounding_box(solid)
         total = solid.size
@@ -109,12 +121,12 @@ class PhotoStudio:
         ):
             return StudioResult(None, "no model found against the backdrop")
 
-        linear = _to_linear(rgb)
         backdrop = _backdrop_colour(linear, alpha)
         corrected = _correct_light(linear, backdrop)
         local_backdrop = _local_backdrop(corrected, alpha)
 
-        crop = _expanded(subject, solid.shape, CROP_MARGIN)
+        # The soft rim reaches further than the solid model; none of it may be cut off.
+        crop = _expanded(_bounding_box(alpha > 0.01) or subject, solid.shape, CROP_MARGIN)
         window = (slice(crop.top, crop.bottom), slice(crop.left, crop.right))
         fg = _decontaminate(corrected[window], alpha[window], local_backdrop[window])
         cut = _to_image(_to_srgb(fg), alpha[window])
@@ -242,6 +254,43 @@ def _clean_matte(matte: FloatImage) -> FloatImage:
         small[1:] = hole_sizes < solid.sum() * 0.002
         matte = np.where(small[hole_labels], 1.0, matte).astype(np.float32)
     return matte
+
+
+def _with_dark_parts(alpha: FloatImage, luminance: FloatImage) -> FloatImage:
+    """Add what is nearly black and hangs on the model: tyres in the shadow under a car.
+
+    The cut-out cannot tell a black tyre from the black shadow it stands in and drops
+    both, which leaves a car without wheels. Nothing in the photo tells them apart, so
+    the darkest core goes with the model, as the photo shows it; the lighter shadow
+    around it is still taken as shadow.
+    """
+    solid = alpha > 0.5
+    free = alpha < 0.02
+    subject = _bounding_box(solid)
+    if subject is None or not free.any():
+        return alpha
+    backdrop = float(np.median(luminance[free]))
+    if backdrop < DARK_MIN_BACKDROP:
+        return alpha
+    dark = _smooth((DARK_MAYBE - luminance / backdrop) / (DARK_MAYBE - DARK_SURE))
+    reach = max(subject.width, subject.height) * DARK_REACH
+    distance = ndimage.distance_transform_edt(~solid)
+    near = distance <= reach
+    candidate = (luminance < DARK_SURE * 2 * backdrop) & near & ~solid
+    labels, count = ndimage.label(candidate)
+    if count == 0:
+        return alpha
+    touching = np.unique(labels[ndimage.binary_dilation(solid, iterations=2) & candidate])
+    keep = np.zeros(count + 1, dtype=bool)
+    keep[touching] = True
+    keep[0] = False
+    if int(keep[labels].sum()) > DARK_MAX_SHARE * int(solid.sum()):
+        return alpha
+    # Around it the black thins out into shadow: let it fade instead of ending in a cut.
+    around = ndimage.binary_dilation(keep[labels], iterations=max(3, round(reach * 0.3)))
+    fade = _smooth((reach - distance) / (reach * 0.5))
+    added: FloatImage = np.maximum(alpha, np.where(around, dark * fade, 0.0)).astype(np.float32)
+    return added
 
 
 def _bounding_box(solid: NDArray[np.bool_]) -> Box | None:
