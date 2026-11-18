@@ -59,7 +59,7 @@ function FilterLink({ href, active, children, "aria-label": label, title }: Filt
       aria-label={label}
       title={title}
       className={cn(
-        "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-150",
+        "inline-flex h-10 items-center rounded-none border px-4 text-sm font-medium transition-colors duration-150",
         active ? "border-selected bg-selected text-on-selected" : "border-line-strong bg-surface text-ink hover:border-ink",
       )}
     >

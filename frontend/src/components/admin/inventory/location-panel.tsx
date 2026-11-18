@@ -31,12 +31,12 @@ export function LocationTree({ items, className }: { items: readonly LocationNod
                 <span className="ml-2 text-hint text-ink-tertiary">{item.name || LOCATION_KIND_LABELS[item.kind]}</span>
               </span>
               {item.part_count > 0 ? (
-                <span className="rounded-full border border-accent/40 px-2 py-0.5 text-hint whitespace-nowrap tabular-nums text-accent">
+                <span className="rounded-none border border-accent/40 px-2 py-0.5 text-hint whitespace-nowrap tabular-nums text-accent">
                   {partCount(item.part_count)}
                 </span>
               ) : null}
               {item.total_count > 0 ? (
-                <span className="rounded-full bg-sunken px-2 py-0.5 text-hint font-medium tabular-nums text-ink-secondary">
+                <span className="rounded-none bg-sunken px-2 py-0.5 text-hint font-medium tabular-nums text-ink-secondary">
                   {item.total_count}
                 </span>
               ) : null}

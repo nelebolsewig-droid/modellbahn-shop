@@ -222,7 +222,7 @@ export function PlanJobDialog({ printers, printerId, trigger }: PlanJobDialogPro
                         <button
                           type="button"
                           onClick={() => add(part)}
-                          className="inline-flex max-w-full items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5 text-small transition-colors hover:border-ink"
+                          className="inline-flex max-w-full items-center gap-2 rounded-none border border-line-strong bg-surface px-3 py-1.5 text-small transition-colors hover:border-ink"
                         >
                           <span aria-hidden="true" className="text-accent">
                             +
@@ -409,7 +409,7 @@ export function FailJobDialog({ job, trigger }: { job: PrintJobOut; trigger: Rea
                 type="button"
                 aria-pressed={reason === text}
                 onClick={() => setReason(text)}
-                className="rounded-full border border-line-strong px-3 py-1.5 text-small transition-colors hover:border-ink aria-pressed:border-selected aria-pressed:bg-selected aria-pressed:text-on-selected"
+                className="rounded-none border border-line-strong px-3 py-1.5 text-small transition-colors hover:border-ink aria-pressed:border-selected aria-pressed:bg-selected aria-pressed:text-on-selected"
               >
                 {text}
               </button>

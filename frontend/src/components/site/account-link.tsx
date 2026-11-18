@@ -11,17 +11,17 @@ export function AccountLink() {
 
   if (session.status === "loading") {
     // Keeps the header from jumping when the answer arrives.
-    return <span className="inline-block h-9 w-32" aria-hidden="true" />;
+    return <span className="inline-block h-9 w-24 sm:w-32" aria-hidden="true" />;
   }
   if (session.status === "authenticated") {
     return (
-      <Button asChild variant="secondary" size="sm">
+      <Button asChild variant="secondary" size="sm" className="max-sm:px-3">
         <Link href="/konto">Mein Konto</Link>
       </Button>
     );
   }
   return (
-    <Button asChild variant="secondary" size="sm">
+    <Button asChild variant="secondary" size="sm" className="max-sm:px-3">
       <Link href="/konto/anmelden">Anmelden</Link>
     </Button>
   );

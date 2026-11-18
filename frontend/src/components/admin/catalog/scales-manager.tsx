@@ -102,7 +102,7 @@ function ScaleRow({ scale, longest }: { scale: AdminScaleOut; longest: number })
   return (
     <li className="grid gap-x-6 gap-y-3 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center">
       <span>
-        <span className="block text-heading leading-none font-extralight">{scale.name}</span>
+        <span className="block text-heading leading-none font-display font-extrabold">{scale.name}</span>
         <span className="mt-1 block font-mono text-hint text-ink-tertiary">Code {scale.code}</span>
       </span>
       <span className="min-w-0">

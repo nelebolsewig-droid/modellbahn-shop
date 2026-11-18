@@ -28,7 +28,7 @@ export function CartLink() {
       <span
         aria-hidden="true"
         className={cn(
-          "absolute -top-0.5 -right-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-selected px-1",
+          "absolute -top-0.5 -right-0.5 grid h-5 min-w-5 place-items-center rounded-none bg-selected px-1",
           "text-[0.6875rem] leading-none font-semibold text-on-selected tabular-nums transition-transform duration-150",
           count === 0 && "scale-0",
         )}

@@ -50,7 +50,7 @@ export function OptionPill({
   return (
     <Item
       className={cn(
-        "inline-flex h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-full border px-5",
+        "inline-flex h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-none border px-5",
         "text-[0.9375rem] font-medium transition-[background-color,border-color,color] duration-150",
         "border-line-strong bg-surface text-ink hover:border-ink",
         "disabled:cursor-not-allowed disabled:text-ink-disabled disabled:hover:border-line-strong",

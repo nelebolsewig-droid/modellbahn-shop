@@ -299,7 +299,7 @@ function BankTransferSheet({ order, token, statusHref, transfer }: SheetProps & 
 
 function TransferBadge() {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-hint font-medium text-ink-secondary">
+    <span className="inline-flex items-center gap-2 rounded-none border border-line px-3 py-1 text-hint font-medium text-ink-secondary">
       <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M2 6.5 8 3l6 3.5M3 6.5V12m3.33-5.5V12m3.34-5.5V12M13 6.5V12M2 13.5h12" />
       </svg>
@@ -332,7 +332,7 @@ function ChoiceItem({ value, label, description }: { value: string; label: strin
 
 function SumUpBadge() {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-hint font-medium text-ink-secondary">
+    <span className="inline-flex items-center gap-2 rounded-none border border-line px-3 py-1 text-hint font-medium text-ink-secondary">
       <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
         <rect x="3" y="7" width="10" height="7" rx="1.5" />
         <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
@@ -355,7 +355,7 @@ function TestPaymentSheet({ order, token, statusHref, offersTransfer }: ChoicePr
       statusHref={statusHref}
       onSubmit={() => pay.mutate(method)}
       badge={
-        <span className="rounded-full border border-dashed border-warning px-3 py-1 text-hint font-medium text-warning">
+        <span className="rounded-none border border-dashed border-warning px-3 py-1 text-hint font-medium text-warning">
           Testzahlung · kein echtes Geld
         </span>
       }

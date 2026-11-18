@@ -188,7 +188,7 @@ export function PartStockPanel() {
       {lines.length > 0 ? (
         <>
           <p className="flex flex-wrap items-baseline gap-x-2 text-small text-ink-secondary">
-            <span className="text-[1.75rem] leading-9 font-light text-ink tabular-nums">{total}</span>
+            <span className="text-[1.75rem] leading-9 font-display font-extrabold text-ink tabular-nums">{total}</span>
             Teile in Boxen, {lines.length === 1 ? "1 Teilenummer" : `${lines.length} Teilenummern`}
           </p>
           {lines.length > 5 ? (

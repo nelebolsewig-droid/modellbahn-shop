@@ -131,7 +131,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         });
       }}
       aria-label={`${label} kopieren`}
-      className="shrink-0 rounded-full border border-line-control px-2.5 py-0.5 text-hint font-medium text-ink-secondary transition-colors hover:border-ink hover:text-ink"
+      className="shrink-0 rounded-none border border-line-control px-2.5 py-0.5 text-hint font-medium text-ink-secondary transition-colors hover:border-ink hover:text-ink"
     >
       <span aria-live="polite">{copied ? "Kopiert" : "Kopieren"}</span>
     </button>

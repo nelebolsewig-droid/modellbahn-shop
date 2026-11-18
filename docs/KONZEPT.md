@@ -1479,35 +1479,34 @@ erneut zu buchen.
 
 ## 11 · Gestaltung
 
-Hell, ruhig und präzise. Der Shop ist eine Galerie, in der die Modelle ausgestellt sind, und
-eine Werkstatt, in der jedes Maß stimmt. Vorbild ist die minimalistische Präzision großer
-Produktseiten, verbunden mit dem Strich einer Architekturzeichnung. Festgelegt am 22.10.2026
-(ADR 0007). Das Designsystem mit allen Tokens und einer Live-Vorschau jeder Komponente liegt
-als eigenes Artefakt „Modellbahn-Shop Designsystem“ vor; dieser Abschnitt ist die verbindliche
-Kurzfassung.
+Warm, hell und kantig. Festgelegt von der Inhaberin am 18.11.2026 (ADR 0030, ersetzt Farben,
+Schriften und Radien aus ADR 0007): Alabaster und Sand als Grund, Mandarin für die eine
+Hauptaktion, Terrakotta für Hover und Highlights, Espresso für Text. Die Startseite ist ein
+Scroll-Film um ein realistisch gerendertes Modell.
 
 ### 11.1 Leitlinien
 
-1. **Hell, nie duster.** Grund ist ein mattes Lichtgrau (`canvas`) mit Galerie-Charakter. Kein
-   reines Schwarz, kein dunkler Seitengrund, auch nicht im Stellwerk.
+1. **Hell und warm, nie dunkel.** Grund ist Alabaster-Beige (`canvas`), Karten und Sektionen
+   sind Sandbeige. Kein reines Schwarz, kein dunkler Seitengrund, auch nicht im Stellwerk.
 2. **Produktfotos im Fokus.** Fotos stehen in rahmenlosen Bühnen (`stage`) mit viel Leerraum;
    das Modell füllt etwa drei Viertel der Fläche, damit die Details des Drucks wirken.
-3. **Zeichnungen wie Architekturpläne.** Technische Ansichten in feinen 1-px-Linien in
-   Preußischblau oder Anthrazit auf hellem Raster, mit Maßlinien und Schriftfeld.
-4. **Bedienelemente minimal.** Maßstab und Ausführung („Bausatz · Fertigmodell“) als
-   Pills oder Kacheln mit hauchdünner, hellgrauer Kontur; Farben als Pill mit Farbtupfer. Aktiv: Mattschwarz oder dezentes
-   Preußischblau.
-5. **Große, dünne, serifenlose Schrift.** Eine Familie (Geist). Kennzeilen wie
-   „H0 · 1:87 · Resin“ in 22 px, Gewicht 300, mit tabellarischen Ziffern.
+3. **Kantig und präzise.** Keine Rundungen außer echten Kreisen (Lampen, Punkte); feine
+   Haarlinien, Maßlinien und abgeschrägte Ecken statt weicher Schatten.
+4. **Eine Hauptaktion in Mandarin.** Der primäre Knopf ist Mandarin mit Espresso-Schrift,
+   beim Überfahren Terrakotta mit weißer Schrift. Aktive Optionen sind Espresso.
+5. **Kräftige Überschriften.** Bricolage Grotesque in Gewicht 800, eng gesetzt; Fließtext in
+   Geist, Maßzahlen in Geist Mono mit tabellarischen Ziffern.
 6. **Präzise auch bei Barrierefreiheit.** Jede Schrift erreicht mindestens 4,5 : 1 auf ihrem
    Grund. Haarlinien sind Zierde und nie der einzige Hinweis auf einen Zustand.
+7. **Bewegung folgt dem Scrollen.** Der Scroll-Film der Startseite bewegt nichts von selbst;
+   bei „Bewegung reduzieren“ stehen seine Kapitel still.
 
 ### 11.2 Design-Tokens in drei Ebenen
 
 ```
-Rohwerte      gray-50 #F4F4F1, prussian-800 #003153 …     nennen nur Farben
+Rohwerte      alabaster #FAF6F0, mandarin-500 #E8632B …   nennen nur Farben
    ↓
-Bedeutungen   canvas, stage, ink, accent, selected, line   sagen, wofür eine Farbe steht
+Bedeutungen   canvas, stage, ink, action, accent, line     sagen, wofür eine Farbe steht
    ↓
 Komponenten   OptionPill, ScaleTile, ProductStage …        verwenden nur Bedeutungen
 ```
@@ -1517,44 +1516,46 @@ keine Hex-Werte.
 
 | Bedeutung | Rohwert | Wert | Wofür | Kontrast |
 | --- | --- | --- | --- | --- |
-| `canvas` | gray-50 | #F4F4F1 | Seitengrund in Shop und Stellwerk | |
-| `stage` | gray-25 | #FAFAF8 | Produktbühne, Zeichnungen | |
-| `surface` | gray-0 | #FFFFFF | Felder, Dialoge, Listen | |
-| `sunken` | gray-100 | #ECECE8 | vertiefte Flächen, Deaktiviertes | |
-| `ink` | gray-900 | #1E2124 | Text, Anthrazit | 14,7 : 1 auf `canvas` |
-| `ink-secondary` | gray-700 | #4E5357 | Beschreibungen | 7,1 : 1 |
-| `ink-tertiary` | gray-600 | #666B70 | Metadaten, Trennpunkte | ≥ 4,5 : 1 auf allen Gründen |
-| `line` | gray-200 | #DEDFDB | Haarlinien, Konturen von Pills | Zierde |
-| `line-control` | gray-500 | #80858A | Rahmen von Eingabefeldern | 3,4 : 1 |
-| `selected` | gray-900 | #1E2124 | aktive Option, primärer Knopf (Mattschwarz) | Schrift darauf 16,2 : 1 |
-| `accent` | prussian-800 | #003153 | Links, Fokusring, Akzent-Auswahl | 12,2 : 1 |
-| `drawing-line` | prussian-800 | #003153 | Konturen in Zeichnungen | |
-| `drawing-grid` | prussian-100 | #D9E4EE | Raster hinter Zeichnungen | Zierde |
-| `success`, `warning`, `danger` | green-700, amber-700, red-700 | #2E7046, #8A5A00, #A8322B | Zustände, immer mit Wort | ≥ 5,0 : 1 |
+| `canvas` | alabaster | #FAF6F0 | Seitengrund in Shop und Stellwerk | |
+| `stage`, `surface` | sand-100 | #EFE7DC | Karten, Sektionen, Produktbühne, Felder, Dialoge | |
+| `sunken` | sand-200 | #E6DCCD | vertiefte Flächen, Deaktiviertes | |
+| `ink` | espresso-900 | #26211E | Text und Überschriften | 14,8 : 1 auf `canvas` |
+| `ink-secondary` | espresso-700 | #5C524B | Beschreibungen | 7,1 : 1 |
+| `ink-tertiary` | espresso-600 | #665B53 | Metadaten, Trennpunkte | ≥ 4,5 : 1 auf allen Gründen |
+| `line` | sand-300 | #DDD0BE | Haarlinien, Konturen | Zierde |
+| `line-control` | sand-600 | #85786B | Rahmen von Eingabefeldern | ≥ 3 : 1 |
+| `selected` | espresso-900 | #26211E | aktive Option | Schrift darauf 15,9 : 1 |
+| `action` | mandarin-500 | #E8632B | primärer Knopf, Schrift darauf Espresso (`on-action`) | 4,7 : 1 |
+| `action-hover`, `highlight` | terracotta-600 | #C94B1A | Hover des Knopfs (Schrift Weiß), große Schrift, Marken | 4,7 : 1 |
+| `accent` | terracotta-700 | #9E380F | Links, Fokusring, kleine Akzentschrift | ≥ 5,1 : 1 auf allen Gründen |
+| `drawing-line` | espresso-900 | #26211E | Konturen in Zeichnungen | |
+| `drawing-grid` | sand-200 | #E6DCCD | Raster hinter Zeichnungen | Zierde |
+| `success`, `warning`, `danger` | green-700, amber-700, red-700 | #2A6640, #7A5000, #9C2E27 | Zustände, immer mit Wort | ≥ 5,0 : 1 |
 
 | Schriftstil | Größe / Zeile | Gewicht | Einsatz |
 | --- | --- | --- | --- |
-| `display-xl` | 80 / 84 px | 200 | einmal pro Seite |
-| `display` | 56 / 60 px | 200 | Seitentitel |
-| `title` | 40 / 46 px | 300 | Abschnittstitel |
-| `heading` | 28 / 34 px | 400 | Überschriften im Text |
-| `spec` | 22 / 30 px | 300 | Kennzeile „H0 · 1:87 · Resin“ |
+| `display-xl` | 80 / 84 px | 800, Bricolage Grotesque | einmal pro Seite |
+| `display` | 56 / 60 px | 800 | Seitentitel |
+| `title` | 40 / 46 px | 800 | Abschnittstitel |
+| `heading` | 28 / 34 px | 800 | Überschriften im Text |
+| `spec` | 22 / 30 px | 400 | Kennzeile „H0 · 1:87 · Resin“ |
 | `body-large`, `body`, `small` | 19, 16, 14 px | 400 | Text |
 | `label` | 12 / 16 px | 500 | Großbuchstaben über Optionsgruppen |
 | `mono` (Geist Mono) | 13 / 20 px | 400 | EAN, Teilenummern, Maßzahlen |
 
 Abstände im 4-px-Raster von 4 bis 160 px; Abschnitte trennt 96 px, Produktreihen 48 px.
-Radien: 8 px (Felder), 14 px (Kacheln), 24 px (Bühne), Pill. Linien 1 px, Fokusring 2 px.
-Schatten nur für Dialoge und Popover.
+Radien: überall 0; rund sind nur echte Kreise. Linien 1 px, Fokusring 2 px.
+Schatten nur für Dialoge und Popover, dazu der harte, versetzte Schatten des Aufrufs im
+Scroll-Film.
 
 ### 11.3 Komponenten
 
 | Komponente | Zweck | Aktiv / Zustände |
 | --- | --- | --- |
-| `Button` | Aktion: primär, sekundär, Textlink | primär Mattschwarz; deaktiviert nur mit Grund daneben |
-| `OptionPill` | Maßstab, Ausführung, Technik, Epoche | Mattschwarz oder Preußischblau; nicht lieferbar gestrichelt |
-| `ScaleTile` | große Maßstab-Wahl: „H0 · 1:87 · Gleis 16,5 mm“ | Kontur in Mattschwarz |
-| `ScaleRule` | Maßband: ein Meter Vorbild im Maßstab, alle Bänder einer Reihe im selben Millimetermaß | Tusche-Striche, Ende in Preußischblau |
+| `Button` | Aktion: primär, sekundär, Textlink | primär Mandarin, Hover Terrakotta; deaktiviert nur mit Grund daneben |
+| `OptionPill` | Maßstab, Ausführung, Technik, Epoche | Espresso oder Terrakotta; nicht lieferbar gestrichelt |
+| `ScaleTile` | große Maßstab-Wahl: „H0 · 1:87 · Gleis 16,5 mm“ | Kontur in Espresso |
+| `ScaleRule` | Maßband: ein Meter Vorbild im Maßstab, alle Bänder einer Reihe im selben Millimetermaß | Tusche-Striche, Ende in Terrakotta |
 | `ProductStage` | rahmenlose Fotobühne, 4:5, 1:1, 16:10 | Bildwechsel 320 ms |
 | `BlueprintDrawing` | technische Ansicht mit Maßen und Schriftfeld | Linien zoomunabhängig 1 px |
 | `ExplosionView` | Explosionszeichnung in 3D mit Stückliste: das Modell fährt beim Scrollen auseinander und zusammen (ADR 0016) | Teil, Nummer und Zeile leuchten gemeinsam; bei reduzierter Bewegung still, zerlegt |
@@ -1562,6 +1563,8 @@ Schatten nur für Dialoge und Popover.
 | `StatusBadge` | Am Lager · Wird für dich gedruckt · nicht lieferbar | Punkt plus Wort |
 | `TextField` | Formulareingabe | Fehler in `danger`, Text nennt die Lösung |
 | `ProductCard` | Modell im Katalog, ganze Karte ein Link | kein Knopf auf der Karte |
+| `ScrollFilm` | Startseite als Scroll-Film in fünf Kapiteln um den gerenderten EDK 6 (ADR 0030) | bei reduzierter Bewegung still und vollständig lesbar |
+| `Wordmark` | Wortmarke „adp-Modelle“: Times New Roman fett kursiv, Bindestrich, Arial fett | |
 | `EventFeed` | Live-Ereignisse im Stellwerk | neues Ereignis auf `accent-subtle` |
 | `PrinterCard` | ein Drucker der Druckerhalle wie ein Typenschild: Code vom Etikett, Lampe, Zeichnung, Platte, Warteschlange (ADR 0017) | Lampe blau beim Drucken, rot defekt, gelb in Reparatur; im Druck wächst das Teil in der Zeichnung |
 
@@ -1574,11 +1577,12 @@ Gruppe. Der Fokusring in `accent` erscheint nur bei Tastaturbedienung.
   `globals.css` macht daraus Tailwind-Klassen (`bg-canvas`, `text-ink-secondary`,
   `border-line`). Komponenten verwenden nur diese Klassen.
 - Die Komponenten liegen unter `frontend/src/components/ui/` und heißen wie im Designsystem.
-- `src/styles/tokens.test.ts` liest `tokens.css` und prüft 52 Kontrastpaare (Text 4,5 : 1,
+- `src/styles/tokens.test.ts` liest `tokens.css` und prüft alle Kontrastpaare (Text 4,5 : 1,
   Rahmen und Fokus 3 : 1). Wer eine Farbe so ändert, dass Text unlesbar wird, bricht den Build.
 - Das Stellwerk nutzt dieselben Tokens mit `data-density="werkstatt"`: Knöpfe, Pills und
   Felder eine Stufe kompakter.
-- Geist und Geist Mono werden über `next/font` selbst gehostet; Besucher laden nichts von Google.
+- Geist, Geist Mono, Bricolage Grotesque sowie Tinos und Arimo (Ersatz für die Wortmarke) werden
+  über `next/font` selbst gehostet; Besucher laden nichts von Google.
 - Tailwinds eigene Farbpalette ist abgeschaltet (`--color-*: initial`); eine Komponente kann
   keine Farbe außerhalb des Designsystems wählen.
 - Einen dunklen Modus gibt es nicht. Weil Komponenten nur Bedeutungen kennen, ließe er sich
@@ -1649,6 +1653,7 @@ Am 21.10.2026 mit dem Auftraggeber geklärt:
 | 25 | Ein Code pro Modell (15.11.2026) | **Ein Etikett nennt die Ausführung, nie ein Stück:** EAN-13 ohne Code 128 der Einheit, so oft gedruckt wie nötig, ohne Stücke anzulegen. Stücke kommen mit Anzahl und Platz in den Bestand (Einbuchen, Einlager-Scan mit Anzahl); der Scanner bucht auch aus (Verkauf auf der Messe). Intern bleibt jedes Stück eine Einheit (ADR 0027) |
 | 26 | Das Modell im Mittelpunkt (15.11.2026) | **Ein Modell ist eine Seite:** Bestand je Ausführung und Platz mit Einbuchen, Ausbuchen, Umlagern, Etiketten und Zählen nach Anzahl, darunter Bearbeiten und Verlauf. „Neues Modell“ in vier Schritten ersetzt Erfassen. Täglich: Modelle, Bestellungen, Scannen, Lager. Ein Regal mit seinen Böden entsteht in einem Schritt, alle Etiketten gleich dazu. Versendet wird ohne Scannen, „Versandlabel drucken“ bucht Label und Versand zusammen (ADR 0028) |
 | 27 | Nachfertigen für alle Modelle (15.11.2026) | **Jedes Modell bleibt bestellbar, was fehlt, wird gefertigt:** eine Lieferzeit für den Shop (zu Beginn 2–4 Wochen, ändert nur der Inhaber), beim Lesen eingesetzt; je Ausführung eine eigene oder „nicht nachfertigen“. Der Shop sagt, wie viele sofort gehen und wie viele gefertigt werden; die Mails nennen den Versand. „Zu fertigen“ unter Bestellungen. eBay bleibt beim Bestand, außer bei eigener Lieferzeit. Ersetzt die Vorgaben aus 9 und 15 (ADR 0029) |
+| 28 | Gestaltung von adp-Modelle (18.11.2026) | **Warme Palette, kantige Formen, Scroll-Film:** Alabaster und Sand als Grund, Mandarin für die Hauptaktion (Schrift darauf Espresso), Terrakotta für Hover und Highlights, Espresso für Text; nichts Dunkles. Überschriften in Bricolage Grotesque 800, alle Radien 0, Wortmarke „adp-Modelle“ in Times New Roman fett kursiv und Arial fett. Die Startseite ist ein Scroll-Film um den gerenderten EDK 6. Ersetzt Farben, Schriften und Radien aus Entscheidung 6 (ADR 0030) |
 
 Noch offen:
 

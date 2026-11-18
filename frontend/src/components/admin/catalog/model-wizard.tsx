@@ -286,7 +286,7 @@ export function ModelWizard() {
       <h1 className="mt-2 text-heading">Neues Modell: {STEPS[step]}</h1>
       <ol aria-label="Schritte" className="mt-4 grid grid-cols-4 gap-1">
         {STEPS.map((label, index) => (
-          <li key={label} aria-current={index === step ? "step" : undefined} className={index <= step ? "h-1 rounded-full bg-selected" : "h-1 rounded-full bg-line"}>
+          <li key={label} aria-current={index === step ? "step" : undefined} className={index <= step ? "h-1 rounded-none bg-selected" : "h-1 rounded-none bg-line"}>
             <span className="sr-only">{label}</span>
           </li>
         ))}
@@ -378,7 +378,7 @@ export function ModelWizard() {
                                     <button
                                       type="button"
                                       onClick={() => choose(finish.code, { colors: choice.colors.filter((other) => other !== color) })}
-                                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1 text-small hover:border-ink"
+                                      className="inline-flex cursor-pointer items-center gap-2 rounded-none border border-line px-3 py-1 text-small hover:border-ink"
                                       aria-label={`${color} entfernen`}
                                     >
                                       <ColorDot color={color} size="sm" />

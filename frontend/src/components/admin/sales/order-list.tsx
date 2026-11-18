@@ -225,7 +225,7 @@ function OrderRow({ order, fresh }: { order: OrderSummaryOut; fresh: boolean }) 
             {order.channel === "ebay" ? (
               <ChannelBadge />
             ) : order.guest ? (
-              <span className="shrink-0 rounded-full border border-line px-2 text-hint text-ink-tertiary">Gast</span>
+              <span className="shrink-0 rounded-none border border-line px-2 text-hint text-ink-tertiary">Gast</span>
             ) : null}
           </span>
           <span className="mt-0.5 block truncate text-hint text-ink-tertiary">

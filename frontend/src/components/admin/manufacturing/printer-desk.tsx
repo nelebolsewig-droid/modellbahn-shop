@@ -79,7 +79,7 @@ export function PrinterDesk({ printerId, staffRole, onStreamClosed }: PrinterDes
           <p className="label-caps text-ink-tertiary">Drucker · {TECHNOLOGY_LABELS[printer.technology]}</p>
           <h1 className="mt-3 flex flex-wrap items-baseline gap-x-4 text-heading sm:text-title">
             <span className="font-mono tracking-wider">{printer.code}</span>
-            {printer.name ? <span className="font-extralight text-ink-secondary">{printer.name}</span> : null}
+            {printer.name ? <span className="font-normal text-ink-secondary">{printer.name}</span> : null}
           </h1>
         </div>
         <ConnectionLamp state={stream.state} onReconnect={stream.reconnect} />

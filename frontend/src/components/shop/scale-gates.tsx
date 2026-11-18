@@ -32,7 +32,7 @@ export function ScaleGates({ scales }: { scales: readonly NavigationScaleOut[] }
                 className="group flex h-full flex-col rounded-lg border border-line bg-surface p-6 transition-[border-color,box-shadow] duration-150 hover:border-ink-secondary hover:shadow-[inset_0_0_0_1px_var(--ink-secondary)]"
               >
                 <span className="flex items-start justify-between gap-4">
-                  <span className="text-display leading-none font-extralight tracking-[-0.03em]">{scale.name}</span>
+                  <span className="text-display leading-none font-display font-extrabold tracking-[-0.03em]">{scale.name}</span>
                   <span className="mt-1 text-hint text-ink-tertiary">{models(scale.product_count)}</span>
                 </span>
                 <SpecLine

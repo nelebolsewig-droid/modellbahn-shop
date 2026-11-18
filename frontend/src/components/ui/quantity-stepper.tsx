@@ -39,7 +39,7 @@ export function QuantityStepper({
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex h-10 items-center rounded-full border border-line-control bg-surface",
+        "inline-flex h-10 items-center rounded-none border border-line-control bg-surface",
         disabled && "opacity-60",
         className,
       )}
@@ -75,7 +75,7 @@ function StepButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "grid size-10 cursor-pointer place-items-center rounded-full text-ink",
+        "grid size-10 cursor-pointer place-items-center rounded-none text-ink",
         "hover:bg-sunken disabled:cursor-not-allowed disabled:text-ink-disabled disabled:hover:bg-transparent",
       )}
     >

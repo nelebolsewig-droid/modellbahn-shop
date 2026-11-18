@@ -323,7 +323,7 @@ function UploadRow({ upload, onDismiss }: { upload: Upload; onDismiss: () => voi
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={percent}
-          className="mt-2 h-1 overflow-hidden rounded-full bg-sunken"
+          className="mt-2 h-1 overflow-hidden rounded-none bg-sunken"
         >
           <div className="h-full bg-accent transition-[width] duration-200" style={{ width: `${percent}%` }} />
         </div>
@@ -381,7 +381,7 @@ function GalleryTile({
           </div>
         )}
         {index === 0 ? (
-          <span className="absolute top-3 left-3 rounded-full bg-selected px-2.5 py-0.5 text-hint font-medium text-on-selected">
+          <span className="absolute top-3 left-3 rounded-none bg-selected px-2.5 py-0.5 text-hint font-medium text-on-selected">
             Hauptbild
           </span>
         ) : null}

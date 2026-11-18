@@ -29,7 +29,7 @@ export function HeaderNav({ role, pathname, counts = {} }: NavProps) {
               href={entry.href}
               aria-current={entry.key === current ? "page" : undefined}
               className={cn(
-                "inline-flex h-9 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors",
+                "inline-flex h-9 items-center rounded-none px-3 text-sm font-medium whitespace-nowrap transition-colors",
                 entry.key === current ? "bg-selected text-on-selected" : "text-ink-secondary hover:bg-sunken hover:text-ink",
               )}
             >
@@ -52,7 +52,7 @@ function Count({ value, className }: { value: number | undefined; className?: st
     <>
       <span
         aria-hidden="true"
-        className={cn("inline-grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[0.6875rem] leading-5 font-medium text-on-accent tabular-nums", className)}
+        className={cn("inline-grid min-w-5 place-items-center rounded-none bg-accent px-1.5 text-[0.6875rem] leading-5 font-medium text-on-accent tabular-nums", className)}
       >
         {value}
       </span>

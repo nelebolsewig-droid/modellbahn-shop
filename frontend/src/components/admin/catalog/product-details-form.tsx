@@ -161,7 +161,7 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
                     <label
                       key={epoch.code}
                       className={cn(
-                        "inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium",
+                        "inline-flex h-9 cursor-pointer items-center gap-2 rounded-none border px-4 text-sm font-medium",
                         "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus",
                         checked ? "border-selected bg-selected text-on-selected" : "border-line-strong hover:border-ink",
                       )}

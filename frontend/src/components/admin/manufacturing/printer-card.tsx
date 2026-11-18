@@ -152,11 +152,11 @@ function Printing({ job, progress }: { job: PrintJobOut; progress: PlateProgress
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percent ?? 0}
-            className="mt-3 h-1.5 overflow-hidden rounded-full bg-sunken"
+            className="mt-3 h-1.5 overflow-hidden rounded-none bg-sunken"
           >
             <div
               className={cn(
-                "h-full rounded-full transition-[width] duration-700",
+                "h-full rounded-none transition-[width] duration-700",
                 progress.overdue ? "bg-warning" : "bg-accent",
               )}
               style={{ width: `${percent}%` }}

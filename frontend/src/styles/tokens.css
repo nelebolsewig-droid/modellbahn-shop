@@ -1,73 +1,85 @@
 /*
- * Design tokens of the Modellbahn-Shop (docs/KONZEPT.md §11, ADR 0007).
+ * Design tokens of the shop (docs/KONZEPT.md §11, ADR 0007 and ADR 0030).
  *
- * Three levels: raw values (gray-*, prussian-* …) only name colours; semantic tokens
+ * Three levels: raw values (sand-*, mandarin-* …) only name colours; semantic tokens
  * (canvas, ink, accent …) say what a colour is for and point at a raw value;
  * components use semantic tokens only, through the Tailwind classes that
  * globals.css derives from them (bg-canvas, text-ink-secondary, border-line …).
- * The values match the design system "Modellbahn-Shop Designsystem" (tokens.json);
  * tokens.test.ts checks the contrast of every text pair.
  *
- * There is one light theme; the shop has no dark mode.
+ * The palette is the one of adp-Modelle (ADR 0030): alabaster ground, sand for cards
+ * and sections, mandarin for the main action, terracotta for hover and highlights,
+ * espresso for text. There is one light theme; the shop has no dark mode.
  */
 :root {
   /* Raw values */
-  --gray-0: #ffffff;
-  --gray-25: #fafaf8;
-  --gray-50: #f4f4f1;
-  --gray-100: #ecece8;
-  --gray-200: #dedfdb;
-  --gray-300: #c9cbc6;
-  --gray-400: #a7abae;
-  --gray-500: #80858a;
-  --gray-600: #666b70;
-  --gray-700: #4e5357;
-  --gray-900: #1e2124;
-  --gray-950: #15171a;
-  --prussian-50: #eef3f7;
-  --prussian-100: #d9e4ee;
-  --prussian-300: #8fa9c0;
-  --prussian-800: #003153;
-  --prussian-900: #002640;
-  --green-50: #e7f1ea;
-  --green-700: #2e7046;
-  --amber-50: #faf0dc;
-  --amber-700: #8a5a00;
-  --red-50: #f8e6e4;
-  --red-700: #a8322b;
+  --white: #ffffff;
+  --alabaster: #faf6f0;
+  --sand-100: #efe7dc;
+  --sand-200: #e6dccd;
+  --sand-300: #ddd0be;
+  --sand-400: #cbbba6;
+  --sand-500: #a89c90;
+  --sand-600: #85786b;
+  --espresso-600: #665b53;
+  --espresso-700: #5c524b;
+  --espresso-900: #26211e;
+  --espresso-950: #171311;
+  --mandarin-500: #e8632b;
+  --terracotta-50: #f6e4d8;
+  --terracotta-600: #c94b1a;
+  --terracotta-700: #9e380f;
+  --terracotta-800: #86300d;
+  --green-50: #e4efe6;
+  --green-700: #2a6640;
+  --amber-50: #f7ecd6;
+  --amber-700: #7a5000;
+  --red-50: #f6e1dd;
+  --red-700: #9c2e27;
   --red-500: #ff4d3d;
 
-  /* Grounds */
-  --canvas: var(--gray-50);
-  --stage: var(--gray-25);
-  --surface: var(--gray-0);
-  --sunken: var(--gray-100);
+  /* Grounds: the page is alabaster, cards and sections are sand. */
+  --canvas: var(--alabaster);
+  --stage: var(--sand-100);
+  --surface: var(--sand-100);
+  --sunken: var(--sand-200);
 
   /* Text */
-  --ink: var(--gray-900);
-  --ink-secondary: var(--gray-700);
-  --ink-tertiary: var(--gray-600);
-  --ink-disabled: var(--gray-400);
+  --ink: var(--espresso-900);
+  --ink-secondary: var(--espresso-700);
+  --ink-tertiary: var(--espresso-600);
+  --ink-disabled: var(--sand-500);
 
   /* Lines */
-  --line: var(--gray-200);
-  --line-strong: var(--gray-300);
-  --line-control: var(--gray-500);
+  --line: var(--sand-300);
+  --line-strong: var(--sand-400);
+  --line-control: var(--sand-600);
 
-  /* Selection and accent */
-  --selected: var(--gray-900);
-  --on-selected: var(--gray-0);
-  --accent: var(--prussian-800);
-  --accent-hover: var(--prussian-900);
-  --accent-subtle: var(--prussian-50);
-  --on-accent: var(--gray-0);
-  --focus: var(--prussian-800);
+  /* Selection */
+  --selected: var(--espresso-900);
+  --on-selected: var(--white);
+
+  /* The main action (buttons): mandarin with espresso text, because white is too weak
+     on mandarin; terracotta on hover, and there white is strong enough. */
+  --action: var(--mandarin-500);
+  --on-action: var(--espresso-900);
+  --action-hover: var(--terracotta-600);
+  --on-action-hover: var(--white);
+
+  /* Accent as text, links and small marks: terracotta, one step deeper so that small
+     text stays legible on sand. --highlight is the pure terracotta for large type and marks. */
+  --accent: var(--terracotta-700);
+  --accent-hover: var(--terracotta-800);
+  --accent-subtle: var(--terracotta-50);
+  --on-accent: var(--white);
+  --highlight: var(--terracotta-600);
+  --focus: var(--terracotta-700);
 
   /* Technical drawings */
-  --drawing-line: var(--prussian-800);
-  --drawing-helper: var(--prussian-300);
-  --drawing-dimension: var(--gray-700);
-  --drawing-grid: var(--prussian-100);
+  --drawing-line: var(--espresso-900);
+  --drawing-helper: var(--sand-500);
+  --drawing-dimension: var(--espresso-700);
+  --drawing-grid: var(--sand-200);
 
   /* States, always shown together with a word */
   --success: var(--green-700);
@@ -79,11 +91,11 @@
 
   /* The scanner's viewfinder: the only dark field, so the camera picture stands out;
      the red aiming line is the one of a hand scanner. */
-  --viewfinder: var(--gray-950);
-  --on-viewfinder: var(--gray-0);
-  --on-viewfinder-muted: var(--gray-400);
+  --viewfinder: var(--espresso-950);
+  --on-viewfinder: var(--white);
+  --on-viewfinder-muted: var(--sand-500);
   --aim: var(--red-500);
 
   /* Dims the page behind a dialog. */
-  --scrim: rgb(30 33 36 / 0.32);
+  --scrim: rgb(38 33 30 / 0.32);
 }

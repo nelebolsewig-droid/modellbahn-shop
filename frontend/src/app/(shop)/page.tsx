@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
 import { NextFair } from "@/components/site/next-fair";
-import { CraneTruckDrawing } from "@/components/site/crane-truck-drawing";
+import { ScrollFilm } from "@/components/site/scroll-film/scroll-film";
 import { ProductCard } from "@/components/ui/product-card";
 import { MakingOfTeaser } from "@/components/workshop/making-of-teaser";
 import type {
@@ -75,20 +75,7 @@ export default async function HomePage() {
   const scaleNames = new Map((navigation?.scales ?? []).map((scale) => [scale.code, scale.name]));
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:pt-24 lg:pb-32">
-        <div>
-          <p className="label-caps text-ink-tertiary">Seit 1992 · Handarbeit aus Deutschland</p>
-          <h1 className="mt-5 text-title sm:text-display">
-            Jedes Modell ein Unikat – gefertigt mit Liebe zum Detail.
-          </h1>
-          <p className="mt-6 max-w-xl text-body-lg text-ink-secondary">
-            Fahrzeugmodelle in Kleinserie für Sammler und Modellbahner: Lkw, Autokrane und
-            Schienenfahrzeuge von N bis Spur 0. Bestellen kannst du als Gast oder mit Kundenkonto.
-          </p>
-          <HomeActions />
-        </div>
-        <CraneTruckDrawing className="mx-auto w-full max-w-xl lg:max-w-none" />
-      </section>
+      <ScrollFilm actions={<HomeActions />} />
 
       {fair ? <NextFair fair={fair} /> : null}
 

@@ -2,7 +2,7 @@
 @import "../styles/tokens.css";
 
 /*
- * Tailwind theme of the Modellbahn-Shop: light, matte and precise (docs/KONZEPT.md §11).
+ * Tailwind theme of the shop: warm, light and sharp-edged (docs/KONZEPT.md §11, ADR 0030).
  * The colours are the semantic tokens of src/styles/tokens.css; Tailwind's own palette
  * is switched off, so a component cannot pick a colour outside the design system.
  */
@@ -14,33 +14,37 @@
   --color-*: initial;
   --radius-*: initial;
 
-  --radius-xs: 2px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 24px;
+  /* Sharp and precise: nothing is rounded except true circles (lamps, dots), which use rounded-full. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
 
-  --shadow-overlay: 0 24px 64px rgb(30 33 36 / 0.12);
+  --shadow-overlay: 0 24px 64px rgb(38 33 30 / 0.14);
+  /* The hard, offset shadow of the main call to action. */
+  --shadow-hard: 5px 5px 0 var(--ink);
+  --shadow-hard-pressed: 2px 2px 0 var(--ink);
 
-  /* Type scale: large and thin; weights 200 and 300 only from 40 px. */
+  /* Type scale: large and heavy headings in the display face, quiet text below. */
   --text-display-xl: 5rem;
   --text-display-xl--line-height: 5.25rem;
-  --text-display-xl--letter-spacing: -0.035em;
-  --text-display-xl--font-weight: 200;
+  --text-display-xl--letter-spacing: -0.045em;
+  --text-display-xl--font-weight: 800;
   --text-display: 3.5rem;
   --text-display--line-height: 3.75rem;
-  --text-display--letter-spacing: -0.03em;
-  --text-display--font-weight: 200;
+  --text-display--letter-spacing: -0.04em;
+  --text-display--font-weight: 800;
   --text-title: 2.5rem;
   --text-title--line-height: 2.875rem;
-  --text-title--letter-spacing: -0.02em;
-  --text-title--font-weight: 300;
+  --text-title--letter-spacing: -0.035em;
+  --text-title--font-weight: 800;
   --text-heading: 1.75rem;
   --text-heading--line-height: 2.125rem;
-  --text-heading--letter-spacing: -0.01em;
-  --text-heading--font-weight: 400;
+  --text-heading--letter-spacing: -0.03em;
+  --text-heading--font-weight: 800;
   --text-spec: 1.375rem;
   --text-spec--line-height: 1.875rem;
-  --text-spec--font-weight: 300;
+  --text-spec--font-weight: 400;
   --text-body-lg: 1.1875rem;
   --text-body-lg--line-height: 1.875rem;
   --text-body: 1rem;
@@ -130,6 +134,11 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-subtle: var(--accent-subtle);
   --color-on-accent: var(--on-accent);
+  --color-action: var(--action);
+  --color-on-action: var(--on-action);
+  --color-action-hover: var(--action-hover);
+  --color-on-action-hover: var(--on-action-hover);
+  --color-highlight: var(--highlight);
   --color-focus: var(--focus);
   --color-drawing-line: var(--drawing-line);
   --color-drawing-helper: var(--drawing-helper);
@@ -150,6 +159,10 @@
   /* The font files come from next/font (src/app/fonts.ts), which sets these variables. */
   --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  --font-display: var(--font-bricolage), var(--font-geist), "Helvetica Neue", Arial, sans-serif;
+  /* The wordmark "adp-Modelle": Times New Roman and Arial where the device has them, Tinos and Arimo (same metrics) elsewhere. */
+  --font-wordmark-serif: "Times New Roman", var(--font-tinos), Times, serif;
+  --font-wordmark-sans: Arial, var(--font-arimo), Helvetica, sans-serif;
 }
 
 /* Small uppercase caption above option groups and headings, e.g. "KUNDENKONTO". */
@@ -162,6 +175,11 @@
 }
 
 @layer base {
+  :root {
+    /* Fixed, so the scroll film of the start page can slide under the header. */
+    --site-header-height: 4.5rem;
+  }
+
   html {
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
@@ -178,9 +196,10 @@
   h1,
   h2,
   h3 {
-    font-weight: 300;
-    letter-spacing: -0.02em;
-    line-height: 1.05;
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
     text-wrap: balance;
   }
 

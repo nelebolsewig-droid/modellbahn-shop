@@ -56,7 +56,7 @@ export default async function AboutPage() {
                   : "absolute top-0 left-0 size-4 rounded-full border-2 border-ink bg-canvas"
               }
             />
-            <p className="text-title font-extralight tabular-nums">{milestone.year}</p>
+            <p className="text-title font-display font-extrabold tabular-nums">{milestone.year}</p>
             <p className="mt-2 max-w-xs text-ink-secondary">{milestone.text}</p>
           </li>
         ))}
