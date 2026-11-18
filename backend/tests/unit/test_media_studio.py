@@ -152,6 +152,39 @@ class TestStudio:
         assert alpha[bottom + round(30 * scale), left + round(100 * scale)] < 8
         assert alpha[top + round(20 * scale), right + round(20 * scale)] < 8
 
+    def test_black_tyres_in_the_shadow_stay_on_the_model(self, studio: PhotoStudio) -> None:
+        photo = shot((230, 230, 230), (300, 300, 900, 600))
+        draw = ImageDraw.Draw(photo)
+        # Two tyres under the car, which the cut-out takes for shadow, and a black
+        # speck of dirt away from the model, which is none of the model's.
+        draw.ellipse((360, 560, 460, 660), fill=(4, 4, 4))
+        draw.ellipse((740, 560, 840, 660), fill=(4, 4, 4))
+        draw.ellipse((580, 650, 620, 690), fill=(4, 4, 4))
+        draw.rectangle((300, 300, 900, 600), fill=MODEL_COLOUR)
+        staged = studio.finish(photo).image
+        assert staged is not None
+        pixels = np.asarray(staged.convert("RGBA")).astype(int)
+        left, _top, right, bottom = model_box(staged)
+        scale = (right - left) / 600
+        for x in (410, 790):
+            tyre = pixels[bottom + round(40 * scale), left + round((x - 300) * scale)]
+            assert tyre[3] > 240
+            assert tyre[:3].max() < 60
+        speck = pixels[bottom + round(70 * scale), left + round(300 * scale)]
+        assert speck[3] < 160
+
+    def test_in_a_dark_room_nothing_dark_is_added(self, studio: PhotoStudio) -> None:
+        photo = shot((60, 60, 60), (300, 300, 900, 600))
+        draw = ImageDraw.Draw(photo)
+        draw.ellipse((360, 560, 460, 660), fill=(4, 4, 4))
+        draw.rectangle((300, 300, 900, 600), fill=MODEL_COLOUR)
+        staged = studio.finish(photo).image
+        assert staged is not None
+        pixels = np.asarray(staged.convert("RGBA")).astype(int)
+        left, _top, right, bottom = model_box(staged)
+        scale = (right - left) / 600
+        assert pixels[bottom + round(40 * scale), left + round(110 * scale), 3] < 160
+
     def test_photo_without_a_model_is_left_alone(self) -> None:
         result = PhotoStudio(NothingSegmenter()).finish(shot((230, 230, 230), (0, 0, 0, 0)))
         assert result.image is None

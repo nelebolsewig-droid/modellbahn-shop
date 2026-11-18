@@ -16,7 +16,11 @@ Der Worker bringt jedes hochgeladene Modellfoto selbst in eine Form (`media`,
 
 1. **Freistellen** mit einem neuronalen Modell (ISNet „general use“, ONNX, auf der CPU).
    Kleine Flecken fallen weg, kleine Löcher werden geschlossen, die Kante bleibt weich.
-   Der Schatten der Fotobox gehört nicht zum Modell.
+   Der Schatten der Fotobox gehört nicht zum Modell. Ausnahme: Schwarze Teile im
+   schwarzen Schatten, etwa Reifen unter einem Auto, kann das Modell nicht vom Schatten
+   unterscheiden und ließ sie weg. Was vor hellem Hintergrund fast schwarz ist und am
+   Modell hängt, bleibt deshalb beim Modell (`_with_dark_parts`); der hellere Schatten
+   darum herum läuft weich aus.
 2. **Licht angleichen** am Hintergrund der Fotobox, der weiß ist: Sein Farbstich wird
    herausgerechnet (Weißabgleich), seine Helligkeit auf einen festen Wert gebracht. So
    sieht jedes Foto aus wie unter derselben Lampe. Die Korrekturen sind begrenzt; ein
