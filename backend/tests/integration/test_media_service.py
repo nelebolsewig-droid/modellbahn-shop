@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.services import MediaService, UnitOfWorkFactory
@@ -31,6 +31,7 @@ from modellbahn.modules.media.domain.model import (
 from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.outbox import PostponedError, outbox_table
+from modellbahn.platform.uow import UnitOfWork
 from tests.conftest import Deliver
 from tests.media_support import (
     InMemoryMediaStorage,
@@ -260,7 +261,7 @@ class TestProcessing:
         self,
         media: MediaService,
         media_storage: InMemoryMediaStorage,
-        media_uow_factory: UnitOfWorkFactory,
+        session_factory: async_sessionmaker[AsyncSession],
         deliver: Deliver,
     ) -> None:
         asset = await ready_image(media, media_storage, deliver)
@@ -269,7 +270,7 @@ class TestProcessing:
         media_storage.upload(asset.id, photo(700, 500, colour=(20, 120, 200)))
         assert (await media.reprocess(asset.id)).status is AssetStatus.UPLOADED
         # Until the worker is through, the shop keeps showing the sizes from before.
-        async with media_uow_factory() as uow:
+        async with UnitOfWork(session_factory) as uow:
             waiting = (await load_images(uow, [asset.id], public_base_url="/medien"))[asset.id]
         assert waiting.is_ready
         assert {r.url.removeprefix("/medien/") for r in waiting.renditions} == old_keys
