@@ -253,9 +253,9 @@ function EmptyCart() {
       </svg>
       <div>
         <h2 className="text-heading">Dein Warenkorb ist noch leer</h2>
-        <p className="mt-2 text-ink-secondary">Im Katalog findest du alle Modelle, in jedem Maßstab und jeder Ausführung.</p>
+        <p className="mt-2 text-ink-secondary">Hier findest du alle Modelle, in jedem Maßstab und jeder Ausführung.</p>
         <Button asChild className="mt-6">
-          <Link href="/katalog">Zum Katalog</Link>
+          <Link href="/katalog">Zu den Modellen</Link>
         </Button>
       </div>
     </div>

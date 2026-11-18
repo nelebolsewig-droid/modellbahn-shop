@@ -11,7 +11,7 @@ import { Wordmark } from "./wordmark";
 
 // On very narrow phones only the catalogue fits beside the wordmark; "Termine" is also in the footer.
 const SECTIONS = [
-  { href: "/katalog", label: "Katalog", narrow: true },
+  { href: "/katalog", label: "Modelle", narrow: true },
   { href: "/termine", label: "Termine", narrow: false },
 ] as const satisfies readonly { href: Route; label: string; narrow: boolean }[];
 

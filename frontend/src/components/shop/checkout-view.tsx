@@ -81,7 +81,7 @@ export function CheckoutView() {
         </Alert>
         <Button asChild variant="secondary">
           <Link href={cart.data.lines.length === 0 ? "/katalog" : "/warenkorb"}>
-            {cart.data.lines.length === 0 ? "Zum Katalog" : "Zum Warenkorb"}
+            {cart.data.lines.length === 0 ? "Zu den Modellen" : "Zum Warenkorb"}
           </Link>
         </Button>
       </div>

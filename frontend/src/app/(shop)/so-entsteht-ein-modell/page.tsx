@@ -41,7 +41,7 @@ export default function MakingOfPage() {
               <Link href="/sonderanfertigung">Zur Sonderanfertigung</Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/katalog">Zum Katalog</Link>
+              <Link href="/katalog">Zu den Modellen</Link>
             </Button>
           </div>
         </div>
