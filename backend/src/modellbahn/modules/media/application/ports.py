@@ -121,3 +121,19 @@ class ImageProcessor(Protocol):
         files that are no usable image.
         """
         ...
+
+
+class StudioGate(Protocol):
+    """Decides when the photo studio may take its next photo.
+
+    The studio needs over a gigabyte for some seconds. On a small server it works one
+    photo at a time, with a pause in between, and only while memory is free.
+    """
+
+    def wait(self) -> tuple[timedelta, str] | None:
+        """How long to wait before the next photo and why, or ``None`` to start now."""
+        ...
+
+    def done(self) -> None:
+        """A photo is finished (or gave up); the pause before the next one begins."""
+        ...

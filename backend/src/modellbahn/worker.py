@@ -38,6 +38,7 @@ from modellbahn.modules.media.infrastructure.mapping import start_mappers as sta
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.media.infrastructure.studio import default_studio
+from modellbahn.modules.media.infrastructure.studio_gate import MemoryStudioGate
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.digest import MorningDigest
 from modellbahn.modules.sales.application.handlers import SalesHandlers
@@ -148,6 +149,11 @@ async def run_worker(
         processor=image_processor
         or PillowImageProcessor(studio=default_studio(settings.studio_model_path)),
         clock=clock,
+        studio_gate=MemoryStudioGate(
+            min_free_mb=settings.studio_min_free_mb,
+            warmup=timedelta(seconds=settings.studio_warmup_seconds),
+            pause=timedelta(seconds=settings.studio_pause_seconds),
+        ),
     ).register(handlers)
     media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)
     payment_gateway = build_payment_gateway(settings)
