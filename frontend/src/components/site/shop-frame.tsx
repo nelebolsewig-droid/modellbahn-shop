@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { CartAddedPanel } from "@/components/shop/cart-added-panel";
+
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
@@ -20,6 +22,7 @@ export function ShopFrame({ children }: { children: ReactNode }) {
         {children}
       </main>
       <SiteFooter />
+      <CartAddedPanel />
     </div>
   );
 }

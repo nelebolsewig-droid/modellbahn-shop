@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
+import { useWatch } from "react-hook-form";
 
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -263,8 +264,14 @@ function EntryForm({ entry, first = false, onDone }: EntryFormProps) {
   });
   const {
     register,
+    control,
     formState: { errors, isSubmitting },
   } = form;
+  const [postalCode, city, countryCode] = useWatch({ control, name: ["postal_code", "city", "country_code"] });
+  const setCity = useCallback(
+    (town: string) => form.setValue("city", town, { shouldValidate: form.getFieldState("city").isTouched }),
+    [form],
+  );
   // The default stays the default until another entry takes over.
   const defaultFixed = first || (entry?.is_default ?? false);
 
@@ -276,7 +283,7 @@ function EntryForm({ entry, first = false, onDone }: EntryFormProps) {
         <FormField label="Bezeichnung" hint="Optional, z. B. „Werkstatt“" error={errors.label?.message}>
           {(control) => <Input {...control} {...register("label")} maxLength={40} />}
         </FormField>
-        <AddressFields register={register} errors={errors} />
+        <AddressFields register={register} errors={errors} town={{ postalCode, city, countryCode, setCity }} />
         {defaultFixed ? (
           <p className="text-small text-ink-secondary">
             {first ? "Die erste Adresse wird deine Standardadresse." : "Das ist deine Standardadresse."}

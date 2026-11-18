@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 
+import { RegistrationForm } from "@/components/account/registration-form";
 import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
 import { OrderLines, OrderTimeline, PostalAddress } from "@/components/shop/order-parts";
 import { OrderTotals } from "@/components/shop/order-totals";
@@ -23,6 +24,8 @@ import {
   ORDER_STATUS_TONES,
   paymentLabel,
 } from "@/lib/sales/labels";
+import { leadTimeText, readyBy } from "@/lib/sales/availability";
+import { useCustomerSession } from "@/lib/session/customer";
 
 /** The status page behind the link in the order e-mails: works without an account. */
 export function OrderStatusView({ token }: { token: string }) {
@@ -96,6 +99,7 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
           <OrderTotals totals={order.totals} countryName={order.shipping_address.country_name} className="mt-6 sm:ml-auto sm:max-w-sm" />
         </section>
         <aside className="space-y-8">
+          {order.status !== "cancelled" ? <GuestAccountOffer order={order} /> : null}
           <section aria-labelledby="lieferadresse">
             <h2 id="lieferadresse" className="label-caps text-ink-tertiary">
               Lieferadresse
@@ -178,13 +182,25 @@ function StatusText({ order }: { order: OrderOut }) {
           ) : null}
         </p>
       );
-    case "paid":
+    case "paid": {
+      const weeks = leadTimeOf(order);
+      if (weeks) {
+        return (
+          <p>
+            Die Zahlung ist eingegangen, die Bestellung ist verbindlich. Was nicht im Regal lag, fertigen wir jetzt für
+            dich ({leadTimeText(weeks)}). Wir schicken alles zusammen in einem Paket, voraussichtlich bis{" "}
+            <span className="text-ink">{formatLongDate(readyBy(order.paid_at ?? order.placed_at, weeks))}</span>, und
+            schreiben dir an <span className="text-ink">{order.email}</span>, sobald es unterwegs ist.
+          </p>
+        );
+      }
       return (
         <p>
           Die Zahlung ist eingegangen, die Bestellung ist verbindlich. Wir bereiten alles vor und schreiben
           dir an <span className="text-ink">{order.email}</span>, sobald das Paket unterwegs ist.
         </p>
       );
+    }
     case "shipped":
       return (
         <p>
@@ -213,4 +229,35 @@ function StatusText({ order }: { order: OrderOut }) {
         </>
       );
   }
+}
+
+function leadTimeOf(order: OrderOut): readonly [number, number] | null {
+  const min = order.lead_time_min_weeks ?? null;
+  const max = order.lead_time_max_weeks ?? null;
+  return min !== null && max !== null ? [min, max] : null;
+}
+
+/**
+ * Ordered as a guest: an account in one step, with the name and address of the order.
+ * Once the address is confirmed, this order (and every earlier one) shows up there.
+ */
+function GuestAccountOffer({ order }: { order: OrderOut }) {
+  const session = useCustomerSession();
+  if (session.status !== "anonymous") {
+    return null;
+  }
+  return (
+    <section aria-labelledby="konto-anlegen" className="rounded-lg border border-line bg-surface p-6">
+      <h2 id="konto-anlegen" className="text-body font-semibold">
+        Konto in einem Schritt
+      </h2>
+      <p className="mt-2 text-small text-ink-secondary">
+        Nur noch ein Passwort: Dann findest du diese Bestellung unter „Mein Konto“ und bestellst beim nächsten Mal mit
+        gespeicherter Adresse.
+      </p>
+      <div className="mt-5">
+        <RegistrationForm preset={{ display_name: order.shipping_address.recipient, email: order.email }} />
+      </div>
+    </section>
+  );
 }

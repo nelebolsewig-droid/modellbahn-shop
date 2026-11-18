@@ -132,3 +132,28 @@ describe("RegistrationForm", () => {
     expect(submit).toBeEnabled();
   });
 });
+
+describe("RegistrationForm with name and address from a guest order", () => {
+  it("asks only for the password and registers with the order's name and address", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const user = userEvent.setup();
+    renderWithQueryClient(
+      <RegistrationForm preset={{ display_name: "Erika Muster", email: "erika@example.de" }} />,
+    );
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("E-Mail-Adresse")).not.toBeInTheDocument();
+    expect(screen.getByText("erika@example.de")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Passwort"), "Ein ganzer Satz zum Merken");
+    await user.click(screen.getByRole("button", { name: "Konto anlegen" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(JSON.parse(String(init?.body))).toEqual({
+      display_name: "Erika Muster",
+      email: "erika@example.de",
+      password: "Ein ganzer Satz zum Merken",
+    });
+    expect(await screen.findByText("Bitte schau in dein Postfach")).toBeInTheDocument();
+  });
+});

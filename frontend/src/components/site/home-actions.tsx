@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { CatalogLink } from "@/components/shop/catalog-link";
 import { Button } from "@/components/ui/button";
 import { useCustomerSession } from "@/lib/session/customer";
 
@@ -15,7 +16,7 @@ export function HomeActions() {
   return (
     <div className="mt-10 flex flex-wrap gap-3">
       <Button asChild>
-        <Link href="/katalog">Zum Katalog</Link>
+        <CatalogLink>Zum Katalog</CatalogLink>
       </Button>
       {session.status === "authenticated" ? (
         <Button asChild variant="secondary">
