@@ -86,10 +86,35 @@ Kapitel, jedes ein hoher Abschnitt mit angehefteter Bühne; die Scroll-Position 
   unten in den Unterwagen, die Seilklappe ist hinten angelenkt und zeigt nach vorn oben, jedes
   Drehgestell hat zwei Radsätze (die Druckdatei enthält nur den Rahmen).
 
+### Aufbau des Stellwerks
+
+Die Inhaberin hat drei Entwürfe gesehen und alle angenommen; jeder gilt für die Seite, für die
+er gezeichnet war:
+
+- **Leiste statt Kopfzeile.** Auf dem Schreibtisch (ab 1024 px) steht links eine Leiste: oben
+  die Wortmarke, darunter die Orte mit Nummer (Heute, Bestellungen, Modelle, Lager, Fertigung,
+  Messen, eBay, Einstellungen), am Fuß der große Knopf „Scannen“, Name, Passwort und Abmelden.
+  Darunter bleibt es bei der niedrigen Kopfzeile und der Leiste am unteren Rand.
+- **Heute (Fahrpult)** ist die Startseite: Gruß, vier Zahlen als Kacheln mit abgeschnittener
+  Ecke (zu versenden, zu fertigen, Zahlung offen, ohne Bestand), darunter die Liste zur
+  gewählten Kachel, daneben die Druckerhalle im Überblick und die nächste Messe. Ereignisse und
+  Systemstatus bleiben darunter. „Knapp im Lager“ aus dem Entwurf heißt „Ohne Bestand“ und zählt
+  die Modelle im Shop, von denen nichts im Regal liegt: Einen Meldebestand für Teile gibt es
+  nicht. Packer sehen die zwei Zahlen, mit denen sie etwas tun können.
+- **Bestellungen als Gleisbild:** Jede offene Bestellung ist ein Wagen an dem Bahnhof, an den
+  ihr Zustand sie stellt. Es gibt die Bahnhöfe, die die Daten hergeben: Eingang (Zahlung
+  offen), Fertigung (bezahlt, wartet auf ein Stück, ADR 0029), Versand (bezahlt und
+  vollständig), Unterwegs (die zuletzt versendeten). „Bezahlt“ und „Montage“ aus dem Entwurf
+  entfallen, weil eine Bestellung diese Zustände nicht kennt. Wagen von eBay tragen eine
+  Kante in Terrakotta. Die bisherige Liste mit Filter und Suche bleibt als zweite Ansicht.
+- **Modelle als Werkbank:** Ab 1280 px steht neben der Liste das Typenschild des gewählten
+  Modells (Foto, Stand, Bestand je Ausführung, Lagerplätze). Dort wählt ein Klick aus,
+  „Bearbeiten“ öffnet das Modell; schmaler öffnet ein Klick wie bisher das Modell.
+
 ## Folgen
 
 - Shop und Stellwerk teilen die Tokens: Das Stellwerk trägt damit dieselben Farben, Schriften
-  und kantigen Formen. Sein Aufbau ändert sich hier nicht.
+  und kantigen Formen.
 - Die Strichzeichnung des Kranwagens auf der Startseite entfällt.
 - PR #43 (Signalorange, ADR dort ebenfalls als 0030 nummeriert) ist durch diese Entscheidung
   überholt.

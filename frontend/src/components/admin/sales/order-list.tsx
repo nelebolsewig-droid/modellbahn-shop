@@ -54,7 +54,16 @@ const FILTERS: readonly { value: StatusFilter; label: string }[] = [
  * Opens on the paid orders, the ones waiting to be packed. Owner and staff also find
  * "Zu fertigen" there: what paid orders wait for the workshop to make (ADR 0029).
  */
-export function OrderList({ staffRole, onStreamClosed }: { staffRole: StaffRole; onStreamClosed: () => void }) {
+export function OrderList({
+  staffRole,
+  onStreamClosed,
+  initialStatus = "paid",
+}: {
+  staffRole: StaffRole;
+  onStreamClosed: () => void;
+  /** The state the list opens on, e.g. coming from a station of the Gleisbild. */
+  initialStatus?: OrderStatus;
+}) {
   const queryClient = useQueryClient();
   const mayMake = OFFICE_ROLES.has(staffRole);
   const toMakeCount = useToMakeCount(mayMake);
@@ -65,7 +74,7 @@ export function OrderList({ staffRole, onStreamClosed }: { staffRole: StaffRole;
           : [filter],
       )
     : FILTERS;
-  const [status, setStatus] = useState<StatusFilter>("paid");
+  const [status, setStatus] = useState<StatusFilter>(initialStatus);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   // Orders placed while the page is open get a lamp until someone opens them.

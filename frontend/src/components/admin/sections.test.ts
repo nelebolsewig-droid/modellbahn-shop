@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { activeSection, barSections, headerSections, moreSections } from "./sections";
+import { activeSection, barSections, railSections, moreSections } from "./sections";
 
 const labels = (sections: readonly { label: string }[]) => sections.map((section) => section.label);
 
 describe("Stellwerk sections", () => {
   it("shows a packer only what a packer can use", () => {
-    expect(labels(headerSections("packer"))).toEqual(["Bestellungen", "Lager", "Fertigung"]);
+    expect(labels(railSections("packer"))).toEqual(["Heute", "Bestellungen", "Lager", "Fertigung"]);
     expect(labels(barSections("packer"))).toEqual(["Bestellungen", "Scannen", "Lager"]);
-    expect(labels(moreSections("packer"))).toEqual(["Übersicht", "Fertigung"]);
+    expect(labels(moreSections("packer"))).toEqual(["Heute", "Fertigung"]);
   });
 
   it("shows owner and staff the day's work first: Modelle, Bestellungen, Scannen, Lager", () => {
     for (const role of ["owner", "staff"] as const) {
-      expect(labels(headerSections(role))).toEqual([
-        "Modelle",
+      expect(labels(railSections(role))).toEqual([
+        "Heute",
         "Bestellungen",
+        "Modelle",
         "Lager",
         "Fertigung",
         "Messen",
@@ -23,7 +24,7 @@ describe("Stellwerk sections", () => {
         "Einstellungen",
       ]);
       expect(labels(barSections(role))).toEqual(["Modelle", "Bestellungen", "Scannen", "Lager"]);
-      expect(labels(moreSections(role))).toEqual(["Übersicht", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+      expect(labels(moreSections(role))).toEqual(["Heute", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     }
   });
 

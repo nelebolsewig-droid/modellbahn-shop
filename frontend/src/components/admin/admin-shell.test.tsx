@@ -33,7 +33,7 @@ async function openShell(role: StaffRole, pathname: string, toMake = 0) {
     </AdminShell>,
   );
   await screen.findByText("Seiteninhalt");
-  // Both navigations are in the page; CSS shows the header's on a desk, the bar on the phone.
+  // Both navigations are in the page; CSS shows the rail's on a desk, the bar on the phone.
   const [header, bar] = screen.getAllByRole("navigation", { name: "Stellwerk" });
   if (header === undefined || bar === undefined) {
     throw new Error("expected the header navigation and the phone bar");
@@ -56,7 +56,7 @@ describe("AdminShell", () => {
     const user = userEvent.setup();
     const { header, bar } = await openShell("packer", "/admin/lager");
 
-    expect(linkNames(header)).toEqual(["Bestellungen", "Lager", "Fertigung"]);
+    expect(linkNames(header)).toEqual(["Heute", "Bestellungen", "Lager", "Fertigung"]);
     expect(within(header).getByRole("link", { name: "Lager" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByRole("link", { name: "Scannen" })[0]).toHaveAttribute("href", "/admin/scanner");
     for (const hidden of ["Modelle", "Messen", "eBay", "Einstellungen"]) {
@@ -64,7 +64,7 @@ describe("AdminShell", () => {
     }
     expect(linkNames(bar)).toEqual(["Bestellungen", "Scannen", "Lager"]);
     await user.click(within(bar).getByRole("button", { name: "Mehr" }));
-    expect(linkNames(screen.getByRole("dialog", { name: "Mehr" }))).toEqual(["Übersicht", "Fertigung"]);
+    expect(linkNames(screen.getByRole("dialog", { name: "Mehr" }))).toEqual(["Heute", "Fertigung"]);
   });
 
   it("counts beside Bestellungen the pieces paid orders wait for, for owner and staff", async () => {
@@ -83,10 +83,10 @@ describe("AdminShell", () => {
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/stock/to-make"))).toBe(false);
   });
 
-  it("shows owner and staff Modelle first and lights up Einstellungen on the categories", async () => {
+  it("shows owner and staff every place on the rail and lights up Einstellungen on the categories", async () => {
     const { header } = await openShell("staff", "/admin/einstellungen/kategorien");
 
-    expect(linkNames(header)).toEqual(["Modelle", "Bestellungen", "Lager", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+    expect(linkNames(header)).toEqual(["Heute", "Bestellungen", "Modelle", "Lager", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     expect(within(header).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("aria-current", "page");
     expect(within(header).getByRole("link", { name: "Modelle" })).not.toHaveAttribute("aria-current");
   });
@@ -101,7 +101,7 @@ describe("AdminShell", () => {
     await user.click(within(bar).getByRole("button", { name: "Mehr" }));
 
     const sheet = screen.getByRole("dialog", { name: "Mehr" });
-    expect(linkNames(sheet)).toEqual(["Übersicht", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+    expect(linkNames(sheet)).toEqual(["Heute", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     expect(within(sheet).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("href", "/admin/einstellungen");
 
     await user.keyboard("{Escape}");
