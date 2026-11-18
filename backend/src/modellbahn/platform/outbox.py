@@ -65,6 +65,19 @@ _logger = structlog.get_logger(__name__)
 _DATABASE_UNAVAILABLE: Final = (OSError, DBAPIError, asyncpg.PostgresError, asyncpg.InterfaceError)
 
 
+class PostponedError(Exception):
+    """Raised by a handler that cannot work right now, through no fault of the event.
+
+    The event falls due again after ``delay`` and no attempt is counted: waiting for
+    memory or for a quiet moment is not a failure and never makes an event ``dead``.
+    """
+
+    def __init__(self, delay: timedelta, reason: str) -> None:
+        super().__init__(reason)
+        self.delay = delay
+        self.reason = reason
+
+
 class OutboxStatus(StrEnum):
     """Lifecycle of an outbox row: ``pending`` until handled, then ``published`` or ``dead``."""
 
@@ -364,11 +377,14 @@ class OutboxDispatcher:
             await self._record_failure(connection, row, [("deserialize", exc)], handled, log)
             return
         failures: list[tuple[str, Exception]] = []
+        postponed: list[PostponedError] = []
         for registered in self._handlers.handlers_for(row.event_type):
             if registered.name in handled:
                 continue
             try:
                 await registered.handle(event)
+            except PostponedError as exc:
+                postponed.append(exc)
             except Exception as exc:
                 # The others still run: one failing handler does not hold them back.
                 failures.append((registered.name, exc))
@@ -376,6 +392,19 @@ class OutboxDispatcher:
                 handled.append(registered.name)
         if failures:
             await self._record_failure(connection, row, failures, handled, log)
+            return
+        if postponed:
+            delay = max(exc.delay for exc in postponed)
+            await connection.execute(
+                update(outbox_table)
+                .where(outbox_table.c.id == row.id)
+                .values(next_attempt_at=func.now() + delay, handled_by=handled)
+            )
+            log.info(
+                "outbox.event.postponed",
+                retry_in_seconds=delay.total_seconds(),
+                reason=postponed[0].reason,
+            )
             return
 
         # The wall-clock time of this statement, not of the transaction start: the

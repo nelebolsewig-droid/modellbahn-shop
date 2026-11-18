@@ -46,6 +46,9 @@ x-backend-env: &backend-env
   MB_FAIR_NEWS_RATE_LIMIT:
   MB_FAIR_NEWS_RATE_WINDOW_SECONDS:
   MB_MEDIA_PUBLIC_BASE_URL:
+  MB_STUDIO_MIN_FREE_MB:
+  MB_STUDIO_WARMUP_SECONDS:
+  MB_STUDIO_PAUSE_SECONDS:
   # The imprint and the footer of every e-mail; production refuses to start without it.
   MB_IMPRINT_COMPANY:
   MB_IMPRINT_OWNER:
@@ -219,6 +222,10 @@ services:
         condition: service_completed_successfully
       storage-init:
         condition: service_completed_successfully
+    # The photo studio takes about 1.3 GB for a photo. Should the worker ever grow past
+    # this, the kernel stops the worker alone instead of the whole server running out of
+    # memory; it starts again and takes the photo up after its warm-up (ADR 0031).
+    mem_limit: ${WORKER_MEM_LIMIT:-2g}
     # The image's healthcheck probes the HTTP port, which only the api opens.
     healthcheck:
       disable: true

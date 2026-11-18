@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
-from modellbahn.modules.media.application.services import MediaService
+from modellbahn.modules.media.application.services import MediaService, UnitOfWorkFactory
 from modellbahn.modules.media.domain.errors import (
     AssetInUseError,
     AssetNotFoundError,
@@ -27,8 +27,9 @@ from modellbahn.modules.media.domain.model import (
     UPLOAD_URL_LIFETIME,
     AssetStatus,
 )
+from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.platform.clock import FixedClock
-from modellbahn.platform.outbox import outbox_table
+from modellbahn.platform.outbox import PostponedError, outbox_table
 from tests.conftest import Deliver
 from tests.media_support import (
     InMemoryMediaStorage,
@@ -154,6 +155,49 @@ class TestProcessing:
             ("media.asset.uploaded", "published"),
             ("media.asset.ready", "published"),
         ]
+
+    async def test_a_photo_for_the_studio_waits_at_the_gate(
+        self,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        media_uow_factory: UnitOfWorkFactory,
+        image_processor: PillowImageProcessor,
+        clock: FixedClock,
+    ) -> None:
+        class Gate:
+            waits: tuple[timedelta, str] | None = (timedelta(minutes=2), "no memory")
+            finished = 0
+
+            def wait(self) -> tuple[timedelta, str] | None:
+                return self.waits
+
+            def done(self) -> None:
+                self.finished += 1
+
+        gate = Gate()
+        handlers = MediaProcessingHandlers(
+            uow_factory=media_uow_factory,
+            storage=media_storage,
+            processor=image_processor,
+            clock=clock,
+            studio_gate=gate,
+        )
+        asset = await uploaded_image(media, media_storage)
+        assert asset.studio
+        event = AssetUploaded(aggregate_id=asset.id, occurred_at=clock.now())
+
+        with pytest.raises(PostponedError) as postponed:
+            await handlers.process_upload(event)
+        assert postponed.value.delay == timedelta(minutes=2)
+        waiting = await media.get(asset.id)
+        # Untouched: no attempt counted, nothing rendered, the pause not started.
+        assert (waiting.status, waiting.attempts) == (AssetStatus.UPLOADED, 0)
+        assert (media_storage.public, gate.finished) == ({}, 0)
+
+        gate.waits = None
+        await handlers.process_upload(event)
+        assert (await media.get(asset.id)).status is AssetStatus.READY
+        assert gate.finished == 1
 
     async def test_a_repeated_delivery_changes_nothing(
         self,

@@ -20,6 +20,7 @@ The result is an RGBA image; the rendition pipeline encodes it as usual.
 
 # ruff: noqa: PLR2004  # image arithmetic: the thresholds are explained where they stand
 
+import gc
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -142,7 +143,9 @@ class PhotoStudio:
 class IsnetSegmenter:
     """Neural cut-out with ISNet (``isnet-general-use``) on onnxruntime.
 
-    The session is opened on first use and shared.
+    The model is loaded for each photo and let go afterwards. Loading costs a second
+    or two; keeping it would hold several hundred megabytes for good on a server that
+    cuts out a photo now and then, not all day.
     """
 
     INPUT_EDGE: Final = 1024
@@ -151,38 +154,36 @@ class IsnetSegmenter:
     def __init__(self, model_path: Path, *, threads: int = 2) -> None:
         self._model_path = model_path
         self._threads = threads
-        self._session: Any = None
-        self._lock = threading.Lock()
         self._run_lock = threading.Lock()
 
     def _open(self) -> Any:
-        with self._lock:
-            if self._session is None:
-                import onnxruntime  # noqa: PLC0415  # heavy, only needed by the worker
+        import onnxruntime  # noqa: PLC0415  # heavy, only needed by the worker
 
-                options = onnxruntime.SessionOptions()
-                options.intra_op_num_threads = self._threads
-                options.inter_op_num_threads = 1
-                # Give memory back after each photo instead of keeping an arena for good:
-                # the worker cuts out a photo now and then, not all day.
-                options.enable_cpu_mem_arena = False
-                self._session = onnxruntime.InferenceSession(
-                    str(self._model_path), options, providers=["CPUExecutionProvider"]
-                )
-            return self._session
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = self._threads
+        options.inter_op_num_threads = 1
+        # No arena: memory goes back to the system when the photo is done.
+        options.enable_cpu_mem_arena = False
+        return onnxruntime.InferenceSession(
+            str(self._model_path), options, providers=["CPUExecutionProvider"]
+        )
 
     def matte(self, image: Image.Image) -> FloatImage:
-        session = self._open()
         edge = self.INPUT_EDGE
         resized = image.convert("RGB").resize((edge, edge), Image.Resampling.BILINEAR)
         pixels = np.asarray(resized, dtype=np.float32)
         pixels = pixels / max(float(pixels.max()), 1e-6)
         pixels = pixels - np.asarray(self.MEAN, dtype=np.float32)
         tensor = pixels.transpose(2, 0, 1)[None, ...]
-        input_name = session.get_inputs()[0].name
         # One photo at a time: a run takes over a gigabyte, several at once would add up.
         with self._run_lock:
-            prediction = np.asarray(session.run(None, {input_name: tensor})[0], dtype=np.float32)
+            session = self._open()
+            try:
+                input_name = session.get_inputs()[0].name
+                prediction = np.array(session.run(None, {input_name: tensor})[0], dtype=np.float32)
+            finally:
+                del session
+                gc.collect()
         prediction = prediction[0, 0]
         low, high = float(prediction.min()), float(prediction.max())
         prediction = (prediction - low) / max(high - low, 1e-6)

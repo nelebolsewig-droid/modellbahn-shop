@@ -139,6 +139,12 @@ class Settings(BaseSettings):
     # The photo studio's cut-out model (ISNet, ONNX); the backend image ships it here.
     # Without the file the worker renders photos as uploaded (ADR 0031).
     studio_model_path: Path = Path("/app/models/isnet-general-use.onnx")
+    # The studio works one photo at a time and only with this much memory free on the
+    # host (a cut-out takes about 1.3 GB), not before the worker has run for a while,
+    # and with a pause after each photo. 0 switches a rule off.
+    studio_min_free_mb: int = Field(default=1800, ge=0)
+    studio_warmup_seconds: float = Field(default=300.0, ge=0)
+    studio_pause_seconds: float = Field(default=20.0, ge=0)
 
     # Paid pieces without stock get their print plates queued by themselves (ADR 0034).
     autoplan: bool = True

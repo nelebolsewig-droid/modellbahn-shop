@@ -18,19 +18,21 @@ from modellbahn.modules.media.application.ports import (
     ImageProcessor,
     MediaStorage,
     ProcessedImage,
+    StudioGate,
 )
 from modellbahn.modules.media.application.services import UnitOfWorkFactory
 from modellbahn.modules.media.domain.errors import FailureCode, ImageRejectedError
 from modellbahn.modules.media.domain.events import AssetDeleted, AssetUploaded
 from modellbahn.modules.media.domain.model import (
     IMAGE_MAX_BYTES,
+    Asset,
     AssetStatus,
     ImageDetails,
     Rendition,
 )
 from modellbahn.modules.media.domain.renditions import storage_key
 from modellbahn.platform.clock import Clock
-from modellbahn.platform.outbox import HandlerRegistry
+from modellbahn.platform.outbox import HandlerRegistry, PostponedError
 
 _logger = structlog.get_logger(__name__)
 
@@ -45,11 +47,13 @@ class MediaProcessingHandlers:
         storage: MediaStorage,
         processor: ImageProcessor,
         clock: Clock,
+        studio_gate: StudioGate | None = None,
     ) -> None:
         self._uow = uow_factory
         self._storage = storage
         self._processor = processor
         self._clock = clock
+        self._studio_gate = studio_gate
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -61,7 +65,8 @@ class MediaProcessingHandlers:
 
         A file that is no usable image fails at once. Any other error (the storage is
         unreachable, say) is counted and re-raised, so the outbox retries with growing
-        delays; the third failure marks the asset failed.
+        delays; the third failure marks the asset failed. A photo for the studio waits
+        its turn at the gate first (one at a time, only with memory to spare).
         """
         asset_id = event.aggregate_id
         async with self._uow() as uow:
@@ -69,6 +74,18 @@ class MediaProcessingHandlers:
         if asset is None or asset.status is not AssetStatus.UPLOADED:
             return
         log = _logger.bind(asset_id=str(asset_id))
+        gate = self._studio_gate if asset.studio else None
+        if gate is not None and (wait := gate.wait()) is not None:
+            # Not a failure: the photo keeps its place and comes back when there is room.
+            raise PostponedError(*wait)
+        try:
+            await self._render(asset, log)
+        finally:
+            if gate is not None:
+                gate.done()
+
+    async def _render(self, asset: Asset, log: structlog.stdlib.BoundLogger) -> None:
+        asset_id = asset.id
         try:
             original = await self._storage.read_original(
                 asset.original_key, max_bytes=IMAGE_MAX_BYTES

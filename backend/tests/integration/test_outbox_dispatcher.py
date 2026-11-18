@@ -16,7 +16,12 @@ from modellbahn.modules.identity.domain.model import Account
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine
 from modellbahn.platform.events import EventRegistry, event_registry
-from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher, outbox_table
+from modellbahn.platform.outbox import (
+    HandlerRegistry,
+    OutboxDispatcher,
+    PostponedError,
+    outbox_table,
+)
 from modellbahn.platform.uow import UnitOfWork
 from tests.support import NOW, DatabaseProxy, SampleHappened, eventually, sample
 
@@ -132,6 +137,35 @@ async def test_failure_schedules_a_retry_with_backoff(
 
     # Not due yet, so the next batch leaves it alone.
     assert await dispatcher.dispatch_batch() == 0
+
+
+async def test_a_postponed_event_comes_back_without_counting_an_attempt(
+    make_dispatcher: Callable[..., OutboxDispatcher],
+    publish: Callable[[int], Awaitable[list[SampleHappened]]],
+    engine: AsyncEngine,
+) -> None:
+    done: list[SampleHappened] = []
+
+    async def busy(event: SampleHappened) -> None:
+        raise PostponedError(timedelta(minutes=2), "no room right now")
+
+    async def other(event: SampleHappened) -> None:
+        done.append(event)
+
+    handlers = HandlerRegistry()
+    handlers.register(SampleHappened, busy)
+    handlers.register(SampleHappened, other)
+    dispatcher = make_dispatcher(handlers, max_attempts=1)
+    (event,) = await publish(1)
+
+    assert await dispatcher.dispatch_batch() == 1
+    stored = await row(engine, event.event_id)
+    # Still pending although one attempt is all there is: waiting is no failure.
+    assert (stored["status"], stored["attempts"], stored["last_error"]) == ("pending", 0, None)
+    assert len(stored["handled_by"]) == 1  # type: ignore[arg-type]
+    delay = stored["next_attempt_at"] - stored["db_now"]  # type: ignore[operator]
+    assert timedelta(seconds=119) < delay <= timedelta(seconds=120)
+    assert done == [event]
 
 
 async def test_a_retry_runs_only_the_handlers_that_failed(

@@ -65,6 +65,15 @@ Regeln:
 - Neue Abhängigkeiten: `onnxruntime`, `numpy`, `scipy`.
 - Ein Foto braucht auf vier Kernen etwa fünf Sekunden und in der Spitze rund 1,3 GB
   Arbeitsspeicher im Worker. Es läuft immer nur ein Foto zugleich durchs Freistellen.
+- **Schonung kleiner Server** (Nachtrag 18.11.2026: der Server mit 4 GB blieb beim
+  Ausspielen stehen, als viele Fotos nacheinander umgerechnet wurden): Ein Foto fürs
+  Fotostudio beginnt erst, wenn der Worker fünf Minuten läuft, 20 Sekunden nach dem
+  vorigen Foto und nur, wenn der Server noch 1800 MB frei hat (`MemAvailable`;
+  `MB_STUDIO_WARMUP_SECONDS`, `MB_STUDIO_PAUSE_SECONDS`, `MB_STUDIO_MIN_FREE_MB`).
+  Sonst wird das Ereignis zurückgestellt (`PostponedError`), ohne dass ein Versuch
+  zählt. Das Modell wird je Foto geladen und danach freigegeben. Der Worker-Container
+  hat ein Speicherlimit (`WORKER_MEM_LIMIT`, 2 GB): Im schlimmsten Fall startet der
+  Worker neu, nicht der Server.
 
 ## Verworfen
 
