@@ -11,6 +11,7 @@ import { ScaleRule } from "@/components/ui/scale-rule";
 import type { NavigationOut, StoreProductPageOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { catalogPath, findScale, millimetresPerMetre, scaleLabel, scaleSlug, type CatalogLocation } from "@/lib/catalog/scales";
+import { RememberScale } from "@/lib/catalog/last-scale";
 import { loadNavigation } from "@/lib/catalog/store-data";
 import { firstParam } from "@/lib/search-params";
 
@@ -75,6 +76,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 lg:py-16">
+      <RememberScale code={scale.code} name={scale.name} />
       <nav aria-label="Brotkrumen">
         <ol className="flex flex-wrap items-center gap-2 text-hint text-ink-tertiary">
           <li>

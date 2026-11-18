@@ -19,6 +19,13 @@ export function leadTimeText([min, max]: LeadTime): string {
   return `${min}–${max} Wochen`;
 }
 
+/** The day by which a lead time counted from ``from`` runs out (its longer end). */
+export function readyBy(from: string, [, max]: LeadTime): Date {
+  const date = new Date(from);
+  date.setDate(date.getDate() + max * 7);
+  return date;
+}
+
 function leadTimeOf(min: number | null, max: number | null): LeadTime | null {
   return min === null || max === null ? null : [min, max];
 }

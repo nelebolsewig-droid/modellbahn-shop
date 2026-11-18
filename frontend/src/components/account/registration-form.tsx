@@ -13,12 +13,22 @@ import { useRegisterCustomer } from "@/lib/api/generated/store-account/store-acc
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { PASSWORD_MIN_LENGTH, registrationSchema } from "@/lib/validation/account";
 
-export function RegistrationForm() {
+type RegistrationFormProps = {
+  /**
+   * Name and address already known, e.g. from a guest order: only the password is
+   * asked for, the two are shown as text.
+   */
+  preset?: { display_name: string; email: string };
+  /** Label of the submit button. */
+  submitLabel?: string;
+};
+
+export function RegistrationForm({ preset, submitLabel = "Konto anlegen" }: RegistrationFormProps = {}) {
   const registration = useRegisterCustomer();
   const [sentTo, setSentTo] = useState<string | null>(null);
   const { form, onSubmit, formError } = useApiForm({
     schema: registrationSchema,
-    defaultValues: { display_name: "", email: "", password: "" },
+    defaultValues: { display_name: preset?.display_name ?? "", email: preset?.email ?? "", password: "" },
     async submit(values) {
       await registration.mutateAsync({ data: values });
       setSentTo(values.email);
@@ -50,26 +60,40 @@ export function RegistrationForm() {
     <form noValidate onSubmit={onSubmit}>
       <FormError message={formError?.message} />
       <div className="space-y-5">
-        <FormField
-          label="Name"
-          hint="So sprechen wir dich an, zum Beispiel in E-Mails."
-          error={errors.display_name?.message}
-        >
-          {(control) => <Input {...control} {...register("display_name")} autoComplete="name" />}
-        </FormField>
-        <FormField label="E-Mail-Adresse" error={errors.email?.message}>
-          {(control) => (
-            <Input
-              {...control}
-              {...register("email")}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          )}
-        </FormField>
+        {preset ? (
+          <p className="text-small text-ink-secondary">
+            Für <span className="font-medium text-ink">{preset.display_name}</span> mit{" "}
+            <span className="font-medium break-all text-ink">{preset.email}</span>.
+            {errors.display_name?.message || errors.email?.message ? (
+              <span role="alert" className="mt-1 block text-danger">
+                {errors.display_name?.message ?? errors.email?.message}
+              </span>
+            ) : null}
+          </p>
+        ) : (
+          <>
+            <FormField
+              label="Name"
+              hint="So sprechen wir dich an, zum Beispiel in E-Mails."
+              error={errors.display_name?.message}
+            >
+              {(control) => <Input {...control} {...register("display_name")} autoComplete="name" />}
+            </FormField>
+            <FormField label="E-Mail-Adresse" error={errors.email?.message}>
+              {(control) => (
+                <Input
+                  {...control}
+                  {...register("email")}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              )}
+            </FormField>
+          </>
+        )}
         <FormField
           label="Passwort"
           hint={`Mindestens ${PASSWORD_MIN_LENGTH} Zeichen. Ein ganzer Satz lässt sich gut merken.`}
@@ -80,7 +104,7 @@ export function RegistrationForm() {
           )}
         </FormField>
         <SubmitButton pending={isSubmitting} pendingLabel="Wird gesendet …" className="w-full">
-          Konto anlegen
+          {submitLabel}
         </SubmitButton>
       </div>
     </form>
