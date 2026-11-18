@@ -134,6 +134,24 @@ class TestStudio:
         under = alpha[bottom + 12, (left + right) // 2]
         assert 0 < under < 255
 
+    def test_the_shadow_in_the_photo_is_kept_and_a_darker_wall_is_not(
+        self, studio: PhotoStudio
+    ) -> None:
+        photo = shot((230, 230, 230), (300, 300, 900, 600))
+        draw = ImageDraw.Draw(photo)
+        # A wall behind the model, darker than the floor; the shadow under its right half.
+        draw.rectangle((0, 0, 1200, 380), fill=(205, 205, 205))
+        draw.ellipse((600, 560, 1000, 660), fill=(150, 150, 150))
+        draw.rectangle((300, 300, 900, 600), fill=MODEL_COLOUR)
+        staged = studio.finish(photo).image
+        assert staged is not None
+        alpha = np.asarray(staged.getchannel("A"))
+        left, top, right, bottom = model_box(staged)
+        scale = (right - left) / 600
+        assert alpha[bottom + round(30 * scale), right - round(100 * scale)] > 40
+        assert alpha[bottom + round(30 * scale), left + round(100 * scale)] < 8
+        assert alpha[top + round(20 * scale), right + round(20 * scale)] < 8
+
     def test_photo_without_a_model_is_left_alone(self) -> None:
         result = PhotoStudio(NothingSegmenter()).finish(shot((230, 230, 230), (0, 0, 0, 0)))
         assert result.image is None
