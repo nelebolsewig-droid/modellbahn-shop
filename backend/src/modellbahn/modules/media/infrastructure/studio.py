@@ -59,14 +59,14 @@ MAX_UNSURE_SHARE: Final = 0.5
 SHADOW_RGB: Final = (0x26, 0x21, 0x1E)
 # The photo's own shadow: how far around the model it counts (in model sizes), below
 # which darkening it is noise, how it is strengthened and where it is capped.
-SHADOW_REACH: Final = 0.3
+SHADOW_REACH: Final = 0.18
 # The floor begins around here, as a share of the model's height from its top.
 SHADOW_FLOOR_TOP: Final = 0.3
 SHADOW_FLOOR_FULL: Final = 0.65
 SHADOW_FLOOR: Final = 0.07
 MIN_FAR_PIXELS: Final = 20
-SHADOW_GAIN: Final = 1.0
-SHADOW_MAX: Final = 0.7
+SHADOW_GAIN: Final = 0.7
+SHADOW_MAX: Final = 0.5
 # Below this the photo has no shadow worth keeping, and a plain soft one is drawn.
 FAINT_SHADOW: Final = 0.12
 MIN_SHADOW_AREA: Final = 0.03
