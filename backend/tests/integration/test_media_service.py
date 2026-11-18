@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from modellbahn.modules.media.application.handlers import MediaProcessingHandlers
 from modellbahn.modules.media.application.services import MediaService, UnitOfWorkFactory
+from modellbahn.modules.media.contracts.images import load_images
 from modellbahn.modules.media.domain.errors import (
     AssetInUseError,
     AssetNotFoundError,
@@ -259,6 +260,7 @@ class TestProcessing:
         self,
         media: MediaService,
         media_storage: InMemoryMediaStorage,
+        media_uow_factory: UnitOfWorkFactory,
         deliver: Deliver,
     ) -> None:
         asset = await ready_image(media, media_storage, deliver)
@@ -266,6 +268,11 @@ class TestProcessing:
         # A changed original stands in for a changed size catalogue.
         media_storage.upload(asset.id, photo(700, 500, colour=(20, 120, 200)))
         assert (await media.reprocess(asset.id)).status is AssetStatus.UPLOADED
+        # Until the worker is through, the shop keeps showing the sizes from before.
+        async with media_uow_factory() as uow:
+            waiting = (await load_images(uow, [asset.id], public_base_url="/medien"))[asset.id]
+        assert waiting.is_ready
+        assert {r.url.removeprefix("/medien/") for r in waiting.renditions} == old_keys
         await deliver()
         again = await media.get(asset.id)
         new_keys = {r.storage_key for r in again.renditions}

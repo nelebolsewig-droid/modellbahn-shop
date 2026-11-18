@@ -67,7 +67,14 @@ class ImageView:
 
     @property
     def is_ready(self) -> bool:
-        return self.status is AssetStatus.READY
+        """Can the image be shown? Yes once rendered, and also while it is rendered
+        again (the studio switched, say): its sizes from before stay until the new
+        ones replace them."""
+        if self.status is AssetStatus.READY:
+            return True
+        return (
+            self.status is AssetStatus.UPLOADED and bool(self.renditions) and self.width is not None
+        )
 
 
 async def load_images(

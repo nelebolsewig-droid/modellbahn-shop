@@ -1,11 +1,15 @@
 import type { PictureImage } from "@/components/ui/responsive-picture";
 import type { AdminImageOut } from "@/lib/api/generated/model";
 
-/** An image of the admin API as picture data, once it is ready (before, facts are missing). */
+/**
+ * An image of the admin API as picture data, once it has been rendered (before, facts are
+ * missing). A photo that is being rendered again keeps showing its sizes from before.
+ */
 export function readyPicture(image: AdminImageOut | null | undefined): PictureImage | null {
   if (
     !image ||
-    image.status !== "ready" ||
+    (image.status !== "ready" && image.status !== "uploaded") ||
+    image.renditions.length === 0 ||
     image.width === null ||
     image.height === null ||
     image.lqip === null ||
