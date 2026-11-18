@@ -3,21 +3,26 @@
 It runs SQL, so a domain layer must not import it (the pure-domain contract says so).
 """
 
+from collections import defaultdict
 from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Final
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, Row, func, select
 
 from modellbahn.modules.manufacturing.domain.model import (
+    CostLine,
     PrinterStatus,
     PrintJobStatus,
     Technology,
+    kit_material_cost,
 )
 from modellbahn.modules.manufacturing.infrastructure.tables import (
     bom_lines,
+    materials,
     parts,
     print_job_lines,
     print_jobs,
@@ -35,6 +40,7 @@ __all__ = [
     "Technology",
     "WorkshopState",
     "load_bill_of_materials",
+    "load_kit_material_costs",
     "load_part_by_number",
     "load_parts",
     "load_print_job_parts",
@@ -144,6 +150,40 @@ async def load_bill_of_materials(uow: UnitOfWork, product_scale_id: UUID) -> lis
         .order_by(bom_lines.c.position)
     )
     return [KitPart(part=_part_info(row), quantity=int(row.quantity)) for row in rows]
+
+
+async def load_kit_material_costs(
+    uow: UnitOfWork, product_scale_ids: Collection[UUID]
+) -> dict[UUID, Decimal | None]:
+    """Cents the material of one kit costs, per product in a scale (ADR 0035).
+
+    ``None`` for a kit whose bill of materials lacks an amount or a price; a product
+    scale without a bill of materials is left out.
+    """
+    ids = list(set(product_scale_ids))
+    if not ids:
+        return {}
+    rows = await uow.session.execute(
+        select(
+            bom_lines.c.product_scale_id,
+            bom_lines.c.quantity,
+            parts.c.material_per_part,
+            materials.c.price_cents,
+        )
+        .join(parts, parts.c.id == bom_lines.c.part_id)
+        .outerjoin(materials, materials.c.id == parts.c.material_id)
+        .where(bom_lines.c.product_scale_id.in_(ids))
+    )
+    lines: dict[UUID, list[CostLine]] = defaultdict(list)
+    for row in rows:
+        lines[row.product_scale_id].append(
+            CostLine(
+                quantity=int(row.quantity),
+                material_per_part=row.material_per_part,
+                price_cents=row.price_cents,
+            )
+        )
+    return {kit: kit_material_cost(kit_lines) for kit, kit_lines in lines.items()}
 
 
 async def load_print_jobs(uow: UnitOfWork, job_ids: Collection[UUID]) -> dict[UUID, PrintJobInfo]:

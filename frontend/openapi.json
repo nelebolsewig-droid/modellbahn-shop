@@ -4347,6 +4347,23 @@
             "title": "Notes",
             "type": "string"
           },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross cents per litre of resin or kilogram of filament; null if unknown.",
+            "examples": [
+              3990
+            ],
+            "title": "Price Cents"
+          },
           "technology": {
             "$ref": "#/components/schemas/Technology",
             "description": "Fixed once the material exists."
@@ -4378,6 +4395,23 @@
             "maxLength": 500,
             "title": "Notes",
             "type": "string"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross cents per litre of resin or kilogram of filament; null if unknown.",
+            "examples": [
+              3990
+            ],
+            "title": "Price Cents"
           }
         },
         "required": [
@@ -4429,6 +4463,18 @@
             "title": "Part Count",
             "type": "integer"
           },
+          "price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross cents per litre of resin or kilogram of filament; null if unknown.",
+            "title": "Price Cents"
+          },
           "technology": {
             "$ref": "#/components/schemas/Technology"
           }
@@ -4439,6 +4485,7 @@
           "technology",
           "notes",
           "active",
+          "price_cents",
           "part_count"
         ],
         "title": "MaterialOut",
@@ -10462,6 +10509,21 @@
             "title": "By Scale",
             "type": "array"
           },
+          "cost_cents": {
+            "description": "Herstellwert: material of the pieces whose cost is known (ADR 0035).",
+            "title": "Cost Cents",
+            "type": "integer"
+          },
+          "cost_pieces": {
+            "description": "Pieces whose kit has every amount and price; the rest lack one.",
+            "title": "Cost Pieces",
+            "type": "integer"
+          },
+          "cost_value_cents": {
+            "description": "Shop value of the pieces whose cost is known, to compare with.",
+            "title": "Cost Value Cents",
+            "type": "integer"
+          },
           "free_cents": {
             "description": "The part the shop can still sell.",
             "title": "Free Cents",
@@ -10518,7 +10580,10 @@
           "by_scale",
           "by_model",
           "part_pieces",
-          "part_kinds"
+          "part_kinds",
+          "cost_cents",
+          "cost_pieces",
+          "cost_value_cents"
         ],
         "title": "StockValueOut",
         "type": "object"
@@ -11851,6 +11916,16 @@
       },
       "ValueShareOut": {
         "properties": {
+          "cost_cents": {
+            "description": "Material of the pieces whose cost is known.",
+            "title": "Cost Cents",
+            "type": "integer"
+          },
+          "cost_pieces": {
+            "description": "Pieces whose cost is known.",
+            "title": "Cost Pieces",
+            "type": "integer"
+          },
           "key": {
             "description": "Finish or scale code, or the product id.",
             "title": "Key",
@@ -11876,7 +11951,9 @@
           "key",
           "name",
           "pieces",
-          "value_cents"
+          "value_cents",
+          "cost_cents",
+          "cost_pieces"
         ],
         "title": "ValueShareOut",
         "type": "object"
@@ -17741,6 +17818,7 @@
         ]
       },
       "put": {
+        "description": "A body without `price_cents` keeps the price; `null` removes it.",
         "operationId": "updateMaterial",
         "parameters": [
           {
@@ -17841,7 +17919,7 @@
             "staffSession": []
           }
         ],
-        "summary": "Rename, describe or archive a material",
+        "summary": "Rename, describe, price or archive a material",
         "tags": [
           "admin-manufacturing"
         ]

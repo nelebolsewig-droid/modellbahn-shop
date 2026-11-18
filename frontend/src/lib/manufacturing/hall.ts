@@ -41,6 +41,21 @@ export const MATERIAL_UNITS = {
   resin: "ml",
 } as const satisfies Record<Technology, string>;
 
+/** What a material's price refers to: a litre of resin, a kilogram of filament (ADR 0035). */
+export const PRICE_UNITS = {
+  fdm: "Kilo",
+  resin: "Liter",
+} as const satisfies Record<Technology, string>;
+
+/** `39,90 € je Liter`, or `kein Preis` while nobody entered one. */
+export function materialPrice(cents: number | null, technology: Technology): string {
+  if (cents === null) {
+    return "kein Preis";
+  }
+  const euros = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
+  return `${euros} je ${PRICE_UNITS[technology]}`;
+}
+
 export const JOB_STATUS_LABELS = {
   queued: "Wartet",
   printing: "Druckt",

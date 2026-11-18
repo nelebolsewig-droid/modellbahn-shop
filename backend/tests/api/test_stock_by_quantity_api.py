@@ -216,6 +216,58 @@ class TestStockValue:
             await packer_client.get(f"{INVENTORY}/stock/value"), 403, "insufficient_role"
         )
 
+    async def test_the_material_of_the_kits_is_the_herstellwert(
+        self, staff_client: AsyncClient, product: ProductDetails, painted: UUID
+    ) -> None:
+        manufacturing = "/api/v1/admin/manufacturing"
+        await staff_client.post(
+            f"{INVENTORY}/locations/shelves", json={"name": "Regal 1", "levels": 1}
+        )
+        await book_in(staff_client, painted, 3, "R01-B01")
+        await book_in(staff_client, variant_id(product, "H0", "unpainted"), 2, "R01-B01")
+        unknown = (await staff_client.get(f"{INVENTORY}/stock/value")).json()
+        assert (unknown["cost_cents"], unknown["cost_pieces"]) == (0, 0)
+
+        resin = await staff_client.post(
+            f"{manufacturing}/materials",
+            json={"name": "Resin grau", "technology": "resin", "price_cents": 4000},
+        )
+        part_ids = []
+        for number, millilitres in (("BODY", 12.5), ("DACH", 2.5)):
+            created = await staff_client.post(
+                f"{manufacturing}/parts",
+                json={
+                    "part_number": number,
+                    "name": number,
+                    "scale_code": "H0",
+                    "technology": "resin",
+                    "material_id": resin.json()["id"],
+                    "material_per_part": millilitres,
+                },
+            )
+            assert created.status_code == 201, created.text
+            part_ids.append(created.json()["id"])
+        product_scale_id = product.product.scales[0].id
+        bom = await staff_client.put(
+            f"{manufacturing}/product-scales/{product_scale_id}/bom",
+            json={
+                "lines": [
+                    {"part_id": part_ids[0], "quantity": 1},
+                    {"part_id": part_ids[1], "quantity": 2},
+                ]
+            },
+        )
+        assert bom.status_code == 200, bom.text
+
+        body = (await staff_client.get(f"{INVENTORY}/stock/value")).json()
+        # One kit takes 12.5 + 2 x 2.5 = 17.5 ml at 40 € a litre: 70 cents, Bausatz or not.
+        assert (body["cost_cents"], body["cost_pieces"]) == (5 * 70, 5)
+        assert body["cost_value_cents"] == body["value_cents"]
+        assert [(s["key"], s["cost_cents"]) for s in body["by_finish"]] == [
+            ("painted", 3 * 70),
+            ("unpainted", 2 * 70),
+        ]
+
 
 class TestToMake:
     async def test_owner_and_staff_see_what_to_make_packers_do_not(

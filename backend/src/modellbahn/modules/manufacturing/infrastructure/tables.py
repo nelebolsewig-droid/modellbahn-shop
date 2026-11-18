@@ -120,10 +120,13 @@ materials = Table(
     Column("active", Boolean, nullable=False, server_default=text("true")),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    # Cents per litre of resin or kilogram of filament, gross; empty while unknown.
+    Column("price_cents", Integer),
     # Target of the parts' key on (material, technology).
     UniqueConstraint("id", "technology"),
     CheckConstraint("char_length(name) BETWEEN 1 AND 60", name="name_length"),
     CheckConstraint(f"technology IN ({_TECHNOLOGIES})", name="technology"),
+    CheckConstraint("price_cents IS NULL OR price_cents > 0", name="price_cents"),
     schema=SCHEMA,
 )
 

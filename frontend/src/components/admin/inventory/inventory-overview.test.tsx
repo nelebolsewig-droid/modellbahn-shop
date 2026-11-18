@@ -69,13 +69,16 @@ const VALUE: StockValueOut = {
   reserved_cents: 4990,
   unpriced_pieces: 2,
   by_finish: [
-    { key: "painted", name: "Fertigmodell", pieces: 6, value_cents: 6 * 4990 },
-    { key: "unpainted", name: "Bausatz", pieces: 1, value_cents: 2990 },
+    { key: "painted", name: "Fertigmodell", pieces: 6, value_cents: 6 * 4990, cost_cents: 420, cost_pieces: 6 },
+    { key: "unpainted", name: "Bausatz", pieces: 1, value_cents: 2990, cost_cents: 0, cost_pieces: 0 },
   ],
-  by_scale: [{ key: "H0", name: "H0", pieces: 7, value_cents: 6 * 4990 + 2990 }],
-  by_model: [{ key: "p1", name: "Stellwerk Altenau", pieces: 7, value_cents: 6 * 4990 + 2990 }],
+  by_scale: [{ key: "H0", name: "H0", pieces: 7, value_cents: 6 * 4990 + 2990, cost_cents: 420, cost_pieces: 6 }],
+  by_model: [{ key: "p1", name: "Stellwerk Altenau", pieces: 7, value_cents: 6 * 4990 + 2990, cost_cents: 420, cost_pieces: 6 }],
   part_pieces: 1204,
   part_kinds: 12,
+  cost_cents: 420,
+  cost_pieces: 6,
+  cost_value_cents: 6 * 4990,
 };
 
 function store(routes: Record<string, RouteHandler> = {}) {
@@ -144,9 +147,17 @@ describe("Lager", () => {
       `Fertigmodell6 Stück${formatPrice(29940)}`,
       `Bausatz1 Stück${formatPrice(2990)}`,
     ]);
-    expect(within(panel).getByRole("link", { name: "Stellwerk Altenau" })).toHaveAttribute("href", "/admin/modelle/p1");
+    const model = within(panel).getByRole("link", { name: "Stellwerk Altenau" });
+    expect(model).toHaveAttribute("href", "/admin/modelle/p1");
+    expect(model.closest("li")).toHaveTextContent("7 Stück · Material 4,20 €");
     expect(panel).toHaveTextContent("1.204 Teile in Boxen (12 Teilenummern)");
     expect(panel).toHaveTextContent("2 Stück gelöschter Modelle");
+    const production = within(panel).getByRole("region", { name: "Herstellwert" });
+    expect(production).toHaveTextContent("4,20 €");
+    expect(production).toHaveTextContent("für 6 Stück von 7 Stück");
+    expect(production).toHaveTextContent("1,4 % vom Verkaufswert");
+    expect(production).toHaveTextContent("1 Stück ohne Herstellkosten");
+    expect(within(production).getByRole("link", { name: "Teile & Material" })).toHaveAttribute("href", "/admin/fertigung/teile");
   });
 
   it("does not show packers the worth of the store", async () => {

@@ -183,6 +183,29 @@ class TestPartsAndKits:
             "material_in_use",
         )
 
+    async def test_a_material_has_a_price_the_archive_button_keeps(
+        self, staff_client: AsyncClient
+    ) -> None:
+        material = await created(
+            staff_client,
+            "/materials",
+            {"name": "Resin grau", "technology": "resin", "price_cents": 3990},
+        )
+        assert material["price_cents"] == 3990
+        path = f"{BASE}/materials/{material['id']}"
+        # Without the field (as the archive button sends): the price stays.
+        archived = await ok(staff_client.put(path, json={"name": "Resin grau", "active": False}))
+        assert (archived["active"], archived["price_cents"]) == (False, 3990)
+        changed = await ok(staff_client.put(path, json={"name": "Resin grau", "price_cents": 4490}))
+        assert changed["price_cents"] == 4490
+        cleared = await ok(staff_client.put(path, json={"name": "Resin grau", "price_cents": None}))
+        assert cleared["price_cents"] is None
+        assert_problem(
+            await staff_client.put(path, json={"name": "Resin grau", "price_cents": 0}),
+            422,
+            "validation_failed",
+        )
+
     async def test_a_kit_and_its_parts(self, staff_client: AsyncClient) -> None:
         product = (await staff_client.post(PRODUCTS, json={"name": "Stellwerk Altenau"})).json()
         response = await staff_client.post(

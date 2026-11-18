@@ -38,7 +38,9 @@ def start_mappers() -> None:
                 cascade="all, delete-orphan",
                 passive_deletes=True,
                 lazy="selectin",
-                order_by=tables.variants.c.created_at,
+                # Variants made in one go (the import) can share a timestamp: the
+                # SKU keeps their order stable, F before F2 before F3.
+                order_by=[tables.variants.c.created_at, tables.variants.c.sku],
             )
         },
     )

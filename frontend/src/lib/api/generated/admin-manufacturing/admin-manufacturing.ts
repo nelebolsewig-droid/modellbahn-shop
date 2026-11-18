@@ -452,7 +452,8 @@ export const useDeleteMaterial = <TError = ErrorType<Problem | ValidationProblem
 }
 
 /**
- * @summary Rename, describe or archive a material
+ * A body without `price_cents` keeps the price; `null` removes it.
+ * @summary Rename, describe, price or archive a material
  */
 export const updateMaterial = async (materialId: string,
     materialIn: MaterialIn, options?: Parameters<typeof apiFetch>[1]): Promise<MaterialOut> => {
@@ -519,7 +520,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMaterialMutationVariables = {materialId: string;data: MaterialIn}
 
     /**
- * @summary Rename, describe or archive a material
+ * @summary Rename, describe, price or archive a material
  */
 export const useUpdateMaterial = <TError = ErrorType<Problem | ValidationProblem>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMaterial>>, TError,UpdateMaterialMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

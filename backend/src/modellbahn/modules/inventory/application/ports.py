@@ -6,6 +6,7 @@ The infrastructure layer implements them; tests may substitute their own.
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from types import TracebackType
 from typing import Protocol, Self
@@ -296,6 +297,12 @@ class Manufacturing(Protocol):
     async def part_by_number(self, part_number: str) -> PartInfo | None: ...
 
     async def bill_of_materials(self, product_scale_id: UUID) -> list[KitPart]: ...
+
+    async def kit_material_costs(
+        self, product_scale_ids: Collection[UUID]
+    ) -> dict[UUID, Decimal | None]:
+        """Cents of material per kit, per product scale (``None``: not all known)."""
+        ...
 
     async def print_jobs(self, job_ids: Collection[UUID]) -> dict[UUID, PrintJobInfo]: ...
 

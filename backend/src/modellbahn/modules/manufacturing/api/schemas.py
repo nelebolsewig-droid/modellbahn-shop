@@ -31,6 +31,7 @@ from modellbahn.modules.manufacturing.domain.model import (
     JOB_QUANTITY_MAX,
     LAYER_HEIGHT_UM_RANGE,
     MATERIAL_NAME_MAX_LENGTH,
+    MATERIAL_PRICE_MAX_CENTS,
     NOTES_MAX_LENGTH,
     PART_NAME_MAX_LENGTH,
     PART_NUMBER_MAX_LENGTH,
@@ -330,6 +331,9 @@ class MaterialOut(MaterialRefOut):
     technology: Technology
     notes: str
     active: bool
+    price_cents: int | None = Field(
+        description="Gross cents per litre of resin or kilogram of filament; null if unknown."
+    )
     part_count: int = Field(description="Parts made of it.")
 
     @classmethod
@@ -341,6 +345,7 @@ class MaterialOut(MaterialRefOut):
             technology=material.technology,
             notes=material.notes,
             active=material.active,
+            price_cents=material.price_cents,
             part_count=entry.parts,
         )
 
@@ -349,16 +354,27 @@ class MaterialListOut(BaseModel):
     items: list[MaterialOut]
 
 
+_PRICE = Field(
+    default=None,
+    ge=1,
+    le=MATERIAL_PRICE_MAX_CENTS,
+    examples=[3990],
+    description="Gross cents per litre of resin or kilogram of filament; null if unknown.",
+)
+
+
 class MaterialIn(_Request):
     name: str = Field(min_length=1, max_length=MATERIAL_NAME_MAX_LENGTH)
     notes: str = Field(default="", max_length=NOTES_MAX_LENGTH)
     active: bool = True
+    price_cents: int | None = _PRICE
 
 
 class MaterialCreateIn(_Request):
     name: str = Field(min_length=1, max_length=MATERIAL_NAME_MAX_LENGTH, examples=["PLA grau"])
     technology: Technology = Field(description="Fixed once the material exists.")
     notes: str = Field(default="", max_length=NOTES_MAX_LENGTH)
+    price_cents: int | None = _PRICE
 
 
 # --- Parts ----------------------------------------------------------------------------

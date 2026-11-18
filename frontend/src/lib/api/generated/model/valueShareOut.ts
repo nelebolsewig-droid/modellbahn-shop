@@ -13,6 +13,10 @@
  */
 
 export interface ValueShareOut {
+  /** Material of the pieces whose cost is known. */
+  cost_cents: number;
+  /** Pieces whose cost is known. */
+  cost_pieces: number;
   /** Finish or scale code, or the product id. */
   key: string;
   name: string;

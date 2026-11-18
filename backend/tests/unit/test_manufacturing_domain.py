@@ -19,6 +19,7 @@ from modellbahn.modules.manufacturing.domain.events import (
 )
 from modellbahn.modules.manufacturing.domain.model import (
     BillOfMaterials,
+    CostLine,
     Material,
     Part,
     PartDetails,
@@ -29,6 +30,7 @@ from modellbahn.modules.manufacturing.domain.model import (
     PrintJobStatus,
     Technology,
     estimate_minutes,
+    kit_material_cost,
 )
 
 NOW = datetime(2026, 10, 29, 8, 0, tzinfo=UTC)
@@ -424,3 +426,16 @@ class TestPrintJob:
                 now=LATER,
             )
         assert caught.value.field == "printer_id"
+
+
+def test_what_a_kit_costs_to_print() -> None:
+
+    # 12.5 ml + 2 x 2.5 ml of a resin at 39.90 € a litre: 69.825 cents.
+    lines = [
+        CostLine(quantity=1, material_per_part=Decimal("12.5"), price_cents=3990),
+        CostLine(quantity=2, material_per_part=Decimal("2.5"), price_cents=3990),
+    ]
+    assert kit_material_cost(lines) == Decimal("69.825")
+    assert kit_material_cost([]) is None
+    assert kit_material_cost([*lines, CostLine(1, None, 3990)]) is None
+    assert kit_material_cost([*lines, CostLine(1, Decimal(1), None)]) is None
