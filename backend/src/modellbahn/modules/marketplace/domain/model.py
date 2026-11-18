@@ -57,7 +57,7 @@ def _text(value: str, max_length: int) -> str:
 
 
 def check_category_id(value: str, *, field: str = "ebay_category_id") -> str:
-    """An eBay category is a number, e.g. 180250; empty means "none chosen"."""
+    """An eBay category is a number, e.g. 180273; empty means "none chosen"."""
     cleaned = value.strip()
     if cleaned and not _CATEGORY_ID.fullmatch(cleaned):
         raise InvalidFieldError(field, "invalid", "an eBay category number")

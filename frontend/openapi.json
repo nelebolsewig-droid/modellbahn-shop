@@ -1587,7 +1587,7 @@
           },
           "ebay_category_id": {
             "examples": [
-              "180250"
+              "180273"
             ],
             "maxLength": 10,
             "title": "Ebay Category Id",
@@ -1646,7 +1646,7 @@
           "ebay_category_id": {
             "description": "Empty: none chosen.",
             "examples": [
-              "180250"
+              "180273"
             ],
             "title": "Ebay Category Id",
             "type": "string"
