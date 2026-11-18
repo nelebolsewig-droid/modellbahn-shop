@@ -280,9 +280,11 @@ async def test_worker_sends_the_verification_mail(
         )
 
         async def verified() -> StartedSession | None:
-            if not mailer.sent:
+            # Other mails may leave too (the morning mail in shop hours): Erika's counts.
+            sent = [mail for mail in mailer.sent if mail.to == "kunde@example.com"]
+            if not sent:
                 return None
-            token = token_from(mailer.sent[0])
+            token = token_from(sent[0])
             try:
                 return await identity.verify_email(token=token, password=PASSWORD, user_agent=None)
             except InvalidTokenError:

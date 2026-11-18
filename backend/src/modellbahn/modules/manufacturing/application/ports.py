@@ -153,6 +153,24 @@ class Catalog(Protocol):
 
     async def scale_names(self) -> dict[str, str]: ...
 
+    async def variant_scales(self, variant_ids: Collection[UUID]) -> dict[UUID, UUID]:
+        """The product scale (bill of materials) of each variant; unknown ids are left out."""
+        ...
+
+
+class Stock(Protocol):
+    """The stock's facade for planning: pieces paid orders wait for, parts at hand."""
+
+    async def waiting_pieces(self) -> list[tuple[UUID, UUID]]:
+        """(order id, variant id) of every paid piece without a unit, the oldest first."""
+        ...
+
+    async def part_supply(self) -> dict[UUID, int]:
+        """Printed parts per part in the boxes and in receiving."""
+        ...
+
+    async def order_numbers(self, order_ids: Collection[UUID]) -> dict[UUID, str]: ...
+
 
 class Staff(Protocol):
     """Who did something, by name."""
@@ -183,6 +201,9 @@ class ManufacturingUnitOfWork(Protocol):
 
     @property
     def staff(self) -> Staff: ...
+
+    @property
+    def stock(self) -> Stock: ...
 
     async def __aenter__(self) -> Self: ...
 

@@ -551,6 +551,19 @@
             "title": "Lines",
             "type": "array"
           },
+          "making_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the first plate for one of its pieces went on a printer (ADR 0034).",
+            "title": "Making Started At"
+          },
           "number": {
             "examples": [
               "MB-2026-00042"
@@ -4791,6 +4804,19 @@
             },
             "title": "Lines",
             "type": "array"
+          },
+          "making_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the first plate for one of its pieces went on a printer (ADR 0034).",
+            "title": "Making Started At"
           },
           "number": {
             "examples": [

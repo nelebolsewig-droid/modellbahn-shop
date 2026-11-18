@@ -31,6 +31,7 @@ from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
     OrderDelayed,
+    OrderMakingStarted,
     OrderPaid,
     OrderPlaced,
     OrderRefunded,
@@ -560,6 +561,8 @@ class Order:
     """When some pieces are made for the customer: the lead time the checkout showed,
     from and to (ADR 0029). ``None``: everything ships from the shelves."""
     lead_time_max_weeks: int | None = None
+    making_started_at: datetime | None = None
+    """When the first plate for one of its pieces went on a printer (ADR 0034)."""
     lines: list[OrderLine] = field(default_factory=list)
     payments: list[Payment] = field(default_factory=list)
 
@@ -993,6 +996,16 @@ class Order:
             total_cents=self.total_cents,
             lead_time_min_weeks=shortest,
             lead_time_max_weeks=longest,
+        )
+
+    def start_making(self, now: datetime) -> OrderMakingStarted | None:
+        """A plate for one of its pieces is printing: noted once, while the order is paid."""
+        if self.status is not OrderStatus.PAID or self.making_started_at is not None:
+            return None
+        self.making_started_at = now
+        self.updated_at = now
+        return OrderMakingStarted(
+            aggregate_id=self.id, occurred_at=now, number=self.number, total_cents=self.total_cents
         )
 
     def ship(self, *, carrier: str, tracking_number: str, now: datetime) -> OrderShipped:

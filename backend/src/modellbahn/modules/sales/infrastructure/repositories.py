@@ -4,11 +4,13 @@ Repositories only read and stage changes; committing is the unit of work's job.
 """
 
 from collections.abc import Collection
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import partial
+from typing import Final
 from uuid import UUID
 
-from sqlalchemy import Select, and_, delete, exists, or_, select, tuple_
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, tuple_
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.catalog.contracts.variants import (
@@ -21,10 +23,17 @@ from modellbahn.modules.identity.contracts.accounts import (
     get_account_summary,
 )
 from modellbahn.modules.inventory.contracts.availability import PickProgress
+from modellbahn.modules.inventory.contracts.demand import load_waiting_pieces
 from modellbahn.modules.inventory.contracts.stock import load_free_units, load_pick_progress
+from modellbahn.modules.manufacturing.contracts.parts import (
+    load_bill_of_materials,
+    load_print_job_parts,
+    load_workshop_state,
+)
 from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_received_order
 from modellbahn.modules.media.contracts.images import ImageView, load_images
-from modellbahn.modules.sales.application.ports import OrderQuery
+from modellbahn.modules.sales.application.mails import SHOP_TIME_ZONE
+from modellbahn.modules.sales.application.ports import DigestFacts, OrderQuery
 from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingLabel
 from modellbahn.modules.sales.domain.model import (
     BANK_TRANSFER,
@@ -42,6 +51,7 @@ from modellbahn.modules.sales.infrastructure.mapping import start_mappers
 from modellbahn.modules.sales.infrastructure.tables import (
     carts,
     customer_addresses,
+    daily_digests,
     order_number_seq,
     orders,
     payments,
@@ -309,6 +319,91 @@ class SqlInventory:
     async def pick_progress(self, order_id: UUID) -> PickProgress:
         return await load_pick_progress(self._uow, order_id)
 
+    async def orders_served_by_plate(self, job_id: UUID) -> set[UUID]:
+        on_plate = await load_print_job_parts(self._uow, job_id)
+        pieces = await load_waiting_pieces(self._uow)
+        if not on_plate or not pieces:
+            return set()
+        variants = await load_sale_variants(self._uow, {piece.variant_id for piece in pieces})
+        parts_of_scale: dict[UUID, set[UUID]] = {}
+        served: set[UUID] = set()
+        for piece in pieces:
+            variant = variants.get(piece.variant_id)
+            if variant is None:
+                continue
+            scale_id = variant.product_scale_id
+            if scale_id not in parts_of_scale:
+                kit = await load_bill_of_materials(self._uow, scale_id)
+                parts_of_scale[scale_id] = {line.part.part_id for line in kit}
+            if parts_of_scale[scale_id] & on_plate:
+                served.add(piece.order_id)
+        return served
+
+
+UNPAID_FOR: Final = timedelta(days=3)
+"""How long an order waits for its money before the morning mail names it."""
+
+
+class SqlDigests:
+    """The morning mail's figures, read across the modules inside this transaction."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def claim(self, day: date, now: datetime) -> bool:
+        claimed = await self._uow.session.execute(
+            insert(daily_digests)
+            .values(day=day, sent_at=now)
+            .on_conflict_do_nothing(index_elements=[daily_digests.c.day])
+            .returning(daily_digests.c.day)
+        )
+        return claimed.first() is not None
+
+    async def facts(self, now: datetime) -> DigestFacts:
+        session = self._uow.session
+        waiting = await load_waiting_pieces(self._uow)
+        making_orders = {piece.order_id for piece in waiting}
+        paid = (
+            await session.execute(
+                select(orders.c.id, orders.c.number)
+                .where(orders.c.status == OrderStatus.PAID)
+                .order_by(orders.c.paid_at, orders.c.number)
+            )
+        ).all()
+        ready = [row.number for row in paid if row.id not in making_orders]
+        overdue = await session.scalar(
+            select(func.count()).where(
+                orders.c.status == OrderStatus.PENDING_PAYMENT,
+                orders.c.placed_at <= now - UNPAID_FOR,
+            )
+        )
+        local_today = now.astimezone(SHOP_TIME_ZONE).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        yesterday = (
+            await session.execute(
+                select(func.count(), func.coalesce(func.sum(orders.c.total_cents), 0)).where(
+                    orders.c.paid_at >= local_today - timedelta(days=1),
+                    orders.c.paid_at < local_today,
+                    orders.c.status != OrderStatus.CANCELLED,
+                )
+            )
+        ).one()
+        workshop = await load_workshop_state(self._uow)
+        return DigestFacts(
+            to_pack=len(ready),
+            oldest_to_pack=ready[0] if ready else None,
+            making_pieces=len(waiting),
+            making_orders=len(making_orders),
+            unpaid_overdue=int(overdue or 0),
+            paid_yesterday=int(yesterday[0]),
+            paid_yesterday_cents=int(yesterday[1]),
+            plates_queued=workshop.queued,
+            plates_printing=workshop.printing,
+            plates_post_processing=workshop.post_processing,
+            printers_down=workshop.down,
+        )
+
 
 class SqlFairs:
     """The site module's fair facade, inside this unit of work's transaction."""
@@ -343,6 +438,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     accounts: SqlAccounts
     inventory: SqlInventory
     fairs: SqlFairs
+    digests: SqlDigests
     marketplace: SqlMarketplace
 
     def __init__(
@@ -363,6 +459,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.accounts = SqlAccounts(self)
         self.inventory = SqlInventory(self)
         self.fairs = SqlFairs(self)
+        self.digests = SqlDigests(self)
         self.marketplace = SqlMarketplace(self)
 
 

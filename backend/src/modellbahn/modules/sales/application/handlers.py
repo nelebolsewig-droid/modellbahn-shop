@@ -9,6 +9,8 @@
   the shop's own address.
 * Backorders: a paid order whose checkout saw everything on the shelves learns the lead
   time of the pieces made for it after all, and its customer hears so once (ADR 0029).
+* Print jobs: when a plate for its pieces starts printing, a paid order notes so and its
+  customer hears so once (ADR 0034).
 
 Delivery is at least once. Adopting and removing are idempotent by nature; an order
 learns a late lead time once, however many of its pieces are backordered; a notice e-mail
@@ -21,12 +23,14 @@ import structlog
 
 from modellbahn.modules.identity.contracts.events import AccountDeleted, EmailVerified
 from modellbahn.modules.inventory.contracts.events import AllocationBackordered
+from modellbahn.modules.manufacturing.contracts.events import PrintJobChanged
 from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
     OrderDelayed,
+    OrderMakingStarted,
     OrderPaid,
     OrderPlaced,
     OrderRefunded,
@@ -79,6 +83,8 @@ class SalesHandlers:
         registry.register(WithdrawalReceived, self.confirm_withdrawal)
         registry.register(AllocationBackordered, self.learn_lead_time)
         registry.register(OrderDelayed, self.send_delay_notice)
+        registry.register(PrintJobChanged, self.note_making_started)
+        registry.register(OrderMakingStarted, self.send_making_notice)
 
     async def adopt_guest_orders(self, event: EmailVerified) -> None:
         """Guest orders with the now verified address join the customer's order history."""
@@ -178,6 +184,35 @@ class SalesHandlers:
             # Made already by the time the mail goes out: the parcel is on its way soon.
             return
         content = mails.delay_mail(order, titles=titles, base_url=self._base_url)
+        await self._send(event, order, content)
+
+    async def note_making_started(self, event: PrintJobChanged) -> None:
+        """A plate started printing: every paid order it makes parts for notes it once."""
+        if event.change != "started":
+            return
+        async with self._uow() as uow:
+            served = await uow.inventory.orders_served_by_plate(event.aggregate_id)
+        for order_id in sorted(served):
+            async with self._uow() as uow:
+                order = await uow.orders.get(order_id, for_update=True)
+                started = order.start_making(self._clock.now()) if order else None
+                if started is None:
+                    continue
+                uow.publish(started)
+                await uow.commit()
+            _logger.info("sales.order.making_started", order=started.number, job=event.number)
+
+    async def send_making_notice(self, event: OrderMakingStarted) -> None:
+        """Tell the customer the workshop is making their pieces now."""
+        order = await self._order(event)
+        if order is None or order.status is not OrderStatus.PAID:
+            return
+        async with self._uow() as uow:
+            waiting = set((await uow.inventory.pick_progress(order.id)).waiting_variant_ids)
+        titles = [line.title for line in order.lines if line.variant_id in waiting]
+        if not titles:
+            return
+        content = mails.making_mail(order, titles=titles, base_url=self._base_url)
         await self._send(event, order, content)
 
     async def send_shipped_notice(self, event: OrderShipped) -> None:

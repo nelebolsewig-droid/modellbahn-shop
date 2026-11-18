@@ -14,6 +14,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -107,6 +108,8 @@ orders = Table(
     # The lead time the checkout showed when some pieces are made for the customer.
     Column("lead_time_min_weeks", SmallInteger),
     Column("lead_time_max_weeks", SmallInteger),
+    # When the first plate for one of its pieces went on a printer (ADR 0034).
+    Column("making_started_at", DateTime(timezone=True)),
     CheckConstraint("status IN ('pending_payment', 'paid', 'shipped', 'cancelled')", name="status"),
     CheckConstraint(
         "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)", name="lead_time_pair"
@@ -164,6 +167,15 @@ orders = Table(
     ),
     # The periodic job looks for orders whose payment is overdue.
     Index("orders_pending_idx", "placed_at", postgresql_where=text("status = 'pending_payment'")),
+    schema=SCHEMA,
+)
+
+# One row per day the morning mail went out (ADR 0034): several workers send it once.
+daily_digests = Table(
+    "daily_digests",
+    metadata,
+    Column("day", Date, primary_key=True),
+    Column("sent_at", DateTime(timezone=True), nullable=False),
     schema=SCHEMA,
 )
 

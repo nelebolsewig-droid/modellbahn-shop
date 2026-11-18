@@ -409,6 +409,10 @@ class OrderOut(BaseModel):
         "showed; the parcel leaves complete. Null: everything ships from the shelves.",
     )
     lead_time_max_weeks: int | None = None
+    making_started_at: datetime | None = Field(
+        default=None,
+        description="When the first plate for one of its pieces went on a printer (ADR 0034).",
+    )
 
     @classmethod
     def from_details(cls, details: OrderDetails, *, bank: BankAccount | None = None) -> Self:
@@ -434,6 +438,7 @@ class OrderOut(BaseModel):
             bank_transfer=BankTransferOut.of(order, bank),
             lead_time_min_weeks=order.lead_time_min_weeks,
             lead_time_max_weeks=order.lead_time_max_weeks,
+            making_started_at=order.making_started_at,
         )
 
 

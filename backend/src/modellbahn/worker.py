@@ -7,6 +7,7 @@ from functools import partial
 from typing import Final
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 # Modules whose events the worker only forwards (no handler here) are imported for their
 # event classes: the dispatcher must deserialize every event type in the outbox.
@@ -20,7 +21,12 @@ from modellbahn.modules.inventory.application.allocation import AllocationServic
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.manufacturing.application.automation import AutoPlanner
+from modellbahn.modules.manufacturing.application.handlers import ManufacturingHandlers
 from modellbahn.modules.manufacturing.contracts import events as manufacturing_events
+from modellbahn.modules.manufacturing.infrastructure.repositories import (
+    manufacturing_uow_factory,
+)
 from modellbahn.modules.marketplace.application.handlers import MarketplaceHandlers
 from modellbahn.modules.marketplace.contracts import events as marketplace_events
 from modellbahn.modules.marketplace.infrastructure.setup import build_marketplace
@@ -33,6 +39,7 @@ from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfW
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.media.infrastructure.studio import default_studio
 from modellbahn.modules.sales.application.cart import CartService
+from modellbahn.modules.sales.application.digest import MorningDigest
 from modellbahn.modules.sales.application.handlers import SalesHandlers
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
@@ -46,7 +53,7 @@ from modellbahn.modules.site.application.handlers import SiteHandlers
 from modellbahn.modules.site.application.subscriptions import SubscriptionService
 from modellbahn.modules.site.infrastructure.mapping import start_mappers as start_site_mappers
 from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
-from modellbahn.platform.clock import SystemClock
+from modellbahn.platform.clock import Clock, SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
 from modellbahn.platform.events import event_registry
@@ -66,6 +73,11 @@ EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
 EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
+# A safety net for automatic planning: a bill of materials entered or a printer back in
+# service after the order came in still gets its plates (ADR 0034).
+AUTOPLAN_INTERVAL: Final = timedelta(hours=1)
+# How often the worker asks whether this morning's mail „Heute dran“ is due.
+MORNING_DIGEST_CHECK_INTERVAL: Final = timedelta(minutes=10)
 # The marketplace's events stay readable with MB_EBAY_MODE=off (the setting may change).
 FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events, manufacturing_events)
 
@@ -129,6 +141,7 @@ async def run_worker(
         allocation=AllocationService(uow_factory=inventory_uow, clock=clock),
         parts=PartStoreService(uow_factory=inventory_uow, clock=clock),
     ).register(handlers)
+    jobs: list[PeriodicJob] = _automation(settings, session_factory, clock, handlers)
     MediaProcessingHandlers(
         uow_factory=media_uow,
         storage=storage,
@@ -161,7 +174,7 @@ async def run_worker(
         sender=settings.imprint.mail_footer(),
     )
     cart_service = CartService(uow_factory=sales_uow, clock=clock)
-    jobs = [
+    jobs += [
         PeriodicJob(
             name="media.purge_stale_uploads",
             interval=STALE_UPLOAD_SWEEP_INTERVAL,
@@ -186,6 +199,19 @@ async def run_worker(
             name="sales.purge_expired_carts",
             interval=EXPIRED_CART_SWEEP_INTERVAL,
             run=cart_service.purge_expired,
+        ),
+        PeriodicJob(
+            name="sales.morning_digest",
+            interval=MORNING_DIGEST_CHECK_INTERVAL,
+            run=MorningDigest(
+                uow_factory=sales_uow,
+                clock=clock,
+                mailer=mailer,
+                shop_email=settings.imprint.email,
+                public_base_url=settings.public_base_url,
+                shop_name=settings.shop_name,
+                sender=settings.imprint.mail_footer(),
+            ).send_if_due,
         ),
         PeriodicJob(
             name="site.purge_pending_subscriptions",
@@ -226,6 +252,26 @@ async def run_worker(
         await payment_gateway.aclose()
         await carrier.aclose()
         await engine.dispose()
+
+
+def _automation(
+    settings: Settings,
+    session_factory: async_sessionmaker[AsyncSession],
+    clock: Clock,
+    handlers: HandlerRegistry,
+) -> list[PeriodicJob]:
+    """The workshop's automation (ADR 0034): plates for paid pieces, on events and hourly."""
+    if not settings.autoplan:
+        return []
+    planner = AutoPlanner(uow_factory=manufacturing_uow_factory(session_factory), clock=clock)
+    ManufacturingHandlers(planner=planner).register(handlers)
+    return [
+        PeriodicJob(
+            name="manufacturing.plan_waiting",
+            interval=AUTOPLAN_INTERVAL,
+            run=planner.plan_waiting,
+        )
+    ]
 
 
 async def _serve(settings: Settings) -> None:

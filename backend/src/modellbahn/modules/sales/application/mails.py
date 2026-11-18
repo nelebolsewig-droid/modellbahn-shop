@@ -1,9 +1,10 @@
 """The German e-mails of the sales module (content only; the layout is in ``platform.mail``)."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Final
 from zoneinfo import ZoneInfo
 
+from modellbahn.modules.sales.application.ports import DigestFacts
 from modellbahn.modules.sales.domain.model import CancelReason, Order
 from modellbahn.modules.sales.domain.withdrawals import Withdrawal
 from modellbahn.modules.site.contracts.next_fair import NextFair
@@ -169,6 +170,119 @@ def delay_mail(order: Order, *, titles: list[str], base_url: str) -> MailContent
             "Möchtest du lieber nicht so lange warten? Dann antworte nicht auf diese E-Mail, "
             "sondern schreib uns über den Shop: Wir finden gemeinsam eine Lösung.",
         ),
+    )
+
+
+def making_mail(order: Order, *, titles: list[str], base_url: str) -> MailContent:
+    """Once, when the first plate for the customer's pieces goes on a printer (ADR 0034)."""
+    made = _listing(titles)
+    weeks = order.lead_time_weeks
+    when = (
+        f"Wie angekündigt geht dein Paket voraussichtlich in {weeks_text(weeks)} los."
+        if weeks
+        else "Sobald alles fertig ist, geht dein Paket los."
+    )
+    return MailContent(
+        subject=f"Deine Bestellung {order.number} ist in der Werkstatt",
+        greeting=_greeting(order),
+        paragraphs=(
+            f"gute Nachricht: In unserer Werkstatt läuft gerade der Drucker für dich. "
+            f"Wir fertigen {made}.",
+            f"Danach wird geschliffen, gebaut und geprüft. {when} Auf der Seite deiner "
+            "Bestellung siehst du jederzeit, wo sie gerade steht.",
+        ),
+        action=MailAction(label="Bestellung verfolgen", url=status_link(base_url, order)),
+        closing=("Viele Grüße aus der Werkstatt!",),
+    )
+
+
+WEEKDAYS: Final = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
+
+
+def _count(number: int, one: str, many: str) -> str:
+    return f"1 {one}" if number == 1 else f"{number} {many}"
+
+
+def _printing(plates: int) -> str:
+    return "keiner druckt" if plates == 0 else ("1 druckt" if plates == 1 else f"{plates} drucken")
+
+
+def morning_mail(facts: DigestFacts, *, day: date, base_url: str) -> MailContent:
+    """„Heute dran“, once a morning to the shop (ADR 0034): the day's work at a glance."""
+    todo: list[str] = []
+    if facts.to_pack:
+        todo.append(_count(facts.to_pack, "Paket packen", "Pakete packen"))
+    if facts.printers_down:
+        todo.append(_count(len(facts.printers_down), "Drucker ansehen", "Drucker ansehen"))
+    if facts.plates_queued and not facts.plates_printing:
+        todo.append(_count(facts.plates_queued, "Platte starten", "Platten starten"))
+    if facts.plates_post_processing:
+        todo.append(
+            _count(facts.plates_post_processing, "Platte nacharbeiten", "Platten nacharbeiten")
+        )
+    subject = f"Heute dran: {', '.join(todo)}" if todo else "Heute dran: alles ruhig"
+    rows = [
+        MailRow(
+            label="Zu packen",
+            value=(
+                f"{_count(facts.to_pack, 'Bestellung', 'Bestellungen')}, "
+                f"zuerst {facts.oldest_to_pack}"
+                if facts.oldest_to_pack
+                else "nichts"
+            ),
+            strong=facts.to_pack > 0,
+        ),
+        MailRow(
+            label="In der Werkstatt",
+            value=(
+                f"{_count(facts.making_pieces, 'Stück', 'Stück')} für "
+                f"{_count(facts.making_orders, 'Bestellung', 'Bestellungen')}"
+                if facts.making_pieces
+                else "nichts zu fertigen"
+            ),
+        ),
+        MailRow(
+            label="Drucker",
+            value=(
+                f"{_printing(facts.plates_printing)}, "
+                f"{_count(facts.plates_queued, 'Platte wartet', 'Platten warten')}"
+            ),
+        ),
+    ]
+    if facts.printers_down:
+        rows.append(MailRow(label="Gestört", value=", ".join(facts.printers_down), strong=True))
+    if facts.unpaid_overdue:
+        rows.append(
+            MailRow(
+                label="Wartet auf Geld",
+                value=(
+                    f"{_count(facts.unpaid_overdue, 'Bestellung', 'Bestellungen')} "
+                    "seit 3 Tagen oder länger"
+                ),
+            )
+        )
+    rows.append(
+        MailRow(
+            label="Gestern bezahlt",
+            value=(
+                f"{_count(facts.paid_yesterday, 'Bestellung', 'Bestellungen')} · "
+                f"{format_euro(facts.paid_yesterday_cents)}"
+                if facts.paid_yesterday
+                else "keine Bestellung"
+            ),
+        )
+    )
+    weekday = WEEKDAYS[day.weekday()]
+    return MailContent(
+        subject=subject,
+        greeting="Guten Morgen,",
+        paragraphs=(
+            f"hier ist, was am {weekday}, {day:%d.%m.} ansteht. Die Druckplatten für "
+            "bezahlte Bestellungen sind schon eingeplant.",
+        ),
+        rows=tuple(rows),
+        action=MailAction(label="Stellwerk öffnen", url=f"{base_url.rstrip('/')}/admin"),
+        closing=("Einen guten Tag in der Werkstatt!",),
     )
 
 
