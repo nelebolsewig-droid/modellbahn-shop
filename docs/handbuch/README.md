@@ -12,5 +12,5 @@ Anmeldung erreichbar (`proxy.ts`).
 Nach Änderungen am Text stimmen Seitenzahlen im Inhalt und in `help-page.tsx` vielleicht
 nicht mehr: im PDF nachsehen und angleichen.
 
-Offen: Die Fotobearbeitung steht als „Kommt bald“ in Kapitel 10 und wird
-ergänzt, sobald sie im Stellwerk ist. Der Lagerwert steht in Kapitel 07.
+Stand: Lagerwert (Kapitel 07) und Fotostudio (Kapitel 06) sind drin. Bilder vom Fotostudio
+entstanden mit dem echten Freisteller-Modell (`MB_STUDIO_MODEL_PATH`).
