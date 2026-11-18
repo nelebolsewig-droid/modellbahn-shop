@@ -228,6 +228,8 @@ export const FIELD_MESSAGES: Messages = {
   archived: "Dieses Teil ist archiviert und wird nicht mehr gedruckt.",
   incomplete: "Bitte alle drei Maße angeben oder keines.",
   too_many: "Das sind zu viele Einträge.",
+  slice_file_unreadable:
+    "Das ist keine geslicte Druckdatei, die das System lesen kann. Bitte die .ctb aus Chitubox wählen, nicht die .chitubox- oder STL-Datei.",
 };
 
 const PASSWORD_MESSAGES: Messages = {

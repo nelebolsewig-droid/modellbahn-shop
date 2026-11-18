@@ -393,6 +393,10 @@ EXPECTED_OPERATIONS = {
         "deleteMaterial",
         "admin-manufacturing",
     ),
+    ("POST", "/api/v1/admin/manufacturing/slice-files/read"): (
+        "readSliceFile",
+        "admin-manufacturing",
+    ),
     ("GET", "/api/v1/admin/manufacturing/parts"): ("listParts", "admin-manufacturing"),
     ("GET", "/api/v1/admin/manufacturing/parts/{part_id}"): ("getPart", "admin-manufacturing"),
     ("POST", "/api/v1/admin/manufacturing/parts"): ("createPart", "admin-manufacturing"),

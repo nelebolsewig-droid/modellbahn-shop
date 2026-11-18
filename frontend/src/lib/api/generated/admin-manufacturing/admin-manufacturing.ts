@@ -57,6 +57,8 @@ import type {
   PrinterRecordOut,
   PrinterStatusIn,
   Problem,
+  SliceFileIn,
+  SliceFileOut,
   ValidationProblem
 } from '../model';
 
@@ -2395,4 +2397,92 @@ export const useReplaceBillOfMaterials = <TError = ErrorType<Problem | Validatio
         TContext
       > => {
       return useMutation(getReplaceBillOfMaterialsMutationOptions(options), queryClient);
+    }
+    export const getReadSliceFileUrl = () => {
+
+
+
+
+  return `/api/v1/admin/manufacturing/slice-files/read`
+}
+
+/**
+ * The body carries the head of a .ctb or .goo file as it came from the slicer, Base64, at most 524288 bytes: the browser sends only that much of the file. Nothing is stored; the answer fills the print data of a part (ADR 0037).
+ * @summary What a sliced print file says about its plate: resin, weight, print time
+ */
+export const readSliceFile = async (sliceFileIn: SliceFileIn, options?: Parameters<typeof apiFetch>[1]): Promise<SliceFileOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SliceFileOut>(getReadSliceFileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sliceFileIn)
+  }
+);}
+
+
+
+
+
+export const getReadSliceFileMutationKey = () => ['readSliceFile'] as const;
+
+export const getReadSliceFileMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readSliceFile>>, TError,ReadSliceFileMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof readSliceFile>>, TError,ReadSliceFileMutationVariables, TContext> => {
+
+const mutationKey = getReadSliceFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof readSliceFile>>, ReadSliceFileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  readSliceFile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReadSliceFileMutationResult = NonNullable<Awaited<ReturnType<typeof readSliceFile>>>
+    export type ReadSliceFileMutationBody = SliceFileIn
+    export type ReadSliceFileMutationError = ErrorType<Problem | ValidationProblem>
+    export type ReadSliceFileMutationVariables = {data: SliceFileIn}
+
+    /**
+ * @summary What a sliced print file says about its plate: resin, weight, print time
+ */
+export const useReadSliceFile = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readSliceFile>>, TError,ReadSliceFileMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof readSliceFile>>,
+        TError,
+        ReadSliceFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReadSliceFileMutationOptions(options), queryClient);
     }

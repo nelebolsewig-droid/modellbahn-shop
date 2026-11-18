@@ -1,10 +1,12 @@
 """The manufacturing API: the printer hall, parts and kits, plates from queue to done."""
 
+import base64
 from typing import Any, Final
 
 from httpx import AsyncClient
 
 from tests.api.helpers import PRODUCTS, assert_problem
+from tests.unit.test_slice_files import SATURN_4_ULTRA_HEAD
 
 BASE: Final = "/api/v1/admin/manufacturing"
 
@@ -204,6 +206,34 @@ class TestPartsAndKits:
             await staff_client.put(path, json={"name": "Resin grau", "price_cents": 0}),
             422,
             "validation_failed",
+        )
+
+    async def test_a_sliced_file_gives_the_plate(
+        self, staff_client: AsyncClient, packer_client: AsyncClient
+    ) -> None:
+        path = f"{BASE}/slice-files/read"
+        head = {"head": base64.b64encode(SATURN_4_ULTRA_HEAD).decode()}
+        plate = await ok(staff_client.post(path, json=head))
+        assert plate == {
+            "format": "ctb",
+            "machine": "",
+            "volume_ml": 62.287,
+            "grams": 68.516,
+            "cost": 2.055,
+            "print_seconds": 9866,
+            "layer_height_um": 50,
+            "layer_count": 1409,
+        }
+        problem = assert_problem(
+            await staff_client.post(path, json={"head": base64.b64encode(b"solid").decode()}),
+            422,
+            "validation_failed",
+        )
+        assert problem["errors"][0]["code"] == "slice_file_unreadable"
+        assert_problem(
+            await packer_client.post(path, json=head),
+            403,
+            "insufficient_role",
         )
 
     async def test_a_kit_and_its_parts(self, staff_client: AsyncClient) -> None:

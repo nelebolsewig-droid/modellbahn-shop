@@ -9979,6 +9979,77 @@
         "title": "ShippingSetupOut",
         "type": "object"
       },
+      "SliceFileIn": {
+        "additionalProperties": false,
+        "properties": {
+          "head": {
+            "contentMediaType": "application/octet-stream",
+            "description": "The first bytes of the file, Base64.",
+            "format": "base64",
+            "maxLength": 699052,
+            "title": "Head",
+            "type": "string"
+          }
+        },
+        "required": [
+          "head"
+        ],
+        "title": "SliceFileIn",
+        "type": "object"
+      },
+      "SliceFileOut": {
+        "description": "A plate as the slicer computed it, read from the head of its print file.",
+        "properties": {
+          "cost": {
+            "description": "The slicer's own price, in the currency set there.",
+            "title": "Cost",
+            "type": "number"
+          },
+          "format": {
+            "description": "``ctb`` or ``goo``.",
+            "title": "Format",
+            "type": "string"
+          },
+          "grams": {
+            "title": "Grams",
+            "type": "number"
+          },
+          "layer_count": {
+            "title": "Layer Count",
+            "type": "integer"
+          },
+          "layer_height_um": {
+            "title": "Layer Height Um",
+            "type": "integer"
+          },
+          "machine": {
+            "description": "The printer profile in the file; empty if it has none.",
+            "title": "Machine",
+            "type": "string"
+          },
+          "print_seconds": {
+            "title": "Print Seconds",
+            "type": "integer"
+          },
+          "volume_ml": {
+            "description": "Resin of the whole plate, in millilitres.",
+            "title": "Volume Ml",
+            "type": "number"
+          }
+        },
+        "required": [
+          "format",
+          "machine",
+          "volume_ml",
+          "grams",
+          "cost",
+          "print_seconds",
+          "layer_height_um",
+          "layer_count"
+        ],
+        "title": "SliceFileOut",
+        "type": "object"
+      },
       "StaffOut": {
         "description": "A staff member's own account.",
         "properties": {
@@ -20126,6 +20197,93 @@
           }
         ],
         "summary": "Set the parts of a product in one scale; no lines removes them",
+        "tags": [
+          "admin-manufacturing"
+        ]
+      }
+    },
+    "/api/v1/admin/manufacturing/slice-files/read": {
+      "post": {
+        "description": "The body carries the head of a .ctb or .goo file as it came from the slicer, Base64, at most 524288 bytes: the browser sends only that much of the file. Nothing is stored; the answer fills the print data of a part (ADR 0037).",
+        "operationId": "readSliceFile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SliceFileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SliceFileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What a sliced print file says about its plate: resin, weight, print time",
         "tags": [
           "admin-manufacturing"
         ]
