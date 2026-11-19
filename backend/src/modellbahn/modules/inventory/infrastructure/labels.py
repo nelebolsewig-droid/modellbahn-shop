@@ -22,12 +22,11 @@ Two stocks:
 
 Bars are drawn as vector shapes, so they stay sharp at any printer resolution; the
 bar widths stay at or above 0.25 mm, which 300 dpi printers render cleanly. Geist (SIL
-Open Font License, see ``fonts/OFL.txt``) is embedded.
+Open Font License, see ``modellbahn/platform/fonts/OFL.txt``) is embedded.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from importlib.resources import files
 from io import BytesIO
 from typing import Final
 
@@ -40,19 +39,14 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
 from modellbahn.modules.inventory.application.ports import Label, LabelSheet
+from modellbahn.platform.pdf_fonts import MONO, SANS, SANS_MEDIUM, register_fonts
 
-_SANS: Final = "Geist"
-_SANS_MEDIUM: Final = "Geist-Medium"
-_MONO: Final = "GeistMono-Medium"
-_FONT_FILES: Final = {
-    _SANS: "Geist-Regular.ttf",
-    _SANS_MEDIUM: "Geist-Medium.ttf",
-    _MONO: "GeistMono-Medium.ttf",
-}
+_SANS: Final = SANS
+_SANS_MEDIUM: Final = SANS_MEDIUM
+_MONO: Final = MONO
 _ELLIPSIS: Final = "…"
 # EAN-13 is 95 modules wide, plus 11 and 7 modules of quiet zone.
 _EAN_MODULES: Final = 113
@@ -116,19 +110,6 @@ _A4_ROWS: Final = 8
 # 8 x 37 mm leave half a millimetre at the top and bottom of the sheet.
 _A4_TOP_MARGIN: Final = (A4[1] - _A4_ROWS * _A4_LAYOUT.height) / 2
 
-_fonts_registered = False
-
-
-def _register_fonts() -> None:
-    global _fonts_registered  # noqa: PLW0603 - registering with reportlab is process-wide
-    if _fonts_registered:
-        return
-    folder = files("modellbahn.modules.inventory.infrastructure") / "fonts"
-    for name, filename in _FONT_FILES.items():
-        with (folder / filename).open("rb") as font_file:
-            pdfmetrics.registerFont(TTFont(name, BytesIO(font_file.read())))
-    _fonts_registered = True
-
 
 class ReportLabLabelRenderer:
     """The :class:`~modellbahn.modules.inventory.application.ports.LabelRenderer` for PDF.
@@ -143,7 +124,7 @@ class ReportLabLabelRenderer:
     def render(
         self, labels: Sequence[Label], *, sheet: LabelSheet, skip: int, title: str = ""
     ) -> bytes:
-        _register_fonts()
+        register_fonts()
         buffer = BytesIO()
         if sheet is LabelSheet.A4_70X37:
             canvas = Canvas(buffer, pagesize=A4)
@@ -343,7 +324,7 @@ def maker_block(
     The size goes down to 75 % of ``size``; a word still too wide ends in an ellipsis. Nothing
     is dropped: the law wants all of it on the label.
     """
-    _register_fonts()
+    register_fonts()
     smallest = size * 0.75
     while True:
         wrapped = [

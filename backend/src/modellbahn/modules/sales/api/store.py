@@ -10,12 +10,14 @@ from modellbahn.modules.sales.api.deps import (
     CartServiceDep,
     CheckoutServiceDep,
     IdempotencyKey,
+    InvoiceServiceDep,
     OptionalCustomer,
     OrderServiceDep,
     PaymentServiceDep,
     SettingsDep,
     WithdrawalServiceDep,
     limit_checkouts,
+    pdf_response,
     set_cart_cookie,
 )
 from modellbahn.modules.sales.api.errors import ORDER_NOT_FOUND
@@ -181,6 +183,27 @@ async def get_order_girocode(
     return Response(
         content=svg, media_type="image/svg+xml", headers={"Cache-Control": PRIVATE_CACHE_CONTROL}
     )
+
+
+@router.get(
+    "/orders/{public_token}/invoices/{invoice_id}/document.pdf",
+    operation_id="getOrderInvoiceDocument",
+    summary="An invoice or correction of the order as a PDF, for the customer (ADR 0038)",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "The document."},
+        **problems({404: ["order_not_found", "invoice_not_found"]}, unsafe=False),
+    },
+)
+async def get_order_invoice_document(
+    public_token: str,
+    invoice_id: UUID,
+    service: OrderServiceDep,
+    invoices: InvoiceServiceDep,
+) -> Response:
+    order = (await service.by_token(public_token)).order
+    invoice = await invoices.get(invoice_id, order_id=order.id)
+    return pdf_response(invoice.document, invoice.filename)
 
 
 @router.get(

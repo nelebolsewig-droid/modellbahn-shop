@@ -16,6 +16,7 @@ import { TransferBooking, awaitedTransfer, paidByTransfer } from "@/components/a
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { InvoiceDocuments } from "@/components/shop/invoice-documents";
 import { OrderLines, OrderTimeline } from "@/components/shop/order-parts";
 import { OrderTotals } from "@/components/shop/order-totals";
 import { Alert } from "@/components/ui/alert";
@@ -44,6 +45,7 @@ import {
   getListOrdersQueryKey,
   getListWithdrawalsQueryKey,
   shipOrder,
+  getGetInvoiceDocumentUrl,
   useGetShippingSetup,
   useGetOrder,
 } from "@/lib/api/generated/admin-sales/admin-sales";
@@ -203,6 +205,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
               <Dispatch order={data} pickList={pickList.data} onShipped={store} />
             </div>
           </Panel>
+          {data.status === "shipped" || data.invoices.length > 0 ? (
+            <Panel title="Rechnungen">
+              <Invoices order={data} />
+            </Panel>
+          ) : null}
           <Panel title="Kunde">
             <dl className="space-y-4 text-small">
               <div>
@@ -456,6 +463,31 @@ function Shipped({ order }: { order: AdminOrderOut }) {
       ) : null}
     </>
   );
+}
+
+/**
+ * The invoice the worker issued at dispatch and the corrections of later refunds (ADR
+ * 0038). Without a tax number in the settings none is written: the desk says so.
+ */
+function Invoices({ order }: { order: AdminOrderOut }) {
+  const setup = useGetShippingSetup();
+  if (order.invoices.length > 0) {
+    return (
+      <>
+        <InvoiceDocuments invoices={order.invoices} urlOf={(invoice) => getGetInvoiceDocumentUrl(order.id, invoice.id)} />
+        <p className="mt-3 text-hint text-ink-tertiary">Die Rechnung ging mit der Versandmail an den Kunden.</p>
+      </>
+    );
+  }
+  if (setup.data && !setup.data.issues_invoices) {
+    return (
+      <p className="text-small text-ink-secondary">
+        Der Shop schreibt noch keine Rechnungen: In der Einrichtung (<span className="font-mono">.env</span>) fehlt die
+        Steuernummer (<span className="font-mono">MB_IMPRINT_TAX_NUMBER</span>) oder die USt-IdNr.
+      </p>
+    );
+  }
+  return <p className="text-small text-ink-secondary">Die Rechnung wird gerade geschrieben und erscheint gleich hier.</p>;
 }
 
 /** The pieces of a paid order: where they lie, what is picked, what is still being made. */

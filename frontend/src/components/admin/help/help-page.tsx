@@ -84,6 +84,17 @@ const TASKS: readonly Task[] = [
     office: true,
   },
   {
+    question: "Wo finde ich die Rechnung einer Bestellung?",
+    steps: [
+      "Der Shop schreibt sie beim Versand und schickt sie mit der Versandmail.",
+      "Bestellungen → Bestellung öffnen → Feld „Rechnungen“: „Ansehen“ oder „Als PDF speichern“.",
+      "Nach einer Erstattung steht dort auch die Rechnungskorrektur.",
+    ],
+    href: "/admin/bestellungen",
+    page: 9,
+    office: true,
+  },
+  {
     question: "Wie lege ich ein neues Modell an?",
     steps: [
       "Modelle → „Neues Modell“: Name, Kategorie, Fotos.",

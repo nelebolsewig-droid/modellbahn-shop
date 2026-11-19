@@ -20,4 +20,6 @@ export interface ShippingSetupOut {
   books_labels: boolean;
   carrier: string;
   default_weight_g: number;
+  /** The shop writes invoices when orders ship (ADR 0038). False while the imprint or a tax number (MB_IMPRINT_VAT_ID or MB_IMPRINT_TAX_NUMBER) is missing. */
+  issues_invoices: boolean;
 }

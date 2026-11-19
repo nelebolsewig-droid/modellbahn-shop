@@ -63,7 +63,12 @@ class TestLabels:
     ) -> None:
         response = await packer_client.get(SETUP)
         assert response.status_code == 200
-        assert response.json() == {"books_labels": True, "carrier": "DHL", "default_weight_g": 1200}
+        assert response.json() == {
+            "books_labels": True,
+            "carrier": "DHL",
+            "default_weight_g": 1200,
+            "issues_invoices": False,
+        }
         assert_problem(await client.get(SETUP), 401, "not_authenticated")
 
     async def test_the_packer_books_prints_and_cancels(

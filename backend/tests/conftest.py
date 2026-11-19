@@ -73,6 +73,7 @@ from modellbahn.modules.sales.application.common import (
     UnitOfWorkFactory as SalesUnitOfWorkFactory,
 )
 from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
@@ -81,6 +82,8 @@ from modellbahn.modules.sales.application.withdrawals import (
     WithdrawalAutomation,
     WithdrawalService,
 )
+from modellbahn.modules.sales.domain.invoices import Issuer
+from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer
 from modellbahn.modules.sales.infrastructure.payments import MockPaymentGateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.fairs import FairService
@@ -111,6 +114,18 @@ TEST_BANK = BankAccount(
 )
 
 # The sender lines the settings below produce (MB_IMPRINT_*).
+TEST_ISSUER = Issuer(
+    name="adp-Modelle",
+    owner="Johann-Leon Diesterhaupt",
+    street="Glambecker Straße 2",
+    postal_code="17235",
+    city="Neustrelitz",
+    country="Deutschland",
+    email="info@adp-modelle.de",
+    phone="0160 91515272",
+    tax_label="Steuernummer",
+    tax_id="075/123/45678",
+)
 IMPRINT_FOOTER = (
     "adp-Modelle · Johann-Leon Diesterhaupt",
     "Glambecker Straße 2, 17235 Neustrelitz",
@@ -222,6 +237,8 @@ WRITABLE_TABLES = (
     "inventory.allocations",
     "inventory.locations",
     "sales.withdrawals",
+    "sales.invoices",
+    "sales.invoice_counters",
     "sales.shipping_labels",
     "sales.cart_lines",
     "sales.carts",
@@ -414,8 +431,22 @@ def addresses(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> AddressSe
 
 
 @pytest.fixture
+def invoices(sales_uow: SalesUnitOfWorkFactory, clock: FixedClock) -> InvoiceService:
+    """Writes invoices as the shop does once its tax number is configured (ADR 0038)."""
+    return InvoiceService(
+        uow_factory=sales_uow,
+        clock=clock,
+        renderer=ReportLabInvoiceRenderer(shop_name="adp-Modelle"),
+        issuer=TEST_ISSUER,
+    )
+
+
+@pytest.fixture
 def sales_handlers(
-    sales_uow: SalesUnitOfWorkFactory, mailer: InMemoryMailer, clock: FixedClock
+    sales_uow: SalesUnitOfWorkFactory,
+    mailer: InMemoryMailer,
+    clock: FixedClock,
+    invoices: InvoiceService,
 ) -> SalesHandlers:
     return SalesHandlers(
         uow_factory=sales_uow,
@@ -425,6 +456,7 @@ def sales_handlers(
         shop_name=SHOP_NAME,
         shop_email=SHOP_EMAIL,
         bank_account=TEST_BANK,
+        invoices=invoices,
     )
 
 
@@ -571,6 +603,7 @@ def deliver(
     mail_handlers: IdentityMailHandlers,
     media_handlers: MediaProcessingHandlers,
     sales_handlers: SalesHandlers,
+    invoices: InvoiceService,
     site_handlers: SiteHandlers,
     allocation: AllocationService,
     part_store: PartStoreService,
@@ -585,6 +618,7 @@ def deliver(
     mail_handlers.register(handlers)
     media_handlers.register(handlers)
     sales_handlers.register(handlers)
+    invoices.register(handlers)
     WithdrawalAutomation(orders=orders).register(handlers)
     site_handlers.register(handlers)
     InventoryHandlers(allocation=allocation, parts=part_store).register(handlers)

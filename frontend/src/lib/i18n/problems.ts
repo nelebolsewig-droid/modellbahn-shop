@@ -116,6 +116,7 @@ export const PROBLEM_MESSAGES: Messages = {
   carrier_rejected: "DHL hat das abgelehnt. Prüfe Adresse und Gewicht; DHLs Begründung steht darunter.",
   label_exists: "Für diese Bestellung gibt es schon ein Label. Storniere es zuerst, wenn du ein neues brauchst.",
   label_not_found: "Für diese Bestellung gibt es kein gültiges Label.",
+  invoice_not_found: "Diese Rechnung gibt es zu dieser Bestellung nicht.",
 
   // eBay
   ebay_off: "eBay ist auf diesem Server ausgeschaltet.",

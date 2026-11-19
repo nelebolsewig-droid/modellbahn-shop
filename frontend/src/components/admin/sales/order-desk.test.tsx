@@ -233,11 +233,41 @@ describe("OrderDesk", () => {
     expect(screen.getByText("Entnommen")).toBeInTheDocument();
   });
 
+  it("lists the invoice of a shipped order with its PDF", async () => {
+    const invoice = {
+      id: "inv-1",
+      kind: "invoice" as const,
+      number: "RE-2026-00001",
+      issued_at: "2026-10-25T14:00:00Z",
+      total_cents: 7990,
+      filename: "Rechnung-RE-2026-00001.pdf",
+    };
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder({ status: "shipped", shipped_at: "2026-10-25T14:00:00Z", invoices: [invoice] })),
+      "GET /api/v1/admin/shipping/setup": () => jsonResponse({ books_labels: false, carrier: "DHL", default_weight_g: 1000, issues_invoices: true }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="owner" onStreamClosed={vi.fn()} />);
+    expect(await screen.findByText("RE-2026-00001")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ansehen" })).toHaveAttribute(
+      "href",
+      "/api/v1/admin/orders/o1/invoices/inv-1/document.pdf",
+    );
+  });
+
+  it("says why a shipped order has no invoice while the tax number is missing", async () => {
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(adminOrder({ status: "shipped", shipped_at: "2026-10-25T14:00:00Z" })),
+      "GET /api/v1/admin/shipping/setup": () => jsonResponse({ books_labels: false, carrier: "DHL", default_weight_g: 1000, issues_invoices: false }),
+    });
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="owner" onStreamClosed={vi.fn()} />);
+    expect(await screen.findByText(/schreibt noch keine Rechnungen/)).toBeInTheDocument();
+  });
+
   it("offers dispatch for reserved pieces nobody scanned", async () => {
     routeFetch(fetchMock, {
       [ORDER]: () => jsonResponse(adminOrder()),
       [PICK_LIST]: () => jsonResponse(pickList("reserved", "reserved")),
-      "GET /api/v1/admin/shipping/setup": () => jsonResponse({ books_labels: false, carrier: "DHL", default_weight_g: 1000 }),
+      "GET /api/v1/admin/shipping/setup": () => jsonResponse({ books_labels: false, carrier: "DHL", default_weight_g: 1000, issues_invoices: false }),
     });
     renderWithQueryClient(<OrderDesk orderId="o1" staffRole="packer" onStreamClosed={vi.fn()} />);
     expect(await screen.findByRole("form", { name: "Versand melden" })).toBeInTheDocument();

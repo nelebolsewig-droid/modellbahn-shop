@@ -7,12 +7,14 @@ from fastapi import APIRouter, Query, Response, status
 from starlette.concurrency import run_in_threadpool
 
 from modellbahn.modules.sales.api.deps import (
+    InvoiceServiceDep,
     LabelServiceDep,
     OrderManager,
     OrderServiceDep,
     OrderShipper,
     OrderViewer,
     WithdrawalServiceDep,
+    pdf_response,
 )
 from modellbahn.modules.sales.api.errors import ORDER_NOT_FOUND, STAFF_ACCESS
 from modellbahn.modules.sales.api.schemas import (
@@ -153,6 +155,24 @@ async def refund_order(
 
 
 _LABEL_NOT_FOUND = {404: ["order_not_found", "label_not_found"]}
+_INVOICE_NOT_FOUND = {404: ["invoice_not_found"]}
+
+
+@router.get(
+    "/{order_id}/invoices/{invoice_id}/document.pdf",
+    operation_id="getInvoiceDocument",
+    summary="An invoice or correction of the order as a PDF (ADR 0038)",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "The document."},
+        **problems({**STAFF_ACCESS, **_INVOICE_NOT_FOUND}, unsafe=False),
+    },
+)
+async def get_invoice_document(
+    order_id: UUID, invoice_id: UUID, _: OrderViewer, invoices: InvoiceServiceDep
+) -> Response:
+    invoice = await invoices.get(invoice_id, order_id=order_id)
+    return pdf_response(invoice.document, invoice.filename)
 
 
 shipping_router = APIRouter(prefix="/admin/shipping", tags=["admin-sales"])
@@ -164,11 +184,14 @@ shipping_router = APIRouter(prefix="/admin/shipping", tags=["admin-sales"])
     summary="Whether the Stellwerk books shipping labels, and the default weight",
     responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
 )
-async def shipping_setup(_: OrderViewer, labels: LabelServiceDep) -> ShippingSetupOut:
+async def shipping_setup(
+    _: OrderViewer, labels: LabelServiceDep, invoices: InvoiceServiceDep
+) -> ShippingSetupOut:
     return ShippingSetupOut(
         books_labels=labels.books_labels,
         carrier=labels.carrier_name,
         default_weight_g=labels.default_weight_g,
+        issues_invoices=invoices.issues_invoices,
     )
 
 

@@ -164,6 +164,8 @@ class Settings(BaseSettings):
     imprint_phone: str = ""
     imprint_email: str = ""
     imprint_vat_id: str = ""
+    # The tax number from the tax office, for the invoices while there is no VAT ID.
+    imprint_tax_number: str = ""
 
     fair_news_rate_limit: int = Field(default=10, ge=0)
     fair_news_rate_window_seconds: float = Field(default=600.0, gt=0)
@@ -469,4 +471,5 @@ class Settings(BaseSettings):
             phone=self.imprint_phone.strip(),
             email=self.imprint_email.strip(),
             vat_id=self.imprint_vat_id,
+            tax_number=" ".join(self.imprint_tax_number.split()),
         )

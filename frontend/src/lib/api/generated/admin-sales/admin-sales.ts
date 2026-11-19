@@ -447,7 +447,115 @@ export const useCancelOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getCancelOrderMutationOptions(options), queryClient);
     }
-    export const getRefundOrderUrl = (orderId: string,) => {
+    export const getGetInvoiceDocumentUrl = (orderId: string,
+    invoiceId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/invoices/${invoiceId}/document.pdf`
+}
+
+/**
+ * @summary An invoice or correction of the order as a PDF (ADR 0038)
+ */
+export const getInvoiceDocument = async (orderId: string,
+    invoiceId: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetInvoiceDocumentUrl(orderId,invoiceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvoiceDocumentQueryKey = (orderId: string,
+    invoiceId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/invoices/${invoiceId}/document.pdf`
+    ] as const;
+    }
+
+
+export const getGetInvoiceDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getInvoiceDocument>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string,
+    invoiceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvoiceDocumentQueryKey(orderId,invoiceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoiceDocument>>> = ({ signal }) => getInvoiceDocument(orderId,invoiceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined && invoiceId !== null && invoiceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetInvoiceDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getInvoiceDocument>>>
+export type GetInvoiceDocumentQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetInvoiceDocument<TData = Awaited<ReturnType<typeof getInvoiceDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string,
+    invoiceId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvoiceDocument>>,
+          TError,
+          Awaited<ReturnType<typeof getInvoiceDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInvoiceDocument<TData = Awaited<ReturnType<typeof getInvoiceDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string,
+    invoiceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvoiceDocument>>,
+          TError,
+          Awaited<ReturnType<typeof getInvoiceDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetInvoiceDocument<TData = Awaited<ReturnType<typeof getInvoiceDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string,
+    invoiceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary An invoice or correction of the order as a PDF (ADR 0038)
+ */
+
+export function useGetInvoiceDocument<TData = Awaited<ReturnType<typeof getInvoiceDocument>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string,
+    invoiceId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getInvoiceDocument>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetInvoiceDocumentQueryOptions(orderId,invoiceId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getRefundOrderUrl = (orderId: string,) => {
 
 
 

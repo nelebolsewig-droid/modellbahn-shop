@@ -188,6 +188,10 @@ EXPECTED_OPERATIONS = {
         "getOrderGirocode",
         "store-sales",
     ),
+    ("GET", "/api/v1/store/orders/{public_token}/invoices/{invoice_id}/document.pdf"): (
+        "getOrderInvoiceDocument",
+        "store-sales",
+    ),
     ("POST", "/api/v1/admin/orders/{order_id}/bank-transfer"): (
         "confirmBankTransfer",
         "admin-sales",
@@ -224,6 +228,10 @@ EXPECTED_OPERATIONS = {
     ),
     ("GET", "/api/v1/admin/orders/{order_id}/shipping-label.png"): (
         "getShippingLabelImage",
+        "admin-sales",
+    ),
+    ("GET", "/api/v1/admin/orders/{order_id}/invoices/{invoice_id}/document.pdf"): (
+        "getInvoiceDocument",
         "admin-sales",
     ),
     ("GET", "/api/v1/admin/inventory/locations"): ("listLocations", "admin-inventory"),

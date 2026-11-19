@@ -129,6 +129,10 @@ class LabelNotFoundError(SalesError):
     """The order has no shipping label in force."""
 
 
+class InvoiceNotFoundError(SalesError):
+    """No such invoice, or not one of this order."""
+
+
 class LabelExistsError(SalesError):
     """The order has a label in force already; cancel it before booking another."""
 

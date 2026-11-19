@@ -14,6 +14,7 @@ from modellbahn.modules.catalog.contracts.variants import SaleVariant
 from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder
 from modellbahn.modules.media.contracts.images import ImageView
+from modellbahn.modules.sales.domain.invoices import Invoice, InvoiceDocument, InvoiceKind
 from modellbahn.modules.sales.domain.labels import LabelAddress, ShippingLabel, ShippingProduct
 from modellbahn.modules.sales.domain.model import (
     Cart,
@@ -326,6 +327,31 @@ class LabelRepository(Protocol):
     def add(self, label: ShippingLabel) -> None: ...
 
 
+class InvoiceRepository(Protocol):
+    async def for_order(self, order_id: UUID) -> list[Invoice]:
+        """The order's invoice and corrections, oldest first."""
+        ...
+
+    async def by_source(self, order_id: UUID, source: str) -> Invoice | None:
+        """What was issued for this occasion already (issuing is idempotent)."""
+        ...
+
+    async def get(self, invoice_id: UUID) -> Invoice | None: ...
+
+    async def next_serial(self, kind: InvoiceKind, year: int) -> int:
+        """The next number of the series, without gaps: the counter stays locked until the
+        transaction ends, so a rolled back issue gives its number to the next one."""
+        ...
+
+    def add(self, invoice: Invoice) -> None: ...
+
+
+class InvoiceRenderer(Protocol):
+    """Draws an invoice or correction as a PDF."""
+
+    def render(self, document: InvoiceDocument) -> bytes: ...
+
+
 class SalesUnitOfWork(Protocol):
     """One transaction over the sales repositories (see ``platform.uow``)."""
 
@@ -343,6 +369,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def labels(self) -> LabelRepository: ...
+
+    @property
+    def invoices(self) -> InvoiceRepository: ...
 
     @property
     def catalog(self) -> Catalog: ...

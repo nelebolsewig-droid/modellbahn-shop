@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { RegistrationForm } from "@/components/account/registration-form";
 import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
+import { InvoiceDocuments } from "@/components/shop/invoice-documents";
 import { OrderLines, OrderTimeline, PostalAddress } from "@/components/shop/order-parts";
 import { WorkshopTicker } from "@/components/shop/workshop-ticker";
 import { OrderTotals } from "@/components/shop/order-totals";
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { OrderOut } from "@/lib/api/generated/model";
-import { useGetOrderByToken } from "@/lib/api/generated/store-sales/store-sales";
+import { getGetOrderInvoiceDocumentUrl, useGetOrderByToken } from "@/lib/api/generated/store-sales/store-sales";
 import { isApiProblem } from "@/lib/api/problem";
 import { formatPrice } from "@/lib/catalog/format";
 import { formatLongDate, formatClock } from "@/lib/format";
@@ -114,6 +115,18 @@ export function OrderDetails({ order, payHref }: OrderDetailsProps) {
             </h2>
             <p className="mt-3 text-small break-all">{order.email}</p>
           </section>
+          {order.invoices.length > 0 ? (
+            <section aria-labelledby="rechnungen">
+              <h2 id="rechnungen" className="label-caps text-ink-tertiary">
+                {order.invoices.length > 1 ? "Rechnungen" : "Rechnung"}
+              </h2>
+              <InvoiceDocuments
+                invoices={order.invoices}
+                urlOf={(invoice) => getGetOrderInvoiceDocumentUrl(order.public_token, invoice.id)}
+                className="mt-3"
+              />
+            </section>
+          ) : null}
           {order.status === "paid" || order.status === "shipped" ? (
             <section aria-labelledby="widerruf">
               <h2 id="widerruf" className="label-caps text-ink-tertiary">

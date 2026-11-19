@@ -725,11 +725,12 @@ ask_real MB_IMPRINT_CITY "Ort:"
 ask_real MB_IMPRINT_EMAIL "E-Mail für Kunden:"
 ask_real MB_IMPRINT_PHONE "Telefon (leer lassen, wenn keins):"
 ask_real MB_IMPRINT_VAT_ID "USt-IdNr. (DE und 9 Ziffern; leer lassen, wenn keine):"
+ask_real MB_IMPRINT_TAX_NUMBER "Steuernummer vom Finanzamt (für die Rechnungen; leer lassen, wenn es eine USt-IdNr. gibt):"
 for key in MB_IMPRINT_COMPANY MB_IMPRINT_OWNER MB_IMPRINT_STREET MB_IMPRINT_POSTAL_CODE \
   MB_IMPRINT_CITY MB_IMPRINT_EMAIL; do
   write_env "$key" "${!key}"
 done
-for key in MB_IMPRINT_PHONE MB_IMPRINT_VAT_ID; do
+for key in MB_IMPRINT_PHONE MB_IMPRINT_VAT_ID MB_IMPRINT_TAX_NUMBER; do
   if [[ -n "${!key}" ]]; then write_env "$key" "${!key}"; else sed -i "/^${key}=/d" "$ENV_FILE"; fi
 done
 pause

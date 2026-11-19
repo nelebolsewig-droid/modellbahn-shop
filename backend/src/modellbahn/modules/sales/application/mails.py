@@ -291,7 +291,13 @@ DHL_TRACKING_URL: Final = (
 )
 
 
-def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = None) -> MailContent:
+def shipped_mail(
+    order: Order,
+    *,
+    base_url: str,
+    next_fair: NextFair | None = None,
+    invoice_number: str | None = None,
+) -> MailContent:
     parcel = "Dein Paket ist unterwegs."
     if order.tracking_number:
         carrier = f" bei {order.carrier}" if order.carrier else ""
@@ -303,7 +309,14 @@ def shipped_mail(order: Order, *, base_url: str, next_fair: NextFair | None = No
     return MailContent(
         subject=f"Deine Bestellung {order.number} ist unterwegs",
         greeting=_greeting(order),
-        paragraphs=(f"wir haben deine Bestellung {order.number} heute verschickt. {parcel}",),
+        paragraphs=(
+            f"wir haben deine Bestellung {order.number} heute verschickt. {parcel}",
+            *(
+                (f"Deine Rechnung {invoice_number} hängt als PDF an dieser E-Mail.",)
+                if invoice_number
+                else ()
+            ),
+        ),
         action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
         closing=("Viel Freude beim Bauen!", *fair_hint(next_fair, base_url=base_url)),
     )
@@ -428,7 +441,12 @@ def withdrawal_notice_mail(withdrawal: Withdrawal, *, base_url: str) -> MailCont
 
 
 def refunded_mail(
-    order: Order, *, amount_cents: int, base_url: str, by_transfer: bool = False
+    order: Order,
+    *,
+    amount_cents: int,
+    base_url: str,
+    by_transfer: bool = False,
+    correction_number: str | None = None,
 ) -> MailContent:
     """Money went back after a return (ADR 0020)."""
     whole = order.refunded_cents >= order.total_cents
@@ -445,6 +463,11 @@ def refunded_mail(
         paragraphs=(
             f"{how} Bis das Geld auf deinem Konto ist, kann es je nach Bank ein paar Tage dauern.",
             *(() if whole else (f"Insgesamt erstattet: {format_euro(order.refunded_cents)}.",)),
+            *(
+                (f"Die Rechnungskorrektur {correction_number} hängt als PDF an dieser E-Mail.",)
+                if correction_number
+                else ()
+            ),
         ),
         action=MailAction(label="Bestellung ansehen", url=status_link(base_url, order)),
         closing=("Danke, dass du die Ware zurückgeschickt hast.",),

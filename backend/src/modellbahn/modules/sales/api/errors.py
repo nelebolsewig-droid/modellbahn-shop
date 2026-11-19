@@ -18,6 +18,7 @@ from modellbahn.modules.sales.domain.errors import (
     InsufficientStockError,
     InvalidFieldError,
     InvalidOrderStateError,
+    InvoiceNotFoundError,
     LabelExistsError,
     LabelNotFoundError,
     MarketplaceOrderError,
@@ -80,6 +81,9 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     LabelExistsError: lambda _: ConflictError(
         "The order has a shipping label already; cancel it to book another.",
         code="label_exists",
+    ),
+    InvoiceNotFoundError: lambda _: NotFoundError(
+        "There is no such invoice.", code="invoice_not_found"
     ),
     LabelNotFoundError: lambda _: NotFoundError(
         "The order has no shipping label in force.", code="label_not_found"

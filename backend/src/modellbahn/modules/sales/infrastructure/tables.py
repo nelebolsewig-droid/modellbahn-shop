@@ -32,6 +32,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import CITEXT, ExcludeConstraint
 
 from modellbahn.modules.identity.contracts.accounts import CUSTOMER_KIND, CUSTOMER_REFERENCE
+from modellbahn.modules.sales.domain.invoices import InvoiceKind
 from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingProduct
 from modellbahn.modules.sales.domain.model import (
     CancelReason,
@@ -336,5 +337,47 @@ shipping_labels = Table(
         postgresql_where=text("status = 'active'"),
     ),
     Index("shipping_labels_order_idx", "order_id", "created_at"),
+    schema=SCHEMA,
+)
+
+
+# Invoices and corrections (ADR 0038): issued once, never changed, kept for ten years.
+invoices = Table(
+    "invoices",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("order_id", Uuid, ForeignKey(orders.c.id, ondelete="RESTRICT"), nullable=False),
+    Column("kind", StrEnumType(InvoiceKind), nullable=False),
+    Column("number", Text, nullable=False, unique=True),
+    # "order" for the order's invoice, the refund event's id for a correction.
+    Column("source", Text, nullable=False),
+    Column("total_cents", Integer, nullable=False),
+    Column("tax_cents", Integer, nullable=False),
+    # The PDF as the customer received it: a few dozen kilobytes.
+    Column("document", LargeBinary, nullable=False),
+    Column("issued_at", DateTime(timezone=True), nullable=False),
+    Column("corrects_id", Uuid, ForeignKey("sales.invoices.id", ondelete="RESTRICT")),
+    CheckConstraint("kind IN ('invoice', 'correction')", name="kind"),
+    CheckConstraint("number ~ '^(RE|RK)-[0-9]{4}-[0-9]{5,}$'", name="number_format"),
+    CheckConstraint("(kind = 'invoice') = (corrects_id IS NULL)", name="correction_names_invoice"),
+    CheckConstraint(
+        "(kind = 'invoice' AND total_cents >= 0) OR (kind = 'correction' AND total_cents < 0)",
+        name="total_sign",
+    ),
+    Index("invoices_order_source_idx", "order_id", "source", unique=True),
+    schema=SCHEMA,
+)
+
+# The last number given out per series and year; locked while an invoice is issued, so
+# the numbers run without gaps.
+invoice_counters = Table(
+    "invoice_counters",
+    metadata,
+    Column("kind", StrEnumType(InvoiceKind), nullable=False),
+    Column("year", SmallInteger, nullable=False),
+    Column("last_serial", Integer, nullable=False),
+    PrimaryKeyConstraint("kind", "year"),
+    CheckConstraint("kind IN ('invoice', 'correction')", name="kind"),
+    CheckConstraint("last_serial > 0", name="last_serial_positive"),
     schema=SCHEMA,
 )
