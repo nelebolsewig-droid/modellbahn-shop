@@ -70,7 +70,8 @@ Das Skript führt durch vierzehn Schritte und sagt bei jedem, was zu tun ist:
    bis er wirkt. `www` und `adp-modelle.de` bleiben unberührt.
 4. **Mail:** ein Strato-Postfach (z. B. `shop@adp-modelle.de`) verschickt die Mails des
    Shops über `smtp.strato.de`. Das Passwort wird verdeckt eingegeben.
-5. **Impressum:** Firma, Inhaber, Anschrift, E-Mail; optional Telefon und USt-IdNr.
+5. **Impressum:** Firma, Inhaber, Anschrift, E-Mail; optional Telefon, USt-IdNr. und
+   Steuernummer. Mit USt-IdNr. oder Steuernummer schreibt der Shop Rechnungen.
 6. **Geheimnisse:**
    - Datenbank, Bildspeicher und eBay-Token bekommen eigene, zufällige Werte.
    - Dazu kommen der echte Betrieb (`MB_ENVIRONMENT=production`), das Zertifikat von
@@ -212,6 +213,29 @@ wird es mit `./scripts/einrichten.sh dhl`: nur diese Stufe, danach der Neustart.
 - **Einschalten, Ausschalten:** `./scripts/einrichten.sh dhl` und bei „Labels im Stellwerk
   jetzt echt buchen lassen?“ mit `y` bzw. `N` antworten. Ausgeschaltet wird die Nummer
   wieder von Hand eingetragen.
+
+### Rechnungen
+
+Beim Versand schreibt der Shop die Rechnung (`RE-2026-00001`) und hängt sie als PDF an die
+Versandmail (ADR 0038). Geht danach Geld zurück, folgt eine Rechnungskorrektur
+(`RK-2026-00001`) mit der Erstattungsmail. Beide stehen im Bestellpult unter „Rechnungen“
+und für den Kunden auf seiner Bestellseite.
+
+- **Einschalten:** Das Impressum muss vollständig sein, dazu die Steuernummer vom Finanzamt
+  oder die USt-IdNr. Je eine Zeile in die `.env`, dann neu starten:
+  ```bash
+  echo 'MB_IMPRINT_TAX_NUMBER=075/123/45678' >> .env
+  docker compose up -d
+  ```
+  Kommt später die USt-IdNr., `MB_IMPRINT_VAT_ID=DE…` ergänzen; die Rechnung nennt dann
+  sie statt der Steuernummer.
+- **Ohne Steuernummer** läuft der Shop normal, schreibt aber keine Rechnungen. Das
+  Bestellpult sagt das bei versendeten Bestellungen. Bestellungen, die vorher versendet
+  wurden, bekommen nachträglich keine.
+- **Nummern** laufen je Jahr ohne Lücke. Eine Rechnung wird nie geändert oder gelöscht;
+  Fehler korrigiert eine Erstattung mit Rechnungskorrektur.
+- **Aufbewahren:** Die PDFs liegen in der Datenbank und sind damit in der nächtlichen
+  Sicherung. Zehn Jahre aufheben (§ 147 AO).
 
 ### Fotos und Farben
 
