@@ -94,6 +94,7 @@ export function orderOut(overrides: Partial<OrderOut> = {}): OrderOut {
     ],
     totals: { subtotal_cents: 7990, shipping_cents: 0, total_cents: 7990, tax_cents: 1276 },
     payments: [],
+    invoices: [],
     placed_at: "2026-10-25T09:00:00Z",
     paid_at: null,
     shipped_at: null,

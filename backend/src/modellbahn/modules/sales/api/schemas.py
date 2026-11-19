@@ -437,7 +437,6 @@ class OrderOut(BaseModel):
         description="When the first plate for one of its pieces went on a printer (ADR 0034).",
     )
     invoices: list[InvoiceOut] = Field(
-        default_factory=list,
         description="Invoice and corrections, issued from dispatch on (ADR 0038).",
     )
 
@@ -691,7 +690,6 @@ class ShippingSetupOut(BaseModel):
     carrier: str = Field(examples=["DHL"])
     default_weight_g: int = Field(examples=[1000])
     issues_invoices: bool = Field(
-        default=False,
         description="The shop writes invoices when orders ship (ADR 0038). False while the "
         "imprint or a tax number (MB_IMPRINT_VAT_ID or MB_IMPRINT_TAX_NUMBER) is missing.",
     )

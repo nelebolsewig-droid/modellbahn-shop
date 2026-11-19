@@ -88,6 +88,8 @@ export * from './imageFactsOut';
 export * from './imageOut';
 export * from './imageRenditionOut';
 export * from './imprintOut';
+export * from './invoiceKind';
+export * from './invoiceOut';
 export * from './labelFormat';
 export * from './labelIn';
 export * from './labelSheet';

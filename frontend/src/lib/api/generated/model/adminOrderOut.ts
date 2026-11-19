@@ -14,6 +14,7 @@
 import type { AddressOut } from './addressOut';
 import type { BankTransferOut } from './bankTransferOut';
 import type { CancelReason } from './cancelReason';
+import type { InvoiceOut } from './invoiceOut';
 import type { OrderLineOut } from './orderLineOut';
 import type { OrderStatus } from './orderStatus';
 import type { PaymentOut } from './paymentOut';
@@ -36,6 +37,8 @@ export interface AdminOrderOut {
   /** The marketplace's order number, e.g. eBay's 12-34567-89012. */
   external_ref: string | null;
   id: string;
+  /** Invoice and corrections, issued from dispatch on (ADR 0038). */
+  invoices: InvoiceOut[];
   lead_time_max_weeks?: number | null;
   /** Some pieces are made for the customer: the lead time the checkout showed; the parcel leaves complete. Null: everything ships from the shelves. */
   lead_time_min_weeks?: number | null;

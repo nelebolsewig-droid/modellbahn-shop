@@ -68,6 +68,7 @@ const DHL_SETUP = {
   books_labels: true,
   carrier: "DHL",
   default_weight_g: 1000,
+  issues_invoices: true,
 };
 
 beforeEach(() => {
