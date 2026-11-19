@@ -34,6 +34,7 @@ from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.mails import SHOP_TIME_ZONE
 from modellbahn.modules.sales.application.ports import DigestFacts, OrderQuery
+from modellbahn.modules.sales.domain.invoices import Invoice, InvoiceKind
 from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingLabel
 from modellbahn.modules.sales.domain.model import (
     BANK_TRANSFER,
@@ -52,6 +53,8 @@ from modellbahn.modules.sales.infrastructure.tables import (
     carts,
     customer_addresses,
     daily_digests,
+    invoice_counters,
+    invoices,
     order_number_seq,
     orders,
     payments,
@@ -239,6 +242,45 @@ class SqlLabelRepository:
 
     def add(self, label: ShippingLabel) -> None:
         self._session.add(label)
+
+
+class SqlInvoiceRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def for_order(self, order_id: UUID) -> list[Invoice]:
+        statement = (
+            select(Invoice)
+            .where(invoices.c.order_id == order_id)
+            .order_by(invoices.c.issued_at, invoices.c.number)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    async def by_source(self, order_id: UUID, source: str) -> Invoice | None:
+        statement = select(Invoice).where(
+            invoices.c.order_id == order_id, invoices.c.source == source
+        )
+        return (await self._session.execute(statement)).scalars().one_or_none()
+
+    async def get(self, invoice_id: UUID) -> Invoice | None:
+        return await self._session.get(Invoice, invoice_id)
+
+    async def next_serial(self, kind: InvoiceKind, year: int) -> int:
+        # The upsert keeps the counter's row locked until the transaction ends: a second
+        # issue waits, and a rolled back one leaves no gap.
+        statement = (
+            insert(invoice_counters)
+            .values(kind=kind, year=year, last_serial=1)
+            .on_conflict_do_update(
+                index_elements=[invoice_counters.c.kind, invoice_counters.c.year],
+                set_={"last_serial": invoice_counters.c.last_serial + 1},
+            )
+            .returning(invoice_counters.c.last_serial)
+        )
+        return int((await self._session.execute(statement)).scalar_one())
+
+    def add(self, invoice: Invoice) -> None:
+        self._session.add(invoice)
 
 
 class SqlAddressRepository:
@@ -433,6 +475,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     addresses: SqlAddressRepository
     withdrawals: SqlWithdrawalRepository
     labels: SqlLabelRepository
+    invoices: SqlInvoiceRepository
     catalog: SqlCatalog
     images: SqlImages
     accounts: SqlAccounts
@@ -454,6 +497,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.addresses = SqlAddressRepository(session)
         self.withdrawals = SqlWithdrawalRepository(session)
         self.labels = SqlLabelRepository(session)
+        self.invoices = SqlInvoiceRepository(session)
         self.catalog = SqlCatalog(self)
         self.images = SqlImages(self, self._public_base_url)
         self.accounts = SqlAccounts(self)

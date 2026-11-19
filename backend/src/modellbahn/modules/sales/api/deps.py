@@ -18,6 +18,7 @@ from modellbahn.modules.identity.contracts.auth import (
 from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
@@ -79,6 +80,13 @@ def get_label_service(request: Request) -> ShippingLabelService:
 
 LabelServiceDep = Annotated[ShippingLabelService, Depends(get_label_service)]
 
+
+def get_invoice_service(request: Request) -> InvoiceService:
+    return app_state(request, "invoice_service", InvoiceService)
+
+
+InvoiceServiceDep = Annotated[InvoiceService, Depends(get_invoice_service)]
+
 OptionalCustomer = Annotated[Customer | None, Depends(customer_or_none)]
 CurrentCustomer = Annotated[Customer, Depends(require_customer)]
 # Packers see orders and ship them; cancelling (and refunding) is for owner and staff.
@@ -128,4 +136,16 @@ def set_cart_cookie(response: Response, cart: UUID, *, secure: bool) -> None:
         secure=secure,
         httponly=True,
         samesite="lax",
+    )
+
+
+def pdf_response(document: bytes, filename: str) -> Response:
+    """A PDF to open in the browser (and save under its own name); never cached."""
+    return Response(
+        content=document,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
     )

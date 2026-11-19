@@ -110,12 +110,14 @@ from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import Carrier, PaymentGateway
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
 from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
+from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer, issuer_of
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
@@ -415,6 +417,13 @@ def _attach_sales_services(
         default_weight_g=settings.dhl_default_weight_g,
     )
     app.state.order_service = OrderService(uow_factory=uow_factory, clock=clock, gateway=gateway)
+    # The API only reads invoices; the worker issues them (ADR 0038).
+    app.state.invoice_service = InvoiceService(
+        uow_factory=uow_factory,
+        clock=clock,
+        renderer=ReportLabInvoiceRenderer(shop_name=settings.shop_name),
+        issuer=issuer_of(settings),
+    )
     app.state.payment_service = PaymentService(
         uow_factory=uow_factory, clock=clock, gateway=gateway
     )

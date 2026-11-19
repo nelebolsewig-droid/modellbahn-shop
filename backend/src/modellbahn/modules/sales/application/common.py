@@ -9,6 +9,7 @@ from uuid import UUID
 
 from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.sales.application.ports import SalesUnitOfWork
+from modellbahn.modules.sales.domain.invoices import Invoice
 from modellbahn.modules.sales.domain.model import Order
 
 type UnitOfWorkFactory = Callable[[], SalesUnitOfWork]
@@ -20,6 +21,8 @@ class OrderDetails:
 
     order: Order
     images: dict[UUID, ImageView]
+    invoices: tuple[Invoice, ...] = ()
+    """Invoice and corrections issued so far (ADR 0038)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +35,9 @@ async def order_details(uow: SalesUnitOfWork, order: Order) -> OrderDetails:
     ids = [line.image_asset_id for line in order.lines if line.image_asset_id is not None]
     images = await uow.images.load(ids)
     return OrderDetails(
-        order=order, images={key: image for key, image in images.items() if image.is_ready}
+        order=order,
+        images={key: image for key, image in images.items() if image.is_ready},
+        invoices=tuple(await uow.invoices.for_order(order.id)),
     )
 
 

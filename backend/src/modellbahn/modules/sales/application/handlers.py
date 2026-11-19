@@ -26,6 +26,7 @@ from modellbahn.modules.inventory.contracts.events import AllocationBackordered
 from modellbahn.modules.manufacturing.contracts.events import PrintJobChanged
 from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
@@ -42,7 +43,7 @@ from modellbahn.modules.site.contracts.next_fair import NextFair
 from modellbahn.platform.bank import BankAccount
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.events import DomainEvent
-from modellbahn.platform.mail import MailContent, Mailer, compose
+from modellbahn.platform.mail import MailAttachment, MailContent, Mailer, compose
 from modellbahn.platform.outbox import HandlerRegistry
 
 _logger = structlog.get_logger(__name__)
@@ -60,6 +61,7 @@ class SalesHandlers:
         sender: Sequence[str] = (),
         shop_email: str = "",
         bank_account: BankAccount | None = None,
+        invoices: InvoiceService | None = None,
     ) -> None:
         self._uow = uow_factory
         self._mailer = mailer
@@ -69,6 +71,7 @@ class SalesHandlers:
         self._sender = tuple(sender)
         self._shop_email = shop_email
         self._bank = bank_account
+        self._invoices = invoices
 
     def register(self, registry: HandlerRegistry) -> None:
         """Subscribe the handlers to their events."""
@@ -216,12 +219,18 @@ class SalesHandlers:
         await self._send(event, order, content)
 
     async def send_shipped_notice(self, event: OrderShipped) -> None:
+        """The parcel is on its way; the invoice comes along as a PDF (ADR 0038)."""
         order = await self._order(event)
         if order is not None:
+            invoice = await self._invoices.invoice_for(order.id) if self._invoices else None
             content = mails.shipped_mail(
-                order, base_url=self._base_url, next_fair=await self._next_fair()
+                order,
+                base_url=self._base_url,
+                next_fair=await self._next_fair(),
+                invoice_number=invoice.number if invoice else None,
             )
-            await self._send(event, order, content)
+            attachments = (MailAttachment(invoice.filename, invoice.document),) if invoice else ()
+            await self._send(event, order, content, attachments=attachments)
 
     async def send_cancellation_notice(self, event: OrderCancelled) -> None:
         order = await self._order(event)
@@ -237,15 +246,21 @@ class SalesHandlers:
                 await self._ask_to_transfer_back(order, event.refund_cents or order.total_cents)
 
     async def send_refund_notice(self, event: OrderRefunded) -> None:
+        """Money went back; after the invoice, its correction comes along (ADR 0038)."""
         order = await self._order(event)
         if order is not None:
+            correction = await self._invoices.correction_for(event) if self._invoices else None
             content = mails.refunded_mail(
                 order,
                 amount_cents=event.amount_cents,
                 base_url=self._base_url,
                 by_transfer=event.by_transfer,
+                correction_number=correction.number if correction else None,
             )
-            await self._send(event, order, content)
+            attachments = (
+                (MailAttachment(correction.filename, correction.document),) if correction else ()
+            )
+            await self._send(event, order, content, attachments=attachments)
             if event.by_transfer:
                 await self._ask_to_transfer_back(order, event.amount_cents)
 
@@ -311,9 +326,22 @@ class SalesHandlers:
             return None
         return order
 
-    async def _send(self, event: DomainEvent, order: Order, content: MailContent) -> None:
+    async def _send(
+        self,
+        event: DomainEvent,
+        order: Order,
+        content: MailContent,
+        *,
+        attachments: Sequence[MailAttachment] = (),
+    ) -> None:
         await self._mailer.send(
-            compose(content, to=order.email, shop_name=self._shop_name, sender=self._sender)
+            compose(
+                content,
+                to=order.email,
+                shop_name=self._shop_name,
+                sender=self._sender,
+                attachments=attachments,
+            )
         )
         _logger.info(
             "sales.mail.sent",

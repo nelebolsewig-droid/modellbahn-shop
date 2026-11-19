@@ -15,6 +15,7 @@ from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
 from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
 from modellbahn.modules.sales.application.withdrawals import WithdrawalState, WithdrawalView
+from modellbahn.modules.sales.domain.invoices import Invoice, InvoiceKind
 from modellbahn.modules.sales.domain.labels import (
     LABEL_WEIGHT_MAX_G,
     LABEL_WEIGHT_MIN_G,
@@ -369,6 +370,28 @@ class BankTransferOut(BaseModel):
         )
 
 
+class InvoiceOut(BaseModel):
+    """An issued invoice or correction (ADR 0038); its PDF has a download of its own."""
+
+    id: UUID
+    kind: InvoiceKind = Field(description="``invoice`` or ``correction`` (Rechnungskorrektur).")
+    number: str = Field(examples=["RE-2026-00001"])
+    issued_at: datetime
+    total_cents: int = Field(description="Gross; negative for a correction.")
+    filename: str = Field(examples=["Rechnung-RE-2026-00001.pdf"])
+
+    @classmethod
+    def from_invoice(cls, invoice: Invoice) -> Self:
+        return cls(
+            id=invoice.id,
+            kind=invoice.kind,
+            number=invoice.number,
+            issued_at=invoice.issued_at,
+            total_cents=invoice.total_cents,
+            filename=invoice.filename,
+        )
+
+
 class OrderOut(BaseModel):
     """An order as its customer sees it. ``public_token`` is the key of its status page."""
 
@@ -413,6 +436,10 @@ class OrderOut(BaseModel):
         default=None,
         description="When the first plate for one of its pieces went on a printer (ADR 0034).",
     )
+    invoices: list[InvoiceOut] = Field(
+        default_factory=list,
+        description="Invoice and corrections, issued from dispatch on (ADR 0038).",
+    )
 
     @classmethod
     def from_details(cls, details: OrderDetails, *, bank: BankAccount | None = None) -> Self:
@@ -439,6 +466,7 @@ class OrderOut(BaseModel):
             lead_time_min_weeks=order.lead_time_min_weeks,
             lead_time_max_weeks=order.lead_time_max_weeks,
             making_started_at=order.making_started_at,
+            invoices=[InvoiceOut.from_invoice(invoice) for invoice in details.invoices],
         )
 
 
@@ -662,6 +690,11 @@ class ShippingSetupOut(BaseModel):
     )
     carrier: str = Field(examples=["DHL"])
     default_weight_g: int = Field(examples=[1000])
+    issues_invoices: bool = Field(
+        default=False,
+        description="The shop writes invoices when orders ship (ADR 0038). False while the "
+        "imprint or a tax number (MB_IMPRINT_VAT_ID or MB_IMPRINT_TAX_NUMBER) is missing.",
+    )
 
 
 class LabelIn(_Request):

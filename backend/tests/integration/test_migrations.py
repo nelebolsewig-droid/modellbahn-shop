@@ -88,6 +88,8 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "sales.customer_addresses",
         "sales.withdrawals",
         "sales.shipping_labels",
+        "sales.invoices",
+        "sales.invoice_counters",
         "sales.daily_digests",
         "inventory.locations",
         "inventory.allocations",

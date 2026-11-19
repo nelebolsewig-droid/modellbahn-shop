@@ -42,12 +42,14 @@ from modellbahn.modules.media.infrastructure.studio_gate import MemoryStudioGate
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.digest import MorningDigest
 from modellbahn.modules.sales.application.handlers import SalesHandlers
+from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.marketplace import MarketplaceIntake
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.withdrawals import RefundReminder, WithdrawalAutomation
 from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
+from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer, issuer_of
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
 from modellbahn.modules.sales.infrastructure.repositories import sales_uow_factory
 from modellbahn.modules.site.application.handlers import SiteHandlers
@@ -112,6 +114,14 @@ async def run_worker(
         shop_name=settings.shop_name,
         sender=settings.imprint.mail_footer(),
     ).register(handlers)
+    # Invoices when an order ships, corrections when money goes back after (ADR 0038).
+    invoice_service = InvoiceService(
+        uow_factory=sales_uow,
+        clock=clock,
+        renderer=ReportLabInvoiceRenderer(shop_name=settings.shop_name),
+        issuer=issuer_of(settings),
+    )
+    invoice_service.register(handlers)
     SalesHandlers(
         uow_factory=sales_uow,
         mailer=mailer,
@@ -121,6 +131,7 @@ async def run_worker(
         sender=settings.imprint.mail_footer(),
         shop_email=settings.imprint.email,
         bank_account=settings.bank_account,
+        invoices=invoice_service,
     ).register(handlers)
     site_uow = site_uow_factory(session_factory)
     SiteHandlers(

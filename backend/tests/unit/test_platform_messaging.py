@@ -7,7 +7,13 @@ from uuid import uuid4
 import pytest
 
 from modellbahn.platform.config import Settings
-from modellbahn.platform.mail import MailAction, MailContent, SmtpMailer, compose
+from modellbahn.platform.mail import (
+    MailAction,
+    MailAttachment,
+    MailContent,
+    SmtpMailer,
+    compose,
+)
 from modellbahn.platform.outbox import (
     MAX_NOTIFICATION_BYTES,
     HandlerRegistry,
@@ -48,6 +54,40 @@ class TestMail:
             shop_name="Shop",
         )
         assert "href" not in rendered.html
+
+    def test_the_wordmark_heads_every_mail(self) -> None:
+        rendered = compose(content(), to="a@example.com", shop_name="adp-Modelle")
+        # Text, not an image: it shows even where a mail program holds back pictures.
+        assert ">adp</span>" in rendered.html
+        assert ">-Modelle</span>" in rendered.html
+        assert "#cc0000" in rendered.html
+        assert "<img" not in rendered.html
+        plain = compose(content(), to="a@example.com", shop_name="Gleiswerk")
+        assert ">Gleiswerk</span>" in plain.html
+
+    def test_attachments_are_kept(self) -> None:
+        pdf = MailAttachment("Rechnung-RE-2026-00001.pdf", b"%PDF-1.4")
+        rendered = compose(content(), to="a@example.com", shop_name="G", attachments=[pdf])
+        assert rendered.attachments == (pdf,)
+
+    async def test_smtp_mailer_attaches_files(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        sent: list[EmailMessage] = []
+
+        async def fake_send(message: EmailMessage, **_: object) -> None:
+            sent.append(message)
+
+        monkeypatch.setattr("aiosmtplib.send", fake_send)
+        settings = Settings(smtp_from="Gleiswerk <shop@gleiswerk.example>")
+        pdf = MailAttachment("Rechnung-RE-2026-00001.pdf", b"%PDF-1.4 test")
+        mail = compose(content(), to="a@example.com", shop_name="G", attachments=[pdf])
+        await SmtpMailer(settings).send(mail)
+
+        (message,) = sent
+        assert message.get_content_type() == "multipart/mixed"
+        (attachment,) = message.iter_attachments()
+        assert attachment.get_content_type() == "application/pdf"
+        assert attachment.get_filename() == "Rechnung-RE-2026-00001.pdf"
+        assert attachment.get_content() == b"%PDF-1.4 test"
 
     async def test_smtp_mailer_builds_a_multipart_message(
         self, monkeypatch: pytest.MonkeyPatch

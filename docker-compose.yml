@@ -59,6 +59,7 @@ x-backend-env: &backend-env
   MB_IMPRINT_PHONE:
   MB_IMPRINT_EMAIL:
   MB_IMPRINT_VAT_ID:
+  MB_IMPRINT_TAX_NUMBER:
   # eBay: off, test (built-in test marketplace), sandbox or production; see .env.example.
   MB_EBAY_MODE:
   MB_EBAY_CLIENT_ID:

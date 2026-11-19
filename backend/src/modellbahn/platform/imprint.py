@@ -20,11 +20,22 @@ class Imprint:
     phone: str
     email: str
     vat_id: str
+    tax_number: str = ""
+    """From the tax office; invoices name it while there is no VAT ID (§ 14 UStG)."""
 
     @property
     def is_complete(self) -> bool:
         """Everything § 5 DDG asks for is there (the VAT ID only where one exists)."""
         return all((self.company, self.owner, self.street, self.postal_code, self.city, self.email))
+
+    @property
+    def tax_reference(self) -> tuple[str, str] | None:
+        """What an invoice names: the VAT ID where there is one, else the tax number."""
+        if self.vat_id:
+            return "USt-IdNr.", self.vat_id
+        if self.tax_number:
+            return "Steuernummer", self.tax_number
+        return None
 
     def address_line(self) -> str:
         """``Glambecker Straße 2, 17235 Neustrelitz``; empty if not configured."""
