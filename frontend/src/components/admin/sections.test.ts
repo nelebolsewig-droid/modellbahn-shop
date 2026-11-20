@@ -16,6 +16,7 @@ describe("Stellwerk sections", () => {
       expect(labels(railSections(role))).toEqual([
         "Heute",
         "Bestellungen",
+        "Verkäufe",
         "Modelle",
         "Lager",
         "Fertigung",
@@ -24,7 +25,7 @@ describe("Stellwerk sections", () => {
         "Einstellungen",
       ]);
       expect(labels(barSections(role))).toEqual(["Modelle", "Bestellungen", "Scannen", "Lager"]);
-      expect(labels(moreSections(role))).toEqual(["Heute", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+      expect(labels(moreSections(role))).toEqual(["Heute", "Verkäufe", "Fertigung", "Messen", "eBay", "Einstellungen"]);
     }
   });
 

@@ -29,6 +29,8 @@ from modellbahn.modules.inventory.domain.model import (
     Location,
     LocationKind,
     MovementReason,
+    Sale,
+    SaleChannel,
     Scan,
     ScanMode,
     ScanOutcome,
@@ -416,6 +418,46 @@ class TestTakingSeveralUnitsOut:
             None,
             "",
         )
+
+
+class TestSales:
+    """A piece sold outside the shop keeps where it went and what it brought (ADR 0039)."""
+
+    def test_only_a_piece_sold_keeps_its_sale(self) -> None:
+        box = _tree()[3]
+        sold, broken = _unit(), _unit()
+        broken.code = "BROKEN"
+        for unit in (sold, broken):
+            unit.put_away(box, NOW)
+        fair = Sale(channel=SaleChannel.FAIR, price_cents=3500)
+        movement = sold.scrap("", NOW, ScrapReason.SOLD, fair)
+        broken.scrap("", NOW, ScrapReason.DAMAGED, fair)
+        assert (sold.sale_channel, sold.sale_price_cents) == (SaleChannel.FAIR, 3500)
+        assert (broken.sale_channel, broken.sale_price_cents) == (None, None)
+        sold.revert(movement, NOW)
+        assert (sold.sale_channel, sold.sale_price_cents) == (None, None)
+
+    def test_entered_afterwards_only_for_a_piece_sold(self) -> None:
+        compartment, box = _tree()[2:]
+        unit = _unit()
+        unit.put_away(box, NOW)
+        with pytest.raises(InvalidUnitStateError):
+            unit.record_sale(Sale(channel=SaleChannel.FAIR), NOW)
+        unit.scrap("", NOW, ScrapReason.SOLD)
+        later = NOW + timedelta(hours=2)
+        unit.record_sale(Sale(channel=SaleChannel.STORE, price_cents=2900), later)
+        assert (unit.sale_channel, unit.sale_price_cents, unit.updated_at) == (
+            SaleChannel.STORE,
+            2900,
+            later,
+        )
+        unit.restore(compartment, later)
+        assert (unit.sale_channel, unit.sale_price_cents) == (None, None)
+
+    @pytest.mark.parametrize("price", [-1, 10_000_001])
+    def test_a_price_out_of_range_is_refused(self, price: int) -> None:
+        with pytest.raises(InvalidFieldError):
+            Sale(price_cents=price)
 
 
 class TestBookingInAgain:

@@ -175,6 +175,7 @@ describe("AssemblyDesk", () => {
         sku: "MB-000042-H0-B",
         gtin: "2000000000428",
         allow_backorder: true,
+        price_cents: 4990,
       },
       quantity,
       parts: [

@@ -24,10 +24,25 @@ import {
 import { errorMessage } from "@/lib/i18n/problems";
 import { SCRAP_REASONS } from "@/lib/validation/inventory";
 
+import { rememberSaleChannel, SaleFields, saleDraft, saleOf, type SaleDraft } from "@/components/admin/sales/sale-fields";
+
 import { useInventoryRefresh } from "./part-dialogs";
 
 /** What the dialogs need of a ticked piece. */
-export type SelectedUnit = { id: string; display_code: string; status: UnitStatus };
+export type SelectedUnit = {
+  id: string;
+  display_code: string;
+  status: UnitStatus;
+  /** What it is: its shop price is offered when it is booked out as sold. */
+  variant?: { price_cents: number } | null;
+};
+
+/** The shop price the ticked pieces share, else null (different models). */
+function samePrice(units: readonly SelectedUnit[]): number | null {
+  const prices = new Set(units.map((unit) => unit.variant?.price_cents ?? null));
+  const [only] = prices;
+  return prices.size === 1 && typeof only === "number" ? only : null;
+}
 
 function what(units: readonly SelectedUnit[]): string {
   return units.length === 1 ? (units[0] as SelectedUnit).display_code : pieces(units.length);
@@ -251,10 +266,22 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
   const [reason, setReason] = useState<ScrapReason | "">("");
   const [note, setNote] = useState("");
   const [missingReason, setMissingReason] = useState(false);
+  const shopPrice = samePrice(units);
+  const [sale, setSale] = useState<SaleDraft>(() => saleDraft(shopPrice, ""));
+  const [submitted, setSubmitted] = useState(false);
   const refresh = useInventoryRefresh();
   const scrap = useMutation<UnitScrapOut, ApiProblem, ScrapReason>({
-    mutationFn: (chosen) => scrapUnits({ unit_ids: units.map((unit) => unit.id), reason: chosen, note: note.trim() }),
+    mutationFn: (chosen) =>
+      scrapUnits({
+        unit_ids: units.map((unit) => unit.id),
+        reason: chosen,
+        note: note.trim(),
+        ...(chosen === "sold" ? saleOf(sale) : null),
+      }),
     onSuccess(result, chosen) {
+      if (chosen === "sold") {
+        rememberSaleChannel(sale.channel);
+      }
       refresh();
       setOpen(false);
       onScrapped(scrapMessage(result, SCRAP_REASON_LABELS[chosen]));
@@ -278,6 +305,8 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
           setReason(unbooked ? "mistake" : "");
           setNote("");
           setMissingReason(false);
+          setSale(saleDraft(shopPrice));
+          setSubmitted(false);
           scrap.reset();
         }
       }}
@@ -294,8 +323,12 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
           className="mt-6 space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
+            setSubmitted(true);
             if (reason === "") {
               setMissingReason(true);
+              return;
+            }
+            if (reason === "sold" && saleOf(sale) === undefined) {
               return;
             }
             scrap.mutate(reason);
@@ -309,6 +342,9 @@ export function ScrapUnitsDialog({ units, trigger, onScrapped }: ScrapUnitsDialo
             }}
             error={missingReason ? "Bitte einen Grund wählen." : undefined}
           />
+          {reason === "sold" ? (
+            <SaleFields value={sale} onChange={setSale} shopPriceCents={shopPrice} perPiece={units.length > 1} showErrors={submitted} />
+          ) : null}
           <FormField label="Notiz" hint="Optional, z. B. „Messe Leipzig“ oder „Inventur Oktober“.">
             {(control) => (
               <Textarea {...control} value={note} onChange={(event) => setNote(event.target.value)} maxLength={200} rows={2} />

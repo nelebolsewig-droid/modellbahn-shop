@@ -20,7 +20,7 @@ export function StaffPasswordDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="max-sm:px-2.5">
+        <Button type="button" variant="ghost" size="sm" className="max-sm:size-10 max-sm:px-0">
           {/* A key on the phone, where the header has room for little else. */}
           <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5 sm:hidden">
             <circle cx="6.5" cy="13.5" r="3.5" />

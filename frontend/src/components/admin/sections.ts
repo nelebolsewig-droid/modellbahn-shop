@@ -9,6 +9,7 @@ const EVERYONE: ReadonlySet<StaffRole> = new Set(["owner", "staff", "packer"]);
 export type SectionKey =
   | "models"
   | "orders"
+  | "sales"
   | "scan"
   | "stock"
   | "overview"
@@ -22,6 +23,7 @@ export type Section = { key: SectionKey; href: Route; label: string };
 const SECTIONS = {
   models: { href: "/admin/modelle", label: "Modelle", roles: OFFICE_ROLES },
   orders: { href: "/admin/bestellungen", label: "Bestellungen", roles: EVERYONE },
+  sales: { href: "/admin/verkaeufe", label: "Verkäufe", roles: OFFICE_ROLES },
   scan: { href: "/admin/scanner", label: "Scannen", roles: EVERYONE },
   stock: { href: "/admin/lager", label: "Lager", roles: EVERYONE },
   overview: { href: "/admin", label: "Heute", roles: EVERYONE },
@@ -35,11 +37,11 @@ const SECTIONS = {
  * The rail on a desk (ADR 0030): Heute first, then the day's work, the rest after it.
  * Scannen is the large button at the rail's foot.
  */
-const RAIL_KEYS: readonly SectionKey[] = ["overview", "orders", "models", "stock", "manufacturing", "fairs", "ebay", "settings"];
+const RAIL_KEYS: readonly SectionKey[] = ["overview", "orders", "sales", "models", "stock", "manufacturing", "fairs", "ebay", "settings"];
 
 /** The phone's bottom bar: the day's work, Scannen in the middle; the rest is behind "Mehr". */
 const BAR_KEYS: readonly SectionKey[] = ["models", "orders", "scan", "stock"];
-const MORE_KEYS: readonly SectionKey[] = ["overview", "manufacturing", "fairs", "ebay", "settings"];
+const MORE_KEYS: readonly SectionKey[] = ["overview", "sales", "manufacturing", "fairs", "ebay", "settings"];
 
 /** Pages that live under another entry's address but belong to the settings. */
 const SETTINGS_PATHS = ["/admin/einstellungen"];

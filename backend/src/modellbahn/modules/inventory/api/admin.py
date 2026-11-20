@@ -48,6 +48,7 @@ from modellbahn.modules.inventory.api.schemas import (
     ProductStockOut,
     ReceiptOut,
     ReceivingOut,
+    SaleIn,
     ScanIn,
     ScanOut,
     ScrapIn,
@@ -306,6 +307,7 @@ async def scrap_stock(
         quantity=body.quantity,
         reason=body.reason,
         note=body.note,
+        sale=body.sale(),
         staff_id=staff.id,
     )
     return StockScrapOut.from_result(result)
@@ -418,7 +420,7 @@ async def scrap_units(
     body: UnitsScrapIn, staff: StockManager, service: UnitServiceDep
 ) -> UnitScrapOut:
     scrap = await service.scrap_units(
-        body.unit_ids, reason=body.reason, note=body.note, staff_id=staff.id
+        body.unit_ids, reason=body.reason, note=body.note, sale=body.sale(), staff_id=staff.id
     )
     return UnitScrapOut.from_scrap(scrap)
 
@@ -461,8 +463,24 @@ async def get_unit(code: str, _: StockWorker, service: UnitServiceDep) -> UnitDe
 async def scrap_unit(
     code: str, body: ScrapIn, staff: StockManager, service: UnitServiceDep
 ) -> UnitOut:
-    view = await service.scrap(code, note=body.note, reason=body.reason, staff_id=staff.id)
+    view = await service.scrap(
+        code, note=body.note, reason=body.reason, sale=body.sale(), staff_id=staff.id
+    )
     return UnitOut.from_view(view)
+
+
+@router.put(
+    "/units/{code}/sale",
+    operation_id="recordUnitSale",
+    summary="Enter or correct where a unit booked out as sold went and what it brought in",
+    description="For the sales report (Verkäufe): pieces sold at a fair are often booked "
+    "out by scan without a price. Only a unit booked out with the reason `sold`.",
+    responses=problems({**STAFF_ACCESS, **_UNIT_NOT_FOUND, 409: ["invalid_unit_state"]}),
+)
+async def record_unit_sale(
+    code: str, body: SaleIn, _: StockManager, service: UnitServiceDep
+) -> UnitOut:
+    return UnitOut.from_view(await service.record_sale(code, body.sale()))
 
 
 @router.post(

@@ -14,6 +14,7 @@
 import type { AssembledPartOut } from './assembledPartOut';
 import type { HistoryEntryOut } from './historyEntryOut';
 import type { LocationOut } from './locationOut';
+import type { SaleChannel } from './saleChannel';
 import type { ScrapReason } from './scrapReason';
 import type { UnitStatus } from './unitStatus';
 import type { VariantRefOut } from './variantRefOut';
@@ -32,6 +33,10 @@ export interface UnitDetailsOut {
   order_number: string | null;
   /** What the unit was assembled from; empty for a unit labelled by hand. */
   parts: AssembledPartOut[];
+  /** Where it was sold, if booked out as sold. */
+  sale_channel?: SaleChannel | null;
+  /** What it was sold for; empty while unknown. */
+  sale_price_cents?: number | null;
   scrap_note: string;
   /** Why it was taken out by hand; empty for older ones. */
   scrap_reason: ScrapReason | null;

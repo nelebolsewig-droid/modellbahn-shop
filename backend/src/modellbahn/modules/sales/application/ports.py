@@ -6,6 +6,7 @@ The infrastructure layer implements them; tests may substitute their own.
 from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date, datetime
+from enum import StrEnum
 from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
@@ -202,6 +203,58 @@ class Digests(Protocol):
     async def facts(self, now: datetime) -> DigestFacts: ...
 
 
+# --- Sales report (ADR 0039) -------------------------------------------------------
+
+
+class ReportChannel(StrEnum):
+    """Where a sale happened: the online channels of orders, and those of pieces booked out."""
+
+    SHOP = "shop"
+    EBAY = "ebay"
+    FAIR = "fair"
+    STORE = "store"
+    PRIVATE = "private"
+    OTHER = "other"
+    UNKNOWN = "unknown"
+    """Booked out as sold without saying where."""
+
+
+class SoldKind(StrEnum):
+    ORDER_LINE = "order_line"
+    PIECE = "piece"
+    """A piece booked out as sold: its channel and price can be entered afterwards."""
+
+
+@dataclass(frozen=True, slots=True)
+class SoldLine:
+    kind: SoldKind
+    key: str
+    """The order line's id, or the piece's code: stable for lists and links."""
+    channel: ReportChannel
+    sold_at: datetime
+    title: str
+    sku: str
+    quantity: int
+    unit_price_cents: int
+    price_from_shop: bool
+    """The piece's price was not entered; today's shop price stands in."""
+    order_id: UUID | None = None
+    order_number: str | None = None
+    unit_code: str | None = None
+    note: str = ""
+    staff_name: str | None = None
+
+    @property
+    def total_cents(self) -> int:
+        return self.unit_price_cents * self.quantity
+
+
+class SalesLedger(Protocol):
+    """Reads what was sold across the modules, inside the caller's transaction."""
+
+    async def sold(self, since: datetime, until: datetime) -> list[SoldLine]: ...
+
+
 class Fairs(Protocol):
     """What sales may ask the site module: the next fair, for a line in the mails."""
 
@@ -390,6 +443,9 @@ class SalesUnitOfWork(Protocol):
 
     @property
     def digests(self) -> Digests: ...
+
+    @property
+    def sales_ledger(self) -> SalesLedger: ...
 
     @property
     def marketplace(self) -> Marketplace: ...

@@ -203,6 +203,7 @@ function Marker({ shown }: { shown: boolean }) {
 const GLYPHS: Readonly<Record<SectionKey | "more", string>> = {
   overview: "M3.5 3.5h5v5h-5Z M11.5 3.5h5v5h-5Z M3.5 11.5h5v5h-5Z M11.5 11.5h5v5h-5Z",
   orders: "M3 6.5 10 3l7 3.5v7L10 17l-7-3.5Z M3 6.5l7 3.5 7-3.5 M10 10v7",
+  sales: "M3.5 16.5h13 M6 16.5v-4 M10 16.5v-7.5 M14 16.5V4.5",
   stock: "M4 3v14 M16 3v14 M4 7h12 M4 11.5h12 M4 16h12",
   manufacturing: "M3.5 3.5h13v13h-13Z M3.5 6.5h13 M8 6.5v3h4v-3 M10 9.5v2 M6.5 16.5v-2.5h7v2.5",
   scan: "M3 7V3h4 M13 3h4v4 M17 13v4h-4 M7 17H3v-4 M6 10h8",

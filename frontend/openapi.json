@@ -8748,6 +8748,20 @@
         "title": "RenditionOut",
         "type": "object"
       },
+      "ReportChannel": {
+        "description": "Where a sale happened: the online channels of orders, and those of pieces booked out.",
+        "enum": [
+          "shop",
+          "ebay",
+          "fair",
+          "store",
+          "private",
+          "other",
+          "unknown"
+        ],
+        "title": "ReportChannel",
+        "type": "string"
+      },
       "RequestAcceptedOut": {
         "description": "Same answer whether or not an e-mail is sent.",
         "properties": {
@@ -8761,6 +8775,50 @@
         "title": "RequestAcceptedOut",
         "type": "object"
       },
+      "SaleChannel": {
+        "description": "Where a piece sold outside the online shop went (*Verkaufskanal*).",
+        "enum": [
+          "fair",
+          "store",
+          "private",
+          "other"
+        ],
+        "title": "SaleChannel",
+        "type": "string"
+      },
+      "SaleIn": {
+        "additionalProperties": false,
+        "description": "Where a piece booked out as sold went and what it brought in (ADR 0039).",
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Messe, Laden, privat, sonstiges; empty if unknown."
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross price of one piece; empty: the report counts the shop price.",
+            "title": "Price Cents"
+          }
+        },
+        "title": "SaleIn",
+        "type": "object"
+      },
       "SalesChannel": {
         "description": "Where an order came from. A marketplace order arrives paid; its buyer hears from there.",
         "enum": [
@@ -8769,6 +8827,36 @@
         ],
         "title": "SalesChannel",
         "type": "string"
+      },
+      "SalesReportOut": {
+        "properties": {
+          "end": {
+            "description": "Inclusive.",
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "lines": {
+            "description": "The latest first.",
+            "items": {
+              "$ref": "#/components/schemas/SoldLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "lines"
+        ],
+        "title": "SalesReportOut",
+        "type": "object"
       },
       "ScaleCreateIn": {
         "additionalProperties": false,
@@ -9074,12 +9162,13 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "`location_code` when putting away (and, optionally, booking out), `order_id` when picking, `reason` when booking out (`sold`, `damaged`, `missing`, `mistake`; default `sold`).",
+            "description": "`location_code` when putting away (and, optionally, booking out), `order_id` when picking, `reason` when booking out (`sold`, `damaged`, `missing`, `mistake`; default `sold`) and with `sold` `channel` (`fair`, `store`, `private`, `other`).",
             "propertyNames": {
               "enum": [
                 "location_code",
                 "order_id",
-                "reason"
+                "reason",
+                "channel"
               ]
             },
             "title": "Context",
@@ -9746,12 +9835,38 @@
       },
       "ScrapIn": {
         "additionalProperties": false,
+        "description": "``channel`` and ``price_cents`` count only for the reason ``sold``.",
         "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Messe, Laden, privat, sonstiges; empty if unknown."
+          },
           "note": {
             "default": "",
             "maxLength": 200,
             "title": "Note",
             "type": "string"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross price of one piece; empty: the report counts the shop price.",
+            "title": "Price Cents"
           },
           "reason": {
             "$ref": "#/components/schemas/ScrapReason"
@@ -10128,6 +10243,130 @@
           "layer_count"
         ],
         "title": "SliceFileOut",
+        "type": "object"
+      },
+      "SoldKind": {
+        "enum": [
+          "order_line",
+          "piece"
+        ],
+        "title": "SoldKind",
+        "type": "string"
+      },
+      "SoldLineOut": {
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/ReportChannel"
+          },
+          "key": {
+            "description": "The order line's id, or the piece's code.",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SoldKind"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "order_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Number"
+          },
+          "price_from_shop": {
+            "description": "No price was entered for the piece: today's shop price stands in.",
+            "title": "Price From Shop",
+            "type": "boolean"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "sold_at": {
+            "description": "Paid (orders) or booked out as sold (pieces).",
+            "format": "date-time",
+            "title": "Sold At",
+            "type": "string"
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who booked the piece out.",
+            "title": "Staff Name"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "total_cents": {
+            "title": "Total Cents",
+            "type": "integer"
+          },
+          "unit_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The piece's code; its sale can be corrected.",
+            "title": "Unit Code"
+          },
+          "unit_price_cents": {
+            "title": "Unit Price Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "channel",
+          "sold_at",
+          "title",
+          "sku",
+          "quantity",
+          "unit_price_cents",
+          "total_cents",
+          "price_from_shop",
+          "order_id",
+          "order_number",
+          "unit_code",
+          "note",
+          "staff_name"
+        ],
+        "title": "SoldLineOut",
         "type": "object"
       },
       "StaffOut": {
@@ -10569,7 +10808,19 @@
       },
       "StockScrapIn": {
         "additionalProperties": false,
+        "description": "``channel`` and ``price_cents`` (per piece) count only for the reason ``sold``.",
         "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Messe, Laden, privat, sonstiges; empty if unknown."
+          },
           "location_code": {
             "anyOf": [
               {
@@ -10588,6 +10839,20 @@
             "maxLength": 200,
             "title": "Note",
             "type": "string"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross price of one piece; empty: the report counts the shop price.",
+            "title": "Price Cents"
           },
           "quantity": {
             "maximum": 200.0,
@@ -11512,6 +11777,29 @@
             "title": "Parts",
             "type": "array"
           },
+          "sale_channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where it was sold, if booked out as sold."
+          },
+          "sale_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What it was sold for; empty while unknown.",
+            "title": "Sale Price Cents"
+          },
           "scrap_note": {
             "title": "Scrap Note",
             "type": "string"
@@ -11716,6 +12004,29 @@
             ],
             "title": "Order Number"
           },
+          "sale_channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where it was sold, if booked out as sold."
+          },
+          "sale_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What it was sold for; empty while unknown.",
+            "title": "Sale Price Cents"
+          },
           "scrap_note": {
             "title": "Scrap Note",
             "type": "string"
@@ -11901,11 +12212,36 @@
       "UnitsScrapIn": {
         "additionalProperties": false,
         "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaleChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Messe, Laden, privat, sonstiges; empty if unknown."
+          },
           "note": {
             "default": "",
             "maxLength": 200,
             "title": "Note",
             "type": "string"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gross price of one piece; empty: the report counts the shop price.",
+            "title": "Price Cents"
           },
           "reason": {
             "$ref": "#/components/schemas/ScrapReason"
@@ -12508,6 +12844,11 @@
             "title": "Gtin",
             "type": "string"
           },
+          "price_cents": {
+            "description": "Today's gross shop price of one piece.",
+            "title": "Price Cents",
+            "type": "integer"
+          },
           "product_id": {
             "format": "uuid",
             "title": "Product Id",
@@ -12544,7 +12885,8 @@
           "title",
           "sku",
           "gtin",
-          "allow_backorder"
+          "allow_backorder",
+          "price_cents"
         ],
         "title": "VariantRefOut",
         "type": "object"
@@ -17564,6 +17906,124 @@
           }
         ],
         "summary": "The unit is another variant than its label says: change it (reprint the label)",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/units/{code}/sale": {
+      "put": {
+        "description": "For the sales report (Verkäufe): pieces sold at a fair are often booked out by scan without a price. Only a unit booked out with the reason `sold`.",
+        "operationId": "recordUnitSale",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `unit_not_found`."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict. Problem codes: `invalid_unit_state`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Enter or correct where a unit booked out as sold went and what it brought in",
         "tags": [
           "admin-inventory"
         ]
@@ -25694,6 +26154,99 @@
         "summary": "Offer the product in another scale",
         "tags": [
           "admin-catalog"
+        ]
+      }
+    },
+    "/api/v1/admin/sales/report": {
+      "get": {
+        "description": "Order lines count on the day they were paid (cancelled orders not); pieces sold at a fair, on site or privately on the day they were booked out, at the price entered or else today's shop price (`price_from_shop`). Days in Europe/Berlin, at most 366.",
+        "operationId": "getSalesReport",
+        "parameters": [
+          {
+            "description": "First day, inclusive.",
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "description": "First day, inclusive.",
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day, inclusive.",
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "description": "Last day, inclusive.",
+              "format": "date",
+              "title": "End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "What was sold between two shop days: paid orders and pieces booked out as sold",
+        "tags": [
+          "admin-sales"
         ]
       }
     },

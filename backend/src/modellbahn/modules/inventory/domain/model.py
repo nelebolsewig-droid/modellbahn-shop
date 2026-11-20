@@ -201,6 +201,39 @@ class ScrapReason(StrEnum):
     """Never existed: recorded or labelled by mistake (labels printed twice)."""
 
 
+class SaleChannel(StrEnum):
+    """Where a piece sold outside the online shop went (*Verkaufskanal*)."""
+
+    FAIR = "fair"
+    """At a fair or a market (*Messe*)."""
+    STORE = "store"
+    """Over the counter on site (*Laden*)."""
+    PRIVATE = "private"
+    OTHER = "other"
+
+
+SALE_PRICE_MAX_CENTS: Final = 10_000_000
+"""A sanity bound for one piece: 100 000 euros."""
+
+
+@dataclass(frozen=True, slots=True)
+class Sale:
+    """What a piece booked out as sold brought in: the channel and the gross price.
+
+    Both may be unknown: pieces sold before they were asked for, or booked out by scan in
+    a hurry. A missing price counts at the shop price in the sales report (ADR 0039).
+    """
+
+    channel: SaleChannel | None = None
+    price_cents: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.price_cents is not None and not 0 <= self.price_cents <= SALE_PRICE_MAX_CENTS:
+            raise InvalidFieldError(
+                "price_cents", "out_of_range", f"between 0 and {SALE_PRICE_MAX_CENTS} cents"
+            )
+
+
 class MovementReason(StrEnum):
     LABEL = "label"
     PUT_AWAY = "put_away"
@@ -254,6 +287,10 @@ class Unit:
     scrap_note: str = ""
     scrap_reason: ScrapReason | None = None
     """Why it was taken out by hand; ``None`` for units scrapped before reasons were kept."""
+    sale_channel: SaleChannel | None = None
+    """Where it was sold, when it was booked out as sold (ADR 0039)."""
+    sale_price_cents: int | None = None
+    """What it brought in, gross; ``None`` while unknown (the shop price stands in)."""
 
     @classmethod
     def label(cls, *, variant_id: UUID, code: str, now: datetime) -> tuple["Unit", Movement]:
@@ -340,15 +377,22 @@ class Unit:
         self.status = UnitStatus.SHIPPED
         return self._changed(MovementReason.SHIP, before, self.allocation_id, now)
 
-    def scrap(self, note: str, now: datetime, reason: ScrapReason | None = None) -> Movement:
+    def scrap(
+        self,
+        note: str,
+        now: datetime,
+        reason: ScrapReason | None = None,
+        sale: Sale | None = None,
+    ) -> Movement:
         """Sold elsewhere, broken or lost: the unit leaves the stock; an allocation it
-        served is open again."""
+        served is open again. ``sale`` counts only for a unit sold; other reasons drop it."""
         if self.status in GONE:
             raise InvalidUnitStateError(f"a unit that is {self.status} cannot be scrapped")
         before = self._state()
         allocation_id = self.allocation_id
         self.scrap_note = _text(note, "note", SCRAP_NOTE_MAX_LENGTH)
         self.scrap_reason = reason
+        self._set_sale(sale if reason is ScrapReason.SOLD else None)
         self.status = UnitStatus.SCRAPPED
         self.location_id = None
         self.allocation_id = None
@@ -366,6 +410,7 @@ class Unit:
         self.location_id = location.id
         self.scrap_note = ""
         self.scrap_reason = None
+        self._set_sale(None)
         return self._changed(MovementReason.RESTORE, before, None, now)
 
     def is_correctable(self, history: Collection[MovementReason]) -> bool:
@@ -413,7 +458,20 @@ class Unit:
         if movement.reason is MovementReason.SCRAP:
             self.scrap_note = ""
             self.scrap_reason = None
+            self._set_sale(None)
         return self._changed(MovementReason.UNDO, before, movement.allocation_id, now)
+
+    def record_sale(self, sale: Sale, now: datetime) -> None:
+        """Enter or correct the channel and price of a unit booked out as sold, afterwards
+        (the report's *Nachtragen*). Not a movement: the unit stays where it is."""
+        if self.status is not UnitStatus.SCRAPPED or self.scrap_reason is not ScrapReason.SOLD:
+            raise InvalidUnitStateError("only a unit booked out as sold has a sale")
+        self._set_sale(sale)
+        self.updated_at = now
+
+    def _set_sale(self, sale: Sale | None) -> None:
+        self.sale_channel = sale.channel if sale else None
+        self.sale_price_cents = sale.price_cents if sale else None
 
     def _state(self) -> tuple[UnitStatus, UUID | None]:
         return self.status, self.location_id

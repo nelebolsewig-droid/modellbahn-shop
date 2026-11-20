@@ -35,6 +35,7 @@ const STELLWERK: VariantRefOut = {
   sku: "MB-000001-H0-B",
   gtin: "2000000000015",
   allow_backorder: false,
+  price_cents: 4990,
 };
 
 function place(code: string, path: string, kind: LocationNodeOut["kind"], name = ""): LocationNodeOut {

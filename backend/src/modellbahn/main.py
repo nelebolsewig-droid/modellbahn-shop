@@ -115,6 +115,7 @@ from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import Carrier, PaymentGateway
+from modellbahn.modules.sales.application.report import SalesReportService
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
 from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
 from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer, issuer_of
@@ -336,6 +337,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(sales_admin.router)
     api.include_router(sales_admin.withdrawals_router)
     api.include_router(sales_admin.shipping_router)
+    api.include_router(sales_admin.report_router)
     api.include_router(inventory_admin.router)
     api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
@@ -428,6 +430,7 @@ def _attach_sales_services(
         uow_factory=uow_factory, clock=clock, gateway=gateway
     )
     app.state.withdrawal_service = WithdrawalService(uow_factory=uow_factory, clock=clock)
+    app.state.sales_report_service = SalesReportService(uow_factory=uow_factory)
     app.state.address_service = AddressService(uow_factory=uow_factory, clock=clock)
 
 

@@ -30,6 +30,7 @@ from modellbahn.modules.inventory.application.parts import (
 )
 from modellbahn.modules.inventory.application.ports import LabelSheet
 from modellbahn.modules.inventory.application.scanning import (
+    CHANNEL_CONTEXT,
     LOCATION_CONTEXT,
     ORDER_CONTEXT,
     REASON_CONTEXT,
@@ -63,6 +64,7 @@ from modellbahn.modules.inventory.domain.availability import Availability
 from modellbahn.modules.inventory.domain.codes import format_unit_code
 from modellbahn.modules.inventory.domain.model import (
     LOCATION_NAME_MAX_LENGTH,
+    SALE_PRICE_MAX_CENTS,
     SCAN_QUANTITY_MAX,
     SCRAP_NOTE_MAX_LENGTH,
     UNITS_PER_BATCH_MAX,
@@ -70,6 +72,8 @@ from modellbahn.modules.inventory.domain.model import (
     Location,
     LocationKind,
     MovementReason,
+    Sale,
+    SaleChannel,
     ScanMode,
     ScanOutcome,
     ScrapReason,
@@ -341,6 +345,7 @@ class VariantRefOut(BaseModel):
     sku: str = Field(examples=["MB-000042-H0-B"])
     gtin: str
     allow_backorder: bool
+    price_cents: int = Field(description="Today's gross shop price of one piece.")
 
     @classmethod
     def from_variant(cls, variant: SaleVariant) -> Self:
@@ -352,6 +357,7 @@ class VariantRefOut(BaseModel):
             sku=variant.sku,
             gtin=variant.gtin,
             allow_backorder=variant.allow_backorder,
+            price_cents=variant.price_cents,
         )
 
 
@@ -368,6 +374,12 @@ class UnitOut(BaseModel):
     scrap_note: str
     scrap_reason: ScrapReason | None = Field(
         description="Why it was taken out by hand; empty for older ones."
+    )
+    sale_channel: SaleChannel | None = Field(
+        default=None, description="Where it was sold, if booked out as sold."
+    )
+    sale_price_cents: int | None = Field(
+        default=None, description="What it was sold for; empty while unknown."
     )
     created_at: datetime = Field(description="When it was labelled.")
     updated_at: datetime
@@ -387,6 +399,8 @@ class UnitOut(BaseModel):
             order_number=view.order_number,
             scrap_note=unit.scrap_note,
             scrap_reason=unit.scrap_reason,
+            sale_channel=unit.sale_channel,
+            sale_price_cents=unit.sale_price_cents,
             created_at=unit.created_at,
             updated_at=unit.updated_at,
         )
@@ -489,7 +503,26 @@ class UnitsCreateIn(_Request):
     )
 
 
-class ScrapIn(_Request):
+class SaleIn(_Request):
+    """Where a piece booked out as sold went and what it brought in (ADR 0039)."""
+
+    channel: SaleChannel | None = Field(
+        default=None, description="Messe, Laden, privat, sonstiges; empty if unknown."
+    )
+    price_cents: int | None = Field(
+        default=None,
+        ge=0,
+        le=SALE_PRICE_MAX_CENTS,
+        description="Gross price of one piece; empty: the report counts the shop price.",
+    )
+
+    def sale(self) -> Sale:
+        return Sale(channel=self.channel, price_cents=self.price_cents)
+
+
+class ScrapIn(SaleIn):
+    """``channel`` and ``price_cents`` count only for the reason ``sold``."""
+
     reason: ScrapReason
     note: str = Field(default="", max_length=SCRAP_NOTE_MAX_LENGTH)
 
@@ -861,7 +894,9 @@ class StockMoveOut(BaseModel):
         )
 
 
-class StockScrapIn(_Request):
+class StockScrapIn(SaleIn):
+    """``channel`` and ``price_cents`` (per piece) count only for the reason ``sold``."""
+
     variant_id: UUID
     location_code: str | None = Field(
         default=None, max_length=44, description="From this place; without one the oldest anywhere."
@@ -976,11 +1011,12 @@ class ScanIn(_Request):
     raw: str = Field(min_length=1, max_length=MAX_RAW_LENGTH, examples=["2000000000428"])
     mode: ScanMode
     source: Literal["camera", "scanner", "keyboard"]
-    context: dict[Literal["location_code", "order_id", "reason"], str] = Field(
+    context: dict[Literal["location_code", "order_id", "reason", "channel"], str] = Field(
         default_factory=dict,
         description=f"`{LOCATION_CONTEXT}` when putting away (and, optionally, booking out), "
         f"`{ORDER_CONTEXT}` when picking, `{REASON_CONTEXT}` when booking out "
-        "(`sold`, `damaged`, `missing`, `mistake`; default `sold`).",
+        "(`sold`, `damaged`, `missing`, `mistake`; default `sold`) and with `sold` "
+        f"`{CHANNEL_CONTEXT}` (`fair`, `store`, `private`, `other`).",
     )
     quantity: int = Field(
         default=1,

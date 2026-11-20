@@ -21,9 +21,11 @@ from modellbahn.modules.catalog.contracts.variants import (
 from modellbahn.modules.identity.contracts.accounts import (
     find_verified_customer,
     get_account_summary,
+    load_display_names,
 )
 from modellbahn.modules.inventory.contracts.availability import PickProgress
 from modellbahn.modules.inventory.contracts.demand import load_waiting_pieces
+from modellbahn.modules.inventory.contracts.sales import SaleChannel, load_off_site_sales
 from modellbahn.modules.inventory.contracts.stock import load_free_units, load_pick_progress
 from modellbahn.modules.manufacturing.contracts.parts import (
     load_bill_of_materials,
@@ -33,7 +35,13 @@ from modellbahn.modules.manufacturing.contracts.parts import (
 from modellbahn.modules.marketplace.contracts.orders import ReceivedOrder, load_received_order
 from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.sales.application.mails import SHOP_TIME_ZONE
-from modellbahn.modules.sales.application.ports import DigestFacts, OrderQuery
+from modellbahn.modules.sales.application.ports import (
+    DigestFacts,
+    OrderQuery,
+    ReportChannel,
+    SoldKind,
+    SoldLine,
+)
 from modellbahn.modules.sales.domain.invoices import Invoice, InvoiceKind
 from modellbahn.modules.sales.domain.labels import LabelStatus, ShippingLabel
 from modellbahn.modules.sales.domain.model import (
@@ -55,6 +63,7 @@ from modellbahn.modules.sales.infrastructure.tables import (
     daily_digests,
     invoice_counters,
     invoices,
+    order_lines,
     order_number_seq,
     orders,
     payments,
@@ -457,6 +466,96 @@ class SqlFairs:
         return await load_next_fair(self._uow, today)
 
 
+_OFF_SITE_CHANNELS: Final = {
+    SaleChannel.FAIR: ReportChannel.FAIR,
+    SaleChannel.STORE: ReportChannel.STORE,
+    SaleChannel.PRIVATE: ReportChannel.PRIVATE,
+    SaleChannel.OTHER: ReportChannel.OTHER,
+}
+_ORDER_CHANNELS: Final = {
+    SalesChannel.SHOP: ReportChannel.SHOP,
+    SalesChannel.EBAY: ReportChannel.EBAY,
+}
+
+
+class SqlSalesLedger:
+    """What was sold (ADR 0039): paid order lines here, pieces booked out as sold from
+    the inventory module, named by the catalogue."""
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def sold(self, since: datetime, until: datetime) -> list[SoldLine]:
+        return [*await self._order_lines(since, until), *await self._pieces(since, until)]
+
+    async def _order_lines(self, since: datetime, until: datetime) -> list[SoldLine]:
+        rows = await self._uow.session.execute(
+            select(
+                order_lines.c.id,
+                order_lines.c.title,
+                order_lines.c.sku,
+                order_lines.c.quantity,
+                order_lines.c.unit_price_cents,
+                orders.c.id.label("order_id"),
+                orders.c.number,
+                orders.c.channel,
+                orders.c.paid_at,
+            )
+            .join(orders, orders.c.id == order_lines.c.order_id)
+            .where(
+                orders.c.paid_at >= since,
+                orders.c.paid_at < until,
+                orders.c.status != OrderStatus.CANCELLED,
+            )
+        )
+        return [
+            SoldLine(
+                kind=SoldKind.ORDER_LINE,
+                key=str(row.id),
+                channel=_ORDER_CHANNELS[row.channel],
+                sold_at=row.paid_at,
+                title=row.title,
+                sku=row.sku,
+                quantity=row.quantity,
+                unit_price_cents=row.unit_price_cents,
+                price_from_shop=False,
+                order_id=row.order_id,
+                order_number=row.number,
+            )
+            for row in rows
+        ]
+
+    async def _pieces(self, since: datetime, until: datetime) -> list[SoldLine]:
+        pieces = await load_off_site_sales(self._uow, since, until)
+        variants = await load_sale_variants(self._uow, {piece.variant_id for piece in pieces})
+        names = await load_display_names(
+            self._uow, {piece.staff_id for piece in pieces if piece.staff_id}
+        )
+        lines: list[SoldLine] = []
+        for piece in pieces:
+            variant = variants.get(piece.variant_id)
+            shop_price = variant.price_cents if variant else 0
+            lines.append(
+                SoldLine(
+                    kind=SoldKind.PIECE,
+                    key=piece.unit_code,
+                    channel=_OFF_SITE_CHANNELS[piece.channel]
+                    if piece.channel
+                    else ReportChannel.UNKNOWN,
+                    sold_at=piece.sold_at,
+                    title=variant.title if variant else "Unbekannter Artikel",
+                    sku=variant.sku if variant else "",
+                    quantity=1,
+                    unit_price_cents=shop_price if piece.price_cents is None else piece.price_cents,
+                    price_from_shop=piece.price_cents is None,
+                    unit_code=piece.unit_code,
+                    note=piece.note,
+                    staff_name=names.get(piece.staff_id) if piece.staff_id else None,
+                )
+            )
+        return lines
+
+
 class SqlMarketplace:
     """The marketplace module's order facade, inside this unit of work's transaction."""
 
@@ -482,6 +581,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
     inventory: SqlInventory
     fairs: SqlFairs
     digests: SqlDigests
+    sales_ledger: SqlSalesLedger
     marketplace: SqlMarketplace
 
     def __init__(
@@ -504,6 +604,7 @@ class SqlSalesUnitOfWork(UnitOfWork):
         self.inventory = SqlInventory(self)
         self.fairs = SqlFairs(self)
         self.digests = SqlDigests(self)
+        self.sales_ledger = SqlSalesLedger(self)
         self.marketplace = SqlMarketplace(self)
 
 

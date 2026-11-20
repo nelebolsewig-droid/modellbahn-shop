@@ -12,6 +12,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LocationOut } from './locationOut';
+import type { SaleChannel } from './saleChannel';
 import type { ScrapReason } from './scrapReason';
 import type { UnitStatus } from './unitStatus';
 import type { VariantRefOut } from './variantRefOut';
@@ -26,6 +27,10 @@ export interface UnitOut {
   location: LocationOut | null;
   order_id: string | null;
   order_number: string | null;
+  /** Where it was sold, if booked out as sold. */
+  sale_channel?: SaleChannel | null;
+  /** What it was sold for; empty while unknown. */
+  sale_price_cents?: number | null;
   scrap_note: string;
   /** Why it was taken out by hand; empty for older ones. */
   scrap_reason: ScrapReason | null;

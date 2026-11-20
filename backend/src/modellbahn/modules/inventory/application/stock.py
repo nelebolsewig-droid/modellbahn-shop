@@ -39,6 +39,7 @@ from modellbahn.modules.inventory.domain.model import (
     UNITS_PER_BATCH_MAX,
     Location,
     MovementReason,
+    Sale,
     ScrapReason,
     Unit,
     UnitStatus,
@@ -412,6 +413,7 @@ class StockService:
         reason: ScrapReason,
         note: str,
         staff_id: UUID | None,
+        sale: Sale | None = None,
     ) -> ScrapResult:
         """``quantity`` free pieces of the variant leave the stock: from the place, else the
         oldest anywhere. Reserved pieces stay with their order; fewer free ones refuse
@@ -434,7 +436,7 @@ class StockService:
             for unit in units:
                 if unit.location_id is not None:
                     sources[unit.location_id] += 1
-                await journal.book(unit, unit.scrap(note, journal.now, reason))
+                await journal.book(unit, unit.scrap(note, journal.now, reason, sale))
             locations = {location.id: location for location in await uow.locations.tree()}
             await uow.commit()
         return ScrapResult(

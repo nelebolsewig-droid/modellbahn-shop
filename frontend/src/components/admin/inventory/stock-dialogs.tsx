@@ -17,10 +17,18 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { SCRAP_REASONS } from "@/lib/validation/inventory";
 
 import { LabelPrinter } from "./label-printer";
+import { rememberSaleChannel, SaleFields, saleDraft, saleOf, type SaleDraft } from "@/components/admin/sales/sale-fields";
+
 import { useInventoryRefresh } from "./part-dialogs";
 
 /** A model's Ausführung as the dialogs name it. */
-export type StockVariant = { variantId: string; title: string; sku: string };
+export type StockVariant = {
+  variantId: string;
+  title: string;
+  sku: string;
+  /** Today's shop price: the sale price offered when pieces are booked out as sold. */
+  priceCents?: number;
+};
 /** A place as the dialogs name it: its code and what people call it. */
 export type StockPlace = { code: string; place: string };
 
@@ -188,8 +196,11 @@ export function ScrapStockDialog({
   const [reason, setReason] = useState<ScrapReason>("sold");
   const [place, setPlace] = useState(location?.code ?? "");
   const [note, setNote] = useState("");
+  const [sale, setSale] = useState<SaleDraft>(() => saleDraft(variant.priceCents, ""));
+  const [submitted, setSubmitted] = useState(false);
   const refresh = useInventoryRefresh();
   const count = wholeNumber(quantity);
+  const sold = reason === "sold" ? saleOf(sale) : null;
   const scrap = useMutation<string, ApiProblem>({
     async mutationFn() {
       const result = await scrapStock({
@@ -198,7 +209,11 @@ export function ScrapStockDialog({
         quantity: count ?? 0,
         reason,
         note: note.trim(),
+        ...sold,
       });
+      if (reason === "sold") {
+        rememberSaleChannel(sale.channel);
+      }
       return `${result.scrapped} ausgebucht (${SCRAP_REASON_LABELS[reason]}).`;
     },
     onSuccess(message) {
@@ -207,7 +222,7 @@ export function ScrapStockDialog({
       onDone(message);
     },
   });
-  const valid = count !== null && count >= 1;
+  const valid = count !== null && count >= 1 && sold !== undefined;
   return (
     <Dialog
       open={open}
@@ -218,6 +233,8 @@ export function ScrapStockDialog({
           setReason("sold");
           setPlace(location?.code ?? "");
           setNote("");
+          setSale(saleDraft(variant.priceCents));
+          setSubmitted(false);
           scrap.reset();
         }
       }}
@@ -233,6 +250,7 @@ export function ScrapStockDialog({
           className="mt-6 space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
+            setSubmitted(true);
             if (valid) {
               scrap.mutate();
             }
@@ -255,6 +273,9 @@ export function ScrapStockDialog({
               ))}
             </Select>
           </div>
+          {reason === "sold" ? (
+            <SaleFields value={sale} onChange={setSale} shopPriceCents={variant.priceCents} perPiece={count !== 1} showErrors={submitted} />
+          ) : null}
           <div>
             <label htmlFor="scrap-stock-place" className="text-small font-medium">
               Platz
@@ -273,7 +294,7 @@ export function ScrapStockDialog({
                 Behalten
               </Button>
             </DialogClose>
-            <Button type="submit" size="sm" variant="danger" disabled={!valid || scrap.isPending}>
+            <Button type="submit" size="sm" variant="danger" disabled={count === null || count < 1 || scrap.isPending}>
               {scrap.isPending ? "Wird ausgebucht …" : "Ausbuchen"}
             </Button>
           </div>

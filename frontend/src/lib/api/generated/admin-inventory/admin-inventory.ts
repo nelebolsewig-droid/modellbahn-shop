@@ -53,6 +53,7 @@ import type {
   ProductStockListOut,
   ReceiptOut,
   ReceivingOut,
+  SaleIn,
   ScanIn,
   ScanOut,
   ScrapIn,
@@ -3271,6 +3272,95 @@ export const useCorrectUnit = <TError = ErrorType<Problem | ValidationProblem>,
         TContext
       > => {
       return useMutation(getCorrectUnitMutationOptions(options), queryClient);
+    }
+    export const getRecordUnitSaleUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/units/${code}/sale`
+}
+
+/**
+ * For the sales report (Verkäufe): pieces sold at a fair are often booked out by scan without a price. Only a unit booked out with the reason `sold`.
+ * @summary Enter or correct where a unit booked out as sold went and what it brought in
+ */
+export const recordUnitSale = async (code: string,
+    saleIn: SaleIn, options?: Parameters<typeof apiFetch>[1]): Promise<UnitOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<UnitOut>(getRecordUnitSaleUrl(code),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saleIn)
+  }
+);}
+
+
+
+
+
+export const getRecordUnitSaleMutationKey = () => ['recordUnitSale'] as const;
+
+export const getRecordUnitSaleMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnitSale>>, TError,RecordUnitSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordUnitSale>>, TError,RecordUnitSaleMutationVariables, TContext> => {
+
+const mutationKey = getRecordUnitSaleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordUnitSale>>, RecordUnitSaleMutationVariables> = (props) => {
+          const {code,data} = props ?? {};
+
+          return  recordUnitSale(code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordUnitSaleMutationResult = NonNullable<Awaited<ReturnType<typeof recordUnitSale>>>
+    export type RecordUnitSaleMutationBody = SaleIn
+    export type RecordUnitSaleMutationError = ErrorType<Problem | ValidationProblem>
+    export type RecordUnitSaleMutationVariables = {code: string;data: SaleIn}
+
+    /**
+ * @summary Enter or correct where a unit booked out as sold went and what it brought in
+ */
+export const useRecordUnitSale = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordUnitSale>>, TError,RecordUnitSaleMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordUnitSale>>,
+        TError,
+        RecordUnitSaleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordUnitSaleMutationOptions(options), queryClient);
     }
     export const getScrapUnitUrl = (code: string,) => {
 

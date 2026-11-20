@@ -11,10 +11,18 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { SaleChannel } from './saleChannel';
 import type { ScrapReason } from './scrapReason';
 
+/**
+ * ``channel`` and ``price_cents`` count only for the reason ``sold``.
+ */
 export interface ScrapIn {
+  /** Messe, Laden, privat, sonstiges; empty if unknown. */
+  channel?: SaleChannel | null;
   /** @maxLength 200 */
   note?: string;
+  /** Gross price of one piece; empty: the report counts the shop price. */
+  price_cents?: number | null;
   reason: ScrapReason;
 }
