@@ -95,3 +95,7 @@ Dabei gilt:
 - **Kosten:** Der Chunk mit three.js und der Szene wiegt 535 KB, gepackt rund 140 KB, und
   lädt nur auf `/so-entsteht-ein-modell`. Die Startseite bleibt bei 740 KB JavaScript
   (ungepackt), wie zuvor.
+
+## Nachtrag 20.11.2026: EDK 6 statt Platzhalter
+
+Die Seite zeigt jetzt den Eisenbahndrehkran EDK 6 aus den echten Druckdateien. `scripts/werkstatt/build_edk6_mesh.py` dünnt die STL-Teile aus (insgesamt etwa 47 000 Dreiecke), setzt sie in die von Nele korrigierte Lage und schreibt sie quantisiert nach `frontend/public/werkstatt/edk6/*.bin` (zusammen etwa 700 KiB). Daraus lässt sich nichts Druckbares zurückgewinnen; die STL-Dateien bleiben privat. Neu ist die Teileart `mesh` (wird nachgeladen) und `frame` je Modell für die Bildgröße. Druck- und Handarbeitszeiten sind Beispielwerte (`exampleTimes`), bis die Werkstatt sie misst; bis dahin zeigt die Startseite keine Zahlen.

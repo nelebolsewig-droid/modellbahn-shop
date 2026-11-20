@@ -5,7 +5,8 @@ import {
   AmbientLight,
   Box3,
   BoxGeometry,
-  type BufferGeometry,
+  BufferAttribute,
+  BufferGeometry,
   Color,
   CylinderGeometry,
   DirectionalLight,
@@ -54,7 +55,27 @@ function token(name: string, fallback: string): string {
   return value || fallback;
 }
 
-function geometryOf(solid: Solid): BufferGeometry {
+/** Reads a display mesh written by scripts/werkstatt/build_edk6_mesh.py, flat-shaded. */
+async function loadMesh(url: string, signal: AbortSignal): Promise<BufferGeometry> {
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  const buffer = await response.arrayBuffer();
+  const head = new DataView(buffer);
+  const vertices = head.getUint32(4, true);
+  const indices = head.getUint32(8, true);
+  const quantum = head.getFloat32(12, true);
+  const raw = new Int16Array(buffer, 16, vertices * 3);
+  const start = 16 + vertices * 6;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new BufferAttribute(Float32Array.from(raw, (value) => value * quantum), 3));
+  geometry.setIndex(new BufferAttribute(new Uint32Array(buffer.slice(start, start + indices * 4)), 1));
+  const flat = geometry.toNonIndexed();
+  geometry.dispose();
+  flat.computeVertexNormals();
+  return flat;
+}
+
+function geometryOf(solid: Exclude<Solid, { kind: "mesh" }>): BufferGeometry {
   if (solid.kind === "box") {
     const geometry = new BoxGeometry(...solid.size);
     geometry.translate(...solid.at);
@@ -130,8 +151,10 @@ export default function ExplosionScene({
     );
     camera.lookAt(0, 6, 0);
 
+    const view = model.frame ?? { halfWidth: HALF_WIDTH, halfHeight: HALF_HEIGHT, lift: 16 };
+    const loading = new AbortController();
     const root = new Group();
-    root.position.y = -16;
+    root.position.y = -view.lift;
     scene.add(root);
     const lineMaterial = new LineBasicMaterial({ color: new Color(token("--drawing-line", "#003153")) });
     const disposables: { dispose: () => void }[] = [lineMaterial];
@@ -146,19 +169,32 @@ export default function ExplosionScene({
       disposables.push(material);
       const pieces = part.pieces.map((piece) => {
         const group = new Group();
-        for (const solid of piece.solids) {
-          const geometry = geometryOf(solid);
-          const edges = new EdgesGeometry(geometry, EDGE_ANGLE);
-          disposables.push(geometry, edges);
-          group.add(new Mesh(geometry, material), new LineSegments(edges, lineMaterial));
-        }
-        root.add(group);
-        return {
+        const moving: MovingPiece = {
           group,
-          center: new Box3().setFromObject(group).getCenter(new Vector3()),
+          center: new Vector3(),
           direction: new Vector3(...piece.direction).normalize(),
           distance: piece.distance,
         };
+        const bounds = new Box3();
+        const add = (geometry: BufferGeometry) => {
+          const edges = new EdgesGeometry(geometry, EDGE_ANGLE);
+          disposables.push(geometry, edges);
+          group.add(new Mesh(geometry, material), new LineSegments(edges, lineMaterial));
+          // In the model's own coordinates: meshes arrive once the group already hangs in the turned root.
+          geometry.computeBoundingBox();
+          if (geometry.boundingBox) bounds.union(geometry.boundingBox);
+          bounds.getCenter(moving.center);
+        };
+        for (const solid of piece.solids) {
+          if (solid.kind !== "mesh") add(geometryOf(solid));
+          else
+            loadMesh(solid.url, loading.signal).then(
+              (geometry) => (loading.signal.aborted ? geometry.dispose() : add(geometry)),
+              () => {},
+            );
+        }
+        root.add(group);
+        return moving;
       });
       return { position: part.position, order: part.order, material, pieces };
     });
@@ -172,8 +208,8 @@ export default function ExplosionScene({
       height = Math.max(1, rect.height);
       renderer.setSize(width, height, false);
       const aspect = width / height;
-      const halfWidth = aspect < UPRIGHT_ASPECT ? HALF_WIDTH_UPRIGHT : HALF_WIDTH;
-      const halfHeight = Math.max(HALF_HEIGHT, halfWidth / aspect);
+      const halfWidth = view.halfWidth * (aspect < UPRIGHT_ASPECT ? HALF_WIDTH_UPRIGHT / HALF_WIDTH : 1);
+      const halfHeight = Math.max(view.halfHeight, halfWidth / aspect);
       camera.left = -halfHeight * aspect;
       camera.right = halfHeight * aspect;
       camera.top = halfHeight;
@@ -254,6 +290,7 @@ export default function ExplosionScene({
     frame = requestAnimationFrame(draw);
 
     return () => {
+      loading.abort();
       cancelAnimationFrame(frame);
       observer.disconnect();
       canvas.removeEventListener("pointerdown", down);
