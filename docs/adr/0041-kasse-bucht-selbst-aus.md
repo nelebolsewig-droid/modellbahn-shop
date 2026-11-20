@@ -1,4 +1,4 @@
-# ADR 0040: Kasse – SumUp-Verkäufe buchen sich selbst aus
+# ADR 0041: Kasse – SumUp-Verkäufe buchen sich selbst aus
 
 Status: angenommen · 20.11.2026
 
@@ -64,7 +64,7 @@ Stücke sie heute selbst ausgebucht hat. Nur Inhaber und Mitarbeiter sehen das F
 
 ## Folgen
 
-- Migration 0028: `inventory.till_state`, `inventory.till_items`, `inventory.till_lines`.
+- Migration 0029: `inventory.till_state`, `inventory.till_items`, `inventory.till_lines`.
 - An der Kasse muss der Artikel angetippt oder gescannt werden; ein eingetippter Betrag
   bucht nichts aus. Wer an der Kasse verkauft, scannt das Stück **nicht zusätzlich** im
   Stellwerk aus.

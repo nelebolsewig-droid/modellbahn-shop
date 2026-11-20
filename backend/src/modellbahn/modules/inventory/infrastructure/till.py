@@ -1,4 +1,4 @@
-"""The till (ADR 0040): its tables, and SumUp's transactions behind the ``TillGateway`` port.
+"""The till (ADR 0041): its tables, and SumUp's transactions behind the ``TillGateway`` port.
 
 SumUp's model stays in this file (KONZEPT §2.6). What the SumUp app rings up arrives in
 the Transactions API (``/v2.1/merchants/{code}/transactions``) as payment type ``POS``

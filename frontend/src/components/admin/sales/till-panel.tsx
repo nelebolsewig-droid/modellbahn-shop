@@ -34,7 +34,7 @@ function waitingFor(line: TillLineOut): string {
 }
 
 /**
- * Die Kasse (ADR 0040): what the SumUp app sold books pieces out by itself. What it cannot
+ * Die Kasse (ADR 0041): what the SumUp app sold books pieces out by itself. What it cannot
  * book (a name not yet assigned, a price typed in without an article, a piece not on a
  * shelf) waits here until somebody assigns the name or marks it done.
  */

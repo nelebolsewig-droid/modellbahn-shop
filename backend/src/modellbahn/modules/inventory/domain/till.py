@@ -1,4 +1,4 @@
-"""The till (*Kasse*): sales rung up in the SumUp app book pieces out by themselves (ADR 0040).
+"""The till (*Kasse*): sales rung up in the SumUp app book pieces out by themselves (ADR 0041).
 
 SumUp names what was sold only by the name typed into its app; it knows nothing of our
 variants. Each name is assigned to a variant once (*Kassenartikel*), and every later sale
