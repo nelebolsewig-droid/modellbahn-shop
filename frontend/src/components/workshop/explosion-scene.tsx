@@ -175,15 +175,15 @@ export default function ExplosionScene({
           direction: new Vector3(...piece.direction).normalize(),
           distance: piece.distance,
         };
+        const bounds = new Box3();
         const add = (geometry: BufferGeometry) => {
           const edges = new EdgesGeometry(geometry, EDGE_ANGLE);
           disposables.push(geometry, edges);
           group.add(new Mesh(geometry, material), new LineSegments(edges, lineMaterial));
-          // The centre without the explosion offset, as the balloons add it themselves.
-          const offset = group.position.clone();
-          group.position.set(0, 0, 0);
-          new Box3().setFromObject(group).getCenter(moving.center);
-          group.position.copy(offset);
+          // In the model's own coordinates: meshes arrive once the group already hangs in the turned root.
+          geometry.computeBoundingBox();
+          if (geometry.boundingBox) bounds.union(geometry.boundingBox);
+          bounds.getCenter(moving.center);
         };
         for (const solid of piece.solids) {
           if (solid.kind !== "mesh") add(geometryOf(solid));
