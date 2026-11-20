@@ -21,6 +21,11 @@ function line(overrides: Partial<SoldLineOut>): SoldLineOut {
     unit_code: "7KQ2X9F4MZ",
     note: "",
     staff_name: "Johann",
+    variant_id: "v-adk-h0-f",
+    product_name: "IFA ADK 70",
+    product_slug: "ifa-adk-70",
+    scale_code: "H0",
+    variant_name: "H0 · Fertigmodell",
     ...overrides,
   };
 }

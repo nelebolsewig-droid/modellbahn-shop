@@ -24,7 +24,11 @@ export interface SoldLineOut {
   order_number: string | null;
   /** No price was entered for the piece: today's shop price stands in. */
   price_from_shop: boolean;
+  /** The model, for the evaluation by model. */
+  product_name: string;
+  product_slug: string;
   quantity: number;
+  scale_code: string;
   sku: string;
   /** Paid (orders) or booked out as sold (pieces). */
   sold_at: string;
@@ -35,4 +39,6 @@ export interface SoldLineOut {
   /** The piece's code; its sale can be corrected. */
   unit_code: string | null;
   unit_price_cents: number;
+  variant_id: string | null;
+  variant_name: string;
 }
