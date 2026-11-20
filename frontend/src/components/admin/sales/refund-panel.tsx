@@ -169,16 +169,17 @@ export function RefundPanel({ order, onRefunded }: { order: AdminOrderOut; onRef
                 Abbrechen
               </Button>
             </DialogClose>
-            {refusal ? (
+            {byTransfer ? null : (
+              // Refunded in the SumUp account already (or SumUp just refused): only recorded here.
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => refund.mutate({ cents: amount, byHand: true })}
                 disabled={refund.isPending}
               >
-                Im SumUp-Konto erstattet, nur vermerken
+                {refusal ? "Im SumUp-Konto erstattet, nur vermerken" : "Schon in SumUp erstattet, nur vermerken"}
               </Button>
-            ) : null}
+            )}
             <Button
               type="button"
               onClick={() => refund.mutate({ cents: amount, byHand: false })}

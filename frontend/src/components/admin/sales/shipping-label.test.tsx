@@ -39,6 +39,7 @@ function adminOrder(overrides: Partial<AdminOrderOut> = {}): AdminOrderOut {
     cancel_note: "",
     channel: "shop",
     external_ref: null,
+    repayment: null,
     ...overrides,
   };
 }

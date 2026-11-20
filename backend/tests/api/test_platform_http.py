@@ -235,6 +235,13 @@ EXPECTED_OPERATIONS = {
         "getInvoiceDocument",
         "admin-sales",
     ),
+    ("PUT", "/api/v1/admin/orders/{order_id}/repayment"): ("setRepaymentAccount", "admin-sales"),
+    ("POST", "/api/v1/admin/orders/{order_id}/repayment/done"): ("markRepaid", "admin-sales"),
+    ("GET", "/api/v1/admin/orders/{order_id}/repayment/girocode.svg"): (
+        "getRepaymentGirocode",
+        "admin-sales",
+    ),
+    ("GET", "/api/v1/admin/repayments"): ("listRepayments", "admin-sales"),
     ("GET", "/api/v1/admin/inventory/locations"): ("listLocations", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/locations"): ("createLocation", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/locations/{code}"): ("getLocation", "admin-inventory"),

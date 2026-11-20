@@ -9,6 +9,7 @@ import type { OrderStatus } from "@/lib/api/generated/model";
 import { OrderDesk } from "./order-desk";
 import { OrderList } from "./order-list";
 import { OrderTrack } from "./order-track";
+import { RepaymentsPanel } from "./repayment-panel";
 import { WithdrawalsPanel } from "./withdrawals";
 
 // The pages pass functions to the shell, which only client components can do.
@@ -41,6 +42,7 @@ export function OrderListPage() {
               <OptionPill value="list">Liste</OptionPill>
             </OptionGroup>
           </div>
+          {staff.role === "owner" || staff.role === "staff" ? <RepaymentsPanel /> : null}
           <WithdrawalsPanel />
           {view.mode === "track" ? (
             <OrderTrack

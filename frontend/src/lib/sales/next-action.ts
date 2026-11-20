@@ -19,6 +19,7 @@ export const ACTION_ANCHORS = {
   transfer: "ueberweisung",
   picking: "packen",
   dispatch: "versand",
+  repayment: "rueckzahlung",
 } as const;
 
 type Context = {
@@ -28,9 +29,19 @@ type Context = {
   awaitingTransfer: boolean;
   /** Owner and staff book transfers and allocate; packers don't. */
   mayManage: boolean;
+  /** A refund of a bank transfer still has to be transferred back (ADR 0040). */
+  repaymentOpen?: boolean;
 };
 
-export function nextAction({ order, pickList, awaitingTransfer, mayManage }: Context): NextAction {
+export function nextAction({ order, pickList, awaitingTransfer, mayManage, repaymentOpen = false }: Context): NextAction {
+  if (repaymentOpen && mayManage) {
+    return {
+      tone: "act",
+      title: "Geld zurücküberweisen",
+      text: "Bezahlt wurde per Überweisung. Name und IBAN aus dem Kontoauszug eintragen, den QR-Code mit der Banking-App scannen, dann „Überwiesen“.",
+      action: { label: "Zur Rückzahlung", href: `#${ACTION_ANCHORS.repayment}` },
+    };
+  }
   switch (order.status) {
     case "pending_payment":
       if (awaitingTransfer && mayManage) {

@@ -113,3 +113,108 @@ class TestPaymentInAdvance:
         (listed,) = (await staff_client.get(ADMIN_ORDERS)).json()["items"]
         response = await packer_client.post(f"{ADMIN_ORDERS}/{listed['id']}/bank-transfer")
         assert_problem(response, 403, "insufficient_role")
+
+
+REPAYMENTS: Final = "/api/v1/admin/repayments"
+CUSTOMER_IBAN: Final = "DE89370400440532013000"
+
+
+class TestRepayment:
+    """Money paid by transfer goes back by hand, with a GiroCode for the staff (ADR 0040)."""
+
+    async def cancelled_after_transfer(
+        self, client: AsyncClient, staff_client: AsyncClient, painted: UUID
+    ) -> str:
+        await put_line(client, painted, 1)
+        token = (await checkout(client)).json()["public_token"]
+        await pay(client, token, "bank_transfer")
+        (listed,) = (await staff_client.get(ADMIN_ORDERS)).json()["items"]
+        await staff_client.post(f"{ADMIN_ORDERS}/{listed['id']}/bank-transfer")
+        cancelled = await staff_client.post(f"{ADMIN_ORDERS}/{listed['id']}/cancel", json={})
+        assert cancelled.status_code == 200, cancelled.text
+        return str(listed["id"])
+
+    async def test_from_the_refund_to_the_transfer_back(
+        self, client: AsyncClient, staff_client: AsyncClient, painted: UUID
+    ) -> None:
+        order_id = await self.cancelled_after_transfer(client, staff_client, painted)
+        order = (await staff_client.get(f"{ADMIN_ORDERS}/{order_id}")).json()
+        total = order["totals"]["total_cents"]
+        assert order["repayment"] == {
+            "amount_cents": total,
+            "holder": None,
+            "iban": None,
+            "reference": f"Erstattung {order['number']}",
+        }
+        (listed,) = (await staff_client.get(REPAYMENTS)).json()["items"]
+        assert listed == {
+            "order_id": order_id,
+            "number": order["number"],
+            "recipient": "Erika Mustermann",
+            "amount_cents": total,
+            "has_account": False,
+        }
+        girocode = f"{ADMIN_ORDERS}/{order_id}/repayment/girocode.svg"
+        assert_problem(await staff_client.get(girocode), 404, "order_not_found")
+
+        account = f"{ADMIN_ORDERS}/{order_id}/repayment"
+        assert_problem(
+            await staff_client.put(
+                account, json={"holder": "Erika", "iban": "DE00 1234 5678 9012"}
+            ),
+            422,
+            "validation_failed",
+        )
+        saved = await staff_client.put(
+            account, json={"holder": " Erika  Mustermann ", "iban": "de89 3704 0044 0532 0130 00"}
+        )
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["repayment"]["holder"] == "Erika Mustermann"
+        assert saved.json()["repayment"]["iban"] == "DE89 3704 0044 0532 0130 00"
+        assert (await staff_client.get(REPAYMENTS)).json()["items"][0]["has_account"] is True
+
+        code = await staff_client.get(girocode)
+        assert code.status_code == 200
+        assert code.headers["content-type"] == "image/svg+xml"
+        assert code.headers["cache-control"] == "no-store"
+        assert code.content.startswith(b"<svg")
+
+        done = await staff_client.post(f"{account}/done")
+        assert done.status_code == 200, done.text
+        assert done.json()["repayment"] is None
+        assert (await staff_client.get(REPAYMENTS)).json()["items"] == []
+        assert_problem(await staff_client.get(girocode), 404, "order_not_found")
+        assert_problem(await staff_client.post(f"{account}/done"), 409, "invalid_order_state")
+        assert_problem(
+            await staff_client.put(account, json={"holder": "Erika", "iban": CUSTOMER_IBAN}),
+            409,
+            "invalid_order_state",
+        )
+
+    async def test_the_customer_never_sees_the_account(
+        self, client: AsyncClient, staff_client: AsyncClient, painted: UUID
+    ) -> None:
+        order_id = await self.cancelled_after_transfer(client, staff_client, painted)
+        await staff_client.put(
+            f"{ADMIN_ORDERS}/{order_id}/repayment",
+            json={"holder": "Erika Mustermann", "iban": CUSTOMER_IBAN},
+        )
+        token = (await staff_client.get(f"{ADMIN_ORDERS}/{order_id}")).json()["public_token"]
+        status = (await client.get(f"{SHOP}/orders/{token}")).json()
+        assert "repayment" not in status
+        assert CUSTOMER_IBAN not in str(status)
+
+    async def test_packers_do_not_handle_money(
+        self,
+        client: AsyncClient,
+        staff_client: AsyncClient,
+        packer_client: AsyncClient,
+        painted: UUID,
+    ) -> None:
+        order_id = await self.cancelled_after_transfer(client, staff_client, painted)
+        assert_problem(await packer_client.get(REPAYMENTS), 403, "insufficient_role")
+        assert_problem(
+            await packer_client.post(f"{ADMIN_ORDERS}/{order_id}/repayment/done"),
+            403,
+            "insufficient_role",
+        )

@@ -37,6 +37,7 @@ from modellbahn.modules.sales.domain.events import (
     OrderRefunded,
     OrderShipped,
 )
+from modellbahn.platform.bank import iban_is_valid, normalise_iban
 from modellbahn.platform.events import DomainEvent
 from modellbahn.platform.ids import new_id
 
@@ -55,6 +56,8 @@ CANCEL_NOTE_MAX_LENGTH: Final = 300
 TRACKING_NUMBER_MAX_LENGTH: Final = 40
 CARRIER_MAX_LENGTH: Final = 40
 EXTERNAL_REF_MAX_LENGTH: Final = 60
+REPAY_HOLDER_MAX_LENGTH: Final = 70
+"""The longest account holder a GiroCode carries (EPC069-12)."""
 _EMAIL: Final = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -473,6 +476,12 @@ class Payment:
     """The provider's transaction of a captured payment; refunds name it."""
     refunded_cents: int = 0
     """What went back so far; all of it once the payment is refunded."""
+    repaid_cents: int = 0
+    """Of a bank transfer's refunds, what the staff have transferred back (ADR 0040)."""
+    repay_holder: str | None = None
+    """Whose account the money goes back to, while a repayment is open."""
+    repay_iban: str | None = None
+    """The IBAN it goes back to, from the bank statement; forgotten once it is repaid."""
 
     @property
     def refundable_cents(self) -> int:
@@ -485,6 +494,35 @@ class Payment:
     def by_transfer(self) -> bool:
         """Paid in advance by bank transfer: no provider, refunds go back by hand."""
         return self.provider == BANK_TRANSFER
+
+    @property
+    def repayment_due_cents(self) -> int:
+        """Refunded but not yet transferred back: only a bank transfer has it (ADR 0040)."""
+        return self.refunded_cents - self.repaid_cents if self.by_transfer else 0
+
+    def set_repay_account(self, holder: str, iban: str, now: datetime) -> None:
+        """Where the open repayment goes: the account the customer's transfer came from."""
+        if self.repayment_due_cents <= 0:
+            msg = "nothing is waiting to be transferred back"
+            raise InvalidOrderStateError(msg)
+        cleaned = normalise_iban(iban)
+        if not iban_is_valid(cleaned):
+            raise InvalidFieldError("iban", "invalid", "not a valid IBAN")
+        self.repay_holder = _text(holder, "holder", REPAY_HOLDER_MAX_LENGTH)
+        self.repay_iban = cleaned
+        self.updated_at = now
+
+    def mark_repaid(self, now: datetime) -> int:
+        """The staff transferred the money back; the account is forgotten. Returns the amount."""
+        due = self.repayment_due_cents
+        if due <= 0:
+            msg = "nothing is waiting to be transferred back"
+            raise InvalidOrderStateError(msg)
+        self.repaid_cents = self.refunded_cents
+        self.repay_holder = None
+        self.repay_iban = None
+        self.updated_at = now
+        return due
 
     @property
     def refund_ref(self) -> str:
@@ -743,6 +781,11 @@ class Order:
     @property
     def captured_payment(self) -> Payment | None:
         return next((p for p in self.payments if p.status is PaymentStatus.CAPTURED), None)
+
+    @property
+    def repayment(self) -> Payment | None:
+        """The bank transfer whose refund still has to be transferred back (ADR 0040)."""
+        return next((p for p in self.payments if p.repayment_due_cents > 0), None)
 
     @property
     def refunded_cents(self) -> int:

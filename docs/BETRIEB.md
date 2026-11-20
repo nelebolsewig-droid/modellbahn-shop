@@ -173,8 +173,17 @@ eingetragen ist (ADR 0022; Skript erneut starten, Stufe „Vorkasse“).
 - **Geld zurück:** Bei Storno, Teilerstattung oder Widerruf einer Vorkasse-Bestellung kann
   der Shop nicht selbst zurückzahlen.
   - An `MB_IMPRINT_EMAIL` kommt eine Mail „Rücküberweisung: … für MB-…“.
-  - Den Betrag auf das Konto zurücküberweisen, von dem die Zahlung kam; IBAN und Name
-    stehen im Kontoauszug.
+  - Im Stellwerk steht die Bestellung oben unter „Rückzahlungen offen“ (ADR 0040).
+  - Bestellung öffnen → Feld „Rückzahlung“: Kontoinhaber und IBAN aus dem Kontoauszug
+    eintragen (die Überweisung mit der Bestellnummer als Verwendungszweck) →
+    „QR-Code zeigen“.
+  - Den QR-Code (GiroCode) mit der Banking-App scannen; Betrag, Empfänger und
+    Verwendungszweck „Erstattung MB-…“ sind ausgefüllt. Mit TAN freigeben.
+  - Danach „Überwiesen“ drücken. Die Rückzahlung ist erledigt, der Shop vergisst die IBAN.
+- **Schon in SumUp erstattet:** Wurde eine Kartenzahlung direkt im SumUp-Konto
+  zurückgezahlt, im Stellwerk unter „Erstattung“ → „Schon in SumUp erstattet, nur
+  vermerken“. SumUp wird dann nicht noch einmal gefragt; der Kunde bekommt die
+  Erstattungsmail.
 - **Überweisung nach der Frist:** Gehört sie zu einer stornierten Bestellung, das Geld
   zurücküberweisen; der Shop kennt diesen Eingang nicht.
 - **Ausschalten:** Skript erneut starten und bei „Vorkasse anbieten?“ mit `N` antworten.

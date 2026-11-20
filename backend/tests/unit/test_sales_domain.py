@@ -581,6 +581,60 @@ class TestPaymentInAdvance:
         assert not order.pays_by_transfer
 
 
+class TestRepayment:
+    """A transfer's refund stays open until the staff transferred it back (ADR 0040)."""
+
+    def test_open_until_transferred_back(self) -> None:
+        order, _ = placed(item(price=4990, quantity=2))
+        by_transfer(order)
+        order.confirm_bank_transfer(NOW)
+        assert order.payments[0].repayment_due_cents == 0
+        order.refund(1000, NOW)
+        payment = order.repayment
+        assert payment is not None
+        assert payment.repayment_due_cents == 1000
+
+        payment.set_repay_account(" Erika   Mustermann ", "de89 3704 0044 0532 0130 00", NOW)
+        assert (payment.repay_holder, payment.repay_iban) == (
+            "Erika Mustermann",
+            "DE89370400440532013000",
+        )
+        # Another refund before the first went back: one transfer for both.
+        order.refund(500, NOW)
+        assert payment.repayment_due_cents == 1500
+
+        assert payment.mark_repaid(NOW) == 1500
+        assert order.repayment is None
+        assert (payment.repaid_cents, payment.repay_holder, payment.repay_iban) == (
+            1500,
+            None,
+            None,
+        )
+        with pytest.raises(InvalidOrderStateError):
+            payment.mark_repaid(NOW)
+
+    def test_the_iban_must_be_one(self) -> None:
+        order, _ = placed()
+        by_transfer(order)
+        order.confirm_bank_transfer(NOW)
+        order.cancel(reason=CancelReason.BY_SHOP, note="", now=NOW)
+        payment = order.repayment
+        assert payment is not None
+        with pytest.raises(InvalidFieldError, match="iban"):
+            payment.set_repay_account("Erika", "DE89 3704 0044 0532 0130 01", NOW)
+        with pytest.raises(InvalidFieldError, match="holder"):
+            payment.set_repay_account("  ", "DE89370400440532013000", NOW)
+        assert payment.repay_iban is None
+
+    def test_a_card_payment_never_waits_for_a_transfer(self) -> None:
+        order, _ = placed()
+        order.record_payment(captured(), idempotency_key=uuid4(), request_fingerprint="f", now=NOW)
+        order.cancel(reason=CancelReason.BY_SHOP, note="", now=NOW)
+        assert order.repayment is None
+        with pytest.raises(InvalidOrderStateError):
+            order.payments[0].set_repay_account("Erika", "DE89370400440532013000", NOW)
+
+
 class TestAddressBook:
     def entry(self, account: UUID, book: list[CustomerAddress], at: datetime) -> CustomerAddress:
         created = CustomerAddress.create(

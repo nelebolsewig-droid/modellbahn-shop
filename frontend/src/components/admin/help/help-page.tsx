@@ -95,6 +95,18 @@ const TASKS: readonly Task[] = [
     office: true,
   },
   {
+    question: "Wie überweise ich Geld zurück, das per Vorkasse kam?",
+    steps: [
+      "Bestellungen → oben „Rückzahlungen offen“ → Bestellung öffnen.",
+      "Feld „Rückzahlung“: Kontoinhaber und IBAN aus dem Kontoauszug eintragen → „QR-Code zeigen“.",
+      "Den QR-Code mit der Banking-App scannen, prüfen und mit TAN freigeben.",
+      "Zurück im Stellwerk „Überwiesen“ drücken.",
+    ],
+    href: "/admin/bestellungen",
+    page: 9,
+    office: true,
+  },
+  {
     question: "Wie lege ich ein neues Modell an?",
     steps: [
       "Modelle → „Neues Modell“: Name, Kategorie, Fotos.",

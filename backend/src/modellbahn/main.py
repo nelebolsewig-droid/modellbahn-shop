@@ -337,6 +337,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(sales_admin.router)
     api.include_router(sales_admin.withdrawals_router)
     api.include_router(sales_admin.shipping_router)
+    api.include_router(sales_admin.repayments_router)
     api.include_router(sales_admin.report_router)
     api.include_router(inventory_admin.router)
     api.include_router(manufacturing_admin.router)

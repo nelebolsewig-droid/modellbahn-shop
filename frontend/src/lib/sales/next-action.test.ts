@@ -52,4 +52,12 @@ describe("nextAction", () => {
       expect(nextAction({ order: { status, channel: "shop" }, pickList: undefined, awaitingTransfer: false, mayManage: true }).tone).toBe("done");
     }
   });
+
+  it("asks owner and staff to transfer a refunded transfer back, packers not", () => {
+    const context = { order: { status: "cancelled", channel: "shop" }, pickList: undefined, awaitingTransfer: false, repaymentOpen: true } as const;
+    const action = nextAction({ ...context, mayManage: true });
+    expect([action.tone, action.title]).toEqual(["act", "Geld zurücküberweisen"]);
+    expect(action.action?.href).toBe("#rueckzahlung");
+    expect(nextAction({ ...context, mayManage: false }).tone).toBe("done");
+  });
 });

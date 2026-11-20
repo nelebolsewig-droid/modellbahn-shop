@@ -249,3 +249,45 @@ class TestMoneyBack:
         )
         (todo,) = mails_to(mailer, SHOP_EMAIL)
         assert "10,00\u00a0€" in todo.subject
+
+
+class TestRepayment:
+    async def test_the_account_is_kept_until_repaid_then_forgotten(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        painted: UUID,
+    ) -> None:
+        order = await by_transfer(carts, checkout, painted)
+        await orders.confirm_bank_transfer(order.id)
+        assert await orders.open_repayments() == []
+        with pytest.raises(InvalidOrderStateError):
+            await orders.mark_repaid(order.id)
+
+        await orders.cancel(order.id, note="")
+        (open_one,) = await orders.open_repayments()
+        assert open_one.id == order.id
+        with pytest.raises(InvalidFieldError):
+            await orders.set_repayment_account(order.id, holder="Erika", iban="DE00")
+
+        await orders.set_repayment_account(
+            order.id, holder="Erika Mustermann", iban="DE89 3704 0044 0532 0130 00"
+        )
+        stored = (await orders.get(order.id)).order.repayment
+        assert stored is not None
+        assert (stored.repay_holder, stored.repay_iban) == (
+            "Erika Mustermann",
+            "DE89370400440532013000",
+        )
+        await deliver()
+        todo = mails_to(mailer, SHOP_EMAIL)[-1]
+        assert "QR-Code" in todo.text
+
+        repaid = (await orders.mark_repaid(order.id)).order
+        assert repaid.repayment is None
+        (payment,) = [p for p in repaid.payments if p.by_transfer]
+        assert (payment.repaid_cents, payment.repay_iban) == (order.total_cents, None)
+        assert await orders.open_repayments() == []

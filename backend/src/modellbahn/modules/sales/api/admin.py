@@ -25,14 +25,20 @@ from modellbahn.modules.sales.api.schemas import (
     LabelIn,
     OrderPageOut,
     RefundIn,
+    RepaymentAccountIn,
+    RepaymentListOut,
+    RepaymentSummaryOut,
     SalesReportOut,
     ShipIn,
     ShippingLabelOut,
     ShippingSetupOut,
     WithdrawalListOut,
     WithdrawalOut,
+    repayment_reference,
 )
+from modellbahn.modules.sales.domain.errors import OrderNotFoundError
 from modellbahn.modules.sales.domain.model import OrderStatus
+from modellbahn.platform.bank import BankAccount, girocode_svg
 from modellbahn.platform.errors import problems
 from modellbahn.platform.pdf_images import pdf_to_pngs
 
@@ -155,6 +161,74 @@ async def refund_order(
             order_id, amount_cents=body.amount_cents, refunded_by_hand=body.refunded_by_hand
         )
     )
+
+
+@router.put(
+    "/{order_id}/repayment",
+    operation_id="setRepaymentAccount",
+    summary="Where a bank transfer's refund goes back to: holder and IBAN (ADR 0040)",
+    description="Typed in from the bank statement, where the customer's transfer came from.",
+    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}),
+)
+async def set_repayment_account(
+    order_id: UUID, body: RepaymentAccountIn, _: OrderManager, service: OrderServiceDep
+) -> AdminOrderOut:
+    return AdminOrderOut.from_details(
+        await service.set_repayment_account(order_id, holder=body.holder, iban=body.iban)
+    )
+
+
+@router.post(
+    "/{order_id}/repayment/done",
+    operation_id="markRepaid",
+    summary="The refund was transferred back; the account is forgotten (ADR 0040)",
+    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}),
+)
+async def mark_repaid(order_id: UUID, _: OrderManager, service: OrderServiceDep) -> AdminOrderOut:
+    return AdminOrderOut.from_details(await service.mark_repaid(order_id))
+
+
+@router.get(
+    "/{order_id}/repayment/girocode.svg",
+    operation_id="getRepaymentGirocode",
+    summary="The GiroCode of an open repayment, for the staff's banking app (ADR 0040)",
+    response_class=Response,
+    responses={
+        200: {"content": {"image/svg+xml": {}}, "description": "The GiroCode."},
+        **problems({**STAFF_ACCESS, **ORDER_NOT_FOUND}, unsafe=False),
+    },
+)
+async def get_repayment_girocode(
+    order_id: UUID, _: OrderManager, service: OrderServiceDep
+) -> Response:
+    """Only while a repayment is open and its account is in; otherwise 404."""
+    order = (await service.get(order_id)).order
+    payment = order.repayment
+    if payment is None or payment.repay_holder is None or payment.repay_iban is None:
+        raise OrderNotFoundError
+    account = BankAccount(holder=payment.repay_holder, iban=payment.repay_iban)
+    payload = account.epc_payload(
+        amount_cents=payment.repayment_due_cents, reference=repayment_reference(order)
+    )
+    return Response(
+        content=girocode_svg(payload),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+repayments_router = APIRouter(prefix="/admin/repayments", tags=["admin-sales"])
+
+
+@repayments_router.get(
+    "",
+    operation_id="listRepayments",
+    summary="Refunds of bank transfers that still have to be transferred back (ADR 0040)",
+    responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
+)
+async def list_repayments(_: OrderManager, service: OrderServiceDep) -> RepaymentListOut:
+    orders = await service.open_repayments()
+    return RepaymentListOut(items=[RepaymentSummaryOut.from_order(order) for order in orders])
 
 
 _LABEL_NOT_FOUND = {404: ["order_not_found", "label_not_found"]}

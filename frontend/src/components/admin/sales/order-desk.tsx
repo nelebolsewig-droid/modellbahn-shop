@@ -11,6 +11,7 @@ import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
 import { RefundPanel } from "@/components/admin/sales/refund-panel";
 import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
+import { RepaymentPanel, hasRepayment } from "@/components/admin/sales/repayment-panel";
 import { LabelReprint, ShippingLabelDesk, useActiveLabel } from "@/components/admin/sales/shipping-label";
 import { TransferBooking, awaitedTransfer, paidByTransfer } from "@/components/admin/sales/transfer-booking";
 import { OrderWithdrawals } from "@/components/admin/sales/withdrawals";
@@ -169,6 +170,7 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
           pickList: hasPickList(data) ? pickList.data : undefined,
           awaitingTransfer: awaitedTransfer(data) !== undefined,
           mayManage: MAY_CANCEL.has(staffRole),
+          repaymentOpen: hasRepayment(data),
         })}
       />
 
@@ -194,6 +196,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
         </div>
 
         <div className="space-y-6">
+          {hasRepayment(data) && MAY_CANCEL.has(staffRole) ? (
+            <Panel title="Rückzahlung" id={ACTION_ANCHORS.repayment}>
+              <RepaymentPanel order={data} onChanged={store} />
+            </Panel>
+          ) : null}
           {awaitedTransfer(data) && MAY_CANCEL.has(staffRole) ? (
             <Panel title="Überweisung" id={ACTION_ANCHORS.transfer}>
               <TransferBooking order={data} onBooked={store} />

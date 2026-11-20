@@ -18,6 +18,7 @@ import type { InvoiceOut } from './invoiceOut';
 import type { OrderLineOut } from './orderLineOut';
 import type { OrderStatus } from './orderStatus';
 import type { PaymentOut } from './paymentOut';
+import type { RepaymentOut } from './repaymentOut';
 import type { SalesChannel } from './salesChannel';
 import type { TotalsOut } from './totalsOut';
 
@@ -54,6 +55,8 @@ export interface AdminOrderOut {
   payments: PaymentOut[];
   placed_at: string;
   public_token: string;
+  /** A refund of a bank transfer that still has to be transferred back. */
+  repayment: RepaymentOut | null;
   shipped_at: string | null;
   shipping_address: AddressOut;
   status: OrderStatus;
