@@ -1425,7 +1425,7 @@ class AvailabilityOut(BaseModel):
     items: list[VariantAvailabilityOut]
 
 
-# --- Till (ADR 0040) --------------------------------------------------------------------
+# --- Till (ADR 0041) --------------------------------------------------------------------
 
 
 class TillLineOut(BaseModel):

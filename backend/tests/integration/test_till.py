@@ -1,4 +1,4 @@
-"""The till (ADR 0040) against a real PostgreSQL: SumUp sales book pieces out by themselves."""
+"""The till (ADR 0041) against a real PostgreSQL: SumUp sales book pieces out by themselves."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID

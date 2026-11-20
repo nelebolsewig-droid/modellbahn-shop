@@ -1,4 +1,4 @@
-"""The till (ADR 0040): names, line states, and SumUp's transactions read right.
+"""The till (ADR 0041): names, line states, and SumUp's transactions read right.
 
 The answers below follow what SumUp returned for the shop's account (anonymised): the
 SumUp app's sales as ``POS`` (card) and ``CASH``, the shop's online payments as ``ECOM``

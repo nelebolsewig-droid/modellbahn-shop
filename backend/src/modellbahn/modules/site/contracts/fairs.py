@@ -35,7 +35,7 @@ async def load_next_fair(uow: UnitOfWork, today: date) -> NextFair | None:
 async def load_fair_on(uow: UnitOfWork, day: date) -> str | None:
     """The name of a fair running on ``day``, published or not; None if there is none.
 
-    The till books its sales to the channel *Messe* on such a day (ADR 0040).
+    The till books its sales to the channel *Messe* on such a day (ADR 0041).
     """
     return (
         await uow.session.execute(

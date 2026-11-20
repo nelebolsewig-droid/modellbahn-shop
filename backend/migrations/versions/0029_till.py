@@ -1,4 +1,4 @@
-"""The till: sales rung up in the SumUp app book pieces out by themselves (ADR 0040).
+"""The till: sales rung up in the SumUp app book pieces out by themselves (ADR 0041).
 
 Written by hand like the migrations before.
 
@@ -9,8 +9,8 @@ Written by hand like the migrations before.
 - ``inventory.till_lines``: every line of every till sale fetched, with how many of its
   pieces were booked out and what is still to do.
 
-Revision ID: 0028
-Revises: 0027
+Revision ID: 0029
+Revises: 0028
 Create Date: 2026-11-20
 """
 
@@ -19,8 +19,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0028"
-down_revision: str | None = "0027"
+revision: str = "0029"
+down_revision: str | None = "0028"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,4 +1,4 @@
-"""The till (*Kasse*, ADR 0040): SumUp sales book pieces out by themselves.
+"""The till (*Kasse*, ADR 0041): SumUp sales book pieces out by themselves.
 
 Every minute the worker fetches the successful card and cash sales of the SumUp app and
 keeps each line once. A line whose name is assigned to a variant books the oldest free

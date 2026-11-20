@@ -446,7 +446,7 @@ def _attach_inventory_services(
     till_enabled: bool = False,
 ) -> None:
     app.state.location_service = LocationService(uow_factory=uow_factory, clock=clock)
-    # The API only shows the till and assigns its names; the worker fetches (ADR 0040).
+    # The API only shows the till and assigns its names; the worker fetches (ADR 0041).
     app.state.till_service = TillService(uow_factory=uow_factory, clock=clock, enabled=till_enabled)
     app.state.unit_service = UnitService(uow_factory=uow_factory, clock=clock)
     app.state.stock_service = StockService(uow_factory=uow_factory, clock=clock)

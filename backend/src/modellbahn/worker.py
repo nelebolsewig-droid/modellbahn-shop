@@ -79,7 +79,7 @@ EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
 EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
-# The SumUp app's sales book their pieces out about a minute after payment (ADR 0040).
+# The SumUp app's sales book their pieces out about a minute after payment (ADR 0041).
 TILL_FETCH_INTERVAL: Final = timedelta(minutes=1)
 # A safety net for automatic planning: a bill of materials entered or a printer back in
 # service after the order came in still gets its plates (ADR 0034).
@@ -282,7 +282,7 @@ async def run_worker(
 def _till_jobs(
     settings: Settings, uow_factory: UnitOfWorkFactory, clock: Clock
 ) -> list[PeriodicJob]:
-    """The SumUp app's sales, fetched every minute (ADR 0040)."""
+    """The SumUp app's sales, fetched every minute (ADR 0041)."""
     if not settings.till_enabled:
         return []
 

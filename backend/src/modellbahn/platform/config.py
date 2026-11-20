@@ -190,7 +190,7 @@ class Settings(BaseSettings):
     sumup_api_key: SecretStr = SecretStr("")
     sumup_merchant_code: str = ""
     sumup_api_url: str = "https://api.sumup.com"
-    # The till (ADR 0040): with key and merchant code, the worker fetches the sales of the
+    # The till (ADR 0041): with key and merchant code, the worker fetches the sales of the
     # SumUp app every minute and books their pieces out. Off with MB_SUMUP_TILL=false.
     sumup_till: bool = True
 
@@ -448,7 +448,7 @@ class Settings(BaseSettings):
 
     @property
     def till_enabled(self) -> bool:
-        """Whether the worker fetches the SumUp app's sales (ADR 0040)."""
+        """Whether the worker fetches the SumUp app's sales (ADR 0041)."""
         return (
             self.sumup_till
             and bool(self.sumup_api_key.get_secret_value())

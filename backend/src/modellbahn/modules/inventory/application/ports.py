@@ -318,7 +318,7 @@ class Manufacturing(Protocol):
 
 
 class TillRepository(Protocol):
-    """The till's state, its assigned names and the lines of its sales (ADR 0040)."""
+    """The till's state, its assigned names and the lines of its sales (ADR 0041)."""
 
     async def state(self, *, for_update: bool = False) -> TillState | None: ...
 
