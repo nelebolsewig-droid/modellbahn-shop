@@ -79,7 +79,7 @@ export function AdminShell({ children }: AdminShellProps) {
       {/* On a desk: a rail at the left edge with the wordmark, the places and Scannen at
           its foot (ADR 0030). On the phone: wordmark and account actions in one low row,
           so the scanner's camera starts high up; the places are in the bar at the bottom. */}
-      <header className="flex items-center justify-between gap-x-6 border-b border-line bg-surface px-5 py-3 sm:px-8 lg:sticky lg:top-0 lg:h-dvh lg:flex-col lg:items-stretch lg:justify-start lg:gap-0 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-0">
+      <header className="flex items-center justify-between gap-x-1 sm:gap-x-6 border-b border-line bg-surface px-4 py-3 sm:px-8 lg:sticky lg:top-0 lg:h-dvh lg:flex-col lg:items-stretch lg:justify-start lg:gap-0 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-0">
         <Link href="/admin" className="block lg:px-5 lg:pt-6 lg:pb-6">
           <Wordmark name={SHOP_NAME} className="text-[1.25rem] lg:text-[1.375rem]" />
           <span className="mt-1 block label-caps text-ink-secondary lg:mt-1.5">Stellwerk</span>
@@ -87,13 +87,13 @@ export function AdminShell({ children }: AdminShellProps) {
         {/* One search for the whole Stellwerk; ⌘K or Strg+K opens it from anywhere. */}
         <QuickFind role={role} className="max-lg:ml-auto max-lg:size-10 max-lg:justify-center max-lg:px-0 lg:mx-5 lg:mb-5" />
         <RailNav role={role} pathname={pathname} counts={counts} />
-        <div className="flex items-center gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-0 lg:p-5">
+        <div className="flex items-center gap-1 sm:gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-0 lg:p-5">
           <ScanButton pathname={pathname} />
           <p className="mt-6 text-small text-ink-secondary max-lg:hidden">
             {displayName} · {STAFF_ROLE_LABELS[role]}
           </p>
-          <div className="flex items-center gap-2 lg:mt-2 lg:-ml-4 lg:flex-wrap lg:gap-0">
-            <Button asChild variant="ghost" size="sm" className="max-sm:px-2.5">
+          <div className="flex items-center gap-1 sm:gap-2 lg:mt-2 lg:-ml-4 lg:flex-wrap lg:gap-0">
+            <Button asChild variant="ghost" size="sm" className="max-sm:size-10 max-sm:px-0">
               <Link href="/admin/hilfe" aria-current={pathname === "/admin/hilfe" ? "page" : undefined}>
                 {/* A question mark on the phone, beside the key of the password. */}
                 <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5 sm:hidden">
@@ -108,12 +108,16 @@ export function AdminShell({ children }: AdminShellProps) {
               type="button"
               variant="secondary"
               size="sm"
-              className="lg:border-0 lg:text-accent lg:hover:bg-accent-subtle"
+              className="max-sm:size-10 max-sm:border-0 max-sm:px-0 max-sm:text-accent lg:border-0 lg:text-accent lg:hover:bg-accent-subtle"
               disabled={logout.isPending}
               aria-busy={logout.isPending || undefined}
               onClick={() => logout.mutate(undefined, { onSuccess: () => leave(STAFF_AREA.login) })}
             >
-              {logout.isPending ? "Abmelden …" : "Abmelden"}
+              {/* A door on the phone: the word does not fit beside search, help and key. */}
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5 sm:hidden">
+                <path d="M11.5 3.5h-6v13h6 M9 10h8 M14 7l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="max-sm:sr-only">{logout.isPending ? "Abmelden …" : "Abmelden"}</span>
             </Button>
           </div>
         </div>
