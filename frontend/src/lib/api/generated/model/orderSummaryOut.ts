@@ -28,6 +28,8 @@ export interface OrderSummaryOut {
   number: string;
   placed_at: string;
   recipient: string;
+  /** All the money went back, e.g. after a withdrawal: no longer on its way. */
+  refunded?: boolean;
   status: OrderStatus;
   /** @minimum 0 */
   total_cents: number;
