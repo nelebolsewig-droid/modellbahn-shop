@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type FormEvent } from "react";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
+import { lastSaleChannel, rememberSaleChannel } from "@/components/admin/sales/sale-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OptionGroup, OptionPill } from "@/components/ui/option-pill";
@@ -20,7 +21,7 @@ import {
   useGetPickList,
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import { getListOrdersQueryKey, listOrders } from "@/lib/api/generated/admin-sales/admin-sales";
-import { ScanMode, type ScanIn, type ScanOut, type ScrapReason, type StaffRole } from "@/lib/api/generated/model";
+import { ScanMode, type SaleChannel, type ScanIn, type ScanOut, type ScrapReason, type StaffRole } from "@/lib/api/generated/model";
 import { interpretations } from "@/lib/inventory/codes";
 import { signal, unlockSound } from "@/lib/inventory/feedback";
 import { scanFeedback, SCAN_MODE_LABELS, SCRAP_REASON_LABELS } from "@/lib/inventory/labels";
@@ -43,6 +44,7 @@ import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, ORDER_EVENT_TYPES, orderEventOf, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
 import { cn } from "@/lib/utils";
+import { CHANNEL_LABELS, SALE_CHANNELS } from "@/lib/sales/report";
 import { SCRAP_REASONS } from "@/lib/validation/inventory";
 
 import { CameraView, type FlashTone } from "./camera-view";
@@ -296,6 +298,8 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
       .catch(() => undefined);
   });
   useEffect(() => startQueue(), []);
+  // The channel chosen last on this phone: at a fair, every sale is "Messe".
+  useEffect(() => dispatch({ type: "channel", channel: lastSaleChannel() }), [dispatch]);
 
   const retry = useEffectEvent(() => sendWaiting());
   useEffect(() => {
@@ -420,7 +424,15 @@ export function ScannerDesk({ staffRole, initialOrderId, onStreamClosed }: Scann
           {/* The camera comes first: on the phone it is what the scanner page is for. */}
           <CameraView onFrame={onCameraFrame} onStart={unlockSound} flash={flash} />
           {session.mode === ScanMode.scrap ? (
-            <ReasonChooser reason={session.reason} onChoose={(reason) => dispatch({ type: "reason", reason })} />
+            <ReasonChooser
+              reason={session.reason}
+              onChoose={(reason) => dispatch({ type: "reason", reason })}
+              channel={session.channel}
+              onChannel={(channel) => {
+                rememberSaleChannel(channel);
+                dispatch({ type: "channel", channel });
+              }}
+            />
           ) : null}
           {COUNTING_MODES.has(session.mode) ? (
             <PlaceBar
@@ -507,29 +519,64 @@ function ScanGlyph({ className }: { className?: string }) {
   );
 }
 
-/** Booking out: why the pieces leave. The select lets go of the focus at once, so the
- * hand scanner's next code does not pick another reason by typing. */
-function ReasonChooser({ reason, onChoose }: { reason: ScrapReason; onChoose: (reason: ScrapReason) => void }) {
+/** Booking out: why the pieces leave, and for pieces sold where (ADR 0039). The selects
+ * let go of the focus at once, so the hand scanner's next code does not pick another
+ * value by typing. The price is entered afterwards in Verkäufe; until then the shop price counts. */
+function ReasonChooser({
+  reason,
+  onChoose,
+  channel,
+  onChannel,
+}: {
+  reason: ScrapReason;
+  onChoose: (reason: ScrapReason) => void;
+  channel: SaleChannel;
+  onChannel: (channel: SaleChannel) => void;
+}) {
   return (
-    <div>
-      <label htmlFor="scrap-reason" className="label-caps text-ink-tertiary">
-        Grund
-      </label>
-      <Select
-        id="scrap-reason"
-        className="mt-2"
-        value={reason}
-        onChange={(event) => {
-          onChoose(event.target.value as ScrapReason);
-          event.target.blur();
-        }}
-      >
-        {SCRAP_REASONS.map((value) => (
-          <option key={value} value={value}>
-            {SCRAP_REASON_LABELS[value]}
-          </option>
-        ))}
-      </Select>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label htmlFor="scrap-reason" className="label-caps text-ink-tertiary">
+          Grund
+        </label>
+        <Select
+          id="scrap-reason"
+          className="mt-2"
+          value={reason}
+          onChange={(event) => {
+            onChoose(event.target.value as ScrapReason);
+            event.target.blur();
+          }}
+        >
+          {SCRAP_REASONS.map((value) => (
+            <option key={value} value={value}>
+              {SCRAP_REASON_LABELS[value]}
+            </option>
+          ))}
+        </Select>
+      </div>
+      {reason === "sold" ? (
+        <div>
+          <label htmlFor="scrap-channel" className="label-caps text-ink-tertiary">
+            Wo verkauft
+          </label>
+          <Select
+            id="scrap-channel"
+            className="mt-2"
+            value={channel}
+            onChange={(event) => {
+              onChannel(event.target.value as SaleChannel);
+              event.target.blur();
+            }}
+          >
+            {SALE_CHANNELS.map((value) => (
+              <option key={value} value={value}>
+                {CHANNEL_LABELS[value]}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -22,6 +22,7 @@ from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
 from modellbahn.modules.sales.application.payments import PaymentService
+from modellbahn.modules.sales.application.report import SalesReportService
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
 from modellbahn.modules.sales.domain.model import CART_LIFETIME
 from modellbahn.platform.config import Settings
@@ -86,6 +87,13 @@ def get_invoice_service(request: Request) -> InvoiceService:
 
 
 InvoiceServiceDep = Annotated[InvoiceService, Depends(get_invoice_service)]
+
+
+def get_sales_report_service(request: Request) -> SalesReportService:
+    return app_state(request, "sales_report_service", SalesReportService)
+
+
+SalesReportServiceDep = Annotated[SalesReportService, Depends(get_sales_report_service)]
 
 OptionalCustomer = Annotated[Customer | None, Depends(customer_or_none)]
 CurrentCustomer = Annotated[Customer, Depends(require_customer)]

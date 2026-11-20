@@ -18,6 +18,8 @@
 export interface VariantRefOut {
   allow_backorder: boolean;
   gtin: string;
+  /** Today's gross shop price of one piece. */
+  price_cents: number;
   product_id: string;
   product_slug: string;
   sku: string;

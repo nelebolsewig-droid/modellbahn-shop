@@ -51,6 +51,7 @@ const LINE: PlaceStockOut = {
     sku: "MB-000001-H0-B",
     gtin: "2000000000015",
     allow_backorder: false,
+    price_cents: 4990,
   },
   free: 6,
   reserved: 1,

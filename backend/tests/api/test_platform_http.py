@@ -210,6 +210,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/admin/orders/{order_id}/ship"): ("shipOrder", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/cancel"): ("cancelOrder", "admin-sales"),
     ("GET", "/api/v1/admin/shipping/setup"): ("getShippingSetup", "admin-sales"),
+    ("GET", "/api/v1/admin/sales/report"): ("getSalesReport", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/shipping-label"): (
         "bookShippingLabel",
         "admin-sales",
@@ -256,6 +257,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/admin/inventory/units/restores"): ("restoreUnits", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/units/{code}"): ("getUnit", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/{code}/scrap"): ("scrapUnit", "admin-inventory"),
+    ("PUT", "/api/v1/admin/inventory/units/{code}/sale"): ("recordUnitSale", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/units/{code}/correction"): (
         "correctUnit",
         "admin-inventory",

@@ -31,6 +31,7 @@ const STELLWERK: VariantRefOut = {
   sku: "MB-000001-H0-B",
   gtin: "2000000000015",
   allow_backorder: false,
+  price_cents: 4990,
 };
 const LOKSCHUPPEN: VariantRefOut = { ...STELLWERK, variant_id: "v2", title: "Lokschuppen · H0 · Bausatz", sku: "MB-000002-H0-B" };
 
@@ -249,7 +250,7 @@ describe("UnitDesk", () => {
     await user.click(within(scrap).getByRole("radio", { name: "Verkauft (Messe, Laden, privat)" }));
     await user.click(within(scrap).getByRole("button", { name: "Ausbuchen" }));
     await waitFor(() =>
-      expect(requestsTo(fetchMock, `POST ${INVENTORY}/units/${CODE}/scrap`)[0]?.body).toEqual({ reason: "sold", note: "" }),
+      expect(requestsTo(fetchMock, `POST ${INVENTORY}/units/${CODE}/scrap`)[0]?.body).toEqual({ reason: "sold", note: "", channel: "fair", price_cents: 4990 }),
     );
   });
 });

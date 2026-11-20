@@ -73,6 +73,8 @@ from modellbahn.modules.inventory.domain.model import (
     Location,
     Movement,
     MovementReason,
+    Sale,
+    SaleChannel,
     Scan,
     ScanMode,
     ScanOutcome,
@@ -91,6 +93,7 @@ from modellbahn.platform.uow import UniqueViolationError
 LOCATION_CONTEXT: Final = "location_code"
 ORDER_CONTEXT: Final = "order_id"
 REASON_CONTEXT: Final = "reason"
+CHANNEL_CONTEXT: Final = "channel"
 SCAN_SOURCES: Final = frozenset({"camera", "scanner", "keyboard"})
 PART_LOCATIONS_SHOWN: Final = 6
 UNDONE_NOTE: Final = "Scan zurückgenommen"
@@ -105,7 +108,8 @@ class ScanRequest:
     source: str
     context: dict[str, str]
     """``location_code`` when putting away (and booking out from one location),
-    ``order_id`` when picking, ``reason`` (a :class:`ScrapReason`) when booking out."""
+    ``order_id`` when picking, ``reason`` (a :class:`ScrapReason`) when booking out, and
+    with it ``channel`` (a :class:`SaleChannel`) for pieces sold."""
     quantity: int = 1
     """Pieces a model's label stands for when putting away or booking out (1 to 200);
     the other modes book one piece, or every part waiting for a box."""
@@ -122,6 +126,9 @@ def _check(request: ScanRequest) -> None:
     reason = request.context.get(REASON_CONTEXT)
     if reason is not None and reason not in {member.value for member in ScrapReason}:
         raise InvalidFieldError("context.reason", "invalid", "not a reason for booking out")
+    channel = request.context.get(CHANNEL_CONTEXT)
+    if channel is not None and channel not in {member.value for member in SaleChannel}:
+        raise InvalidFieldError("context.channel", "invalid", "not a sales channel")
 
 
 @dataclass(slots=True)
@@ -570,6 +577,10 @@ class _Interpreter:
         if isinstance(location, _Answer):
             return location
         reason = ScrapReason(self._request.context.get(REASON_CONTEXT, ScrapReason.SOLD))
+        channel = self._request.context.get(CHANNEL_CONTEXT)
+        # The price is not asked at the scanner; the sales report counts the shop price
+        # until somebody enters what the piece really brought in.
+        sale = Sale(channel=SaleChannel(channel) if channel else None)
         wanted = self._request.quantity
         free = await self._lock_oldest(
             variant_id, UnitStatus.IN_STOCK, limit=wanted, location=location
@@ -585,7 +596,7 @@ class _Interpreter:
             if unit.location_id is not None:
                 sources[unit.location_id] = sources.get(unit.location_id, 0) + 1
             # Free pieces serve no order: none has to be served again.
-            await self._journal.book(unit, unit.scrap("", self._now, reason))
+            await self._journal.book(unit, unit.scrap("", self._now, reason, sale))
         await self._uow.flush()
         places = await self._uow.locations.by_ids(sources)
         from_locations: list[JsonObject] = [

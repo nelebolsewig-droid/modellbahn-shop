@@ -31,7 +31,7 @@ export function modelVariants(product: ProductOut, references: ReferencesOut) {
   return product.scales.flatMap((scale) =>
     scale.variants.map((variant) => {
       const name = `${scale.scale_code} · ${finishLabel(finishName(variant.finish_code), variant.color)}`;
-      return { variant, name, ref: { variantId: variant.id, title: `${product.name} · ${name}`, sku: variant.sku } satisfies StockVariant };
+      return { variant, name, ref: { variantId: variant.id, title: `${product.name} · ${name}`, sku: variant.sku, priceCents: variant.price_cents } satisfies StockVariant };
     }),
   );
 }

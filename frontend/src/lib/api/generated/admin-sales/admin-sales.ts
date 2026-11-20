@@ -33,12 +33,14 @@ import type {
 import type {
   AdminOrderOut,
   CancelIn,
+  GetSalesReportParams,
   LabelIn,
   ListOrdersParams,
   ListWithdrawalsParams,
   OrderPageOut,
   Problem,
   RefundIn,
+  SalesReportOut,
   ShipIn,
   ShippingLabelOut,
   ShippingSetupOut,
@@ -1184,6 +1186,114 @@ export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getSh
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetShippingLabelImageQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getGetSalesReportUrl = (params: GetSalesReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/sales/report?${stringifiedParams}` : `/api/v1/admin/sales/report`
+}
+
+/**
+ * Order lines count on the day they were paid (cancelled orders not); pieces sold at a fair, on site or privately on the day they were booked out, at the price entered or else today's shop price (`price_from_shop`). Days in Europe/Berlin, at most 366.
+ * @summary What was sold between two shop days: paid orders and pieces booked out as sold
+ */
+export const getSalesReport = async (params: GetSalesReportParams, options?: Parameters<typeof apiFetch>[1]): Promise<SalesReportOut> => {
+
+  return apiFetch<SalesReportOut>(getGetSalesReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSalesReportQueryKey = (params?: GetSalesReportParams,) => {
+    return [
+    `/api/v1/admin/sales/report`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSalesReportQueryOptions = <TData = Awaited<ReturnType<typeof getSalesReport>>, TError = ErrorType<Problem | ValidationProblem>>(params: GetSalesReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSalesReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSalesReport>>> = ({ signal }) => getSalesReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSalesReportQueryResult = NonNullable<Awaited<ReturnType<typeof getSalesReport>>>
+export type GetSalesReportQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetSalesReport<TData = Awaited<ReturnType<typeof getSalesReport>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetSalesReportParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSalesReport>>,
+          TError,
+          Awaited<ReturnType<typeof getSalesReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSalesReport<TData = Awaited<ReturnType<typeof getSalesReport>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetSalesReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSalesReport>>,
+          TError,
+          Awaited<ReturnType<typeof getSalesReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSalesReport<TData = Awaited<ReturnType<typeof getSalesReport>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetSalesReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What was sold between two shop days: paid orders and pieces booked out as sold
+ */
+
+export function useGetSalesReport<TData = Awaited<ReturnType<typeof getSalesReport>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: GetSalesReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSalesReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSalesReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

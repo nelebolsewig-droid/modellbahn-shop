@@ -3,7 +3,7 @@
 Amounts are cents (gross, including 19 % VAT).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
@@ -14,6 +14,8 @@ from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.sales.application.cart import CartItem, CartView
 from modellbahn.modules.sales.application.checkout import AddressInput
 from modellbahn.modules.sales.application.common import OrderDetails, OrderPage
+from modellbahn.modules.sales.application.ports import ReportChannel, SoldKind, SoldLine
+from modellbahn.modules.sales.application.report import SalesReport
 from modellbahn.modules.sales.application.withdrawals import WithdrawalState, WithdrawalView
 from modellbahn.modules.sales.domain.invoices import Invoice, InvoiceKind
 from modellbahn.modules.sales.domain.labels import (
@@ -726,4 +728,61 @@ class ShippingLabelOut(BaseModel):
             weight_g=label.weight_g,
             print_format=label.print_format,
             created_at=label.created_at,
+        )
+
+
+# --- Sales report (ADR 0039) ----------------------------------------------------------
+
+
+class SoldLineOut(BaseModel):
+    kind: SoldKind
+    key: str = Field(description="The order line's id, or the piece's code.")
+    channel: ReportChannel
+    sold_at: datetime = Field(description="Paid (orders) or booked out as sold (pieces).")
+    title: str
+    sku: str
+    quantity: int
+    unit_price_cents: int
+    total_cents: int
+    price_from_shop: bool = Field(
+        description="No price was entered for the piece: today's shop price stands in."
+    )
+    order_id: UUID | None
+    order_number: str | None
+    unit_code: str | None = Field(description="The piece's code; its sale can be corrected.")
+    note: str
+    staff_name: str | None = Field(description="Who booked the piece out.")
+
+    @classmethod
+    def from_line(cls, line: SoldLine) -> Self:
+        return cls(
+            kind=line.kind,
+            key=line.key,
+            channel=line.channel,
+            sold_at=line.sold_at,
+            title=line.title,
+            sku=line.sku,
+            quantity=line.quantity,
+            unit_price_cents=line.unit_price_cents,
+            total_cents=line.total_cents,
+            price_from_shop=line.price_from_shop,
+            order_id=line.order_id,
+            order_number=line.order_number,
+            unit_code=line.unit_code,
+            note=line.note,
+            staff_name=line.staff_name,
+        )
+
+
+class SalesReportOut(BaseModel):
+    start: date
+    end: date = Field(description="Inclusive.")
+    lines: list[SoldLineOut] = Field(description="The latest first.")
+
+    @classmethod
+    def from_report(cls, report: SalesReport) -> Self:
+        return cls(
+            start=report.start,
+            end=report.end,
+            lines=[SoldLineOut.from_line(line) for line in report.lines],
         )

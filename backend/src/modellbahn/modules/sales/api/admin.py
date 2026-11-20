@@ -1,5 +1,6 @@
 """Orders in the admin area (``/api/v1/admin/orders``)."""
 
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -13,6 +14,7 @@ from modellbahn.modules.sales.api.deps import (
     OrderServiceDep,
     OrderShipper,
     OrderViewer,
+    SalesReportServiceDep,
     WithdrawalServiceDep,
     pdf_response,
 )
@@ -23,6 +25,7 @@ from modellbahn.modules.sales.api.schemas import (
     LabelIn,
     OrderPageOut,
     RefundIn,
+    SalesReportOut,
     ShipIn,
     ShippingLabelOut,
     ShippingSetupOut,
@@ -324,3 +327,27 @@ async def list_withdrawals(
 ) -> WithdrawalListOut:
     views = await service.recent(limit=limit, order_id=order_id)
     return WithdrawalListOut(items=[WithdrawalOut.from_view(view) for view in views])
+
+
+# --- Sales report (ADR 0039) ----------------------------------------------------------
+
+report_router = APIRouter(prefix="/admin/sales", tags=["admin-sales"])
+
+
+@report_router.get(
+    "/report",
+    operation_id="getSalesReport",
+    summary="What was sold between two shop days: paid orders and pieces booked out as sold",
+    description="Order lines count on the day they were paid (cancelled orders not); pieces "
+    "sold at a fair, on site or privately on the day they were booked out, at the price "
+    "entered or else today's shop price (`price_from_shop`). Days in Europe/Berlin, at "
+    "most 366.",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def get_sales_report(
+    _: OrderManager,
+    service: SalesReportServiceDep,
+    start: Annotated[date, Query(description="First day, inclusive.")],
+    end: Annotated[date, Query(description="Last day, inclusive.")],
+) -> SalesReportOut:
+    return SalesReportOut.from_report(await service.report(start, end))

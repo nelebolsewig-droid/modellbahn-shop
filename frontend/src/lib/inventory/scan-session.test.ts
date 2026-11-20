@@ -129,7 +129,10 @@ describe("scan session", () => {
 
   it("books out with a reason, from the chosen place or from anywhere", () => {
     let session = scanSession(initialSession("put_away"), { type: "mode", mode: "scrap" });
-    expect(contextFor(session)).toEqual({ reason: "sold" });
+    // Sold: where, too (ADR 0039); the fair until another channel is chosen.
+    expect(contextFor(session)).toEqual({ reason: "sold", channel: "fair" });
+    session = scanSession(session, { type: "channel", channel: "store" });
+    expect(contextFor(session)).toEqual({ reason: "sold", channel: "store" });
     session = scanSession(session, { type: "reason", reason: "damaged" });
     session = scanSession(session, { type: "assume_location", code: "R01-F02" });
     expect(contextFor(session)).toEqual({ reason: "damaged", location_code: "R01-F02" });

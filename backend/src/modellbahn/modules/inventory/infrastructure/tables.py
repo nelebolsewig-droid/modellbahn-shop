@@ -38,6 +38,7 @@ from modellbahn.modules.inventory.domain.model import (
     AllocationStatus,
     LocationKind,
     MovementReason,
+    SaleChannel,
     ScanMode,
     ScanOutcome,
     ScrapReason,
@@ -55,6 +56,7 @@ SCHEMA = "inventory"
 
 _UNIT_STATUSES = "'labeled', 'in_stock', 'allocated', 'picked', 'shipped', 'scrapped'"
 _SCRAP_REASONS = "'sold', 'damaged', 'missing', 'mistake'"
+_SALE_CHANNELS = "'fair', 'store', 'private', 'other'"
 
 locations = Table(
     "locations",
@@ -115,10 +117,19 @@ units = Table(
     Column("scrap_reason", StrEnumType(ScrapReason)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    # Sold outside the online shop: where, and for how much (ADR 0039).
+    Column("sale_channel", StrEnumType(SaleChannel)),
+    Column("sale_price_cents", Integer),
     CheckConstraint(f"status IN ({_UNIT_STATUSES})", name="status"),
     CheckConstraint(f"scrap_reason IN ({_SCRAP_REASONS})", name="scrap_reason"),
     CheckConstraint(
         "scrap_reason IS NULL OR status = 'scrapped'", name="scrap_reason_when_scrapped"
+    ),
+    CheckConstraint(f"sale_channel IN ({_SALE_CHANNELS})", name="sale_channel"),
+    CheckConstraint("sale_price_cents BETWEEN 0 AND 10000000", name="sale_price_range"),
+    CheckConstraint(
+        "(sale_channel IS NULL AND sale_price_cents IS NULL) OR scrap_reason = 'sold'",
+        name="sale_when_sold",
     ),
     # Crockford Base32: no I, L, O or U.
     CheckConstraint("code ~ '^[0-9A-HJKMNP-TV-Z]{10}$'", name="code_format"),

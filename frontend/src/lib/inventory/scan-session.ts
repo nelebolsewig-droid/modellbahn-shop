@@ -14,7 +14,7 @@
  * counts one piece unless someone says otherwise. A place or part label leaves it be.
  */
 
-import type { ScanMode, ScanOut, ScrapReason } from "@/lib/api/generated/model";
+import type { SaleChannel, ScanMode, ScanOut, ScrapReason } from "@/lib/api/generated/model";
 
 import { interpretations } from "./codes";
 
@@ -51,6 +51,8 @@ export type ScanSession = {
   quantity: number;
   /** Booking out: why the pieces leave the stock. */
   reason: ScrapReason;
+  /** Booking out as sold: where (Messe, Laden …), for the sales report (ADR 0039). */
+  channel: SaleChannel;
   /** Newest first. */
   entries: ScanEntry[];
 };
@@ -70,6 +72,7 @@ export type ScanEvent =
   | { type: "assume_location"; code: string }
   | { type: "quantity"; quantity: number }
   | { type: "reason"; reason: ScrapReason }
+  | { type: "channel"; channel: SaleChannel }
   | { type: "scanned"; scanId: string; raw: string; source: ScanSource; at: number }
   | { type: "answered"; answer: ScanOut }
   | { type: "waiting"; scanId: string }
@@ -87,6 +90,7 @@ export function initialSession(mode: ScanMode | "auto" = "auto", orderId: string
     orderId,
     quantity: 1,
     reason: "sold",
+    channel: "fair",
     entries: [],
   };
 }
@@ -132,6 +136,8 @@ export function scanSession(session: ScanSession, event: ScanEvent): ScanSession
       return { ...session, quantity: clampQuantity(event.quantity) };
     case "reason":
       return { ...session, reason: event.reason };
+    case "channel":
+      return { ...session, channel: event.channel };
     case "scanned": {
       const mode = session.auto ? autoModeFor(session, event.raw) : session.mode;
       const counts = COUNTING_MODES.has(mode) && namesModel(event.raw);
@@ -182,8 +188,9 @@ export function scanSession(session: ScanSession, event: ScanEvent): ScanSession
   }
 }
 
-/** What the server needs to know besides the code: the location, the order, the reason. */
-export function contextFor(session: ScanSession): Partial<Record<"location_code" | "order_id" | "reason", string>> {
+/** What the server needs to know besides the code: the location, the order, the reason
+ * (and, for pieces sold, where). */
+export function contextFor(session: ScanSession): Partial<Record<"location_code" | "order_id" | "reason" | "channel", string>> {
   if (session.mode === "put_away" && session.locationCode !== null) {
     return { location_code: session.locationCode };
   }
@@ -191,9 +198,11 @@ export function contextFor(session: ScanSession): Partial<Record<"location_code"
     return { order_id: session.orderId };
   }
   if (session.mode === "scrap") {
-    return session.locationCode === null
-      ? { reason: session.reason }
-      : { reason: session.reason, location_code: session.locationCode };
+    return {
+      reason: session.reason,
+      ...(session.reason === "sold" ? { channel: session.channel } : {}),
+      ...(session.locationCode === null ? {} : { location_code: session.locationCode }),
+    };
   }
   return {};
 }

@@ -30,6 +30,7 @@ from modellbahn.modules.inventory.domain.model import (
     Location,
     Movement,
     MovementReason,
+    Sale,
     ScrapReason,
     Unit,
     UnitStatus,
@@ -321,6 +322,7 @@ class UnitService:
         note: str,
         staff_id: UUID | None,
         reason: ScrapReason | None = None,
+        sale: Sale | None = None,
     ) -> UnitView:
         """Take a unit out of the stock (sold elsewhere, broken, lost); an order it was
         promised to, even one being packed, gets another or waits for the workshop."""
@@ -329,7 +331,7 @@ class UnitService:
             if unit is None:
                 raise UnitNotFoundError
             journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
-            movement = unit.scrap(note, journal.now, reason)
+            movement = unit.scrap(note, journal.now, reason, sale)
             await journal.book(unit, movement)
             await _allocate_again(uow, journal, [movement.allocation_id])
             await uow.commit()
@@ -343,6 +345,7 @@ class UnitService:
         reason: ScrapReason,
         note: str,
         staff_id: UUID | None,
+        sale: Sale | None = None,
     ) -> UnitScrap:
         """Take several units out of the stock in one go, all or nothing (*Ausbuchen*).
 
@@ -363,13 +366,24 @@ class UnitService:
             journal = Journal(uow, staff_id=staff_id, now=self._clock.now())
             freed: list[UUID | None] = []
             for unit in leaving:
-                movement = unit.scrap(note, journal.now, reason)
+                movement = unit.scrap(note, journal.now, reason, sale)
                 await journal.book(unit, movement)
                 freed.append(movement.allocation_id)
             # Only now: none of the units leaving may stand in for another one.
             await _allocate_again(uow, journal, freed)
             await uow.commit()
         return UnitScrap(scrapped=len(leaving), already_scrapped=len(units) - len(leaving))
+
+    async def record_sale(self, code: str, sale: Sale) -> UnitView:
+        """Enter or correct where a unit booked out as sold went and what it brought in."""
+        async with self._uow() as uow:
+            unit = await uow.units.get_by_code(normalize_unit_code(code), for_update=True)
+            if unit is None:
+                raise UnitNotFoundError
+            unit.record_sale(sale, self._clock.now())
+            await uow.commit()
+            (view,) = await unit_views(uow, [unit])
+            return view
 
     async def restore_units(
         self, unit_ids: Sequence[UUID], *, location_code: str, staff_id: UUID | None

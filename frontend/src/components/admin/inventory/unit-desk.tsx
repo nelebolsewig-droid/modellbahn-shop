@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useWatch } from "react-hook-form";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
+import { rememberSaleChannel, SaleFields, saleDraft, saleOf, type SaleDraft } from "@/components/admin/sales/sale-fields";
 import { Panel } from "@/components/admin/panel";
 import { FormError } from "@/components/forms/form-error";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -25,6 +26,7 @@ import {
 } from "@/lib/api/generated/admin-inventory/admin-inventory";
 import type { HistoryEntryOut, MovementReason, StaffRole, UnitDetailsOut } from "@/lib/api/generated/model";
 import { useApiForm } from "@/lib/forms/use-api-form";
+import { formatPrice } from "@/lib/catalog/format";
 import { formatClock, formatLongDate } from "@/lib/format";
 import { normalizeUnitCode } from "@/lib/inventory/codes";
 import { MOVEMENT_LABELS, SCRAP_REASON_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_TONES } from "@/lib/inventory/labels";
@@ -32,6 +34,7 @@ import { SELECTABLE_STATUSES, unitListHref } from "@/lib/inventory/selection";
 import { errorMessage } from "@/lib/i18n/problems";
 import { ADMIN_EVENTS_URL, INVENTORY_EVENT_TYPES, stockEventOf } from "@/lib/realtime/events";
 import { useEventStream } from "@/lib/realtime/use-event-stream";
+import { CHANNEL_LABELS } from "@/lib/sales/report";
 import { cn } from "@/lib/utils";
 import { scrapSchema } from "@/lib/validation/inventory";
 
@@ -249,6 +252,20 @@ function Facts({ unit }: { unit: UnitDetailsOut }) {
           </dd>
         </>
       ) : null}
+      {unit.scrap_reason === "sold" ? (
+        <>
+          <dt className="text-ink-tertiary">Verkauf</dt>
+          <dd>
+            {unit.sale_channel ? CHANNEL_LABELS[unit.sale_channel] : "Ohne Angabe"}
+            {" · "}
+            {typeof unit.sale_price_cents === "number" ? formatPrice(unit.sale_price_cents) : "Shoppreis"}
+            {" · "}
+            <Link href={"/admin/verkaeufe" as Route} className="font-medium text-accent underline underline-offset-2 hover:no-underline">
+              Verkäufe
+            </Link>
+          </dd>
+        </>
+      ) : null}
     </dl>
   );
 }
@@ -327,11 +344,20 @@ function ReprintDialog({ code }: { code: string }) {
 function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const shopPrice = unit.variant?.price_cents ?? null;
+  const [sale, setSale] = useState<SaleDraft>(() => saleDraft(shopPrice, ""));
   const { form, onSubmit, formError } = useApiForm({
     schema: scrapSchema,
     defaultValues: { reason: "", note: "" },
     async submit(values) {
-      const updated = await scrapUnit(unit.code, values);
+      const sold = values.reason === "sold" ? saleOf(sale) : null;
+      if (sold === undefined) {
+        return;
+      }
+      const updated = await scrapUnit(unit.code, { ...values, ...sold });
+      if (values.reason === "sold") {
+        rememberSaleChannel(sale.channel);
+      }
       queryClient.setQueryData(getGetUnitQueryKey(unit.code), { ...unit, ...updated });
       void queryClient.invalidateQueries({ queryKey: getGetUnitQueryKey(unit.code) });
       void queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
@@ -355,7 +381,9 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          if (!next) {
+          if (next) {
+            setSale(saleDraft(shopPrice));
+          } else {
             form.reset();
           }
         }}
@@ -375,6 +403,9 @@ function ScrapUnit({ unit }: { unit: UnitDetailsOut }) {
               onChange={(next) => setValue("reason", next, { shouldValidate: true })}
               error={errors.reason?.message}
             />
+            {reason === "sold" ? (
+              <SaleFields value={sale} onChange={setSale} shopPriceCents={shopPrice} showErrors={form.formState.isSubmitted} className="mt-5" />
+            ) : null}
             <FormField label="Notiz" hint="Optional, z. B. „Gehäuse gebrochen“." error={errors.note?.message} className="mt-5">
               {(field) => <Textarea {...field} {...register("note")} maxLength={200} className="min-h-20" />}
             </FormField>
