@@ -494,6 +494,10 @@ class OrderSummaryOut(BaseModel):
     first_line_title: str
     recipient: str
     guest: bool = Field(description="Placed without an account (and not adopted yet).")
+    refunded: bool = Field(
+        default=False,
+        description="All the money went back, e.g. after a withdrawal: no longer on its way.",
+    )
 
     @classmethod
     def from_order(cls, order: Order) -> Self:
@@ -508,6 +512,7 @@ class OrderSummaryOut(BaseModel):
             first_line_title=order.lines[0].title if order.lines else "",
             recipient=order.shipping_address.recipient,
             guest=order.is_guest_order,
+            refunded=order.total_cents > 0 and order.refunded_cents >= order.total_cents,
         )
 
 

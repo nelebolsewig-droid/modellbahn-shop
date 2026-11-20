@@ -61,6 +61,8 @@ export function OrderTrack({ staffRole, onStreamClosed, onOpenList }: OrderTrack
   const unpaid = useOrderLane("pending_payment");
   const paid = useOrderLane("paid");
   const shipped = useOrderLane("shipped", SHIPPED_SHOWN);
+  // Withdrawn and fully refunded: the parcel is not on its way any more (label cancelled).
+  const travelling = (shipped.data?.items ?? []).filter((order) => !order.refunded);
   const waiting = useWaitingOrderIds(office);
   const { ready, making } = splitPaid(paid.data?.items ?? [], waiting);
 
@@ -120,8 +122,8 @@ export function OrderTrack({ staffRole, onStreamClosed, onOpenList }: OrderTrack
       key: "shipped",
       name: "Unterwegs",
       sub: "zuletzt versendet",
-      count: laneCount(shipped.data),
-      wagons: shipped.data?.items ?? [],
+      count: laneCount(shipped.data, travelling.length),
+      wagons: travelling,
       empty: "Noch nichts versendet.",
       more: { label: "Alle versendeten", list: "shipped" },
     },

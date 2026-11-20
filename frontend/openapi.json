@@ -5138,6 +5138,12 @@
             "title": "Recipient",
             "type": "string"
           },
+          "refunded": {
+            "default": false,
+            "description": "All the money went back, e.g. after a withdrawal: no longer on its way.",
+            "title": "Refunded",
+            "type": "boolean"
+          },
           "status": {
             "$ref": "#/components/schemas/OrderStatus"
           },

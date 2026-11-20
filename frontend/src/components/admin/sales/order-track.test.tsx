@@ -32,6 +32,8 @@ const ORDERS = [
   order("0412", "paid"),
   order("0409", "paid", { channel: "ebay" }),
   order("0400", "shipped"),
+  // Withdrawn and refunded: its label was cancelled, it is not on its way.
+  order("0398", "shipped", { refunded: true }),
 ];
 
 const TO_MAKE = {
