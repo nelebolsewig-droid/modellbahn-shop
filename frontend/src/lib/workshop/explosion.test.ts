@@ -50,3 +50,14 @@ describe("scrolling through the drawing", () => {
     expect(balloonOpacity(1)).toBe(1);
   });
 });
+
+describe("EDK6_MODEL", () => {
+  it("is the workshop's crane from its print files, with example times", async () => {
+    const { EDK6_MODEL } = await import("./edk6-model");
+    expect(EDK6_MODEL.placeholder).toBe(false);
+    expect(EDK6_MODEL.exampleTimes).toBe(true);
+    expect(totalsOf(EDK6_MODEL).parts).toBe(7);
+    const meshes = EDK6_MODEL.parts.flatMap((part) => part.pieces.flatMap((piece) => piece.solids)).filter((solid) => solid.kind === "mesh");
+    expect(meshes).toHaveLength(7);
+  });
+});

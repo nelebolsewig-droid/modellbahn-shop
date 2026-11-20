@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { hoursOf, totalsOf } from "@/lib/workshop/explosion";
-import { PLACEHOLDER_MODEL } from "@/lib/workshop/placeholder-model";
+import { EDK6_MODEL } from "@/lib/workshop/edk6-model";
 
 const STEPS = [
   { title: "Konstruieren und zerlegen", text: "Das Vorbild am Rechner, in druckbare Teile geschnitten" },
@@ -13,10 +13,10 @@ const STEPS = [
 /**
  * The start page's way into "So entsteht ein Modell": the three steps as numbered
  * positions on a drawing sheet. The figures of the model appear once it is a real one;
- * a placeholder's examples stay on its own page, marked as such.
+ * examples (a placeholder, or example times) stay on its own page, marked as such.
  */
 export function MakingOfTeaser() {
-  const model = PLACEHOLDER_MODEL;
+  const model = EDK6_MODEL;
   const totals = totalsOf(model);
   return (
     <section aria-labelledby="so-entsteht" className="border-t border-line">
@@ -30,7 +30,7 @@ export function MakingOfTeaser() {
             Ein Fahrzeug, in seine Teile zerlegt und wieder zusammengesetzt: Scroll durch die Explosionszeichnung und
             sieh, wie viel Arbeit in einem einzigen Modell steckt.
           </p>
-          {model.placeholder ? null : (
+          {model.placeholder || model.exampleTimes ? null : (
             <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-3">
               {[
                 [String(totals.parts), "Teile"],

@@ -14,7 +14,9 @@ export type Solid =
       axis: "x" | "y" | "z";
       at: readonly [number, number, number];
       segments?: number;
-    };
+    }
+  /** A display mesh from the model's print files, already in place (see scripts/werkstatt). */
+  | { kind: "mesh"; url: string };
 
 /** Solids that move together, along `direction` by `distance` mm when fully exploded. */
 export type Piece = {
@@ -40,6 +42,10 @@ export type ExplosionModel = {
   scale: string;
   /** Made up to show the idea; the page says so until a real model replaces it. */
   placeholder: boolean;
+  /** Real parts, but print and handwork times are examples until the workshop has measured them. */
+  exampleTimes?: boolean;
+  /** How the drawing frames the model, for models larger than the default stage. */
+  frame?: { halfWidth: number; halfHeight: number; lift: number };
   /** Finishing by hand after printing: removing supports, sanding, painting, assembly. */
   handworkMinutes: number;
   parts: readonly ExplosionPart[];

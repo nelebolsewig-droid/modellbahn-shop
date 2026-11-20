@@ -390,6 +390,10 @@ function ProcessAndParts({ model, phase, highlighted, onHighlight }: ProcessAndP
             Platzhalter: Dieses Fahrzeug ist nachgebaut, Teile und Zeiten sind Beispielwerte. Bald zeigen wir hier ein
             Modell aus der Werkstatt.
           </p>
+        ) : model.exampleTimes ? (
+          <p className="mt-3 rounded-sm bg-warning-subtle px-3 py-2 text-hint text-warning">
+            Die Teile stammen aus unseren Druckdateien. Druck- und Handarbeitszeiten sind noch Beispielwerte.
+          </p>
         ) : null}
       </div>
     </div>
