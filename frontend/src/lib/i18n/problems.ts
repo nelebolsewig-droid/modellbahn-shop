@@ -139,6 +139,7 @@ export const PROBLEM_MESSAGES: Messages = {
   location_in_use:
     "Hier lag schon einmal Ware. Der Platz bleibt deshalb erhalten, damit seine Geschichte nachvollziehbar ist.",
   unit_not_found: "Dieses Stück gibt es nicht.",
+  till_line_not_found: "Diesen Kassenverkauf gibt es nicht mehr. Bitte die Seite neu laden.",
   invalid_unit_state: "Das ist im aktuellen Zustand des Stücks nicht möglich.",
   units_not_movable:
     "Nicht alle Stücke lassen sich verlegen: Kommissionierte, versendete und ausgebuchte bleiben, wo sie sind. Es wurde nichts gebucht; die Liste ist gleich aktuell.",

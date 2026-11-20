@@ -48,6 +48,11 @@ from modellbahn.modules.inventory.application.stock import (
     ScrapResult,
     ToMake,
 )
+from modellbahn.modules.inventory.application.till import (
+    TillItemView,
+    TillLineView,
+    TillOverview,
+)
 from modellbahn.modules.inventory.application.units import (
     AssembledPart,
     HistoryEntry,
@@ -86,6 +91,11 @@ from modellbahn.modules.inventory.domain.parts import (
     PartMovementReason,
 )
 from modellbahn.modules.inventory.domain.scanning import MAX_RAW_LENGTH, CodeKind
+from modellbahn.modules.inventory.domain.till import (
+    TILL_NAME_MAX_LENGTH,
+    TillLineState,
+    TillPayment,
+)
 from modellbahn.modules.manufacturing.contracts.part_numbers import PART_NUMBER_MAX_LENGTH
 from modellbahn.modules.manufacturing.contracts.parts import PartInfo, PrintJobInfo, Technology
 from modellbahn.modules.sales.contracts.orders import OrderStatus
@@ -1413,3 +1423,86 @@ class VariantAvailabilityOut(BaseModel):
 
 class AvailabilityOut(BaseModel):
     items: list[VariantAvailabilityOut]
+
+
+# --- Till (ADR 0040) --------------------------------------------------------------------
+
+
+class TillLineOut(BaseModel):
+    """A line of a sale at the SumUp till that somebody still has to look at."""
+
+    id: UUID
+    transaction_code: str = Field(examples=["TAAA6QKZUQK"], description="SumUp's receipt.")
+    sold_at: datetime
+    payment: TillPayment
+    name: str = Field(examples=["EDK 6 Knickausleger TT 1:120"], description="As in SumUp.")
+    quantity: int
+    booked: int = Field(description="Pieces already booked out.")
+    unit_price_cents: int = Field(description="Gross price of one piece at the till.")
+    state: TillLineState
+    variant: VariantRefOut | None = Field(description="What its name is assigned to.")
+
+    @classmethod
+    def from_view(cls, view: TillLineView) -> Self:
+        line = view.line
+        return cls(
+            id=line.id,
+            transaction_code=line.transaction_code,
+            sold_at=line.sold_at,
+            payment=line.payment,
+            name=line.name,
+            quantity=line.quantity,
+            booked=line.booked,
+            unit_price_cents=line.unit_price_cents,
+            state=line.state,
+            variant=VariantRefOut.from_variant(view.variant) if view.variant else None,
+        )
+
+
+class TillItemOut(BaseModel):
+    """A name in the SumUp app and what it sells."""
+
+    name: str
+    ignored: bool = Field(description="No model: its sales book nothing.")
+    variant: VariantRefOut | None
+    updated_at: datetime
+
+    @classmethod
+    def from_view(cls, view: TillItemView) -> Self:
+        return cls(
+            name=view.item.name,
+            ignored=view.item.ignored,
+            variant=VariantRefOut.from_variant(view.variant) if view.variant else None,
+            updated_at=view.item.updated_at,
+        )
+
+
+class TillOut(BaseModel):
+    enabled: bool = Field(description="Whether the till's sales are fetched (SumUp is set up).")
+    since: datetime | None = Field(description="Sales from this moment on are fetched.")
+    last_sync_at: datetime | None
+    last_error: str = Field(description="Why the last fetch failed; empty when it worked.")
+    booked_today: int = Field(description="Pieces the till booked out by itself today.")
+    open: list[TillLineOut] = Field(description="Newest first.")
+    items: list[TillItemOut]
+
+    @classmethod
+    def from_overview(cls, overview: TillOverview) -> Self:
+        state = overview.state
+        return cls(
+            enabled=overview.enabled,
+            since=state.since if state else None,
+            last_sync_at=state.last_sync_at if state else None,
+            last_error=state.last_error if state else "",
+            booked_today=overview.booked_today,
+            open=[TillLineOut.from_view(view) for view in overview.open],
+            items=[TillItemOut.from_view(view) for view in overview.items],
+        )
+
+
+class TillItemIn(_Request):
+    """What a name of the till sells: a variant, nothing (``ignored``), or not yet known."""
+
+    name: str = Field(min_length=1, max_length=TILL_NAME_MAX_LENGTH)
+    variant_id: UUID | None = None
+    ignored: bool = False

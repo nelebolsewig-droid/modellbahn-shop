@@ -22,6 +22,7 @@ from modellbahn.modules.inventory.api.deps import (
     StockManager,
     StockServiceDep,
     StockWorker,
+    TillServiceDep,
     UnitServiceDep,
 )
 from modellbahn.modules.inventory.api.errors import STAFF_ACCESS
@@ -65,6 +66,8 @@ from modellbahn.modules.inventory.api.schemas import (
     StockScrapIn,
     StockScrapOut,
     StockValueOut,
+    TillItemIn,
+    TillOut,
     ToMakeListOut,
     ToMakeOut,
     UnitBatchOut,
@@ -503,6 +506,47 @@ async def correct_unit(
 ) -> UnitOut:
     view = await service.correct(code, variant_id=body.variant_id, staff_id=staff.id)
     return UnitOut.from_view(view)
+
+
+# --- Till (ADR 0040) ------------------------------------------------------------------
+
+
+@router.get(
+    "/till",
+    operation_id="getTill",
+    summary="The SumUp till: what still needs a look, and the names assigned so far",
+    responses=problems(STAFF_ACCESS),
+)
+async def get_till(_: StockManager, service: TillServiceDep) -> TillOut:
+    return TillOut.from_overview(await service.overview())
+
+
+@router.put(
+    "/till/items",
+    operation_id="assignTillItem",
+    summary="Say what a name of the till sells; its waiting sales are booked out at once",
+    description="With `variant_id`, every sale under the name books the oldest free pieces "
+    "of the variant out as sold. With `ignored`, its sales book nothing (no model). "
+    "With neither, the name waits again.",
+    responses=problems({**STAFF_ACCESS, 404: ["variant_not_found"]}),
+)
+async def assign_till_item(
+    body: TillItemIn, staff: StockManager, service: TillServiceDep
+) -> TillOut:
+    overview = await service.assign(
+        body.name, variant_id=body.variant_id, ignored=body.ignored, staff_id=staff.id
+    )
+    return TillOut.from_overview(overview)
+
+
+@router.post(
+    "/till/lines/{line_id}/done",
+    operation_id="settleTillLine",
+    summary="A waiting line of the till was taken care of by hand",
+    responses=problems({**STAFF_ACCESS, 404: ["till_line_not_found"]}),
+)
+async def settle_till_line(line_id: UUID, _: StockManager, service: TillServiceDep) -> TillOut:
+    return TillOut.from_overview(await service.settle(line_id))
 
 
 # --- Parts ----------------------------------------------------------------------------

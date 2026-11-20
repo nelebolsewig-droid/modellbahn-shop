@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { SaleFields, saleDraft, saleOf, type SaleDraft } from "./sale-fields";
+import { TillPanel } from "./till-panel";
 
 /** The page refreshes itself while it is open: Johann sells, the office watches. */
 const REFRESH_MS = 60_000;
@@ -102,6 +103,7 @@ export function SalesDesk() {
         <>
           <ChannelFilter channels={channels} total={all.length} value={filter} onChange={setFilter} />
           <Headline lines={lines} channels={filter === "all" ? channels : byChannel(lines)} span={span} refreshing={report.isFetching} />
+          <TillPanel />
           <Course lines={lines} span={span} />
           <SaleList lines={lines} />
         </>

@@ -68,6 +68,8 @@ import type {
   StockScrapIn,
   StockScrapOut,
   StockValueOut,
+  TillItemIn,
+  TillOut,
   ToMakeListOut,
   UnitBatchOut,
   UnitCorrectionIn,
@@ -2616,7 +2618,268 @@ export function useGetStockValue<TData = Awaited<ReturnType<typeof getStockValue
 
 
 
-export const getListUnitsUrl = (params?: ListUnitsParams,) => {
+export const getGetTillUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/till`
+}
+
+/**
+ * @summary The SumUp till: what still needs a look, and the names assigned so far
+ */
+export const getTill = async ( options?: Parameters<typeof apiFetch>[1]): Promise<TillOut> => {
+
+  return apiFetch<TillOut>(getGetTillUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTillQueryKey = () => {
+    return [
+    `/api/v1/admin/inventory/till`
+    ] as const;
+    }
+
+
+export const getGetTillQueryOptions = <TData = Awaited<ReturnType<typeof getTill>>, TError = ErrorType<Problem | ValidationProblem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTillQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTill>>> = ({ signal }) => getTill({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTillQueryResult = NonNullable<Awaited<ReturnType<typeof getTill>>>
+export type GetTillQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetTill<TData = Awaited<ReturnType<typeof getTill>>, TError = ErrorType<Problem | ValidationProblem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTill>>,
+          TError,
+          Awaited<ReturnType<typeof getTill>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTill<TData = Awaited<ReturnType<typeof getTill>>, TError = ErrorType<Problem | ValidationProblem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTill>>,
+          TError,
+          Awaited<ReturnType<typeof getTill>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTill<TData = Awaited<ReturnType<typeof getTill>>, TError = ErrorType<Problem | ValidationProblem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The SumUp till: what still needs a look, and the names assigned so far
+ */
+
+export function useGetTill<TData = Awaited<ReturnType<typeof getTill>>, TError = ErrorType<Problem | ValidationProblem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTill>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTillQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getAssignTillItemUrl = () => {
+
+
+
+
+  return `/api/v1/admin/inventory/till/items`
+}
+
+/**
+ * With `variant_id`, every sale under the name books the oldest free pieces of the variant out as sold. With `ignored`, its sales book nothing (no model). With neither, the name waits again.
+ * @summary Say what a name of the till sells; its waiting sales are booked out at once
+ */
+export const assignTillItem = async (tillItemIn: TillItemIn, options?: Parameters<typeof apiFetch>[1]): Promise<TillOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TillOut>(getAssignTillItemUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(tillItemIn)
+  }
+);}
+
+
+
+
+
+export const getAssignTillItemMutationKey = () => ['assignTillItem'] as const;
+
+export const getAssignTillItemMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignTillItem>>, TError,AssignTillItemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignTillItem>>, TError,AssignTillItemMutationVariables, TContext> => {
+
+const mutationKey = getAssignTillItemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignTillItem>>, AssignTillItemMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  assignTillItem(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignTillItemMutationResult = NonNullable<Awaited<ReturnType<typeof assignTillItem>>>
+    export type AssignTillItemMutationBody = TillItemIn
+    export type AssignTillItemMutationError = ErrorType<Problem | ValidationProblem>
+    export type AssignTillItemMutationVariables = {data: TillItemIn}
+
+    /**
+ * @summary Say what a name of the till sells; its waiting sales are booked out at once
+ */
+export const useAssignTillItem = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignTillItem>>, TError,AssignTillItemMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assignTillItem>>,
+        TError,
+        AssignTillItemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssignTillItemMutationOptions(options), queryClient);
+    }
+    export const getSettleTillLineUrl = (lineId: string,) => {
+
+
+
+
+  return `/api/v1/admin/inventory/till/lines/${lineId}/done`
+}
+
+/**
+ * @summary A waiting line of the till was taken care of by hand
+ */
+export const settleTillLine = async (lineId: string, options?: Parameters<typeof apiFetch>[1]): Promise<TillOut> => {
+
+  return apiFetch<TillOut>(getSettleTillLineUrl(lineId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettleTillLineMutationKey = () => ['settleTillLine'] as const;
+
+export const getSettleTillLineMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleTillLine>>, TError,SettleTillLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof settleTillLine>>, TError,SettleTillLineMutationVariables, TContext> => {
+
+const mutationKey = getSettleTillLineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settleTillLine>>, SettleTillLineMutationVariables> = (props) => {
+          const {lineId} = props ?? {};
+
+          return  settleTillLine(lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettleTillLineMutationResult = NonNullable<Awaited<ReturnType<typeof settleTillLine>>>
+
+    export type SettleTillLineMutationError = ErrorType<Problem | ValidationProblem>
+    export type SettleTillLineMutationVariables = {lineId: string}
+
+    /**
+ * @summary A waiting line of the till was taken care of by hand
+ */
+export const useSettleTillLine = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleTillLine>>, TError,SettleTillLineMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settleTillLine>>,
+        TError,
+        SettleTillLineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettleTillLineMutationOptions(options), queryClient);
+    }
+    export const getListUnitsUrl = (params?: ListUnitsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

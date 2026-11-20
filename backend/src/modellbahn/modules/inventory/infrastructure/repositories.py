@@ -43,6 +43,7 @@ from modellbahn.modules.inventory.infrastructure.tables import (
     stock_ledger,
     units,
 )
+from modellbahn.modules.inventory.infrastructure.till import SqlFairs, SqlTillRepository
 from modellbahn.modules.manufacturing.contracts.parts import (
     KitPart,
     PartInfo,
@@ -616,6 +617,8 @@ class SqlInventoryUnitOfWork(UnitOfWork):
     manufacturing: SqlManufacturing
     orders: SqlOrders
     staff: SqlStaff
+    till: SqlTillRepository
+    fairs: SqlFairs
 
     def _attach(self, session: AsyncSession) -> None:
         start_mappers()
@@ -631,6 +634,8 @@ class SqlInventoryUnitOfWork(UnitOfWork):
         self.manufacturing = SqlManufacturing(self)
         self.orders = SqlOrders(self)
         self.staff = SqlStaff(self)
+        self.till = SqlTillRepository(session)
+        self.fairs = SqlFairs(self)
 
 
 def inventory_uow_factory(

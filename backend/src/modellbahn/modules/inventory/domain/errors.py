@@ -162,3 +162,11 @@ class ScanNotUndoableError(InventoryError):
 
 class ScanUndoForbiddenError(InventoryError):
     """Undoing a scan that booked pieces out books them in again: owner and staff only."""
+
+
+class TillLineNotFoundError(InventoryError):
+    """No line of a till sale has this id."""
+
+
+class TillUnavailableError(InventoryError):
+    """The till's provider (SumUp) could not be asked; the next run tries again."""

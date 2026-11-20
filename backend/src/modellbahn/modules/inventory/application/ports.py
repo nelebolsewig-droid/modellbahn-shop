@@ -5,7 +5,7 @@ The infrastructure layer implements them; tests may substitute their own.
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from types import TracebackType
@@ -22,6 +22,14 @@ from modellbahn.modules.inventory.domain.model import (
     UnitStatus,
 )
 from modellbahn.modules.inventory.domain.parts import PartLedgerEntry, PartReceipt, PartStock
+from modellbahn.modules.inventory.domain.till import (
+    TillItem,
+    TillLine,
+    TillLineState,
+    TillProduct,
+    TillSale,
+    TillState,
+)
 from modellbahn.modules.manufacturing.contracts.parts import (
     KitPart,
     PartInfo,
@@ -309,6 +317,69 @@ class Manufacturing(Protocol):
     async def print_job_yield(self, job_id: UUID) -> PrintJobYield | None: ...
 
 
+class TillRepository(Protocol):
+    """The till's state, its assigned names and the lines of its sales (ADR 0040)."""
+
+    async def state(self, *, for_update: bool = False) -> TillState | None: ...
+
+    async def save_state(self, state: TillState) -> None:
+        """Insert or update the one row."""
+        ...
+
+    async def known_codes(self, codes: Collection[str]) -> set[str]: ...
+
+    async def add_line(self, line: TillLine) -> None: ...
+
+    async def update_line(self, line: TillLine) -> None: ...
+
+    async def line(self, line_id: UUID, *, for_update: bool = False) -> TillLine | None: ...
+
+    async def lines(
+        self,
+        states: Collection[TillLineState],
+        *,
+        key: str | None = None,
+        sold_since: datetime | None = None,
+        limit: int | None = None,
+        newest_first: bool = False,
+        for_update: bool = False,
+    ) -> list[TillLine]:
+        """Lines in ``states`` (of the name ``key``, sold since ``sold_since``, if given),
+        oldest first unless ``newest_first``."""
+        ...
+
+    async def items(self, keys: Collection[str] | None = None) -> dict[str, TillItem]:
+        """The assigned names (``None``: all of them), by key."""
+        ...
+
+    async def save_item(self, item: TillItem) -> None:
+        """Insert or update."""
+        ...
+
+
+class Fairs(Protocol):
+    """What inventory may ask the site module: whether a fair runs on a day."""
+
+    async def fair_on(self, day: date) -> str | None: ...
+
+
+class TillGateway(Protocol):
+    """The till's provider: its successful card and cash sales since a moment.
+
+    Raises :class:`TillUnavailableError` when it cannot be asked.
+    """
+
+    async def sales_since(self, since: datetime) -> list[TillSale]:
+        """The sales without their products (``products`` empty), oldest first."""
+        ...
+
+    async def products(self, sale: TillSale) -> tuple[TillProduct, ...]:
+        """What was sold; a sale without articles is one line of its total."""
+        ...
+
+    async def aclose(self) -> None: ...
+
+
 class Staff(Protocol):
     """Who booked what: the identity module's display names."""
 
@@ -353,6 +424,12 @@ class InventoryUnitOfWork(Protocol):
 
     @property
     def staff(self) -> Staff: ...
+
+    @property
+    def till(self) -> TillRepository: ...
+
+    @property
+    def fairs(self) -> Fairs: ...
 
     async def __aenter__(self) -> Self: ...
 

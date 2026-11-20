@@ -11665,6 +11665,244 @@
         "title": "TestSaleOut",
         "type": "object"
       },
+      "TillItemIn": {
+        "additionalProperties": false,
+        "description": "What a name of the till sells: a variant, nothing (``ignored``), or not yet known.",
+        "properties": {
+          "ignored": {
+            "default": false,
+            "title": "Ignored",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TillItemIn",
+        "type": "object"
+      },
+      "TillItemOut": {
+        "description": "A name in the SumUp app and what it sells.",
+        "properties": {
+          "ignored": {
+            "description": "No model: its sales book nothing.",
+            "title": "Ignored",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "ignored",
+          "variant",
+          "updated_at"
+        ],
+        "title": "TillItemOut",
+        "type": "object"
+      },
+      "TillLineOut": {
+        "description": "A line of a sale at the SumUp till that somebody still has to look at.",
+        "properties": {
+          "booked": {
+            "description": "Pieces already booked out.",
+            "title": "Booked",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "As in SumUp.",
+            "examples": [
+              "EDK 6 Knickausleger TT 1:120"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/TillPayment"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sold_at": {
+            "format": "date-time",
+            "title": "Sold At",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TillLineState"
+          },
+          "transaction_code": {
+            "description": "SumUp's receipt.",
+            "examples": [
+              "TAAA6QKZUQK"
+            ],
+            "title": "Transaction Code",
+            "type": "string"
+          },
+          "unit_price_cents": {
+            "description": "Gross price of one piece at the till.",
+            "title": "Unit Price Cents",
+            "type": "integer"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VariantRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What its name is assigned to."
+          }
+        },
+        "required": [
+          "id",
+          "transaction_code",
+          "sold_at",
+          "payment",
+          "name",
+          "quantity",
+          "booked",
+          "unit_price_cents",
+          "state",
+          "variant"
+        ],
+        "title": "TillLineOut",
+        "type": "object"
+      },
+      "TillLineState": {
+        "description": "Where a line of a till sale stands.",
+        "enum": [
+          "booked",
+          "unassigned",
+          "custom",
+          "short",
+          "ignored",
+          "done"
+        ],
+        "title": "TillLineState",
+        "type": "string"
+      },
+      "TillOut": {
+        "properties": {
+          "booked_today": {
+            "description": "Pieces the till booked out by itself today.",
+            "title": "Booked Today",
+            "type": "integer"
+          },
+          "enabled": {
+            "description": "Whether the till's sales are fetched (SumUp is set up).",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TillItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "last_error": {
+            "description": "Why the last fetch failed; empty when it worked.",
+            "title": "Last Error",
+            "type": "string"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "open": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/TillLineOut"
+            },
+            "title": "Open",
+            "type": "array"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sales from this moment on are fetched.",
+            "title": "Since"
+          }
+        },
+        "required": [
+          "enabled",
+          "since",
+          "last_sync_at",
+          "last_error",
+          "booked_today",
+          "open",
+          "items"
+        ],
+        "title": "TillOut",
+        "type": "object"
+      },
+      "TillPayment": {
+        "enum": [
+          "card",
+          "cash"
+        ],
+        "title": "TillPayment",
+        "type": "string"
+      },
       "ToMakeListOut": {
         "properties": {
           "items": {
@@ -17343,6 +17581,277 @@
           }
         ],
         "summary": "What the store is worth: finished pieces at today's shop price, and the parts",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/till": {
+      "get": {
+        "operationId": "getTill",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TillOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The SumUp till: what still needs a look, and the names assigned so far",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/till/items": {
+      "put": {
+        "description": "With `variant_id`, every sale under the name books the oldest free pieces of the variant out as sold. With `ignored`, its sales book nothing (no model). With neither, the name waits again.",
+        "operationId": "assignTillItem",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TillItemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TillOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `variant_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Say what a name of the till sells; its waiting sales are booked out at once",
+        "tags": [
+          "admin-inventory"
+        ]
+      }
+    },
+    "/api/v1/admin/inventory/till/lines/{line_id}/done": {
+      "post": {
+        "operationId": "settleTillLine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Line Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TillOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `till_line_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "A waiting line of the till was taken care of by hand",
         "tags": [
           "admin-inventory"
         ]
