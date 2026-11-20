@@ -28,6 +28,7 @@ from modellbahn.modules.inventory.domain.errors import (
     ScanNotFoundError,
     ScanNotUndoableError,
     ScanUndoForbiddenError,
+    TillLineNotFoundError,
     UnitNotCorrectableError,
     UnitNotFoundError,
     UnitsNotMovableError,
@@ -103,6 +104,9 @@ _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
         "Only a labelled or free unit that was never picked for an order can change its "
         f"variant: {error}.",
         code="unit_not_correctable",
+    ),
+    TillLineNotFoundError: lambda _: NotFoundError(
+        "The till line does not exist.", code="till_line_not_found"
     ),
     VariantNotFoundError: lambda _: NotFoundError(
         "The variant does not exist.", code="variant_not_found"

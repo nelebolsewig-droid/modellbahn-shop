@@ -1,4 +1,4 @@
-"""What other modules may know about the fairs: the next one, for a line in a mail.
+"""What other modules may know about the fairs: the next one for a mail, today's for the till.
 
 A read facade over the site tables inside the caller's transaction.
 """
@@ -30,3 +30,18 @@ async def load_next_fair(uow: UnitOfWork, today: date) -> NextFair | None:
         )
     ).one_or_none()
     return None if row is None else NextFair(*row)
+
+
+async def load_fair_on(uow: UnitOfWork, day: date) -> str | None:
+    """The name of a fair running on ``day``, published or not; None if there is none.
+
+    The till books its sales to the channel *Messe* on such a day (ADR 0040).
+    """
+    return (
+        await uow.session.execute(
+            select(fairs.c.name)
+            .where(fairs.c.starts_on <= day, fairs.c.ends_on >= day)
+            .order_by(fairs.c.starts_on, fairs.c.name)
+            .limit(1)
+        )
+    ).scalar_one_or_none()

@@ -18,9 +18,12 @@ from modellbahn.modules.identity.infrastructure.mapping import (
 )
 from modellbahn.modules.identity.infrastructure.repositories import SqlIdentityUnitOfWork
 from modellbahn.modules.inventory.application.allocation import AllocationService
+from modellbahn.modules.inventory.application.common import UnitOfWorkFactory
 from modellbahn.modules.inventory.application.handlers import InventoryHandlers
 from modellbahn.modules.inventory.application.parts import PartStoreService
+from modellbahn.modules.inventory.application.till import TillService
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
+from modellbahn.modules.inventory.infrastructure.till import build_till
 from modellbahn.modules.manufacturing.application.automation import AutoPlanner
 from modellbahn.modules.manufacturing.application.handlers import ManufacturingHandlers
 from modellbahn.modules.manufacturing.contracts import events as manufacturing_events
@@ -76,6 +79,8 @@ EXPIRED_CART_SWEEP_INTERVAL: Final = timedelta(hours=6)
 PENDING_SUBSCRIPTION_SWEEP_INTERVAL: Final = timedelta(hours=6)
 EBAY_LISTING_SYNC_INTERVAL: Final = timedelta(minutes=1)
 EBAY_ORDER_FETCH_INTERVAL: Final = timedelta(minutes=2)
+# The SumUp app's sales book their pieces out about a minute after payment (ADR 0040).
+TILL_FETCH_INTERVAL: Final = timedelta(minutes=1)
 # A safety net for automatic planning: a bill of materials entered or a printer back in
 # service after the order came in still gets its plates (ADR 0034).
 AUTOPLAN_INTERVAL: Final = timedelta(hours=1)
@@ -153,7 +158,10 @@ async def run_worker(
         allocation=AllocationService(uow_factory=inventory_uow, clock=clock),
         parts=PartStoreService(uow_factory=inventory_uow, clock=clock),
     ).register(handlers)
-    jobs: list[PeriodicJob] = _automation(settings, session_factory, clock, handlers)
+    jobs: list[PeriodicJob] = [
+        *_automation(settings, session_factory, clock, handlers),
+        *_till_jobs(settings, inventory_uow, clock),
+    ]
     MediaProcessingHandlers(
         uow_factory=media_uow,
         storage=storage,
@@ -269,6 +277,20 @@ async def run_worker(
         await payment_gateway.aclose()
         await carrier.aclose()
         await engine.dispose()
+
+
+def _till_jobs(
+    settings: Settings, uow_factory: UnitOfWorkFactory, clock: Clock
+) -> list[PeriodicJob]:
+    """The SumUp app's sales, fetched every minute (ADR 0040)."""
+    if not settings.till_enabled:
+        return []
+
+    async def fetch() -> int:
+        async with build_till(settings) as till:
+            return await TillService(uow_factory=uow_factory, clock=clock, gateway=till).sync()
+
+    return [PeriodicJob(name="inventory.fetch_till_sales", interval=TILL_FETCH_INTERVAL, run=fetch)]
 
 
 def _automation(

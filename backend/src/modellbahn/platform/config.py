@@ -190,6 +190,9 @@ class Settings(BaseSettings):
     sumup_api_key: SecretStr = SecretStr("")
     sumup_merchant_code: str = ""
     sumup_api_url: str = "https://api.sumup.com"
+    # The till (ADR 0040): with key and merchant code, the worker fetches the sales of the
+    # SumUp app every minute and books their pieces out. Off with MB_SUMUP_TILL=false.
+    sumup_till: bool = True
 
     # Shipping labels from DHL (ADR 0023). The API key comes from the app in DHL's developer
     # portal; user and password are a system user of the business customer portal, the EKP
@@ -441,6 +444,15 @@ class Settings(BaseSettings):
             iban=self.bank_iban,
             bic=self.bank_bic,
             bank_name=self.bank_name.strip(),
+        )
+
+    @property
+    def till_enabled(self) -> bool:
+        """Whether the worker fetches the SumUp app's sales (ADR 0040)."""
+        return (
+            self.sumup_till
+            and bool(self.sumup_api_key.get_secret_value())
+            and bool(self.sumup_merchant_code)
         )
 
     @property

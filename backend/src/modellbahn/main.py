@@ -54,6 +54,7 @@ from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.stock import StockService
+from modellbahn.modules.inventory.application.till import TillService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.modules.inventory.infrastructure.labels import ReportLabLabelRenderer
 from modellbahn.modules.inventory.infrastructure.mapping import (
@@ -274,6 +275,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         uow_factory=inventory_uow_factory(session_factory),
         clock=clock,
         maker=settings.imprint.maker_lines(),
+        till_enabled=settings.till_enabled,
     )
     _attach_manufacturing_services(
         app, uow_factory=manufacturing_uow_factory(session_factory), clock=clock
@@ -440,8 +442,11 @@ def _attach_inventory_services(
     uow_factory: InventoryUnitOfWorkFactory,
     clock: SystemClock,
     maker: tuple[str, ...],
+    till_enabled: bool = False,
 ) -> None:
     app.state.location_service = LocationService(uow_factory=uow_factory, clock=clock)
+    # The API only shows the till and assigns its names; the worker fetches (ADR 0040).
+    app.state.till_service = TillService(uow_factory=uow_factory, clock=clock, enabled=till_enabled)
     app.state.unit_service = UnitService(uow_factory=uow_factory, clock=clock)
     app.state.stock_service = StockService(uow_factory=uow_factory, clock=clock)
     app.state.scan_service = ScanService(uow_factory=uow_factory, clock=clock)

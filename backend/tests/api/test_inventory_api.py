@@ -592,3 +592,51 @@ class TestShop:
         )
         # Made again in the shop's lead time, read as it is now.
         assert lines[skus["unpainted"]][7] == "vorrätig, sonst 3-5 Wochen"
+
+
+class TestTill:
+    async def test_assign_names_and_see_what_waits(
+        self, staff_client: AsyncClient, packer_client: AsyncClient, painted: UUID
+    ) -> None:
+        empty = (await staff_client.get(f"{INVENTORY}/till")).json()
+        assert empty == {
+            "enabled": False,
+            "since": None,
+            "last_sync_at": None,
+            "last_error": "",
+            "booked_today": 0,
+            "open": [],
+            "items": [],
+        }
+        assigned = await staff_client.put(
+            f"{INVENTORY}/till/items",
+            json={"name": " EDK 6  Knickausleger TT ", "variant_id": str(painted)},
+        )
+        assert assigned.status_code == 200, assigned.text
+        (item,) = assigned.json()["items"]
+        assert (item["name"], item["ignored"], item["variant"]["variant_id"]) == (
+            "EDK 6 Knickausleger TT",
+            False,
+            str(painted),
+        )
+        assert_problem(
+            await staff_client.put(
+                f"{INVENTORY}/till/items", json={"name": "K700", "variant_id": str(uuid4())}
+            ),
+            404,
+            "variant_not_found",
+        )
+        assert_problem(
+            await staff_client.put(
+                f"{INVENTORY}/till/items", json={"name": "Individueller Betrag", "ignored": True}
+            ),
+            422,
+            "validation_failed",
+        )
+        assert_problem(
+            await staff_client.post(f"{INVENTORY}/till/lines/{uuid4()}/done"),
+            404,
+            "till_line_not_found",
+        )
+        # Packers do not see the till's prices.
+        assert (await packer_client.get(f"{INVENTORY}/till")).status_code == 403

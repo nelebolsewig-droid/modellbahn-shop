@@ -13,6 +13,7 @@ to the line of the plate its parts came off.
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -45,6 +46,7 @@ from modellbahn.modules.inventory.domain.model import (
     UnitStatus,
 )
 from modellbahn.modules.inventory.domain.parts import PartMovementReason
+from modellbahn.modules.inventory.domain.till import TillLineState, TillPayment
 from modellbahn.modules.manufacturing.contracts.parts import (
     PART_REFERENCE,
     PRINT_JOB_LINE_REFERENCE,
@@ -308,5 +310,66 @@ part_ledger = Table(
     Index("part_ledger_part_idx", "part_id", "id"),
     Index("part_ledger_unit_idx", "unit_id", postgresql_where=text("unit_id IS NOT NULL")),
     Index("part_ledger_scan_idx", "scan_id", postgresql_where=text("scan_id IS NOT NULL")),
+    schema=SCHEMA,
+)
+
+
+# --- Till (ADR 0040) --------------------------------------------------------------------
+
+_TILL_STATES = "'booked', 'unassigned', 'custom', 'short', 'ignored', 'done'"
+
+till_state = Table(
+    "till_state",
+    metadata,
+    # One row: where fetching the till's sales stands.
+    Column("id", SmallInteger, primary_key=True),
+    Column("since", DateTime(timezone=True), nullable=False),
+    Column("last_sync_at", DateTime(timezone=True)),
+    Column("last_error", Text, nullable=False, server_default=text("''")),
+    CheckConstraint("id = 1", name="single_row"),
+    schema=SCHEMA,
+)
+
+till_items = Table(
+    "till_items",
+    metadata,
+    # A name in the SumUp app (matched without case and spacing) and the variant it sells.
+    Column("key", Text, primary_key=True),
+    Column("name", Text, nullable=False),
+    Column("variant_id", Uuid, ForeignKey(VARIANT_REFERENCE, ondelete="RESTRICT")),
+    Column("ignored", Boolean, nullable=False, server_default=text("false")),
+    Column("assigned_by", Uuid, ForeignKey(ACCOUNT_REFERENCE, ondelete="SET NULL")),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("NOT (ignored AND variant_id IS NOT NULL)", name="variant_or_ignored"),
+    schema=SCHEMA,
+)
+
+till_lines = Table(
+    "till_lines",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("transaction_code", Text, nullable=False),
+    Column("position", SmallInteger, nullable=False),
+    Column("sold_at", DateTime(timezone=True), nullable=False),
+    Column("payment", StrEnumType(TillPayment), nullable=False),
+    Column("name", Text, nullable=False),
+    Column("key", Text, nullable=False),
+    Column("quantity", Integer, nullable=False),
+    Column("unit_price_cents", Integer, nullable=False),
+    Column("booked", Integer, nullable=False, server_default=text("0")),
+    Column("state", StrEnumType(TillLineState), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("transaction_code", "position"),
+    CheckConstraint("payment IN ('card', 'cash')", name="payment"),
+    CheckConstraint(f"state IN ({_TILL_STATES})", name="state"),
+    CheckConstraint("quantity BETWEEN 1 AND 999", name="quantity_range"),
+    CheckConstraint("unit_price_cents >= 0", name="price_not_negative"),
+    CheckConstraint("booked BETWEEN 0 AND quantity", name="booked_range"),
+    Index(
+        "till_lines_open_idx",
+        "key",
+        postgresql_where=text("state IN ('unassigned', 'custom', 'short')"),
+    ),
+    Index("till_lines_sold_at_idx", "sold_at"),
     schema=SCHEMA,
 )

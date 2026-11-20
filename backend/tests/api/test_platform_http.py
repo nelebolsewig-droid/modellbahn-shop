@@ -262,6 +262,12 @@ EXPECTED_OPERATIONS = {
         "correctUnit",
         "admin-inventory",
     ),
+    ("GET", "/api/v1/admin/inventory/till"): ("getTill", "admin-inventory"),
+    ("PUT", "/api/v1/admin/inventory/till/items"): ("assignTillItem", "admin-inventory"),
+    ("POST", "/api/v1/admin/inventory/till/lines/{line_id}/done"): (
+        "settleTillLine",
+        "admin-inventory",
+    ),
     ("GET", "/api/v1/admin/inventory/parts"): ("listPartStock", "admin-inventory"),
     ("GET", "/api/v1/admin/inventory/parts/{part_number}"): ("getPartStock", "admin-inventory"),
     ("POST", "/api/v1/admin/inventory/parts/{part_number}/count"): (

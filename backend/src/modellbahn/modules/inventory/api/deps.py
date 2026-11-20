@@ -13,6 +13,7 @@ from modellbahn.modules.inventory.application.locations import LocationService
 from modellbahn.modules.inventory.application.parts import PartStoreService
 from modellbahn.modules.inventory.application.scanning import ScanService
 from modellbahn.modules.inventory.application.stock import StockService
+from modellbahn.modules.inventory.application.till import TillService
 from modellbahn.modules.inventory.application.units import UnitService
 from modellbahn.platform.http import app_state
 
@@ -53,6 +54,10 @@ def get_assembly_service(request: Request) -> AssemblyService:
     return app_state(request, "assembly_service", AssemblyService)
 
 
+def get_till_service(request: Request) -> TillService:
+    return app_state(request, "till_service", TillService)
+
+
 LocationServiceDep = Annotated[LocationService, Depends(get_location_service)]
 UnitServiceDep = Annotated[UnitService, Depends(get_unit_service)]
 ScanServiceDep = Annotated[ScanService, Depends(get_scan_service)]
@@ -62,6 +67,7 @@ LabelServiceDep = Annotated[LabelService, Depends(get_label_service)]
 AvailabilityServiceDep = Annotated[AvailabilityService, Depends(get_availability_service)]
 PartStoreServiceDep = Annotated[PartStoreService, Depends(get_part_store_service)]
 AssemblyServiceDep = Annotated[AssemblyService, Depends(get_assembly_service)]
+TillServiceDep = Annotated[TillService, Depends(get_till_service)]
 
 # Packers scan, pick and print labels; arranging the store and its stock is for owner and staff.
 StockWorker = Annotated[
