@@ -10451,9 +10451,25 @@
             "title": "Price From Shop",
             "type": "boolean"
           },
+          "product_name": {
+            "description": "The model, for the evaluation by model.",
+            "title": "Product Name",
+            "type": "string"
+          },
+          "product_slug": {
+            "title": "Product Slug",
+            "type": "string"
+          },
           "quantity": {
             "title": "Quantity",
             "type": "integer"
+          },
+          "scale_code": {
+            "examples": [
+              "H0"
+            ],
+            "title": "Scale Code",
+            "type": "string"
           },
           "sku": {
             "title": "Sku",
@@ -10500,6 +10516,25 @@
           "unit_price_cents": {
             "title": "Unit Price Cents",
             "type": "integer"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          },
+          "variant_name": {
+            "examples": [
+              "H0 · Fertigmodell, Gelb"
+            ],
+            "title": "Variant Name",
+            "type": "string"
           }
         },
         "required": [
@@ -10517,7 +10552,12 @@
           "order_number",
           "unit_code",
           "note",
-          "staff_name"
+          "staff_name",
+          "variant_id",
+          "product_name",
+          "product_slug",
+          "scale_code",
+          "variant_name"
         ],
         "title": "SoldLineOut",
         "type": "object"

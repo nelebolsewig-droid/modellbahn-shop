@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { SaleFields, saleDraft, saleOf, type SaleDraft } from "./sale-fields";
+import { SalesInsights } from "./sales-insights";
 import { TillPanel } from "./till-panel";
 
 /** The page refreshes itself while it is open: Johann sells, the office watches. */
@@ -86,7 +87,9 @@ export function SalesDesk() {
   const [filter, setFilter] = useState<ReportChannel | "all">("all");
   const span = spanOf(choice);
   const report = useGetSalesReport(span, { query: { refetchInterval: REFRESH_MS, placeholderData: (previous) => previous } });
-  const fairs = useListAdminFairs({ query: { select: (list) => recentFairs(list.items) } });
+  const fairList = useListAdminFairs();
+  const allFairs = useMemo(() => fairList.data?.items ?? [], [fairList.data]);
+  const fairs = useMemo(() => recentFairs(allFairs), [allFairs]);
 
   const all = useMemo(() => report.data?.lines ?? [], [report.data]);
   const lines = useMemo(() => (filter === "all" ? all : all.filter((line) => line.channel === filter)), [all, filter]);
@@ -94,7 +97,7 @@ export function SalesDesk() {
 
   return (
     <div className="space-y-6">
-      <SpanPicker choice={choice} onChoose={setChoice} fairs={fairs.data ?? []} span={span} />
+      <SpanPicker choice={choice} onChoose={setChoice} fairs={fairs} span={span} />
 
       {report.isError ? <p className="text-small text-danger">{errorMessage(report.error)}</p> : null}
       {report.isPending ? <PendingNotice>Die Verkäufe werden zusammengezählt …</PendingNotice> : null}
@@ -104,6 +107,17 @@ export function SalesDesk() {
           <ChannelFilter channels={channels} total={all.length} value={filter} onChange={setFilter} />
           <Headline lines={lines} channels={filter === "all" ? channels : byChannel(lines)} span={span} refreshing={report.isFetching} />
           <TillPanel />
+          <SalesInsights
+            lines={lines}
+            span={span}
+            filter={filter}
+            fair={choice.kind === "fair" ? choice.fair : null}
+            fairs={allFairs}
+            onChooseFair={(fair) => {
+              setChoice({ kind: "fair", fair });
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
           <Course lines={lines} span={span} />
           <SaleList lines={lines} />
         </>

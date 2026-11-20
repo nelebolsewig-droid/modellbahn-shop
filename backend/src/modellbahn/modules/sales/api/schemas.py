@@ -827,6 +827,11 @@ class SoldLineOut(BaseModel):
     unit_code: str | None = Field(description="The piece's code; its sale can be corrected.")
     note: str
     staff_name: str | None = Field(description="Who booked the piece out.")
+    variant_id: UUID | None
+    product_name: str = Field(description="The model, for the evaluation by model.")
+    product_slug: str
+    scale_code: str = Field(examples=["H0"])
+    variant_name: str = Field(examples=["H0 · Fertigmodell, Gelb"])
 
     @classmethod
     def from_line(cls, line: SoldLine) -> Self:
@@ -846,6 +851,11 @@ class SoldLineOut(BaseModel):
             unit_code=line.unit_code,
             note=line.note,
             staff_name=line.staff_name,
+            variant_id=line.variant_id,
+            product_name=line.product_name,
+            product_slug=line.product_slug,
+            scale_code=line.scale_code,
+            variant_name=line.variant_name,
         )
 
 

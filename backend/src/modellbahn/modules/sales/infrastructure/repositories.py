@@ -506,6 +506,9 @@ class SqlSalesLedger:
                 order_lines.c.id,
                 order_lines.c.title,
                 order_lines.c.sku,
+                order_lines.c.variant_id,
+                order_lines.c.product_slug,
+                order_lines.c.scale_code,
                 order_lines.c.quantity,
                 order_lines.c.unit_price_cents,
                 orders.c.id.label("order_id"),
@@ -533,6 +536,12 @@ class SqlSalesLedger:
                 price_from_shop=False,
                 order_id=row.order_id,
                 order_number=row.number,
+                variant_id=row.variant_id,
+                product_slug=row.product_slug,
+                scale_code=row.scale_code,
+                # The line froze ``Model · Scale · Finish`` when it was ordered.
+                product_name=row.title.split(" · ", 1)[0],
+                variant_name=row.title.split(" · ", 1)[1] if " · " in row.title else "",
             )
             for row in rows
         ]
@@ -563,6 +572,11 @@ class SqlSalesLedger:
                     unit_code=piece.unit_code,
                     note=piece.note,
                     staff_name=names.get(piece.staff_id) if piece.staff_id else None,
+                    variant_id=piece.variant_id,
+                    product_name=variant.product_name if variant else "Unbekannter Artikel",
+                    product_slug=variant.product_slug if variant else "",
+                    scale_code=variant.scale_code if variant else "",
+                    variant_name=variant.variant_name if variant else "",
                 )
             )
         return lines

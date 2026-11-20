@@ -94,6 +94,13 @@ class TestSalesReport:
         assert (lines[first]["channel"], lines[first]["total_cents"]) == ("fair", 3500)
         assert (lines[first]["price_from_shop"], lines[first]["note"]) == (False, "Leipzig")
         assert lines[first]["staff_name"] == "Chefin"
+        # Model and scale, for the evaluation: the same for a piece and an order line.
+        (online_line,) = [line for line in body["lines"] if line["kind"] == "order_line"]
+        for line in (lines[first], online_line):
+            assert (line["scale_code"], line["variant_id"]) == ("H0", str(painted))
+            assert line["product_name"]
+            assert line["product_name"] in line["title"]
+            assert line["variant_name"].startswith("H0")
         assert (lines[second]["channel"], lines[second]["unit_price_cents"]) == (
             "unknown",
             shop_price,

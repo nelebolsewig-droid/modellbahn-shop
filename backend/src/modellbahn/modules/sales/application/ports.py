@@ -247,6 +247,15 @@ class SoldLine:
     unit_code: str | None = None
     note: str = ""
     staff_name: str | None = None
+    variant_id: UUID | None = None
+    """What was sold, for the evaluation by model and scale; empty if the catalogue lost it."""
+    product_name: str = ""
+    """``IFA ADK 70 Autokran``: the model, the same for all its scales and finishes."""
+    product_slug: str = ""
+    scale_code: str = ""
+    """``H0``, ``TT``: what the evaluation groups by besides the model."""
+    variant_name: str = ""
+    """``H0 · Fertigmodell, Gelb``: the variant without the model's name."""
 
     @property
     def total_cents(self) -> int:
