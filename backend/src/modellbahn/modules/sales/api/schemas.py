@@ -29,6 +29,7 @@ from modellbahn.modules.sales.domain.model import (
     CARRIER_MAX_LENGTH,
     EMAIL_MAX_LENGTH,
     LINE_MAX_QUANTITY,
+    REPAY_HOLDER_MAX_LENGTH,
     SHIPPING_ZONES,
     TRACKING_NUMBER_MAX_LENGTH,
     CancelReason,
@@ -522,6 +523,76 @@ class OrderPageOut(BaseModel):
         )
 
 
+class RepaymentOut(BaseModel):
+    """A bank transfer's refund that still has to be transferred back by hand (ADR 0040).
+
+    ``holder`` and ``iban`` are empty until the staff type them in from the bank
+    statement; then the GiroCode is at ``getRepaymentGirocode``.
+    """
+
+    amount_cents: Cents
+    holder: str | None = Field(examples=["Erika Mustermann"])
+    iban: str | None = Field(
+        description="In groups of four, as people read it.",
+        examples=["DE89 3704 0044 0532 0130 00"],
+    )
+    reference: str = Field(
+        description="The transfer's purpose, as the GiroCode carries it.",
+        examples=["Erstattung MB-2026-00042"],
+    )
+
+    @classmethod
+    def from_order(cls, order: Order) -> Self | None:
+        payment = order.repayment
+        if payment is None:
+            return None
+        iban = payment.repay_iban
+        return cls(
+            amount_cents=payment.repayment_due_cents,
+            holder=payment.repay_holder,
+            iban=" ".join(iban[i : i + 4] for i in range(0, len(iban), 4)) if iban else None,
+            reference=repayment_reference(order),
+        )
+
+
+def repayment_reference(order: Order) -> str:
+    return f"Erstattung {order.number}"
+
+
+class RepaymentAccountIn(_Request):
+    holder: str = Field(
+        min_length=1,
+        max_length=REPAY_HOLDER_MAX_LENGTH,
+        description="The account holder, as the bank statement names the sender.",
+    )
+    iban: str = Field(min_length=15, max_length=50, examples=["DE89 3704 0044 0532 0130 00"])
+
+
+class RepaymentSummaryOut(BaseModel):
+    """An open repayment in the Stellwerk's list."""
+
+    order_id: UUID
+    number: str
+    recipient: str
+    amount_cents: Cents
+    has_account: bool = Field(description="The IBAN is in: the GiroCode can be shown.")
+
+    @classmethod
+    def from_order(cls, order: Order) -> Self:
+        payment = order.repayment
+        return cls(
+            order_id=order.id,
+            number=order.number,
+            recipient=order.shipping_address.recipient,
+            amount_cents=payment.repayment_due_cents if payment else 0,
+            has_account=payment is not None and payment.repay_iban is not None,
+        )
+
+
+class RepaymentListOut(BaseModel):
+    items: list[RepaymentSummaryOut]
+
+
 class AdminOrderOut(OrderOut):
     """An order in the admin area: also who ordered, where, and the cancellation note."""
 
@@ -532,6 +603,9 @@ class AdminOrderOut(OrderOut):
     external_ref: str | None = Field(
         description="The marketplace's order number, e.g. eBay's 12-34567-89012.",
         examples=["12-34567-89012"],
+    )
+    repayment: RepaymentOut | None = Field(
+        description="A refund of a bank transfer that still has to be transferred back."
     )
 
     @classmethod
@@ -546,6 +620,7 @@ class AdminOrderOut(OrderOut):
             cancel_note=order.cancel_note,
             channel=order.channel,
             external_ref=order.external_ref,
+            repayment=RepaymentOut.from_order(order),
         )
 
 

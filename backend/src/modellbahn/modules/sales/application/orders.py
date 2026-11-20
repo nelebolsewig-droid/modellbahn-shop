@@ -20,6 +20,7 @@ from modellbahn.modules.sales.application.ports import (
     SalesUnitOfWork,
 )
 from modellbahn.modules.sales.domain.errors import (
+    InvalidOrderStateError,
     MarketplaceOrderError,
     OrderNotFoundError,
     OrderPiecesMissingError,
@@ -36,6 +37,7 @@ from modellbahn.platform.clock import Clock
 _logger = structlog.get_logger(__name__)
 
 OVERDUE_BATCH_SIZE = 100
+REPAYMENT_LIST_SIZE = 100
 
 
 async def check_shippable(uow: SalesUnitOfWork, order: Order) -> None:
@@ -205,6 +207,40 @@ class OrderService:
                 by_hand=by_hand,
             )
             return await order_details(uow, order)
+
+    async def set_repayment_account(
+        self, order_id: UUID, *, holder: str, iban: str
+    ) -> OrderDetails:
+        """Note the account an open repayment goes to, from the bank statement (ADR 0040)."""
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            payment = order.repayment
+            if payment is None:
+                msg = "nothing is waiting to be transferred back"
+                raise InvalidOrderStateError(msg)
+            payment.set_repay_account(holder, iban, self._clock.now())
+            await uow.commit()
+            return await order_details(uow, order)
+
+    async def mark_repaid(self, order_id: UUID) -> OrderDetails:
+        """The staff transferred a bank transfer's refund back; the account is forgotten."""
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            payment = order.repayment
+            if payment is None:
+                msg = "nothing is waiting to be transferred back"
+                raise InvalidOrderStateError(msg)
+            amount = payment.mark_repaid(self._clock.now())
+            await uow.commit()
+            _logger.info("sales.order.repaid", order=order.number, amount_cents=amount)
+            return await order_details(uow, order)
+
+    async def open_repayments(self) -> list[Order]:
+        """Orders whose refunded bank transfer still has to go back, oldest refund first."""
+        async with self._uow() as uow:
+            ids = await uow.orders.repayment_ids(REPAYMENT_LIST_SIZE)
+            found = [await uow.orders.get(order_id) for order_id in ids]
+            return [order for order in found if order is not None]
 
     async def settle_withdrawal(self, withdrawal_id: UUID) -> str:
         """What a withdrawal makes the shop do by itself (ADR 0020); the outcome, for the log.

@@ -552,9 +552,12 @@ def transfer_back_mail(order: Order, *, amount_cents: int, base_url: str) -> Mai
             "Bitte überweise den Betrag auf das Konto, von dem die Zahlung kam; es steht im "
             f"Kontoauszug bei der Überweisung mit dem Verwendungszweck {order.number}. Der "
             "Kunde hat schon eine E-Mail, dass das Geld zurückkommt.",
+            "Im Stellwerk trägst du Name und IBAN aus dem Kontoauszug ein. Dann zeigt es einen "
+            "QR-Code, den deine Banking-App scannt: Betrag, Empfänger und Verwendungszweck "
+            "sind ausgefüllt. Danach dort „Überwiesen“ antippen.",
         ),
         action=MailAction(
-            label="Bestellung im Stellwerk",
+            label="Rückzahlung im Stellwerk",
             url=f"{base_url}{ADMIN_ORDERS_PATH}/{order.id}",
         ),
     )

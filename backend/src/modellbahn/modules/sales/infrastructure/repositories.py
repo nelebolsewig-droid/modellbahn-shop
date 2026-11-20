@@ -208,6 +208,18 @@ class SqlOrderRepository:
         )
         return list((await self._session.execute(statement)).scalars())
 
+    async def repayment_ids(self, limit: int) -> list[UUID]:
+        statement = (
+            select(payments.c.order_id)
+            .where(
+                payments.c.provider == BANK_TRANSFER,
+                payments.c.refunded_cents > payments.c.repaid_cents,
+            )
+            .order_by(payments.c.updated_at)
+            .limit(limit)
+        )
+        return list((await self._session.execute(statement)).scalars())
+
 
 class SqlWithdrawalRepository:
     def __init__(self, session: AsyncSession) -> None:

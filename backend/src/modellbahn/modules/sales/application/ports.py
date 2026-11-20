@@ -100,6 +100,10 @@ class OrderRepository(Protocol):
         """Orders with a payment on this provider's page begun before the cut-off, oldest first."""
         ...
 
+    async def repayment_ids(self, limit: int) -> list[UUID]:
+        """Orders whose refunded bank transfer still has to go back, oldest refund first."""
+        ...
+
 
 class WithdrawalRepository(Protocol):
     def add(self, withdrawal: Withdrawal) -> None: ...

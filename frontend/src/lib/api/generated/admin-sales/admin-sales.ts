@@ -40,6 +40,8 @@ import type {
   OrderPageOut,
   Problem,
   RefundIn,
+  RepaymentAccountIn,
+  RepaymentListOut,
   SalesReportOut,
   ShipIn,
   ShippingLabelOut,
@@ -647,7 +649,270 @@ export const useRefundOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getRefundOrderMutationOptions(options), queryClient);
     }
-    export const getShipOrderUrl = (orderId: string,) => {
+    export const getSetRepaymentAccountUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/repayment`
+}
+
+/**
+ * Typed in from the bank statement, where the customer's transfer came from.
+ * @summary Where a bank transfer's refund goes back to: holder and IBAN (ADR 0040)
+ */
+export const setRepaymentAccount = async (orderId: string,
+    repaymentAccountIn: RepaymentAccountIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AdminOrderOut>(getSetRepaymentAccountUrl(orderId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(repaymentAccountIn)
+  }
+);}
+
+
+
+
+
+export const getSetRepaymentAccountMutationKey = () => ['setRepaymentAccount'] as const;
+
+export const getSetRepaymentAccountMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRepaymentAccount>>, TError,SetRepaymentAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setRepaymentAccount>>, TError,SetRepaymentAccountMutationVariables, TContext> => {
+
+const mutationKey = getSetRepaymentAccountMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setRepaymentAccount>>, SetRepaymentAccountMutationVariables> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  setRepaymentAccount(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetRepaymentAccountMutationResult = NonNullable<Awaited<ReturnType<typeof setRepaymentAccount>>>
+    export type SetRepaymentAccountMutationBody = RepaymentAccountIn
+    export type SetRepaymentAccountMutationError = ErrorType<Problem | ValidationProblem>
+    export type SetRepaymentAccountMutationVariables = {orderId: string;data: RepaymentAccountIn}
+
+    /**
+ * @summary Where a bank transfer's refund goes back to: holder and IBAN (ADR 0040)
+ */
+export const useSetRepaymentAccount = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRepaymentAccount>>, TError,SetRepaymentAccountMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setRepaymentAccount>>,
+        TError,
+        SetRepaymentAccountMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetRepaymentAccountMutationOptions(options), queryClient);
+    }
+    export const getMarkRepaidUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/repayment/done`
+}
+
+/**
+ * @summary The refund was transferred back; the account is forgotten (ADR 0040)
+ */
+export const markRepaid = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
+
+  return apiFetch<AdminOrderOut>(getMarkRepaidUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkRepaidMutationKey = () => ['markRepaid'] as const;
+
+export const getMarkRepaidMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markRepaid>>, TError,MarkRepaidMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markRepaid>>, TError,MarkRepaidMutationVariables, TContext> => {
+
+const mutationKey = getMarkRepaidMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markRepaid>>, MarkRepaidMutationVariables> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  markRepaid(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkRepaidMutationResult = NonNullable<Awaited<ReturnType<typeof markRepaid>>>
+
+    export type MarkRepaidMutationError = ErrorType<Problem | ValidationProblem>
+    export type MarkRepaidMutationVariables = {orderId: string}
+
+    /**
+ * @summary The refund was transferred back; the account is forgotten (ADR 0040)
+ */
+export const useMarkRepaid = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markRepaid>>, TError,MarkRepaidMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markRepaid>>,
+        TError,
+        MarkRepaidMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkRepaidMutationOptions(options), queryClient);
+    }
+    export const getGetRepaymentGirocodeUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/repayment/girocode.svg`
+}
+
+/**
+ * Only while a repayment is open and its account is in; otherwise 404.
+ * @summary The GiroCode of an open repayment, for the staff's banking app (ADR 0040)
+ */
+export const getRepaymentGirocode = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetRepaymentGirocodeUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRepaymentGirocodeQueryKey = (orderId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/repayment/girocode.svg`
+    ] as const;
+    }
+
+
+export const getGetRepaymentGirocodeQueryOptions = <TData = Awaited<ReturnType<typeof getRepaymentGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRepaymentGirocodeQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRepaymentGirocode>>> = ({ signal }) => getRepaymentGirocode(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRepaymentGirocodeQueryResult = NonNullable<Awaited<ReturnType<typeof getRepaymentGirocode>>>
+export type GetRepaymentGirocodeQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetRepaymentGirocode<TData = Awaited<ReturnType<typeof getRepaymentGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRepaymentGirocode>>,
+          TError,
+          Awaited<ReturnType<typeof getRepaymentGirocode>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRepaymentGirocode<TData = Awaited<ReturnType<typeof getRepaymentGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRepaymentGirocode>>,
+          TError,
+          Awaited<ReturnType<typeof getRepaymentGirocode>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRepaymentGirocode<TData = Awaited<ReturnType<typeof getRepaymentGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The GiroCode of an open repayment, for the staff's banking app (ADR 0040)
+ */
+
+export function useGetRepaymentGirocode<TData = Awaited<ReturnType<typeof getRepaymentGirocode>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRepaymentGirocode>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRepaymentGirocodeQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getShipOrderUrl = (orderId: string,) => {
 
 
 
@@ -1186,6 +1451,106 @@ export function useGetShippingLabelImage<TData = Awaited<ReturnType<typeof getSh
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetShippingLabelImageQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getListRepaymentsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/repayments`
+}
+
+/**
+ * @summary Refunds of bank transfers that still have to be transferred back (ADR 0040)
+ */
+export const listRepayments = async ( options?: Parameters<typeof apiFetch>[1]): Promise<RepaymentListOut> => {
+
+  return apiFetch<RepaymentListOut>(getListRepaymentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRepaymentsQueryKey = () => {
+    return [
+    `/api/v1/admin/repayments`
+    ] as const;
+    }
+
+
+export const getListRepaymentsQueryOptions = <TData = Awaited<ReturnType<typeof listRepayments>>, TError = ErrorType<Problem>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRepaymentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRepayments>>> = ({ signal }) => listRepayments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRepaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof listRepayments>>>
+export type ListRepaymentsQueryError = ErrorType<Problem>
+
+
+export function useListRepayments<TData = Awaited<ReturnType<typeof listRepayments>>, TError = ErrorType<Problem>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRepayments>>,
+          TError,
+          Awaited<ReturnType<typeof listRepayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRepayments<TData = Awaited<ReturnType<typeof listRepayments>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRepayments>>,
+          TError,
+          Awaited<ReturnType<typeof listRepayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRepayments<TData = Awaited<ReturnType<typeof listRepayments>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Refunds of bank transfers that still have to be transferred back (ADR 0040)
+ */
+
+export function useListRepayments<TData = Awaited<ReturnType<typeof listRepayments>>, TError = ErrorType<Problem>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRepayments>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRepaymentsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

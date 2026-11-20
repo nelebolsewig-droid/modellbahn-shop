@@ -67,6 +67,7 @@ function adminOrder(overrides: Partial<AdminOrderOut> = {}): AdminOrderOut {
     cancel_note: "",
     channel: "shop",
     external_ref: null,
+    repayment: null,
     ...overrides,
   };
 }
@@ -398,7 +399,7 @@ describe("OrderDesk", () => {
 
     await user.click(await screen.findByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByRole("button", { name: /nur vermerken/ })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Schon in SumUp erstattet, nur vermerken" })).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Erstatten" }));
 
     expect(await within(dialog).findByText(/SumUp hat die Erstattung abgelehnt/)).toBeInTheDocument();
@@ -410,6 +411,100 @@ describe("OrderDesk", () => {
       amount_cents: 7990,
       refunded_by_hand: true,
     });
+  });
+
+  it("records a refund made in SumUp beforehand without asking SumUp", async () => {
+    const payment = {
+      status: "captured" as const,
+      amount_cents: 7990,
+      refunded_cents: 0,
+      provider: "sumup",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const shipped = adminOrder({ status: "shipped", shipped_at: "2026-10-26T09:00:00Z", payments: [payment] });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(shipped),
+      [PICK_LIST]: () => jsonResponse(pickList("picked")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+      "POST /api/v1/admin/orders/o1/refunds": () =>
+        jsonResponse({ ...shipped, payments: [{ ...payment, status: "refunded", refunded_cents: 7990 }] }),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: /^Rücksendung erhalten – 79,90\s€ erstatten$/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Schon in SumUp erstattet, nur vermerken" }));
+
+    expect(await screen.findByText("Erstattet: 79,90 €. Es ist nichts mehr offen.")).toBeInTheDocument();
+    const requests = requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/refunds");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.body).toEqual({ amount_cents: 7990, refunded_by_hand: true });
+  });
+
+  it("leads from a refunded transfer to the GiroCode and on to done", async () => {
+    const payment = {
+      status: "refunded" as const,
+      amount_cents: 7990,
+      refunded_cents: 7990,
+      provider: "bank_transfer",
+      failure_code: null,
+      created_at: "2026-10-25T09:02:00Z",
+    };
+    const repayment = {
+      amount_cents: 7990,
+      holder: null,
+      iban: null,
+      reference: "Erstattung MB-2026-00042",
+    };
+    const cancelled = adminOrder({
+      status: "cancelled",
+      cancelled_at: "2026-10-26T09:00:00Z",
+      cancel_reason: "by_shop",
+      payments: [payment],
+      repayment,
+    });
+    const withAccount = adminOrder({
+      ...cancelled,
+      repayment: { ...repayment, holder: "Erika Mustermann", iban: "DE89 3704 0044 0532 0130 00" },
+    });
+    routeFetch(fetchMock, {
+      [ORDER]: () => jsonResponse(cancelled),
+      [PICK_LIST]: () => jsonResponse(pickList("reserved")),
+      "GET /api/v1/admin/withdrawals": () => jsonResponse({ items: [] }),
+      "PUT /api/v1/admin/orders/o1/repayment": () => jsonResponse(withAccount),
+      "POST /api/v1/admin/orders/o1/repayment/done": () => jsonResponse({ ...withAccount, repayment: null }),
+    });
+    const user = userEvent.setup();
+    renderWithQueryClient(<OrderDesk orderId="o1" staffRole="staff" onStreamClosed={vi.fn()} />);
+
+    expect(await screen.findByText("Geld zurücküberweisen")).toBeInTheDocument();
+    const form = screen.getByRole("form", { name: "Konto für die Rückzahlung" });
+    expect(within(form).getByLabelText(/Kontoinhaber/)).toHaveValue("Erika Mustermann");
+    const iban = within(form).getByLabelText("IBAN");
+    await user.type(iban, "DE89 3704 0044 0532 0130 01");
+    await user.click(within(form).getByRole("button", { name: "QR-Code zeigen" }));
+    expect(await within(form).findByText(/Diese IBAN stimmt nicht/)).toBeInTheDocument();
+    expect(requestsTo(fetchMock, "PUT /api/v1/admin/orders/o1/repayment")).toHaveLength(0);
+
+    await user.clear(iban);
+    await user.type(iban, "de89 3704 0044 0532 0130 00");
+    await user.click(within(form).getByRole("button", { name: "QR-Code zeigen" }));
+    const code = await screen.findByRole("img", { name: /GiroCode: 79,90\s€ an Erika Mustermann/ });
+    expect(code.getAttribute("src")).toMatch(/^\/api\/v1\/admin\/orders\/o1\/repayment\/girocode\.svg/);
+    expect(requestsTo(fetchMock, "PUT /api/v1/admin/orders/o1/repayment")[0]?.body).toEqual({
+      holder: "Erika Mustermann",
+      iban: "de89 3704 0044 0532 0130 00",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Überwiesen" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ja, ist überwiesen" }));
+    await waitFor(() => expect(screen.queryByRole("img", { name: /GiroCode/ })).toBeNull());
+    expect(screen.queryByText("Geld zurücküberweisen")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Rückzahlung" })).toBeNull();
+    expect(requestsTo(fetchMock, "POST /api/v1/admin/orders/o1/repayment/done")).toHaveLength(1);
   });
 
   it("refunds only the articles that came back", async () => {

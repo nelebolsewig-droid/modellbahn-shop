@@ -226,6 +226,11 @@ payments = Table(
     Column("transaction_ref", Text),
     # What went back so far (ADR 0020): part after a return, all of it when refunded.
     Column("refunded_cents", Integer, nullable=False, server_default=text("0")),
+    # A bank transfer's refunds go back by hand (ADR 0040): what was transferred back so
+    # far, and while some is open the account it goes to (forgotten once repaid).
+    Column("repaid_cents", Integer, nullable=False, server_default=text("0")),
+    Column("repay_holder", Text),
+    Column("repay_iban", Text),
     CheckConstraint("status IN ('pending', 'captured', 'failed', 'refunded')", name="status"),
     CheckConstraint("amount_cents >= 0", name="amount_non_negative"),
     CheckConstraint("request_fingerprint ~ '^[0-9a-f]{64}$'", name="request_fingerprint_format"),
@@ -241,6 +246,10 @@ payments = Table(
     CheckConstraint(
         "status <> 'refunded' OR refunded_cents = amount_cents", name="refunded_in_full"
     ),
+    CheckConstraint(
+        "repaid_cents >= 0 AND repaid_cents <= refunded_cents", name="repaid_cents_range"
+    ),
+    CheckConstraint("(repay_holder IS NULL) = (repay_iban IS NULL)", name="repay_account_complete"),
     Index("payments_provider_ref_idx", "provider", "provider_ref", unique=True),
     Index("payments_order_idx", "order_id"),
     # One trip to the provider's page at a time; the open ones are what the worker checks.
