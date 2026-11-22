@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from modellbahn.platform.bank import BankAccount, bic_is_valid, iban_is_valid, normalise_iban
 from modellbahn.platform.imprint import Imprint
+from modellbahn.platform.whatsapp import WhatsAppRecipient, parse_recipients
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -150,6 +151,8 @@ class Settings(BaseSettings):
     autoplan: bool = True
     digest_emails: str = ""
     """More addresses for the morning mail, comma-separated, beside MB_IMPRINT_EMAIL."""
+    digest_whatsapp: SecretStr = SecretStr("")
+    """The morning overview by WhatsApp (ADR 0045): ``+49170…:CALLMEBOT-KEY``, comma-separated."""
 
     log_level: LogLevel = "INFO"
 
@@ -468,6 +471,11 @@ class Settings(BaseSettings):
             if address := address.strip():
                 found.setdefault(address.lower(), address)
         return tuple(found.values())
+
+    @property
+    def digest_whatsapp_recipients(self) -> tuple[WhatsAppRecipient, ...]:
+        """Who gets the morning overview by WhatsApp, from MB_DIGEST_WHATSAPP."""
+        return parse_recipients(self.digest_whatsapp.get_secret_value())
 
     @property
     def imprint(self) -> Imprint:

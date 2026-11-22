@@ -4,6 +4,7 @@ waits to be packed, made and printed, and what came in yesterday.
 
 The worker asks every few minutes; from 7 o'clock shop time the first ask of the day
 claims the day and sends. A mail that fails rolls the claim back, the next ask tries again.
+The same overview can also go out as a WhatsApp note (ADR 0045), after the mails.
 """
 
 from datetime import time
@@ -15,6 +16,7 @@ from modellbahn.modules.sales.application import mails
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
 from modellbahn.platform.clock import Clock
 from modellbahn.platform.mail import Mailer, compose
+from modellbahn.platform.whatsapp import Messenger
 
 _logger = structlog.get_logger(__name__)
 
@@ -34,6 +36,7 @@ class MorningDigest:
         public_base_url: str,
         shop_name: str,
         sender: tuple[str, ...] = (),
+        messenger: Messenger | None = None,
     ) -> None:
         self._uow = uow_factory
         self._clock = clock
@@ -42,10 +45,11 @@ class MorningDigest:
         self._base_url = public_base_url
         self._shop_name = shop_name
         self._sender = sender
+        self._messenger = messenger
 
     async def send_if_due(self) -> bool:
         """Send today's mail if it is time and nobody has; True if this call sent it."""
-        if not self._recipients:
+        if not self._recipients and self._messenger is None:
             return False
         now = self._clock.now()
         local = now.astimezone(mails.SHOP_TIME_ZONE)
@@ -61,6 +65,8 @@ class MorningDigest:
                     compose(content, to=address, shop_name=self._shop_name, sender=self._sender)
                 )
             await uow.commit()
+        if self._messenger is not None:
+            await self._messenger.send(mails.morning_chat(content))
         _logger.info(
             "sales.digest.sent",
             day=local.date().isoformat(),

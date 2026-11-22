@@ -25,6 +25,7 @@ from modellbahn.modules.sales.application.ports import PaymentGateway
 from modellbahn.modules.sales.domain.model import Order
 from modellbahn.platform.clock import FixedClock
 from modellbahn.platform.mail import InMemoryMailer
+from modellbahn.platform.whatsapp import InMemoryMessenger
 from tests.conftest import PUBLIC_BASE_URL, SHOP_EMAIL, SHOP_NAME, Deliver
 from tests.integration.test_manufacturing_service import resin_part, resin_printer
 from tests.integration.test_sales_late_backorder import CUSTOMER, by_transfer, deliver_all
@@ -163,8 +164,16 @@ class TestMakingStarted:
 
 class TestMorningDigest:
     @pytest.fixture
+    def whatsapp(self) -> InMemoryMessenger:
+        return InMemoryMessenger()
+
+    @pytest.fixture
     def digest(
-        self, sales_uow: SalesUnitOfWorkFactory, clock: FixedClock, mailer: InMemoryMailer
+        self,
+        sales_uow: SalesUnitOfWorkFactory,
+        clock: FixedClock,
+        mailer: InMemoryMailer,
+        whatsapp: InMemoryMessenger,
     ) -> MorningDigest:
         return MorningDigest(
             uow_factory=sales_uow,
@@ -173,6 +182,7 @@ class TestMorningDigest:
             recipients=(SHOP_EMAIL, "werkstatt@example.com"),
             public_base_url=PUBLIC_BASE_URL,
             shop_name=SHOP_NAME,
+            messenger=whatsapp,
         )
 
     async def test_once_a_morning_with_the_days_work(
@@ -184,6 +194,7 @@ class TestMorningDigest:
         clock: FixedClock,
         mailer: InMemoryMailer,
         digest: MorningDigest,
+        whatsapp: InMemoryMessenger,
         kit: UUID,
     ) -> None:
         await paid_order(carts, checkout, orders, kit, 2)
@@ -199,6 +210,10 @@ class TestMorningDigest:
         assert "Freitag, 23.10." in mail.text
         assert "2 Stück für 1 Bestellung" in mail.text
         assert "1 Bestellung ·" in mail.text  # paid yesterday
+        [note] = whatsapp.sent
+        assert note.startswith(f"*{mail.subject}*")
+        assert "In der Werkstatt: 2 Stück für 1 Bestellung" in note
+        assert note.endswith("/admin")
         [copy] = [
             m for m in mails_to(mailer, "werkstatt@example.com") if m.subject.startswith("Heute")
         ]

@@ -286,6 +286,15 @@ def morning_mail(facts: DigestFacts, *, day: date, base_url: str) -> MailContent
     )
 
 
+def morning_chat(content: MailContent) -> str:
+    """The morning mail as a short WhatsApp note (ADR 0045): headline, figures, link."""
+    lines = [f"*{content.subject}*", ""]
+    lines += [f"{row.label}: {row.value}" for row in content.rows]
+    if content.action:
+        lines += ["", content.action.url]
+    return "\n".join(lines)
+
+
 DHL_TRACKING_URL: Final = (
     "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="
 )
