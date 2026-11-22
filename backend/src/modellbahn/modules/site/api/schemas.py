@@ -147,6 +147,21 @@ class SubscriptionCountsOut(BaseModel):
     pending: int = Field(description="Asked, not confirmed yet; deleted after a week.")
 
 
+# --- Visitors -------------------------------------------------------------------------
+
+
+class VisitDayOut(BaseModel):
+    day: date
+    visitors: int = Field(description="Different visitors that day (address and browser).")
+    page_views: int
+
+
+class VisitsOut(BaseModel):
+    """The last days up to today, the oldest first; days without visits count 0."""
+
+    days: list[VisitDayOut]
+
+
 # --- Imprint --------------------------------------------------------------------------
 
 

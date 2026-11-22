@@ -11,6 +11,9 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
+    LargeBinary,
+    PrimaryKeyConstraint,
     Table,
     Text,
     UniqueConstraint,
@@ -88,5 +91,26 @@ mailings = Table(
         primary_key=True,
     ),
     Column("sent_at", DateTime(timezone=True), nullable=False),
+    schema=SCHEMA,
+)
+
+# Visitors per day (ADR 0043, migration 0030). The salt lives as long as its day.
+visit_days = Table(
+    "visit_days",
+    metadata,
+    Column("day", Date, primary_key=True),
+    Column("salt", LargeBinary),
+    Column("visitors", Integer, nullable=False),
+    Column("page_views", Integer, nullable=False),
+    CheckConstraint("visitors >= 0 AND page_views >= visitors", name="counts"),
+    schema=SCHEMA,
+)
+
+visit_marks = Table(
+    "visit_marks",
+    metadata,
+    Column("day", Date, nullable=False),
+    Column("mark", Text, nullable=False),
+    PrimaryKeyConstraint("day", "mark"),
     schema=SCHEMA,
 )

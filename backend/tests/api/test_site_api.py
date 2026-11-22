@@ -148,3 +148,26 @@ class TestImprint:
             "complete": True,
             "site_url": PUBLIC_BASE_URL,
         }
+
+
+class TestVisits:
+    async def test_the_shop_counts_and_the_office_sees_it(
+        self, client: AsyncClient, staff_client: AsyncClient, packer_client: AsyncClient
+    ) -> None:
+        browser = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Firefox/132.0"}
+        for _ in range(2):
+            response = await client.post(f"{SHOP}/visits", headers=browser)
+            assert response.status_code == 204, response.text
+
+        shown = await staff_client.get("/api/v1/admin/visits", params={"days": 7})
+        assert shown.status_code == 200
+        days = shown.json()["days"]
+        assert len(days) == 7
+        assert (days[-1]["visitors"], days[-1]["page_views"]) == (1, 2)
+
+        assert (await packer_client.get("/api/v1/admin/visits")).status_code == 403
+
+    async def test_needs_the_client_header(self, make_client: Any) -> None:
+        async with make_client(csrf=False) as bare:
+            response = await bare.post(f"{SHOP}/visits")
+        assert response.status_code == 403

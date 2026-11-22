@@ -310,6 +310,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/store/fair-news/subscriptions"): ("subscribeFairNews", "store-site"),
     ("POST", "/api/v1/store/fair-news/confirmations"): ("confirmFairNews", "store-site"),
     ("POST", "/api/v1/store/fair-news/unsubscriptions"): ("unsubscribeFairNews", "store-site"),
+    ("POST", "/api/v1/store/visits"): ("recordVisit", "store-site"),
     ("GET", "/api/v1/store/imprint"): ("getImprint", "store-site"),
     ("GET", "/api/v1/admin/fairs"): ("listAdminFairs", "admin-site"),
     ("POST", "/api/v1/admin/fairs"): ("createFair", "admin-site"),
@@ -317,6 +318,7 @@ EXPECTED_OPERATIONS = {
     ("DELETE", "/api/v1/admin/fairs/{fair_id}"): ("deleteFair", "admin-site"),
     ("POST", "/api/v1/admin/fairs/{fair_id}/announcement"): ("announceFair", "admin-site"),
     ("GET", "/api/v1/admin/fair-news"): ("getFairNewsCounts", "admin-site"),
+    ("GET", "/api/v1/admin/visits"): ("listVisits", "admin-site"),
     ("GET", "/api/v1/admin/marketplace/ebay"): ("getEbayStatus", "admin-marketplace"),
     ("POST", "/api/v1/admin/marketplace/ebay/connect"): ("connectEbay", "admin-marketplace"),
     ("POST", "/api/v1/admin/marketplace/ebay/disconnect"): (

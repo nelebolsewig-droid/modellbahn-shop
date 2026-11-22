@@ -35,9 +35,11 @@ import type {
   AdminFairOut,
   AnnouncementOut,
   FairIn,
+  ListVisitsParams,
   Problem,
   SubscriptionCountsOut,
-  ValidationProblem
+  ValidationProblem,
+  VisitsOut
 } from '../model';
 
 import { apiFetch } from '../../fetcher';
@@ -584,3 +586,110 @@ export const useAnnounceFair = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getAnnounceFairMutationOptions(options), queryClient);
     }
+    export const getListVisitsUrl = (params?: ListVisitsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/visits?${stringifiedParams}` : `/api/v1/admin/visits`
+}
+
+/**
+ * @summary Visitors and page views of the shop per day
+ */
+export const listVisits = async (params?: ListVisitsParams, options?: Parameters<typeof apiFetch>[1]): Promise<VisitsOut> => {
+
+  return apiFetch<VisitsOut>(getListVisitsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVisitsQueryKey = (params?: ListVisitsParams,) => {
+    return [
+    `/api/v1/admin/visits`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListVisitsQueryOptions = <TData = Awaited<ReturnType<typeof listVisits>>, TError = ErrorType<Problem | ValidationProblem>>(params?: ListVisitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVisitsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVisits>>> = ({ signal }) => listVisits(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListVisitsQueryResult = NonNullable<Awaited<ReturnType<typeof listVisits>>>
+export type ListVisitsQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useListVisits<TData = Awaited<ReturnType<typeof listVisits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params: undefined |  ListVisitsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVisits>>,
+          TError,
+          Awaited<ReturnType<typeof listVisits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVisits<TData = Awaited<ReturnType<typeof listVisits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListVisitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVisits>>,
+          TError,
+          Awaited<ReturnType<typeof listVisits>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVisits<TData = Awaited<ReturnType<typeof listVisits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListVisitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Visitors and page views of the shop per day
+ */
+
+export function useListVisits<TData = Awaited<ReturnType<typeof listVisits>>, TError = ErrorType<Problem | ValidationProblem>>(
+ params?: ListVisitsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVisits>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListVisitsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

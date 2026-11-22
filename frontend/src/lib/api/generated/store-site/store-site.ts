@@ -725,3 +725,78 @@ export function useGetImprint<TData = Awaited<ReturnType<typeof getImprint>>, TE
 
 
 
+export const getRecordVisitUrl = () => {
+
+
+
+
+  return `/api/v1/store/visits`
+}
+
+/**
+ * The shop sends this once per page. The visitor is hashed with a salt of the day
+ * and forgotten the day after (ADR 0043).
+ * @summary Count a page view of the shop (no cookie, nothing kept about the visitor)
+ */
+export const recordVisit = async ( options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRecordVisitUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRecordVisitMutationKey = () => ['recordVisit'] as const;
+
+export const getRecordVisitMutationOptions = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordVisit>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordVisit>>, TError,void, TContext> => {
+
+const mutationKey = getRecordVisitMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordVisit>>, void> = () => {
+
+
+          return  recordVisit(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordVisitMutationResult = NonNullable<Awaited<ReturnType<typeof recordVisit>>>
+
+    export type RecordVisitMutationError = ErrorType<Problem>
+
+
+    /**
+ * @summary Count a page view of the shop (no cookie, nothing kept about the visitor)
+ */
+export const useRecordVisit = <TError = ErrorType<Problem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordVisit>>, TError,void, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof recordVisit>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRecordVisitMutationOptions(options), queryClient);
+    }

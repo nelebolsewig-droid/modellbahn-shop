@@ -269,3 +269,12 @@ class Mailing:
     fair_id: UUID
     subscription_id: UUID
     sent_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class VisitDay:
+    """One day of the shop: how many visitors came and how many pages they looked at."""
+
+    day: date
+    visitors: int
+    page_views: int

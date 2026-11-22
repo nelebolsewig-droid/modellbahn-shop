@@ -228,6 +228,8 @@ WRITABLE_TABLES = (
     "marketplace.listings",
     "marketplace.category_map",
     "marketplace.ebay_account",
+    "site.visit_marks",
+    "site.visit_days",
     "site.mailings",
     "site.subscriptions",
     "site.fairs",
