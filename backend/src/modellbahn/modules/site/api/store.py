@@ -39,10 +39,11 @@ _CALENDAR_CONTENT: Final = {"text/calendar": {"schema": {"type": "string"}}}
 )
 async def list_fairs(response: Response, service: FairServiceDep) -> FairCalendarOut:
     fairs = await service.calendar()
+    images = await service.images([*fairs.upcoming, *fairs.past])
     response.headers["Cache-Control"] = FAIRS_CACHE_CONTROL
     return FairCalendarOut(
-        upcoming=[FairOut.from_fair(fair) for fair in fairs.upcoming],
-        past=[FairOut.from_fair(fair) for fair in fairs.past],
+        upcoming=[FairOut.from_fair(fair, images) for fair in fairs.upcoming],
+        past=[FairOut.from_fair(fair, images) for fair in fairs.past],
     )
 
 

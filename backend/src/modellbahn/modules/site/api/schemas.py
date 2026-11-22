@@ -1,11 +1,13 @@
 """Request and response bodies of the site API."""
 
+from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modellbahn.modules.media.contracts.images import ImageView, RenditionFormat
 from modellbahn.modules.site.domain.dates import date_range
 from modellbahn.modules.site.domain.model import (
     BOOTH_MAX_LENGTH,
@@ -31,6 +33,52 @@ class _Request(BaseModel):
 # --- Fairs ----------------------------------------------------------------------------
 
 
+class FairImageRenditionOut(BaseModel):
+    name: str = Field(examples=["md"])
+    format: RenditionFormat
+    width: int
+    height: int
+    url: str
+
+
+class FairImageOut(BaseModel):
+    """The photo of a fair. ``ready`` once its sizes exist; the shop only gets ready ones."""
+
+    asset_id: UUID
+    ready: bool
+    failed: bool
+    width: int | None
+    height: int | None
+    dominant_color: str | None
+    lqip: str | None
+    renditions: list[FairImageRenditionOut]
+
+    @classmethod
+    def from_view(cls, view: ImageView) -> Self:
+        return cls(
+            asset_id=view.asset_id,
+            ready=view.is_ready,
+            failed=view.failure_code is not None and not view.is_ready,
+            width=view.width,
+            height=view.height,
+            dominant_color=view.dominant_color,
+            lqip=view.lqip,
+            renditions=[
+                FairImageRenditionOut.model_validate(r, from_attributes=True)
+                for r in view.renditions
+            ],
+        )
+
+
+def _image(
+    fair: Fair, images: Mapping[UUID, ImageView], *, ready_only: bool
+) -> FairImageOut | None:
+    view = images.get(fair.image_asset_id) if fair.image_asset_id is not None else None
+    if view is None or (ready_only and not view.is_ready):
+        return None
+    return FairImageOut.from_view(view)
+
+
 class FairOut(BaseModel):
     """A fair as the shop shows it."""
 
@@ -47,9 +95,10 @@ class FairOut(BaseModel):
     starts_on: date
     ends_on: date
     when: str = Field(description="The dates in German.", examples=["7. November 2026"])
+    image: FairImageOut | None = Field(default=None, description="A photo of the fair, if any.")
 
     @classmethod
-    def from_fair(cls, fair: Fair) -> Self:
+    def from_fair(cls, fair: Fair, images: Mapping[UUID, ImageView] | None = None) -> Self:
         return cls(
             id=fair.id,
             name=fair.name,
@@ -64,6 +113,7 @@ class FairOut(BaseModel):
             starts_on=fair.starts_on,
             ends_on=fair.ends_on,
             when=date_range(fair.starts_on, fair.ends_on),
+            image=_image(fair, images or {}, ready_only=True),
         )
 
 
@@ -79,9 +129,11 @@ class AdminFairOut(FairOut):
     updated_at: datetime
 
     @classmethod
-    def from_fair(cls, fair: Fair) -> Self:
+    def from_fair(cls, fair: Fair, images: Mapping[UUID, ImageView] | None = None) -> Self:
         return cls(
-            **FairOut.from_fair(fair).model_dump(),
+            **FairOut.from_fair(fair).model_dump(exclude={"image"}),
+            # Staff see the photo while it is still being processed, too.
+            image=_image(fair, images or {}, ready_only=False),
             published=fair.published,
             announced_at=fair.announced_at,
             created_at=fair.created_at,
@@ -123,6 +175,12 @@ class FairIn(_Request):
             starts_on=self.starts_on,
             ends_on=self.ends_on,
         )
+
+
+class FairImageIn(_Request):
+    """The photo to show with the fair; ``null`` takes it away."""
+
+    asset_id: UUID | None
 
 
 class AnnouncementOut(BaseModel):

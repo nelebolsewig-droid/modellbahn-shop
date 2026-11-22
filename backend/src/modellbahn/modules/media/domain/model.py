@@ -171,8 +171,11 @@ class Asset:
         sha256: str,
         uploaded_by: UUID | None,
         now: datetime,
+        studio: bool = True,
     ) -> "Asset":
-        """A new asset waiting for its upload. Only images are accepted so far."""
+        """A new asset waiting for its upload. Only images are accepted so far.
+
+        ``studio=False`` keeps the photo as taken (a booth photo, say: nothing to cut out)."""
         if kind is not AssetKind.IMAGE:
             raise UploadRejectedError(UploadRule.UNSUPPORTED_KIND, "kind")
         checksum = check_image_upload(mime_type=mime_type, size_bytes=size_bytes, sha256=sha256)
@@ -193,6 +196,7 @@ class Asset:
             created_at=now,
             updated_at=now,
             ready_at=None,
+            studio=studio,
         )
 
     @property

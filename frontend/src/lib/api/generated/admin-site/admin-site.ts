@@ -34,6 +34,7 @@ import type {
   AdminFairListOut,
   AdminFairOut,
   AnnouncementOut,
+  FairImageIn,
   FairIn,
   ListVisitsParams,
   Problem,
@@ -585,6 +586,96 @@ export const useAnnounceFair = <TError = ErrorType<Problem | ValidationProblem>,
         TContext
       > => {
       return useMutation(getAnnounceFairMutationOptions(options), queryClient);
+    }
+    export const getSetFairImageUrl = (fairId: string,) => {
+
+
+
+
+  return `/api/v1/admin/fairs/${fairId}/image`
+}
+
+/**
+ * Upload the photo via ``/admin/media/uploads`` first (``studio: false``: a booth
+ * photo stays as taken), then name it here. It shows once the worker has its sizes.
+ * @summary Show a photo with the fair (an uploaded image), or take it away
+ */
+export const setFairImage = async (fairId: string,
+    fairImageIn: FairImageIn, options?: Parameters<typeof apiFetch>[1]): Promise<AdminFairOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<AdminFairOut>(getSetFairImageUrl(fairId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fairImageIn)
+  }
+);}
+
+
+
+
+
+export const getSetFairImageMutationKey = () => ['setFairImage'] as const;
+
+export const getSetFairImageMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFairImage>>, TError,SetFairImageMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setFairImage>>, TError,SetFairImageMutationVariables, TContext> => {
+
+const mutationKey = getSetFairImageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setFairImage>>, SetFairImageMutationVariables> = (props) => {
+          const {fairId,data} = props ?? {};
+
+          return  setFairImage(fairId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetFairImageMutationResult = NonNullable<Awaited<ReturnType<typeof setFairImage>>>
+    export type SetFairImageMutationBody = FairImageIn
+    export type SetFairImageMutationError = ErrorType<Problem | ValidationProblem>
+    export type SetFairImageMutationVariables = {fairId: string;data: FairImageIn}
+
+    /**
+ * @summary Show a photo with the fair (an uploaded image), or take it away
+ */
+export const useSetFairImage = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFairImage>>, TError,SetFairImageMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setFairImage>>,
+        TError,
+        SetFairImageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetFairImageMutationOptions(options), queryClient);
     }
     export const getListVisitsUrl = (params?: ListVisitsParams,) => {
   const normalizedParams = new URLSearchParams();

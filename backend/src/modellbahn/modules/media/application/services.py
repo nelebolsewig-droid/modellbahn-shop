@@ -74,6 +74,7 @@ class MediaService:
         size_bytes: int,
         sha256: str,
         uploaded_by: UUID | None,
+        studio: bool = True,
     ) -> UploadTicket:
         """Announce an image upload and get a signed URL for it.
 
@@ -85,12 +86,12 @@ class MediaService:
         filename = normalize_filename(filename)
         try:
             asset = await self._find_or_announce(
-                filename, mime_type, size_bytes, checksum, uploaded_by
+                filename, mime_type, size_bytes, checksum, uploaded_by, studio=studio
             )
         except UniqueViolationError:
             # A concurrent request announced the same file first; use that asset.
             asset = await self._find_or_announce(
-                filename, mime_type, size_bytes, checksum, uploaded_by
+                filename, mime_type, size_bytes, checksum, uploaded_by, studio=studio
             )
         if not asset.awaits_upload:
             return UploadTicket(asset=asset, upload=None)
@@ -115,6 +116,8 @@ class MediaService:
         size_bytes: int,
         sha256: str,
         uploaded_by: UUID | None,
+        *,
+        studio: bool = True,
     ) -> Asset:
         now = self._clock.now()
         async with self._uow() as uow:
@@ -133,6 +136,7 @@ class MediaService:
                     sha256=sha256,
                     uploaded_by=uploaded_by,
                     now=now,
+                    studio=studio,
                 )
                 uow.assets.add(asset)
             await uow.commit()

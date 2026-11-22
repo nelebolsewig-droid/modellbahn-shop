@@ -255,6 +255,17 @@
             "title": "Id",
             "type": "string"
           },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FairImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A photo of the fair, if any."
+          },
           "name": {
             "examples": [
               "Kleinserienmesse Dresden"
@@ -2443,6 +2454,145 @@
         "title": "FairCalendarOut",
         "type": "object"
       },
+      "FairImageIn": {
+        "additionalProperties": false,
+        "description": "The photo to show with the fair; ``null`` takes it away.",
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          }
+        },
+        "required": [
+          "asset_id"
+        ],
+        "title": "FairImageIn",
+        "type": "object"
+      },
+      "FairImageOut": {
+        "description": "The photo of a fair. ``ready`` once its sizes exist; the shop only gets ready ones.",
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "dominant_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dominant Color"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "lqip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lqip"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "renditions": {
+            "items": {
+              "$ref": "#/components/schemas/FairImageRenditionOut"
+            },
+            "title": "Renditions",
+            "type": "array"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "asset_id",
+          "ready",
+          "failed",
+          "width",
+          "height",
+          "dominant_color",
+          "lqip",
+          "renditions"
+        ],
+        "title": "FairImageOut",
+        "type": "object"
+      },
+      "FairImageRenditionOut": {
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/RenditionFormat"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "md"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "format",
+          "width",
+          "height",
+          "url"
+        ],
+        "title": "FairImageRenditionOut",
+        "type": "object"
+      },
       "FairIn": {
         "additionalProperties": false,
         "description": "Everything about a fair; editing sends all of it again.",
@@ -2557,6 +2707,17 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FairImageOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A photo of the fair, if any."
           },
           "name": {
             "examples": [
@@ -12763,6 +12924,11 @@
             "minimum": 1.0,
             "title": "Size Bytes",
             "type": "integer"
+          },
+          "studio": {
+            "default": true,
+            "title": "Studio",
+            "type": "boolean"
           }
         },
         "required": [
@@ -15245,6 +15411,115 @@
           }
         ],
         "summary": "Mail the fair to every confirmed subscriber of the fair news (once)",
+        "tags": [
+          "admin-site"
+        ]
+      }
+    },
+    "/api/v1/admin/fairs/{fair_id}/image": {
+      "put": {
+        "description": "Upload the photo via ``/admin/media/uploads`` first (``studio: false``: a booth\nphoto stays as taken), then name it here. It shows once the worker has its sizes.",
+        "operationId": "setFairImage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fair_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fair Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FairImageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFairOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`, `insufficient_role`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found. Problem codes: `fair_image_not_found`, `fair_not_found`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Show a photo with the fair (an uploaded image), or take it away",
         "tags": [
           "admin-site"
         ]

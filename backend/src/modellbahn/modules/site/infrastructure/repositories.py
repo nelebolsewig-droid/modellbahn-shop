@@ -3,7 +3,7 @@
 Repositories only read and stage changes; committing is the unit of work's job.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import date, datetime
 from functools import partial
 from uuid import UUID
@@ -12,6 +12,7 @@ from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from modellbahn.modules.media.contracts.images import ImageView, load_images
 from modellbahn.modules.site.domain.model import (
     Fair,
     Mailing,
@@ -193,22 +194,43 @@ class SqlVisitRepository:
         ]
 
 
+class SqlImages:
+    """The media module's image facade, inside this unit of work's transaction."""
+
+    def __init__(self, uow: UnitOfWork, public_base_url: str) -> None:
+        self._uow = uow
+        self._public_base_url = public_base_url
+
+    async def load(self, asset_ids: Collection[UUID]) -> dict[UUID, ImageView]:
+        return await load_images(self._uow, asset_ids, public_base_url=self._public_base_url)
+
+
 class SqlSiteUnitOfWork(UnitOfWork):
     """Unit of work with the site repositories attached."""
 
     fairs: SqlFairRepository
     subscriptions: SqlSubscriptionRepository
     visits: SqlVisitRepository
+    images: SqlImages
+
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str = ""
+    ) -> None:
+        super().__init__(session_factory)
+        self._public_base_url = public_base_url
 
     def _attach(self, session: AsyncSession) -> None:
         start_mappers()
         self.fairs = SqlFairRepository(session)
         self.subscriptions = SqlSubscriptionRepository(session)
         self.visits = SqlVisitRepository(session)
+        self.images = SqlImages(self, self._public_base_url)
 
 
 def site_uow_factory(
-    session_factory: async_sessionmaker[AsyncSession],
+    session_factory: async_sessionmaker[AsyncSession], *, public_base_url: str = ""
 ) -> partial[SqlSiteUnitOfWork]:
-    """The factory the site services get: a fresh unit of work per call."""
-    return partial(SqlSiteUnitOfWork, session_factory)
+    """The factory the site services get: a fresh unit of work per call.
+
+    ``public_base_url`` prefixes the image URLs (the media storage's public address)."""
+    return partial(SqlSiteUnitOfWork, session_factory, public_base_url=public_base_url)

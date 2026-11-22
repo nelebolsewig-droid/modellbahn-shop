@@ -119,6 +119,8 @@ export const putWithProgress: PutFile = (url, file, headers, onProgress) =>
 
 type UploadOptions = {
   onProgress?: (progress: UploadProgress) => void;
+  /** false keeps the photo as taken (a booth photo); models go through the photo studio. */
+  studio?: boolean;
   /** Replaced in tests; the real one is putWithProgress. */
   put?: PutFile;
 };
@@ -129,7 +131,7 @@ type UploadOptions = {
  * is recognised by its checksum and not sent again.
  */
 export async function uploadImage(file: File, options: UploadOptions = {}): Promise<AssetOut> {
-  const { onProgress = () => undefined, put = putWithProgress } = options;
+  const { onProgress = () => undefined, put = putWithProgress, studio } = options;
   const mimeType = imageTypeOf(file);
   if (mimeType === null) {
     throw new UnsuitableFileError("type");
@@ -144,6 +146,7 @@ export async function uploadImage(file: File, options: UploadOptions = {}): Prom
     mime_type: mimeType,
     size_bytes: file.size,
     sha256: await sha256Hex(file),
+    ...(studio === undefined ? {} : { studio }),
   });
   if (ticket.upload === null) {
     return ticket.asset;

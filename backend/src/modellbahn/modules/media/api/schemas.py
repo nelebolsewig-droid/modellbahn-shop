@@ -22,6 +22,8 @@ class UploadRequestIn(BaseModel):
     size_bytes: Annotated[int, Field(ge=1)]
     # Computed in the browser with Web Crypto; recognises a file that is already stored.
     sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+    # False keeps the photo as taken; the photo studio is for models (booth photos: False).
+    studio: bool = True
 
 
 class StudioIn(BaseModel):
