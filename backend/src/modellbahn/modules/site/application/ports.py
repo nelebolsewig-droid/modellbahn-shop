@@ -1,11 +1,12 @@
 """What the site's use cases need from the outside: repositories and their unit of work."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from datetime import date, datetime
 from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.site.domain.model import Fair, Mailing, Subscription, VisitDay
 from modellbahn.platform.events import DomainEvent
 
@@ -58,6 +59,12 @@ class VisitRepository(Protocol):
     async def between(self, first: date, last: date) -> Sequence[VisitDay]: ...
 
 
+class Images(Protocol):
+    """The images of the media module, for the photos of the fairs."""
+
+    async def load(self, asset_ids: Collection[UUID]) -> dict[UUID, ImageView]: ...
+
+
 class SiteUnitOfWork(Protocol):
     """One transaction over the site's repositories (see ``platform.uow``)."""
 
@@ -69,6 +76,9 @@ class SiteUnitOfWork(Protocol):
 
     @property
     def visits(self) -> VisitRepository: ...
+
+    @property
+    def images(self) -> Images: ...
 
     async def __aenter__(self) -> Self: ...
 

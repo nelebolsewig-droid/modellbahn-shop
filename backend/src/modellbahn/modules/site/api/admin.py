@@ -17,6 +17,7 @@ from modellbahn.modules.site.api.schemas import (
     AdminFairListOut,
     AdminFairOut,
     AnnouncementOut,
+    FairImageIn,
     FairIn,
     SubscriptionCountsOut,
     VisitDayOut,
@@ -35,7 +36,9 @@ router = APIRouter(prefix="/admin", tags=["admin-site"])
     responses=problems(STAFF_ACCESS, unsafe=False, validated=False),
 )
 async def list_fairs(_: FairEditor, service: FairServiceDep) -> AdminFairListOut:
-    return AdminFairListOut(items=[AdminFairOut.from_fair(fair) for fair in await service.all()])
+    fairs = await service.all()
+    images = await service.images(fairs)
+    return AdminFairListOut(items=[AdminFairOut.from_fair(fair, images) for fair in fairs])
 
 
 @router.post(
@@ -60,7 +63,22 @@ async def update_fair(
     fair_id: UUID, body: FairIn, _: FairEditor, service: FairServiceDep
 ) -> AdminFairOut:
     fair = await service.change(fair_id, body.details(), published=body.published)
-    return AdminFairOut.from_fair(fair)
+    return AdminFairOut.from_fair(fair, await service.images([fair]))
+
+
+@router.put(
+    "/fairs/{fair_id}/image",
+    operation_id="setFairImage",
+    summary="Show a photo with the fair (an uploaded image), or take it away",
+    responses=problems({**STAFF_ACCESS, 404: ["fair_not_found", "fair_image_not_found"]}),
+)
+async def set_fair_image(
+    fair_id: UUID, body: FairImageIn, _: FairEditor, service: FairServiceDep
+) -> AdminFairOut:
+    """Upload the photo via ``/admin/media/uploads`` first (``studio: false``: a booth
+    photo stays as taken), then name it here. It shows once the worker has its sizes."""
+    fair = await service.show_image(fair_id, body.asset_id)
+    return AdminFairOut.from_fair(fair, await service.images([fair]))
 
 
 @router.delete(
@@ -91,7 +109,8 @@ async def delete_fair(fair_id: UUID, _: FairEditor, service: FairServiceDep) -> 
 async def announce_fair(fair_id: UUID, _: FairEditor, service: FairServiceDep) -> AnnouncementOut:
     announcement = await service.announce(fair_id)
     return AnnouncementOut(
-        fair=AdminFairOut.from_fair(announcement.fair), recipients=announcement.recipients
+        fair=AdminFairOut.from_fair(announcement.fair, await service.images([announcement.fair])),
+        recipients=announcement.recipients,
     )
 
 

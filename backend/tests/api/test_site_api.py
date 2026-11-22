@@ -1,6 +1,7 @@
 """The site API: fairs, their calendar, the fair news with double opt-in, the imprint."""
 
 from typing import Any, Final
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -8,8 +9,9 @@ from httpx import ASGITransport, AsyncClient
 from modellbahn.main import create_app
 from modellbahn.platform.config import Settings
 from modellbahn.platform.mail import InMemoryMailer
-from tests.api.helpers import SHOP, assert_problem
+from tests.api.helpers import MEDIA, SHOP, assert_problem
 from tests.conftest import PUBLIC_BASE_URL, Deliver
+from tests.media_support import InMemoryMediaStorage, photo, sha256
 from tests.support import CSRF_HEADERS, mails_to, token_from
 
 FAIRS: Final = "/api/v1/admin/fairs"
@@ -75,6 +77,65 @@ class TestFairs:
         assert feed.text.count("BEGIN:VEVENT") == 1
         draft = await create_fair(staff_client, published=False)
         missing = await client.get(f"{SHOP}/fairs/{draft['id']}/calendar.ics")
+        assert_problem(missing, 404, "fair_not_found")
+
+
+class TestFairImage:
+    async def test_a_booth_photo_shows_with_the_fair_once_ready(
+        self,
+        staff_client: AsyncClient,
+        client: AsyncClient,
+        media_storage: InMemoryMediaStorage,
+        deliver: Deliver,
+    ) -> None:
+        fair = await create_fair(staff_client)
+        data = photo(1200, 800)
+        ticket = (
+            await staff_client.post(
+                f"{MEDIA}/uploads",
+                json={
+                    "filename": "stand.jpg",
+                    "mime_type": "image/jpeg",
+                    "size_bytes": len(data),
+                    "sha256": sha256(data),
+                    "studio": False,
+                },
+            )
+        ).json()
+        asset_id = ticket["asset"]["id"]
+        assert ticket["asset"]["studio"] is False
+        media_storage.upload(UUID(asset_id), data)
+        await staff_client.post(f"{MEDIA}/{asset_id}/complete")
+
+        shown = await staff_client.put(f"{FAIRS}/{fair['id']}/image", json={"asset_id": asset_id})
+        assert shown.status_code == 200, shown.text
+        assert shown.json()["image"]["ready"] is False
+        # The shop waits for the sizes.
+        assert (await client.get(f"{SHOP}/fairs")).json()["upcoming"][0]["image"] is None
+
+        await deliver()
+        image = (await client.get(f"{SHOP}/fairs")).json()["upcoming"][0]["image"]
+        assert image["asset_id"] == asset_id
+        assert image["width"] == 1200
+        assert image["renditions"]
+        listed = (await staff_client.get(FAIRS)).json()["items"][0]
+        assert listed["image"]["ready"] is True
+
+        # Changing the details keeps the photo; deleting the image takes it off the fair.
+        changed = await staff_client.put(f"{FAIRS}/{fair['id']}", json={**DRESDEN, "booth": "B2"})
+        assert changed.json()["image"]["asset_id"] == asset_id
+        assert (await staff_client.delete(f"{MEDIA}/{asset_id}")).status_code == 204
+        assert (await staff_client.get(FAIRS)).json()["items"][0]["image"] is None
+
+    async def test_take_away_and_unknown_images(self, staff_client: AsyncClient) -> None:
+        fair = await create_fair(staff_client)
+        unknown = await staff_client.put(
+            f"{FAIRS}/{fair['id']}/image", json={"asset_id": str(uuid4())}
+        )
+        assert_problem(unknown, 404, "fair_image_not_found")
+        cleared = await staff_client.put(f"{FAIRS}/{fair['id']}/image", json={"asset_id": None})
+        assert cleared.json()["image"] is None
+        missing = await staff_client.put(f"{FAIRS}/{uuid4()}/image", json={"asset_id": None})
         assert_problem(missing, 404, "fair_not_found")
 
 

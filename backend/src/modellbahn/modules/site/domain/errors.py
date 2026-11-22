@@ -19,6 +19,10 @@ class FairNotFoundError(SiteError):
     """No such fair, or (in the shop) not published."""
 
 
+class FairImageNotFoundError(SiteError):
+    """The photo to show with a fair is not a known image."""
+
+
 class FairNotAnnounceableError(SiteError):
     """The fair cannot be announced: ``not_published``, ``past`` or ``already_announced``."""
 

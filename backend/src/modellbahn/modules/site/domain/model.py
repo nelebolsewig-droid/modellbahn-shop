@@ -124,6 +124,8 @@ class Fair:
     announced_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    # A photo of the fair, from the media module; checked there to be an image.
+    image_asset_id: UUID | None = None
 
     @classmethod
     def create(cls, details: FairDetails, *, published: bool, now: datetime) -> "Fair":
@@ -162,6 +164,11 @@ class Fair:
         self.starts_on = checked.starts_on
         self.ends_on = checked.ends_on
         self.published = published
+        self.updated_at = now
+
+    def show_image(self, asset_id: UUID | None, *, now: datetime) -> None:
+        """Put a photo with the fair, or take it away (``None``)."""
+        self.image_asset_id = asset_id
         self.updated_at = now
 
     def is_over(self, today: date) -> bool:

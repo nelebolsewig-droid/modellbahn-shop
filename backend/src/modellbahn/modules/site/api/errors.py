@@ -6,6 +6,7 @@ from typing import Any, Final
 from fastapi import FastAPI
 
 from modellbahn.modules.site.domain.errors import (
+    FairImageNotFoundError,
     FairNotAnnounceableError,
     FairNotFoundError,
     InvalidFieldError,
@@ -33,6 +34,9 @@ def _invalid_field(error: InvalidFieldError) -> AppError:
 _TRANSLATIONS: Final[Mapping[type[Exception], Callable[[Any], AppError]]] = {
     InvalidFieldError: _invalid_field,
     FairNotFoundError: lambda _: NotFoundError("The fair does not exist.", code="fair_not_found"),
+    FairImageNotFoundError: lambda _: NotFoundError(
+        "The image does not exist.", code="fair_image_not_found"
+    ),
     FairNotAnnounceableError: lambda error: ConflictError(
         f"The fair cannot be announced: {error.reason}.", code=f"fair_{error.reason}"
     ),

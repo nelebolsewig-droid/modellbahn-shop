@@ -11,6 +11,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { FairImageOut } from './fairImageOut';
 
 export interface AdminFairOut {
   announced_at: string | null;
@@ -21,6 +22,8 @@ export interface AdminFairOut {
   /** Opening hours, one line per day. */
   hours: string;
   id: string;
+  /** A photo of the fair, if any. */
+  image?: FairImageOut | null;
   name: string;
   note: string;
   postal_code: string;

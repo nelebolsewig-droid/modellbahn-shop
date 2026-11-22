@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import type { FairOut } from "@/lib/api/generated/model";
+import { fairPicture } from "@/lib/site/fair-image";
 import { countdown, dateBlock, fairEventUrl, hourLines, place, routeUrl } from "@/lib/site/fairs";
 import { cn } from "@/lib/utils";
 
@@ -123,6 +125,8 @@ function FairCard({ fair, next, today }: { fair: FairOut; next: boolean; today: 
         </h3>
         <p className="mt-2 text-ink-secondary">{place(fair)}</p>
 
+        <FairPhoto fair={fair} />
+
         {fair.booth || hours.length > 0 ? (
           <dl className="mt-6 grid gap-5 sm:grid-cols-2">
             {fair.booth ? (
@@ -167,6 +171,21 @@ function FairCard({ fair, next, today }: { fair: FairOut; next: boolean; today: 
   );
 }
 
+/** The photo of a fair, slightly lifted off the card like a print laid on the table. */
+function FairPhoto({ fair }: { fair: FairOut }) {
+  const picture = fairPicture(fair.image);
+  if (picture === null) {
+    return null;
+  }
+  return (
+    <figure className="mt-6 [perspective:1200px]">
+      <div className="aspect-[3/2] overflow-hidden rounded-md shadow-[0_1px_0_rgba(38,33,30,0.08),0_18px_30px_-18px_rgba(38,33,30,0.55)] transition-transform duration-500 ease-out [transform:rotateX(2deg)] hover:[transform:rotateX(0deg)_translateY(-2px)] motion-reduce:transition-none motion-reduce:[transform:none]">
+        <ResponsivePicture image={picture} alt={`Unser Stand auf der Messe ${fair.name}`} sizes="(min-width: 1024px) 40rem, 90vw" fit="cover" />
+      </div>
+    </figure>
+  );
+}
+
 /** The fairs still to come, the soonest first, as stops on a line. */
 export function UpcomingFairs({ fairs, today }: { fairs: readonly FairOut[]; today: string }) {
   return (
@@ -186,6 +205,18 @@ export function UpcomingFairs({ fairs, today }: { fairs: readonly FairOut[]; tod
   );
 }
 
+function PastPhoto({ fair }: { fair: FairOut }) {
+  const picture = fairPicture(fair.image);
+  if (picture === null) {
+    return null;
+  }
+  return (
+    <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-sm shadow-[0_8px_16px_-10px_rgba(38,33,30,0.5)] sm:w-28">
+      <ResponsivePicture image={picture} alt={`Unser Stand auf der Messe ${fair.name}`} sizes="7rem" variant="thumb" fit="cover" />
+    </div>
+  );
+}
+
 /** The last fairs, the latest first: small, on a dashed line. */
 export function PastFairs({ fairs }: { fairs: readonly FairOut[] }) {
   return (
@@ -197,13 +228,16 @@ export function PastFairs({ fairs }: { fairs: readonly FairOut[] }) {
             className="absolute top-3 -bottom-8 left-[7.5px] border-l border-dashed border-line-strong group-last:hidden"
           />
           <Station kind="past" />
-          <p className="grid gap-x-6 gap-y-1 sm:grid-cols-[13rem_minmax(0,1fr)]">
-            <span className="text-small text-ink-tertiary tabular-nums">{fair.when}</span>
-            <span className="text-ink-secondary">
-              {fair.name}
-              <span className="text-ink-tertiary"> · {fair.city}</span>
-            </span>
-          </p>
+          <div className="flex items-start gap-4">
+            <p className="grid min-w-0 flex-1 gap-x-6 gap-y-1 sm:grid-cols-[13rem_minmax(0,1fr)]">
+              <span className="text-small text-ink-tertiary tabular-nums">{fair.when}</span>
+              <span className="text-ink-secondary">
+                {fair.name}
+                <span className="text-ink-tertiary"> · {fair.city}</span>
+              </span>
+            </p>
+            <PastPhoto fair={fair} />
+          </div>
         </li>
       ))}
     </ol>

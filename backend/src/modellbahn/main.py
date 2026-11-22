@@ -282,7 +282,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _attach_manufacturing_services(
         app, uow_factory=manufacturing_uow_factory(session_factory), clock=clock
     )
-    _attach_site_services(app, site_uow_factory(session_factory), clock)
+    _attach_site_services(
+        app,
+        site_uow_factory(session_factory, public_base_url=settings.media_public_base_url),
+        clock,
+    )
     app.state.imprint = settings.imprint
     setattr(app.state, MARKETPLACE_STATE, marketplace)
     setattr(

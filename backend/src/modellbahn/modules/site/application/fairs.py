@@ -1,14 +1,15 @@
 """Use cases around the fairs: staff keep the dates, the shop shows them."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Final
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from modellbahn.modules.media.contracts.images import ImageView
 from modellbahn.modules.site.application.ports import SiteUnitOfWork, UnitOfWorkFactory
-from modellbahn.modules.site.domain.errors import FairNotFoundError
+from modellbahn.modules.site.domain.errors import FairImageNotFoundError, FairNotFoundError
 from modellbahn.modules.site.domain.model import Fair, FairDetails, SubscriptionStatus
 from modellbahn.platform.clock import Clock
 
@@ -89,6 +90,24 @@ class FairService:
             fair = await self._locked(uow, fair_id)
             await uow.fairs.delete(fair)
             await uow.commit()
+
+    async def show_image(self, fair_id: UUID, asset_id: UUID | None) -> Fair:
+        """Put a photo (an uploaded image) with the fair, or take it away (``None``)."""
+        async with self._uow() as uow:
+            fair = await self._locked(uow, fair_id)
+            if asset_id is not None and asset_id not in await uow.images.load([asset_id]):
+                raise FairImageNotFoundError
+            fair.show_image(asset_id, now=self._clock.now())
+            await uow.commit()
+        return fair
+
+    async def images(self, fairs: Collection[Fair]) -> dict[UUID, ImageView]:
+        """The photos of ``fairs``, by asset id, in any state."""
+        ids = [fair.image_asset_id for fair in fairs if fair.image_asset_id is not None]
+        if not ids:
+            return {}
+        async with self._uow() as uow:
+            return await uow.images.load(ids)
 
     async def announce(self, fair_id: UUID) -> Announcement:
         """Mail the fair to every confirmed subscriber (the worker sends the mails)."""

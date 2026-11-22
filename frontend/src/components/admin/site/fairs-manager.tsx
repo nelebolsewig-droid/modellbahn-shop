@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Panel } from "@/components/admin/panel";
 import { FormError } from "@/components/forms/form-error";
@@ -11,6 +11,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { PendingNotice } from "@/components/ui/pending-notice";
+import { ResponsivePicture } from "@/components/ui/responsive-picture";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,13 +20,16 @@ import {
   deleteFair,
   getFairNewsCounts,
   listAdminFairs,
+  setFairImage,
   updateFair,
 } from "@/lib/api/generated/admin-site/admin-site";
 import type { AdminFairOut, AnnouncementOut, SubscriptionCountsOut } from "@/lib/api/generated/model";
 import type { ApiProblem } from "@/lib/api/problem";
 import { formatLongDate } from "@/lib/format";
+import { IMAGE_PICKER_ACCEPT, UnsuitableFileError, uploadImage } from "@/lib/media/upload";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { errorMessage } from "@/lib/i18n/problems";
+import { fairImagePending, fairPicture } from "@/lib/site/fair-image";
 import { place, todayInGermany } from "@/lib/site/fairs";
 import { EMPTY_FAIR, fairSchema, type FairValues } from "@/lib/validation/site";
 
@@ -56,6 +60,8 @@ export function FairsManager() {
   const fairs = useQuery<AdminFairOut[], ApiProblem>({
     queryKey: FAIRS_KEY,
     queryFn: async ({ signal }) => (await listAdminFairs({ signal })).items,
+    // While the worker prepares a photo, look again every few seconds.
+    refetchInterval: (query) => (query.state.data?.some((fair) => fairImagePending(fair.image)) ? 4000 : false),
   });
   const counts = useQuery<SubscriptionCountsOut, ApiProblem>({
     queryKey: FAIR_NEWS_KEY,
@@ -173,7 +179,8 @@ function FairRow({ fair, past, recipients }: { fair: AdminFairOut; past: boolean
 
   const announceable = fair.published && fair.announced_at === null && !past;
   return (
-    <li className="grid gap-x-6 gap-y-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+    <li className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 gap-y-3 py-4 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] sm:items-start sm:gap-x-6">
+      <FairPhoto fair={fair} onChanged={refresh} />
       <div className="min-w-0">
         <p className="font-mono text-hint text-ink-tertiary">{fair.when}</p>
         <p className={past ? "mt-1 font-medium text-ink-secondary" : "mt-1 font-medium"}>{fair.name}</p>
@@ -192,7 +199,7 @@ function FairRow({ fair, past, recipients }: { fair: AdminFairOut; past: boolean
           ) : null}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-1 sm:justify-end">
+      <div className="col-span-2 flex flex-wrap items-center gap-1 sm:col-span-1 sm:justify-end">
         {announceable ? <AnnounceButton fair={fair} recipients={recipients} /> : null}
         <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
           Bearbeiten
@@ -216,6 +223,106 @@ function FairRow({ fair, past, recipients }: { fair: AdminFairOut; past: boolean
         </span>
       </div>
     </li>
+  );
+}
+
+const PHOTO_ERRORS = {
+  type: "Das ist kein Foto, das wir lesen können (JPEG, PNG, HEIC, WebP).",
+  size: "Das Foto ist größer als 50 MB.",
+} as const;
+
+/**
+ * The photo of a fair (the booth, say): tap the frame to choose one or take one with
+ * the phone's camera. It stays as taken, without the photo studio, and appears in the
+ * shop under "Termine" once the worker has its sizes.
+ */
+function FairPhoto({ fair, onChanged }: { fair: AdminFairOut; onChanged: () => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const save = useMutation<AdminFairOut, ApiProblem | UnsuitableFileError, File | null>({
+    async mutationFn(file) {
+      if (file === null) {
+        return setFairImage(fair.id, { asset_id: null });
+      }
+      setProgress(0);
+      try {
+        const asset = await uploadImage(file, {
+          studio: false,
+          onProgress: ({ phase, fraction }) => setProgress(phase === "uploading" ? fraction : null),
+        });
+        return await setFairImage(fair.id, { asset_id: asset.id });
+      } finally {
+        setProgress(null);
+      }
+    },
+    onSuccess: onChanged,
+  });
+  const picture = fairPicture(fair.image);
+  const busy = save.isPending || fairImagePending(fair.image);
+  const label = busy
+    ? progress !== null
+      ? `Lädt hoch … ${Math.round(progress * 100)} %`
+      : "Wird vorbereitet …"
+    : fair.image?.failed
+      ? "Foto unlesbar"
+      : null;
+
+  return (
+    <div className="row-span-2 sm:row-span-1">
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        disabled={save.isPending}
+        aria-label={picture ? `Foto von ${fair.name} ändern` : `Foto zu ${fair.name} hinzufügen`}
+        className="group relative block aspect-[4/3] w-full overflow-hidden rounded-md border border-line bg-sunken shadow-[0_1px_0_rgba(38,33,30,0.06),0_6px_14px_-8px_rgba(38,33,30,0.35)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-wait"
+      >
+        {picture ? (
+          <ResponsivePicture image={picture} alt="" sizes="8rem" variant="thumb" fit="cover" />
+        ) : (
+          <span className="flex size-full flex-col items-center justify-center gap-1 text-ink-tertiary group-hover:text-accent">
+            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+            <span className="text-hint">Foto</span>
+          </span>
+        )}
+        {label ? (
+          <span className="absolute inset-x-0 bottom-0 bg-ink/70 px-1.5 py-1 text-center text-[0.6875rem] leading-4 text-canvas">
+            {label}
+          </span>
+        ) : null}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept={IMAGE_PICKER_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) {
+            save.mutate(file);
+          }
+        }}
+      />
+      {fair.image && !save.isPending ? (
+        <button
+          type="button"
+          onClick={() => save.mutate(null)}
+          className="mt-1 w-full rounded-xs text-center text-hint text-ink-tertiary hover:text-danger"
+        >
+          Foto entfernen
+        </button>
+      ) : null}
+      {save.isError ? (
+        <p role="alert" className="mt-1 text-hint text-danger">
+          {save.error instanceof UnsuitableFileError ? PHOTO_ERRORS[save.error.reason] : errorMessage(save.error)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

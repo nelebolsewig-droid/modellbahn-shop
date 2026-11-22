@@ -37,6 +37,7 @@ async def request_upload(
         size_bytes=body.size_bytes,
         sha256=body.sha256,
         uploaded_by=staff.id,
+        studio=body.studio,
     )
     return UploadTicketOut.from_ticket(ticket, public_base_url=base_url)
 

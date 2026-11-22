@@ -30,4 +30,5 @@ export interface UploadRequestIn {
   sha256: string;
   /** @minimum 1 */
   size_bytes: number;
+  studio?: boolean;
 }

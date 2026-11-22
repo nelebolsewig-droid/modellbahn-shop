@@ -22,6 +22,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import CITEXT
 
+from modellbahn.modules.media.contracts.images import IMAGE_REFERENCE
 from modellbahn.modules.site.domain.model import SubscriptionStatus
 from modellbahn.platform.db import StrEnumType, metadata
 
@@ -46,6 +47,8 @@ fairs = Table(
     Column("announced_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    # A photo of the fair (the booth, say; ADR 0044). Deleting the image drops it here.
+    Column("image_asset_id", Uuid, ForeignKey(IMAGE_REFERENCE[0], ondelete="SET NULL")),
     CheckConstraint("name <> ''", name="name"),
     CheckConstraint("city <> ''", name="city"),
     CheckConstraint("ends_on >= starts_on", name="dates"),
