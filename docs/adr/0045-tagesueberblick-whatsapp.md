@@ -10,7 +10,7 @@ am liebsten per WhatsApp.
 - Der Worker schickt nach den Mails denselben Überblick als kurze WhatsApp-Nachricht
   (Betreff fett, die Zeilen der Tabelle, Link ins Stellwerk).
 - Versand über **CallMeBot** (kostenlos): Jede Person schickt einmal
-  „I allow callmebot to send me messages“ an +34 644 71 81 99 und bekommt einen Schlüssel.
+  „I allow callmebot to send me messages“ an die Nummer, die auf https://www.callmebot.com/blog/free-api-whatsapp-messages/ steht (sie wechselt gelegentlich), und bekommt einen Schlüssel.
 - `MB_DIGEST_WHATSAPP=+491701234567:SCHLÜSSEL,+49…:SCHLÜSSEL` in der `.env`; leer = aus.
 - Eine fehlgeschlagene Nachricht wird nur geloggt: Die Mail ist dann schon raus und darf
   nicht doppelt kommen.
