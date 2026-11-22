@@ -317,6 +317,7 @@ EXPECTED_OPERATIONS = {
     ("PUT", "/api/v1/admin/fairs/{fair_id}"): ("updateFair", "admin-site"),
     ("DELETE", "/api/v1/admin/fairs/{fair_id}"): ("deleteFair", "admin-site"),
     ("POST", "/api/v1/admin/fairs/{fair_id}/announcement"): ("announceFair", "admin-site"),
+    ("PUT", "/api/v1/admin/fairs/{fair_id}/image"): ("setFairImage", "admin-site"),
     ("GET", "/api/v1/admin/fair-news"): ("getFairNewsCounts", "admin-site"),
     ("GET", "/api/v1/admin/visits"): ("listVisits", "admin-site"),
     ("GET", "/api/v1/admin/marketplace/ebay"): ("getEbayStatus", "admin-marketplace"),
