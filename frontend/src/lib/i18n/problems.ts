@@ -68,6 +68,7 @@ export const PROBLEM_MESSAGES: Messages = {
 
   // Fairs and the fair news
   fair_not_found: "Diese Messe gibt es nicht (mehr).",
+  fair_image_not_found: "Dieses Foto gibt es nicht (mehr). Bitte noch einmal hochladen.",
   fair_not_published: "Erst veröffentlichen, dann ankündigen: Die Mail verlinkt die Terminseite.",
   fair_past: "Die Messe ist vorbei; ankündigen lässt sich nur, was noch kommt.",
   fair_already_announced: "Diese Messe wurde schon angekündigt. Jede Messe geht nur einmal hinaus.",
