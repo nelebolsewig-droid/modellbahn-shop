@@ -203,7 +203,7 @@ describe("ProductView", () => {
 
     expect(await screen.findByText("Nur noch 2 Stück")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Fertigmodell" }));
-    expect(screen.getByText("Wird für dich gefertigt")).toBeInTheDocument();
+    expect(screen.getByText("Fertigung nach Bestellung")).toBeInTheDocument();
     expect(screen.getByText("Lieferzeit 4–6 Wochen")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "In den Warenkorb" })).toBeEnabled();
   });

@@ -87,7 +87,7 @@ describe("CheckoutView", () => {
     const split = cartLine({ quantity: 5, free_units: 3, availability: "made_to_order", lead_time_min_weeks: 2, lead_time_max_weeks: 4 });
     guestShop(() => jsonResponse(orderOut(), 201), cartOut(split));
     const { unmount } = renderWithQueryClient(<CheckoutView />);
-    expect(await screen.findByText("3 sofort lieferbar, 2 werden für dich gefertigt")).toBeInTheDocument();
+    expect(await screen.findByText("3 sofort lieferbar, 2 in Fertigung nach Bestellung")).toBeInTheDocument();
     unmount();
 
     guestShop(() => jsonResponse(orderOut(), 201), cartOut(cartLine()));

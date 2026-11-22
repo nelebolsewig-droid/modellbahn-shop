@@ -38,7 +38,7 @@ describe("availability in the shop", () => {
     expect(availabilityNote("in_stock", 2, info(2))).toEqual({ label: "Sofort lieferbar", tone: "success", detail: "Nur noch 2 Stück" });
     expect(availabilityNote("in_stock", 12, info(12)).detail).toBeNull();
     expect(availabilityNote("made_to_order", 0, info(0, [4, 6]))).toEqual({
-      label: "Wird für dich gefertigt",
+      label: "Fertigung nach Bestellung",
       tone: "accent",
       detail: "Lieferzeit 4–6 Wochen",
     });
@@ -53,16 +53,16 @@ describe("availability in the shop", () => {
     // Plenty on the shelf: no word about making.
     expect(availabilityNote("in_stock", 12, info(12, [2, 4]))).toEqual({ label: "Sofort lieferbar", tone: "success", detail: null });
     // Nothing on the shelf: all of it is made.
-    expect(availabilityNote("made_to_order", 0, info(0, [2, 4])).label).toBe("Wird für dich gefertigt");
+    expect(availabilityNote("made_to_order", 0, info(0, [2, 4])).label).toBe("Fertigung nach Bestellung");
   });
 
   it("splits a cart line into what ships at once and what is made", () => {
     const line = (quantity: number, free: number) =>
       cartLine({ quantity, free_units: free, availability: free >= quantity ? "in_stock" : "made_to_order", lead_time_min_weeks: 2, lead_time_max_weeks: 4 });
     const split = cartLineNote(line(5, 3));
-    expect(`${split.label} · ${split.detail}`).toBe("3 sofort lieferbar, 2 werden für dich gefertigt · Lieferzeit 2–4 Wochen");
-    expect(cartLineNote(line(4, 3)).label).toBe("3 sofort lieferbar, 1 wird für dich gefertigt");
-    expect(cartLineNote(line(2, 0)).label).toBe("Wird für dich gefertigt");
+    expect(`${split.label} · ${split.detail}`).toBe("3 sofort lieferbar, 2 in Fertigung nach Bestellung · Lieferzeit 2–4 Wochen");
+    expect(cartLineNote(line(4, 3)).label).toBe("3 sofort lieferbar, 1 in Fertigung nach Bestellung");
+    expect(cartLineNote(line(2, 0)).label).toBe("Fertigung nach Bestellung");
     expect(cartLineNote(line(2, 5)).label).toBe("Sofort lieferbar");
   });
 
