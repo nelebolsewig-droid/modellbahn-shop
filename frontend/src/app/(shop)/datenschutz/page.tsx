@@ -62,6 +62,13 @@ export default async function PrivacyPage() {
               Minuten.
             </p>
             <p>
+              Wie viele Besucher der Shop am Tag hat, zählen wir ohne Cookies und ohne etwas in deinem Browser zu
+              speichern. Dafür bildet der Server aus IP-Adresse und Browserkennung einen Hashwert mit einem zufälligen
+              Schlüssel, der nur für diesen einen Tag gilt. Am nächsten Tag werden Schlüssel und Hashwerte gelöscht;
+              übrig bleiben nur zwei Zahlen je Tag: Besucher und Seitenaufrufe. Niemand kann daraus erkennen, wer du
+              bist, auch nicht über mehrere Tage hinweg (berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO).
+            </p>
+            <p>
               Die Datenbank sichern wir jede Nacht. Die Sicherungen bewahren wir 14 Tage auf; was du löschen lässt,
               verschwindet spätestens dann auch aus ihnen.
             </p>

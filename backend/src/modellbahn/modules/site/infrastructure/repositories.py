@@ -8,7 +8,8 @@ from datetime import date, datetime
 from functools import partial
 from uuid import UUID
 
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from modellbahn.modules.site.domain.model import (
@@ -16,9 +17,16 @@ from modellbahn.modules.site.domain.model import (
     Mailing,
     Subscription,
     SubscriptionStatus,
+    VisitDay,
 )
 from modellbahn.modules.site.infrastructure.mapping import start_mappers
-from modellbahn.modules.site.infrastructure.tables import fairs, mailings, subscriptions
+from modellbahn.modules.site.infrastructure.tables import (
+    fairs,
+    mailings,
+    subscriptions,
+    visit_days,
+    visit_marks,
+)
 from modellbahn.platform.uow import UnitOfWork
 
 
@@ -131,16 +139,72 @@ class SqlSubscriptionRepository:
         self._session.add(mailing)
 
 
+class SqlVisitRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def salt(self, day: date, fresh: bytes) -> tuple[bytes, bool]:
+        created = await self._session.scalar(
+            insert(visit_days)
+            .values(day=day, salt=fresh, visitors=0, page_views=0)
+            .on_conflict_do_nothing()
+            .returning(visit_days.c.day)
+        )
+        if created is not None:
+            return fresh, True
+        salt = await self._session.scalar(select(visit_days.c.salt).where(visit_days.c.day == day))
+        return bytes(salt or fresh), False
+
+    async def forget_before(self, day: date) -> None:
+        await self._session.execute(delete(visit_marks).where(visit_marks.c.day < day))
+        await self._session.execute(
+            update(visit_days)
+            .where(visit_days.c.day < day, visit_days.c.salt.is_not(None))
+            .values(salt=None)
+        )
+
+    async def mark(self, day: date, mark: str) -> bool:
+        noted = await self._session.scalar(
+            insert(visit_marks)
+            .values(day=day, mark=mark)
+            .on_conflict_do_nothing()
+            .returning(visit_marks.c.mark)
+        )
+        return noted is not None
+
+    async def count(self, day: date, *, new_visitor: bool) -> None:
+        await self._session.execute(
+            update(visit_days)
+            .where(visit_days.c.day == day)
+            .values(
+                page_views=visit_days.c.page_views + 1,
+                visitors=visit_days.c.visitors + (1 if new_visitor else 0),
+            )
+        )
+
+    async def between(self, first: date, last: date) -> Sequence[VisitDay]:
+        rows = await self._session.execute(
+            select(visit_days.c.day, visit_days.c.visitors, visit_days.c.page_views)
+            .where(visit_days.c.day.between(first, last))
+            .order_by(visit_days.c.day)
+        )
+        return [
+            VisitDay(day=day, visitors=visitors, page_views=views) for day, visitors, views in rows
+        ]
+
+
 class SqlSiteUnitOfWork(UnitOfWork):
     """Unit of work with the site repositories attached."""
 
     fairs: SqlFairRepository
     subscriptions: SqlSubscriptionRepository
+    visits: SqlVisitRepository
 
     def _attach(self, session: AsyncSession) -> None:
         start_mappers()
         self.fairs = SqlFairRepository(session)
         self.subscriptions = SqlSubscriptionRepository(session)
+        self.visits = SqlVisitRepository(session)
 
 
 def site_uow_factory(

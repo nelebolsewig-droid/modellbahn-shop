@@ -130,11 +130,13 @@ from modellbahn.modules.site.api.errors import (
     install_error_translations as install_site_error_translations,
 )
 from modellbahn.modules.site.application.fairs import FairService
+from modellbahn.modules.site.application.ports import UnitOfWorkFactory as SiteUnitOfWorkFactory
 from modellbahn.modules.site.application.subscriptions import SubscriptionService
+from modellbahn.modules.site.application.visits import VisitService
 from modellbahn.modules.site.infrastructure.mapping import start_mappers as start_site_mappers
 from modellbahn.modules.site.infrastructure.repositories import site_uow_factory
 from modellbahn.platform import http
-from modellbahn.platform.clock import SystemClock
+from modellbahn.platform.clock import Clock, SystemClock
 from modellbahn.platform.config import Settings
 from modellbahn.platform.db import asyncpg_dsn, create_engine, create_session_factory
 from modellbahn.platform.errors import (
@@ -280,9 +282,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _attach_manufacturing_services(
         app, uow_factory=manufacturing_uow_factory(session_factory), clock=clock
     )
-    site_uow = site_uow_factory(session_factory)
-    app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
-    app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
+    _attach_site_services(app, site_uow_factory(session_factory), clock)
     app.state.imprint = settings.imprint
     setattr(app.state, MARKETPLACE_STATE, marketplace)
     setattr(
@@ -362,6 +362,12 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
         )
     )
     return api
+
+
+def _attach_site_services(app: FastAPI, site_uow: SiteUnitOfWorkFactory, clock: Clock) -> None:
+    app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
+    app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
+    app.state.visit_service = VisitService(uow_factory=site_uow, clock=clock)
 
 
 def _attach_rate_limiters(app: FastAPI, settings: Settings) -> None:

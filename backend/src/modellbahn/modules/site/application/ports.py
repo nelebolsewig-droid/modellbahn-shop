@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
-from modellbahn.modules.site.domain.model import Fair, Mailing, Subscription
+from modellbahn.modules.site.domain.model import Fair, Mailing, Subscription, VisitDay
 from modellbahn.platform.events import DomainEvent
 
 
@@ -41,6 +41,23 @@ class SubscriptionRepository(Protocol):
     def record(self, mailing: Mailing) -> None: ...
 
 
+class VisitRepository(Protocol):
+    async def salt(self, day: date, fresh: bytes) -> tuple[bytes, bool]:
+        """The salt of ``day``; ``fresh`` becomes it if the day has none yet (then True)."""
+        ...
+
+    async def forget_before(self, day: date) -> None:
+        """Drop the salts and visitor hashes of the days before ``day``."""
+        ...
+
+    async def mark(self, day: date, mark: str) -> bool:
+        """Note a visitor of ``day``; True if they had not been noted that day."""
+        ...
+
+    async def count(self, day: date, *, new_visitor: bool) -> None: ...
+    async def between(self, first: date, last: date) -> Sequence[VisitDay]: ...
+
+
 class SiteUnitOfWork(Protocol):
     """One transaction over the site's repositories (see ``platform.uow``)."""
 
@@ -49,6 +66,9 @@ class SiteUnitOfWork(Protocol):
 
     @property
     def subscriptions(self) -> SubscriptionRepository: ...
+
+    @property
+    def visits(self) -> VisitRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

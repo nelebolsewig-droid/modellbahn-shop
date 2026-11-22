@@ -3,13 +3,14 @@
 from typing import Final
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from modellbahn.modules.site.api.deps import (
     FairServiceDep,
     ImprintDep,
     PublicBaseUrlDep,
     SubscriptionServiceDep,
+    VisitServiceDep,
     limit_fair_news,
 )
 from modellbahn.modules.site.api.schemas import (
@@ -131,6 +132,22 @@ async def confirm(body: TokenIn, service: SubscriptionServiceDep) -> None:
 )
 async def unsubscribe(body: TokenIn, service: SubscriptionServiceDep) -> None:
     await service.unsubscribe(body.token)
+
+
+@router.post(
+    "/visits",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="recordVisit",
+    summary="Count a page view of the shop (no cookie, nothing kept about the visitor)",
+    responses=problems(validated=False),
+)
+async def record_visit(request: Request, service: VisitServiceDep) -> None:
+    """The shop sends this once per page. The visitor is hashed with a salt of the day
+    and forgotten the day after (ADR 0043)."""
+    await service.record(
+        address=request.client.host if request.client else "",
+        user_agent=request.headers.get("user-agent", ""),
+    )
 
 
 @router.get(

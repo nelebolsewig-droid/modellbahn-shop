@@ -36,6 +36,7 @@ import { EventFeed } from "./event-feed";
 import { useHall, useNow } from "./manufacturing/use-manufacturing";
 import { laneCount, orderAge, splitPaid, useOrderLane } from "./sales/use-order-lanes";
 import { FAIRS_KEY } from "./site/fairs-manager";
+import { VisitorsGlance } from "./site/visitors-glance";
 import { SystemStatus } from "./system-status";
 
 /** The admin start page ("Heute", the Fahrpult of ADR 0030). */
@@ -239,6 +240,7 @@ function Today({ staff, onStreamClosed }: { staff: StaffOut; onStreamClosed: () 
         <div className="grid gap-4">
           <HallGlance now={now} />
           {office ? <NextFair /> : null}
+          {office ? <VisitorsGlance /> : null}
         </div>
       </div>
 

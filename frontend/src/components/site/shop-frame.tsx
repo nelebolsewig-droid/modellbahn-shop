@@ -4,6 +4,7 @@ import { CartAddedPanel } from "@/components/shop/cart-added-panel";
 
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { VisitBeacon } from "./visit-beacon";
 
 const MAIN_ID = "inhalt";
 
@@ -23,6 +24,7 @@ export function ShopFrame({ children }: { children: ReactNode }) {
       </main>
       <SiteFooter />
       <CartAddedPanel />
+      <VisitBeacon />
     </div>
   );
 }

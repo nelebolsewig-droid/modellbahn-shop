@@ -1,13 +1,16 @@
 """The fairs in the Stellwerk: keep the dates, publish them, send the fair news."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Query, Response, status
 
 from modellbahn.modules.site.api.deps import (
     FairEditor,
     FairServiceDep,
     SubscriptionServiceDep,
+    VisitServiceDep,
+    VisitViewer,
 )
 from modellbahn.modules.site.api.errors import STAFF_ACCESS
 from modellbahn.modules.site.api.schemas import (
@@ -16,7 +19,10 @@ from modellbahn.modules.site.api.schemas import (
     AnnouncementOut,
     FairIn,
     SubscriptionCountsOut,
+    VisitDayOut,
+    VisitsOut,
 )
+from modellbahn.modules.site.application.visits import DAYS_MAX
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/admin", tags=["admin-site"])
@@ -98,3 +104,20 @@ async def announce_fair(fair_id: UUID, _: FairEditor, service: FairServiceDep) -
 async def fair_news_counts(_: FairEditor, service: SubscriptionServiceDep) -> SubscriptionCountsOut:
     counts = await service.counts()
     return SubscriptionCountsOut(confirmed=counts["confirmed"], pending=counts["pending"])
+
+
+@router.get(
+    "/visits",
+    operation_id="listVisits",
+    summary="Visitors and page views of the shop per day",
+    responses=problems(STAFF_ACCESS, unsafe=False),
+)
+async def list_visits(
+    _: VisitViewer,
+    service: VisitServiceDep,
+    days: Annotated[int, Query(ge=1, le=DAYS_MAX)] = 30,
+) -> VisitsOut:
+    rows = await service.last_days(days)
+    return VisitsOut(
+        days=[VisitDayOut(day=r.day, visitors=r.visitors, page_views=r.page_views) for r in rows]
+    )

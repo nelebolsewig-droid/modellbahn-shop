@@ -105,6 +105,8 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "site.fairs",
         "site.subscriptions",
         "site.mailings",
+        "site.visit_days",
+        "site.visit_marks",
         "marketplace.ebay_account",
         "marketplace.category_map",
         "marketplace.listings",
