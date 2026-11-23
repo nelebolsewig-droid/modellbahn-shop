@@ -29,7 +29,7 @@ from typing import Any, Final, Protocol
 import numpy as np
 import structlog
 from numpy.typing import NDArray
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage
 
 from modellbahn.modules.media.domain.studio import (
@@ -82,10 +82,26 @@ SHADOW_MAX: Final = 0.5
 # Below this the photo has no shadow worth keeping, and a plain soft one is drawn.
 FAINT_SHADOW: Final = 0.12
 MIN_SHADOW_AREA: Final = 0.03
-SOFT_SHADOW_OPACITY: Final = 0.4
-# How far above the floor line the soft shadow reaches behind the model. More shows as
-# a grey box beside a narrow body (a crane cab on a long frame).
-SOFT_SHADOW_RISE: Final = 0.06
+# The drawn shadow for pictures without one of their own (renders): it lies only where
+# the model stands. Fractions of the model size unless said otherwise.
+# The parts this close above the floor are laid flat onto it, like light from above.
+FLAT_REACH: Final = 0.16
+FLAT_SQUASH: Final = 0.2
+FLAT_DROP: Final = 0.006
+FLAT_SLANT: Final = 0.02
+FLAT_WEIGHT: Final = 0.8
+# The floor between the feet (wheels) of every part in the lowest share of the model's
+# height, so a vehicle seen from the side or at an angle stands on all of them.
+FEET_ZONE: Final = 0.3
+FEET_REACH: Final = 0.02
+FEET_GROW: Final = 0.01
+NEAR_BLUR: Final = 0.013
+NEAR_OPACITY: Final = 0.42
+WIDE_BLUR: Final = 0.038
+WIDE_OPACITY: Final = 0.32
+CONTACT_BLUR: Final = 0.0035
+CONTACT_OPACITY: Final = 1.3
+SOFT_SHADOW_MAX: Final = 0.75
 
 
 class Segmenter(Protocol):
@@ -507,27 +523,113 @@ def _smooth(values: NDArray[np.floating]) -> FloatImage:
 
 
 def _soft_shadow(alpha: Image.Image, standline: int, model_size: int) -> FloatImage:
-    """A plain soft shadow under the model, for photos that bring none of their own."""
+    """A soft shadow for pictures that bring none of their own, such as renders.
+
+    Two parts make it look photographed: the floor between the feet of each part
+    (wheels, a bucket, a stand) and the parts close above the floor, laid flat onto it.
+    Nothing is drawn under parts in the air, so no grey bar under a crane's boom.
+    """
+    del standline  # the model's own feet say where the floor is
     mask = np.asarray(alpha, dtype=np.float32) / 255.0
-    height = mask.shape[0]
     solid = mask > 0.5
-    present = solid.any(axis=0)
-    underside = height - 1 - np.argmax(solid[::-1], axis=0)
-    grounded = np.flatnonzero(present & (underside >= standline - round(model_size * 0.22)))
-    if grounded.size < 2:
+    rows = np.flatnonzero(solid.any(axis=1))
+    if rows.size == 0:
         return np.zeros_like(mask)
-    hull = _lower_hull(grounded, underside[grounded])
-    columns = np.arange(mask.shape[1])
-    floor_line = np.interp(columns, hull[:, 0], hull[:, 1]).astype(np.float32)
-    inside = ((columns >= grounded[0]) & (columns <= grounded[-1])).astype(np.float32)
-    distance = np.arange(height, dtype=np.float32)[:, None] - floor_line[None, :]
-    # Dark under the model up to its underside, running out softly below the floor line.
-    under = np.where(distance <= 0, 1.0, np.exp(-0.5 * (distance / (model_size * 0.02)) ** 2))
-    under = under * (distance > -model_size * SOFT_SHADOW_RISE) * inside[None, :]
-    soft: FloatImage = (
-        ndimage.gaussian_filter(under.astype(np.float32), model_size * 0.02) * SOFT_SHADOW_OPACITY
-    )
+    feet, contact = _feet_floor(solid, rows, model_size)
+    flat = _flat_parts(solid, rows, model_size)
+    floor = _blurred(feet, model_size)
+    laid = _blurred(flat, model_size) * FLAT_WEIGHT
+    cast = np.maximum(floor, laid) + 0.3 * np.minimum(floor, laid)
+    touch = ndimage.gaussian_filter(contact, model_size * CONTACT_BLUR) * CONTACT_OPACITY
+    soft: FloatImage = np.clip(cast + touch, 0.0, SOFT_SHADOW_MAX).astype(np.float32)
     return soft
+
+
+def _blurred(source: FloatImage, model_size: int) -> FloatImage:
+    near = ndimage.gaussian_filter(source, model_size * NEAR_BLUR) * NEAR_OPACITY
+    wide = ndimage.gaussian_filter(source, model_size * WIDE_BLUR) * WIDE_OPACITY
+    blurred: FloatImage = (near + wide).astype(np.float32)
+    return blurred
+
+
+def _feet_floor(
+    solid: NDArray[np.bool_], rows: NDArray[np.intp], model_size: int
+) -> tuple[FloatImage, FloatImage]:
+    """The floor between the feet of each low part, and where those feet touch it."""
+    height, width = solid.shape
+    low = solid.copy()
+    low[: int(rows[-1] - (rows[-1] - rows[0]) * FEET_ZONE)] = False
+    labels, count = ndimage.label(low)
+    reach = max(2, round(FEET_REACH * model_size))
+    floor = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(floor)
+    contact = np.zeros((height, width), dtype=np.float32)
+    for label in range(1, count + 1):
+        part = labels == label
+        if part.sum() < (model_size * 0.01) ** 2:
+            continue
+        columns = np.flatnonzero(part.any(axis=0))
+        underside = np.full(width, -1)
+        underside[columns] = height - 1 - np.argmax(part[::-1, columns], axis=0)
+        lowest = ndimage.maximum_filter1d(underside, 2 * reach + 1)
+        feet = [(int(x), int(underside[x])) for x in columns if underside[x] >= lowest[x] - 1]
+        outline = _convex_hull(feet)
+        if len(outline) >= 3:
+            draw.polygon(outline, fill=255)
+        else:
+            draw.line(outline, fill=255, width=3)
+        for x, y in feet:
+            contact[max(0, y - 1) : y + 2, x] = 1.0
+    grown = np.asarray(floor, dtype=np.float32) / 255.0
+    size = (max(1, round(FEET_GROW * model_size * 0.4)), max(1, round(FEET_GROW * model_size)))
+    return ndimage.grey_dilation(grown, size=size).astype(np.float32), contact
+
+
+def _flat_parts(solid: NDArray[np.bool_], rows: NDArray[np.intp], model_size: int) -> FloatImage:
+    """The parts close above the floor line, laid flat onto the floor behind them."""
+    height, width = solid.shape
+    underside = height - 1 - np.argmax(solid[::-1], axis=0)
+    present = np.flatnonzero(solid.any(axis=0))
+    low = present[underside[present] >= rows[-1] - (rows[-1] - rows[0]) * 0.25]
+    hull = _lower_hull(low, underside[low])
+    floor_line = np.interp(np.arange(width), hull[:, 0], hull[:, 1]).astype(np.float32)
+    reach = FLAT_REACH * model_size
+    above = floor_line[None, :] - np.arange(height, dtype=np.float32)[:, None]
+    span = (np.arange(width) >= hull[0, 0]) & (np.arange(width) <= hull[-1, 0])
+    close = solid & (above <= reach) & (above >= -2) & span[None, :]
+    ys, xs = np.nonzero(close)
+    lift = above[ys, xs]
+    to_y = np.round(floor_line[xs] - lift * FLAT_SQUASH + FLAT_DROP * model_size).astype(int)
+    to_x = np.round(xs + FLAT_SLANT * model_size * (1 - lift / reach)).astype(int)
+    keep = (to_y >= 0) & (to_y < height) & (to_x >= 0) & (to_x < width)
+    flat = np.zeros((height, width), dtype=np.float32)
+    flat[to_y[keep], to_x[keep]] = 1.0
+    closed: FloatImage = ndimage.grey_closing(flat, size=(3, 3)).astype(np.float32)
+    return closed
+
+
+def _convex_hull(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """The convex outline of the points (monotone chain); fewer than three stay as they are."""
+    ordered = sorted(set(points))
+    if len(ordered) < 3:
+        return ordered
+
+    def half(chain: list[tuple[int, int]]) -> list[tuple[int, int]]:
+        out: list[tuple[int, int]] = []
+        for p in chain:
+            while (
+                len(out) >= 2
+                and (
+                    (out[-1][0] - out[-2][0]) * (p[1] - out[-2][1])
+                    - (out[-1][1] - out[-2][1]) * (p[0] - out[-2][0])
+                )
+                <= 0
+            ):
+                out.pop()
+            out.append(p)
+        return out
+
+    return half(ordered)[:-1] + half(ordered[::-1])[:-1]
 
 
 def _lower_hull(xs: NDArray[np.intp], ys: NDArray[np.intp]) -> NDArray[np.float32]:
