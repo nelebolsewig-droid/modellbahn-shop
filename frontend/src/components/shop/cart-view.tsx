@@ -149,7 +149,7 @@ function CartLine({
 }
 
 /**
- * "Sofort lieferbar", "3 sofort lieferbar, 2 werden für dich gefertigt · Lieferzeit 2–4
+ * "Sofort lieferbar", "3 sofort lieferbar, 2 in Fertigung nach Bestellung · Lieferzeit 2–4
  * Wochen", or what keeps it from the checkout.
  */
 function LineAvailability({ line }: { line: CartLineOut }) {
@@ -186,7 +186,7 @@ export function DeliveryNote({ cart, fromShelf = false, className }: { cart: Car
   }
   return (
     <p className={cn("rounded-sm bg-accent-subtle px-4 py-3 text-small text-accent", className)}>
-      Mindestens ein Modell wird für dich gefertigt. Wir schicken alles zusammen in voraussichtlich {leadTimeText(weeks)}.
+      Mindestens ein Modell wird nach Bestellung gefertigt. Wir schicken alles zusammen in voraussichtlich {leadTimeText(weeks)}.
     </p>
   );
 }

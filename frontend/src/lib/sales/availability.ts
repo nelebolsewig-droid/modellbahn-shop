@@ -80,7 +80,7 @@ export function availabilityNote(
   }
   if (availability === "made_to_order") {
     return {
-      label: "Wird für dich gefertigt",
+      label: "Fertigung nach Bestellung",
       tone: "accent",
       detail: weeks ? `Lieferzeit ${leadTimeText(weeks)}` : null,
     };
@@ -89,8 +89,8 @@ export function availabilityNote(
 }
 
 /**
- * A cart line in the shop's words: "Sofort lieferbar", "3 sofort lieferbar, 2 werden für
- * dich gefertigt · Lieferzeit 2–4 Wochen", or "Wird für dich gefertigt · Lieferzeit …".
+ * A cart line in the shop's words: "Sofort lieferbar", "3 sofort lieferbar, 2 in Fertigung
+ * nach Bestellung · Lieferzeit 2–4 Wochen", or "Fertigung nach Bestellung · Lieferzeit …".
  */
 export function cartLineNote(line: CartLineOut): AvailabilityNote {
   const weeks = leadTimeOf(line.lead_time_min_weeks, line.lead_time_max_weeks);
@@ -103,11 +103,11 @@ export function cartLineNote(line: CartLineOut): AvailabilityNote {
   const detail = weeks ? `Lieferzeit ${leadTimeText(weeks)}` : null;
   const fromShelf = Math.min(line.free_units, line.quantity);
   if (fromShelf <= 0) {
-    return { label: "Wird für dich gefertigt", tone: "accent", detail };
+    return { label: "Fertigung nach Bestellung", tone: "accent", detail };
   }
   const made = line.quantity - fromShelf;
   return {
-    label: `${fromShelf} sofort lieferbar, ${made} ${made === 1 ? "wird" : "werden"} für dich gefertigt`,
+    label: `${fromShelf} sofort lieferbar, ${made} in Fertigung nach Bestellung`,
     tone: "accent",
     detail,
   };

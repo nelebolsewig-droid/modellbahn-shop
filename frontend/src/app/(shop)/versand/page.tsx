@@ -14,7 +14,7 @@ const TIMES = [
     details: "Wir verschicken sie in der Regel 1–3 Werktage, nachdem deine Zahlung eingegangen ist.",
   },
   {
-    term: "Für dich gefertigt",
+    term: "Fertigung nach Bestellung",
     details:
       "Ist ein Modell nicht in der gewünschten Menge vorrätig, fertigen wir die fehlenden Stücke für dich. Wie viele sofort lieferbar sind und wie lange die übrigen dauern, steht am Artikel und vor dem Kauf im Warenkorb. Wir schicken alles zusammen in einem Paket.",
   },
