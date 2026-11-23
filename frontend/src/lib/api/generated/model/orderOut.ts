@@ -30,6 +30,8 @@ export interface OrderOut {
   cancelled_at: string | null;
   carrier: string;
   email: string;
+  /** When the pieces went into painting and assembly (ADR 0046). */
+  finishing_started_at?: string | null;
   /** Invoice and corrections, issued from dispatch on (ADR 0038). */
   invoices: InvoiceOut[];
   lead_time_max_weeks?: number | null;

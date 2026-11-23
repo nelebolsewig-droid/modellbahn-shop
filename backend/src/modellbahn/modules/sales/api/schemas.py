@@ -439,6 +439,10 @@ class OrderOut(BaseModel):
         default=None,
         description="When the first plate for one of its pieces went on a printer (ADR 0034).",
     )
+    finishing_started_at: datetime | None = Field(
+        default=None,
+        description="When the pieces went into painting and assembly (ADR 0046).",
+    )
     invoices: list[InvoiceOut] = Field(
         description="Invoice and corrections, issued from dispatch on (ADR 0038).",
     )
@@ -468,6 +472,7 @@ class OrderOut(BaseModel):
             lead_time_min_weeks=order.lead_time_min_weeks,
             lead_time_max_weeks=order.lead_time_max_weeks,
             making_started_at=order.making_started_at,
+            finishing_started_at=order.finishing_started_at,
             invoices=[InvoiceOut.from_invoice(invoice) for invoice in details.invoices],
         )
 

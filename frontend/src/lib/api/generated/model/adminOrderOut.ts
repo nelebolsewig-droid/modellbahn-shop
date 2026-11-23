@@ -37,6 +37,8 @@ export interface AdminOrderOut {
   email: string;
   /** The marketplace's order number, e.g. eBay's 12-34567-89012. */
   external_ref: string | null;
+  /** When the pieces went into painting and assembly (ADR 0046). */
+  finishing_started_at?: string | null;
   id: string;
   /** Invoice and corrections, issued from dispatch on (ADR 0038). */
   invoices: InvoiceOut[];

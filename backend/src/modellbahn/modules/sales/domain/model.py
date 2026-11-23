@@ -31,6 +31,7 @@ from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
     OrderDelayed,
+    OrderFinishingStarted,
     OrderMakingStarted,
     OrderPaid,
     OrderPlaced,
@@ -601,6 +602,8 @@ class Order:
     lead_time_max_weeks: int | None = None
     making_started_at: datetime | None = None
     """When the first plate for one of its pieces went on a printer (ADR 0034)."""
+    finishing_started_at: datetime | None = None
+    """When the staff pressed „Lackierung & Montage“ (ADR 0046)."""
     lines: list[OrderLine] = field(default_factory=list)
     payments: list[Payment] = field(default_factory=list)
 
@@ -1041,13 +1044,31 @@ class Order:
             lead_time_max_weeks=longest,
         )
 
-    def start_making(self, now: datetime) -> OrderMakingStarted | None:
-        """A plate for one of its pieces is printing: noted once, while the order is paid."""
+    def start_making(self, now: datetime, *, by_hand: bool = False) -> OrderMakingStarted | None:
+        """A plate for one of its pieces is printing, or the staff pressed „In Fertigung“:
+        noted once, while the order is paid."""
         if self.status is not OrderStatus.PAID or self.making_started_at is not None:
             return None
         self.making_started_at = now
         self.updated_at = now
         return OrderMakingStarted(
+            aggregate_id=self.id,
+            occurred_at=now,
+            number=self.number,
+            total_cents=self.total_cents,
+            by_hand=by_hand,
+        )
+
+    def start_finishing(self, now: datetime) -> OrderFinishingStarted | None:
+        """The pieces are printed and go into painting and assembly: noted once, while the
+        order is paid. Printing counts as begun by then, too."""
+        if self.status is not OrderStatus.PAID or self.finishing_started_at is not None:
+            return None
+        if self.making_started_at is None:
+            self.making_started_at = now
+        self.finishing_started_at = now
+        self.updated_at = now
+        return OrderFinishingStarted(
             aggregate_id=self.id, occurred_at=now, number=self.number, total_cents=self.total_cents
         )
 

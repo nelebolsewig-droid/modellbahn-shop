@@ -161,6 +161,51 @@ class TestMakingStarted:
         assert len(notices) == 1
         assert "läuft gerade der Drucker für dich" in notices[0].text
 
+    async def test_the_button_tells_the_customer_once(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        kit: UUID,
+    ) -> None:
+        order = await paid_order(carts, checkout, orders, kit, 1)
+        await deliver_all(deliver)
+
+        first = await orders.start_making(order.id)
+        await deliver_all(deliver)
+        again = await orders.start_making(order.id)
+        await deliver_all(deliver)
+
+        assert first.order.making_started_at is not None
+        assert again.order.making_started_at == first.order.making_started_at
+        notices = [m for m in mails_to(mailer, CUSTOMER) if MAKING_SUBJECT in m.subject]
+        assert len(notices) == 1
+        assert "jetzt im Druck" in notices[0].text
+
+    async def test_painting_and_assembly_tell_the_customer_once(
+        self,
+        carts: CartService,
+        checkout: CheckoutService,
+        orders: OrderService,
+        deliver: Deliver,
+        mailer: InMemoryMailer,
+        kit: UUID,
+    ) -> None:
+        order = await paid_order(carts, checkout, orders, kit, 1)
+        await deliver_all(deliver)
+
+        first = await orders.start_finishing(order.id)
+        await deliver_all(deliver)
+        await orders.start_finishing(order.id)
+        await deliver_all(deliver)
+
+        assert first.order.finishing_started_at is not None
+        assert first.order.making_started_at is not None
+        notices = [m for m in mails_to(mailer, CUSTOMER) if "Lackierung und Montage" in m.subject]
+        assert len(notices) == 1
+
 
 class TestMorningDigest:
     @pytest.fixture

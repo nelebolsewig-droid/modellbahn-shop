@@ -104,6 +104,32 @@ async def ship_order(
 
 
 @router.post(
+    "/{order_id}/making",
+    operation_id="startMakingOrder",
+    summary="Note that the workshop is making a paid order's pieces (the customer gets an "
+    "e-mail, once)",
+    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}),
+)
+async def start_making_order(
+    order_id: UUID, _: OrderShipper, service: OrderServiceDep
+) -> AdminOrderOut:
+    return AdminOrderOut.from_details(await service.start_making(order_id))
+
+
+@router.post(
+    "/{order_id}/finishing",
+    operation_id="startFinishingOrder",
+    summary="Note that a paid order's pieces go into painting and assembly (the customer gets "
+    "an e-mail, once)",
+    responses=problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}),
+)
+async def start_finishing_order(
+    order_id: UUID, _: OrderShipper, service: OrderServiceDep
+) -> AdminOrderOut:
+    return AdminOrderOut.from_details(await service.start_finishing(order_id))
+
+
+@router.post(
     "/{order_id}/cancel",
     operation_id="cancelOrder",
     summary="Cancel an order that has not been shipped; a payment is refunded",

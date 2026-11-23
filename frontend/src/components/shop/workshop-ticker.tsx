@@ -2,7 +2,7 @@ import type { OrderOut } from "@/lib/api/generated/model";
 import { formatClock, formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Eingeplant", "Im Drucker", "Bauen und prüfen", "Verpacken"] as const;
+const STEPS = ["Eingeplant", "Im Drucker", "Lackieren und Montage", "Verpacken"] as const;
 
 /**
  * Werkstatt-Ticker (ADR 0034): for a paid order whose pieces are made for the customer,
@@ -15,7 +15,8 @@ export function WorkshopTicker({ order, className }: { order: OrderOut; classNam
   if (order.status !== "paid" || (!madeToOrder && started === null)) {
     return null;
   }
-  const current = started === null ? 0 : 1;
+  const finishing = order.finishing_started_at ? new Date(order.finishing_started_at) : null;
+  const current = finishing !== null ? 2 : started === null ? 0 : 1;
   return (
     <section aria-labelledby="werkstatt" className={cn("border border-line bg-surface", className)}>
       <div className="flex items-center gap-3 border-b border-line px-5 py-3">
@@ -29,7 +30,11 @@ export function WorkshopTicker({ order, className }: { order: OrderOut; classNam
       </div>
       <div className="px-5 py-5">
         <p className="text-body-lg" aria-live="polite">
-          {started ? (
+          {finishing ? (
+            <>
+              Seit {formatLongDate(finishing)}, {formatClock(finishing)} Uhr wird dein Modell lackiert und montiert.
+            </>
+          ) : started ? (
             <>
               Seit {formatLongDate(started)}, {formatClock(started)} Uhr läuft der Drucker für dich.
             </>

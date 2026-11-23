@@ -177,6 +177,39 @@ class OrderService:
             _logger.info("sales.order.transfer_received", order=order.number)
             return await order_details(uow, order)
 
+    async def start_making(self, order_id: UUID) -> OrderDetails:
+        """The staff start making a paid order's pieces by hand („In Fertigung“, ADR 0046).
+
+        The customer hears it once, as when a printer starts a plate (ADR 0034); a second
+        press changes nothing and sends nothing.
+        """
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            if order.status is not OrderStatus.PAID:
+                msg = f"an order that is {order.status} cannot go into making"
+                raise InvalidOrderStateError(msg)
+            started = order.start_making(self._clock.now(), by_hand=True)
+            if started is not None:
+                uow.publish(started)
+                await uow.commit()
+                _logger.info("sales.order.making_started", order=order.number, by_hand=True)
+            return await order_details(uow, order)
+
+    async def start_finishing(self, order_id: UUID) -> OrderDetails:
+        """The pieces go into painting and assembly („Lackierung & Montage“, ADR 0046); the
+        customer hears it once, a second press changes nothing."""
+        async with self._uow() as uow:
+            order = await self._locked(uow, order_id)
+            if order.status is not OrderStatus.PAID:
+                msg = f"an order that is {order.status} cannot go into finishing"
+                raise InvalidOrderStateError(msg)
+            started = order.start_finishing(self._clock.now())
+            if started is not None:
+                uow.publish(started)
+                await uow.commit()
+                _logger.info("sales.order.finishing_started", order=order.number)
+            return await order_details(uow, order)
+
     async def refund(
         self, order_id: UUID, *, amount_cents: int, refunded_by_hand: bool = False
     ) -> OrderDetails:

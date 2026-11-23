@@ -192,6 +192,14 @@ EXPECTED_OPERATIONS = {
         "getOrderInvoiceDocument",
         "store-sales",
     ),
+    ("POST", "/api/v1/admin/orders/{order_id}/finishing"): (
+        "startFinishingOrder",
+        "admin-sales",
+    ),
+    ("POST", "/api/v1/admin/orders/{order_id}/making"): (
+        "startMakingOrder",
+        "admin-sales",
+    ),
     ("POST", "/api/v1/admin/orders/{order_id}/bank-transfer"): (
         "confirmBankTransfer",
         "admin-sales",
