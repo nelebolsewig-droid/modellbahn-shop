@@ -10,7 +10,7 @@ from modellbahn.modules.media.domain import studio as frame
 from modellbahn.modules.media.domain.model import Asset, AssetKind, AssetStatus
 from modellbahn.modules.media.domain.studio import Box, place, trustworthy
 from modellbahn.modules.media.infrastructure.imaging import STAGE_GROUND, PillowImageProcessor
-from modellbahn.modules.media.infrastructure.studio import FloatImage, PhotoStudio
+from modellbahn.modules.media.infrastructure.studio import FloatImage, PhotoStudio, _soft_shadow
 from tests.support import NOW
 from tests.unit.test_media_domain import announced, details
 
@@ -242,6 +242,22 @@ class TestProcessor:
         middle = (rows[0] + rows[-1]) // 2
         above = staged[rows[0] : middle, : columns[0] - 20, 3]
         assert int(above.max()) < 40
+
+    def test_a_render_stands_on_its_wheels_and_no_bar_lies_under_the_boom(self) -> None:
+        # A crane seen at an angle: the near wheel lower than the far one, the boom in the air.
+        alpha = Image.new("L", (1000, 800), 0)
+        draw = ImageDraw.Draw(alpha)
+        draw.rectangle((600, 380, 900, 520), fill=255)  # body
+        draw.ellipse((610, 500, 680, 570), fill=255)  # near wheel, lower
+        draw.ellipse((820, 470, 890, 540), fill=255)  # far wheel, higher
+        draw.polygon([(600, 400), (620, 420), (100, 120), (90, 100)], fill=255)  # boom
+        shadow = _soft_shadow(alpha, 570, 800)
+        # Under both wheels the floor is dark, between them too.
+        assert shadow[575, 645] > 0.15
+        assert shadow[545, 855] > 0.15
+        assert shadow[540, 750] > 0.1
+        # Far from the wheels, under the boom, the floor stays clear.
+        assert shadow[575, 300] < 0.02
 
     def test_switched_off_or_without_studio_the_photo_stays_as_uploaded(self) -> None:
         data = self.jpeg(shot((230, 230, 230), (300, 300, 900, 600)))
