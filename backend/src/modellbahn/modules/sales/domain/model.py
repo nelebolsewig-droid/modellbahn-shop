@@ -1041,14 +1041,19 @@ class Order:
             lead_time_max_weeks=longest,
         )
 
-    def start_making(self, now: datetime) -> OrderMakingStarted | None:
-        """A plate for one of its pieces is printing: noted once, while the order is paid."""
+    def start_making(self, now: datetime, *, by_hand: bool = False) -> OrderMakingStarted | None:
+        """A plate for one of its pieces is printing, or the staff pressed „In Fertigung“:
+        noted once, while the order is paid."""
         if self.status is not OrderStatus.PAID or self.making_started_at is not None:
             return None
         self.making_started_at = now
         self.updated_at = now
         return OrderMakingStarted(
-            aggregate_id=self.id, occurred_at=now, number=self.number, total_cents=self.total_cents
+            aggregate_id=self.id,
+            occurred_at=now,
+            number=self.number,
+            total_cents=self.total_cents,
+            by_hand=by_hand,
         )
 
     def ship(self, *, carrier: str, tracking_number: str, now: datetime) -> OrderShipped:

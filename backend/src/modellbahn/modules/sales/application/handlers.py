@@ -213,9 +213,14 @@ class SalesHandlers:
         async with self._uow() as uow:
             waiting = set((await uow.inventory.pick_progress(order.id)).waiting_variant_ids)
         titles = [line.title for line in order.lines if line.variant_id in waiting]
+        if not titles and event.by_hand:
+            # Pressed by hand: the staff know what they make, even if the books don't yet.
+            titles = [line.title for line in order.lines]
         if not titles:
             return
-        content = mails.making_mail(order, titles=titles, base_url=self._base_url)
+        content = mails.making_mail(
+            order, titles=titles, base_url=self._base_url, by_hand=event.by_hand
+        )
         await self._send(event, order, content)
 
     async def send_shipped_notice(self, event: OrderShipped) -> None:

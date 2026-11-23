@@ -173,8 +173,11 @@ def delay_mail(order: Order, *, titles: list[str], base_url: str) -> MailContent
     )
 
 
-def making_mail(order: Order, *, titles: list[str], base_url: str) -> MailContent:
-    """Once, when the first plate for the customer's pieces goes on a printer (ADR 0034)."""
+def making_mail(
+    order: Order, *, titles: list[str], base_url: str, by_hand: bool = False
+) -> MailContent:
+    """Once, when the first plate for the customer's pieces goes on a printer (ADR 0034) or
+    the staff press „In Fertigung“ (ADR 0046)."""
     made = _listing(titles)
     weeks = order.lead_time_weeks
     when = (
@@ -186,8 +189,13 @@ def making_mail(order: Order, *, titles: list[str], base_url: str) -> MailConten
         subject=f"Deine Bestellung {order.number} ist in der Werkstatt",
         greeting=_greeting(order),
         paragraphs=(
-            f"gute Nachricht: In unserer Werkstatt läuft gerade der Drucker für dich. "
-            f"Wir fertigen {made}.",
+            (
+                f"gute Nachricht: Dein Modell ist jetzt in Fertigung. Wir fertigen {made} "
+                "in unserer Werkstatt gerade für dich."
+                if by_hand
+                else f"gute Nachricht: In unserer Werkstatt läuft gerade der Drucker für dich. "
+                f"Wir fertigen {made}."
+            ),
             f"Danach wird geschliffen, gebaut und geprüft. {when} Auf der Seite deiner "
             "Bestellung siehst du jederzeit, wo sie gerade steht.",
         ),

@@ -75,6 +75,9 @@ class OrderMakingStarted(_OrderEvent):
     event_type: ClassVar[str] = "sales.order.making_started"
     aggregate_type: ClassVar[str] = ORDER_AGGREGATE
 
+    by_hand: bool = False
+    """Started by the button „In Fertigung“ at the order desk, not by a printer."""
+
 
 @domain_event
 @dataclass(frozen=True, kw_only=True)

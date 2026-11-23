@@ -9,6 +9,7 @@ import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { PickList, PickProgress } from "@/components/admin/inventory/pick-list";
 import { Panel } from "@/components/admin/panel";
 import { ChannelBadge } from "@/components/admin/sales/channel-badge";
+import { MakingStart, madeToOrder } from "@/components/admin/sales/making-start";
 import { RefundPanel } from "@/components/admin/sales/refund-panel";
 import { RefundRefusal, refusalOf } from "@/components/admin/sales/refund-refusal";
 import { RepaymentPanel, hasRepayment } from "@/components/admin/sales/repayment-panel";
@@ -204,6 +205,11 @@ export function OrderDesk({ orderId, staffRole, onStreamClosed }: OrderDeskProps
           {awaitedTransfer(data) && MAY_CANCEL.has(staffRole) ? (
             <Panel title="Überweisung" id={ACTION_ANCHORS.transfer}>
               <TransferBooking order={data} onBooked={store} />
+            </Panel>
+          ) : null}
+          {madeToOrder(data) ? (
+            <Panel title="Fertigung">
+              <MakingStart order={data} onStarted={store} />
             </Panel>
           ) : null}
           <Panel title="Versand" id={ACTION_ANCHORS.dispatch}>
