@@ -98,6 +98,14 @@ Regeln:
   Schneller: Anlauf nach dem Start 90 statt 300 Sekunden, Speicher wird alle 30 statt
   120 Sekunden neu geprüft.
 
+- **Schon freigestellte Bilder** (Nachtrag 23.11.2026, EDK 80-3: Renderbilder als PNG mit
+  durchsichtigem Grund): `convert("RGB")` machte den durchsichtigen Grund schwarz, das
+  Fotostudio hielt ihn für einen dunklen Hintergrund mit riesigem Schatten (grauer
+  Kasten, ausgefranste Kanten). Jetzt geht ein solches Bild auf Weiß ins Fotostudio,
+  wie ein Fotobox-Foto. Der gezeichnete weiche Schatten reicht nur noch 6 % der
+  Modellgröße über die Standlinie (`SOFT_SHADOW_RISE`, vorher 30 %), sonst stand er
+  neben schmalen Aufbauten als Kasten im Bild.
+
 ## Verworfen
 
 - **Freistellen ohne neuronales Modell** (Hintergrund aus dem Bildrand schätzen): bei
