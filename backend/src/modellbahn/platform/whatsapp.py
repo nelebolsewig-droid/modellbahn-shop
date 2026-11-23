@@ -43,6 +43,17 @@ class Messenger(Protocol):
     async def send(self, text: str) -> None: ...
 
 
+class Broadcast:
+    """Several messengers as one: each gets the same note, in order."""
+
+    def __init__(self, messengers: Sequence[Messenger]) -> None:
+        self._messengers = tuple(messengers)
+
+    async def send(self, text: str) -> None:
+        for messenger in self._messengers:
+            await messenger.send(text)
+
+
 class CallMeBotWhatsApp:
     def __init__(
         self,
