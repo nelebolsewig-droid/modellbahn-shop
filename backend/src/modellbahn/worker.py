@@ -172,6 +172,7 @@ async def run_worker(
             min_free_mb=settings.studio_min_free_mb,
             warmup=timedelta(seconds=settings.studio_warmup_seconds),
             pause=timedelta(seconds=settings.studio_pause_seconds),
+            max_wait=timedelta(seconds=settings.studio_max_wait_seconds),
         ),
     ).register(handlers)
     media_service = MediaService(uow_factory=media_uow, storage=storage, clock=clock)

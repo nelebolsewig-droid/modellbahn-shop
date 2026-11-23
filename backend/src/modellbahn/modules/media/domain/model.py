@@ -40,6 +40,10 @@ IMAGE_MAX_BYTES: Final = 50 * 1024 * 1024
 IMAGE_MAX_PIXELS: Final = 100_000_000
 FILENAME_MAX_LENGTH: Final = 255
 MAX_PROCESSING_ATTEMPTS: Final = 3
+# Photo studio runs begun for a photo without getting through. A run the kernel stops
+# (out of memory) leaves no error behind; after this many the photo is rendered as taken,
+# so it does not hang in "being processed" for good.
+MAX_STUDIO_TRIES: Final = 2
 UPLOAD_URL_LIFETIME: Final = timedelta(minutes=15)
 # Tickets whose file never arrived are removed after this long.
 STALE_UPLOAD_AGE: Final = timedelta(hours=24)
@@ -155,6 +159,8 @@ class Asset:
     # Whether the photo studio may finish this photo (ADR 0031). The original is kept
     # either way, so this can be switched at any time.
     studio: bool = True
+    # Studio runs begun since the last result (see :data:`MAX_STUDIO_TRIES`).
+    studio_tries: int = 0
     image: ImageDetails | None = None
     renditions: list[Rendition] = field(default_factory=list)
     # Maintained by the persistence layer for optimistic locking.
@@ -247,6 +253,7 @@ class Asset:
         self.last_error = None
         self.ready_at = now
         self.updated_at = now
+        self.studio_tries = 0
         return AssetReady(aggregate_id=self.id, occurred_at=now)
 
     def record_failure(
@@ -275,10 +282,25 @@ class Asset:
             raise InvalidAssetStateError(f"asset {self.id} is {self.status}")
         self.status = AssetStatus.UPLOADED
         self.attempts = 0
+        self.studio_tries = 0
         self.failure_code = None
         self.last_error = None
         self.updated_at = now
         return AssetUploaded(aggregate_id=self.id, occurred_at=now)
+
+    def begin_studio_run(self) -> bool:
+        """Note that the studio starts on this photo; False when it should not try again.
+
+        The note is committed before the run, so a worker killed halfway (out of memory)
+        still leaves it behind. After :data:`MAX_STUDIO_TRIES` such runs the photo is
+        rendered as taken instead of starting the same run once more.
+        """
+        if self.status is not AssetStatus.UPLOADED:
+            raise InvalidAssetStateError(f"asset {self.id} is {self.status}, not uploaded")
+        if not self.studio or self.studio_tries >= MAX_STUDIO_TRIES:
+            return False
+        self.studio_tries += 1
+        return True
 
     def set_studio(self, enabled: bool, now: datetime) -> AssetUploaded | None:
         """Switch the photo studio for this photo; a finished photo is rendered again.

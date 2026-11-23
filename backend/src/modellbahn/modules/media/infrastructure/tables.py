@@ -53,6 +53,8 @@ assets = Table(
     Column("ready_at", DateTime(timezone=True)),
     # May the photo studio finish this photo (ADR 0031)?
     Column("studio", Boolean, nullable=False, server_default=text("true")),
+    # Studio runs begun without a result; a run killed for memory counts too.
+    Column("studio_tries", SmallInteger, nullable=False, server_default=text("0")),
     Column("version", Integer, nullable=False, server_default=text("1")),
     # The same file uploaded twice is the same asset.
     UniqueConstraint("kind", "sha256"),
@@ -70,6 +72,7 @@ assets = Table(
     CheckConstraint("size_bytes > 0", name="size_positive"),
     CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="sha256_format"),
     CheckConstraint("attempts >= 0", name="attempts_non_negative"),
+    CheckConstraint("studio_tries >= 0", name="studio_tries_non_negative"),
     # Finds abandoned upload tickets for the hourly clean-up.
     Index(
         "assets_pending_upload_idx",

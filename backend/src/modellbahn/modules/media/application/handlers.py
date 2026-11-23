@@ -91,24 +91,46 @@ class MediaProcessingHandlers:
         if behind_new:
             raise PostponedError(NEW_PHOTOS_FIRST, "new photos go through the studio first")
         log = _logger.bind(asset_id=str(asset_id))
-        if gate is not None and (wait := gate.wait()) is not None:
-            # Not a failure: the photo keeps its place and comes back when there is room.
-            raise PostponedError(*wait)
+        if gate is not None:
+            waited = self._clock.now() - asset.updated_at
+            if (wait := gate.wait(waited=waited)) is not None:
+                # Not a failure: the photo keeps its place and comes back when there is room.
+                raise PostponedError(*wait)
+        studio = asset.studio
+        if gate is not None:
+            began = await self._begin_studio_run(asset_id)
+            if began is None:
+                return
+            studio = began
+            if not studio:
+                # Earlier runs never came back (the worker was killed for memory, most
+                # likely). Rather the photo as taken than one that hangs for good.
+                log.warning("media.studio_skipped", reason="earlier studio runs did not finish")
         try:
-            await self._render(asset, log)
+            await self._render(asset, log, studio=studio)
         finally:
             if gate is not None:
                 gate.done()
 
-    async def _render(self, asset: Asset, log: structlog.stdlib.BoundLogger) -> None:
+    async def _begin_studio_run(self, asset_id: UUID) -> bool | None:
+        """Count the studio run before it starts; None if the asset is gone or done."""
+        async with self._uow() as uow:
+            asset = await uow.assets.get(asset_id, for_update=True)
+            if asset is None or asset.status is not AssetStatus.UPLOADED:
+                return None
+            studio = asset.begin_studio_run()
+            await uow.commit()
+            return studio
+
+    async def _render(
+        self, asset: Asset, log: structlog.stdlib.BoundLogger, *, studio: bool
+    ) -> None:
         asset_id = asset.id
         try:
             original = await self._storage.read_original(
                 asset.original_key, max_bytes=IMAGE_MAX_BYTES
             )
-            processed = await asyncio.to_thread(
-                self._processor.process, original, studio=asset.studio
-            )
+            processed = await asyncio.to_thread(self._processor.process, original, studio=studio)
             renditions = await self._publish(asset_id, processed)
         except ImageRejectedError as exc:
             log.info("media.image_rejected", failure_code=exc.code.value, detail=exc.detail)

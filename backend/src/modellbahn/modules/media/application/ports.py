@@ -134,8 +134,12 @@ class StudioGate(Protocol):
     photo at a time, with a pause in between, and only while memory is free.
     """
 
-    def wait(self) -> tuple[timedelta, str] | None:
-        """How long to wait before the next photo and why, or ``None`` to start now."""
+    def wait(self, *, waited: timedelta = timedelta(0)) -> tuple[timedelta, str] | None:
+        """How long to wait before the next photo and why, or ``None`` to start now.
+
+        ``waited`` is how long the photo has been waiting already; a gate must not hold
+        a photo back for ever.
+        """
         ...
 
     def done(self) -> None:

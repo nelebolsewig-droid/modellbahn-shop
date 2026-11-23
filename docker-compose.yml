@@ -49,6 +49,7 @@ x-backend-env: &backend-env
   MB_STUDIO_MIN_FREE_MB:
   MB_STUDIO_WARMUP_SECONDS:
   MB_STUDIO_PAUSE_SECONDS:
+  MB_STUDIO_MAX_WAIT_SECONDS:
   # The imprint and the footer of every e-mail; production refuses to start without it.
   MB_IMPRINT_COMPANY:
   MB_IMPRINT_OWNER:

@@ -16,6 +16,7 @@ from modellbahn.modules.media.domain.events import AssetFailed, AssetReady, Asse
 from modellbahn.modules.media.domain.model import (
     IMAGE_MAX_BYTES,
     MAX_PROCESSING_ATTEMPTS,
+    MAX_STUDIO_TRIES,
     STALE_UPLOAD_AGE,
     Asset,
     AssetKind,
@@ -235,3 +236,15 @@ def test_the_contract_hands_out_the_domain_events() -> None:
 
     assert events.AssetReady is AssetReady
     assert events.AssetStatus is AssetStatus
+
+
+def test_studio_runs_are_counted_and_stop_after_the_limit() -> None:
+    asset = announced()
+    asset.complete_upload(1234, NOW)
+    assert [asset.begin_studio_run() for _ in range(MAX_STUDIO_TRIES + 1)] == [
+        *([True] * MAX_STUDIO_TRIES),
+        False,
+    ]
+    asset.studio = False
+    asset.studio_tries = 0
+    assert not asset.begin_studio_run()
