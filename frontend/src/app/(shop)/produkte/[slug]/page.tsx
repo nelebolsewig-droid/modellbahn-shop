@@ -5,10 +5,14 @@ import { connection } from "next/server";
 import { cache } from "react";
 
 import { ProductView } from "@/components/shop/product-view";
+import { JsonLd } from "@/components/site/json-ld";
 import type { StoreProductOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { catalogPath, findScale, scaleLabel } from "@/lib/catalog/scales";
+import { SHOP_NAME } from "@/lib/config";
 import { firstParam } from "@/lib/search-params";
+import { publicBaseUrl } from "@/lib/site/sitemap";
+import { absoluteUrl, breadcrumbJsonLd, loadAvailability, productJsonLd } from "@/lib/site/structured-data";
 
 // Metadata and page ask for the same product; React's cache makes it one request.
 const loadProduct = cache(async (slug: string): Promise<StoreProductOut | null> => {
@@ -22,10 +26,16 @@ export async function generateMetadata({ params }: PageProps<"/produkte/[slug]">
     return { title: "Produkt nicht gefunden" };
   }
   const og = product.gallery[0]?.image.renditions.find((r) => r.name === "og" && r.format === "webp");
+  const base = publicBaseUrl();
+  const scales = product.scales.map((scale) => scale.name).join(", ");
   return {
-    title: product.name,
+    title: scales ? `${product.name} – Modell ${scales}` : product.name,
     description: product.summary || undefined,
-    openGraph: og ? { images: [{ url: og.url, width: og.width, height: og.height }] } : undefined,
+    // One address per model, whichever scale the visitor came from (?massstab=).
+    alternates: { canonical: absoluteUrl(base, `/produkte/${encodeURIComponent(product.slug)}`) },
+    openGraph: og
+      ? { type: "website", images: [{ url: absoluteUrl(base, og.url), width: og.width, height: og.height }] }
+      : undefined,
   };
 }
 
@@ -34,6 +44,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   if (product === null) {
     notFound();
   }
+  const base = publicBaseUrl();
+  const availability = await loadAvailability(product.slug);
   const paragraphs = product.description.split(/\n{2,}/).filter(Boolean);
   // Coming from a scale's list, the page opens in that scale (and the crumbs lead back).
   const wanted = firstParam((await searchParams).massstab);
@@ -41,6 +53,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:py-14">
+      <JsonLd data={productJsonLd(product, availability, base, SHOP_NAME)} />
+      <JsonLd data={breadcrumbJsonLd(product, base)} />
       <nav aria-label="Brotkrumen" className="mb-8">
         <ol className="flex flex-wrap items-center gap-2 text-hint text-ink-tertiary">
           <li>

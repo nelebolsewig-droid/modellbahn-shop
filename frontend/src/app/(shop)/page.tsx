@@ -1,9 +1,10 @@
-import type { Route } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
 import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
+import { JsonLd } from "@/components/site/json-ld";
 import { NextFair } from "@/components/site/next-fair";
 import { ScrollFilm } from "@/components/site/scroll-film/scroll-film";
 import { ProductCard } from "@/components/ui/product-card";
@@ -17,6 +18,17 @@ import type {
 } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { loadNavigation } from "@/lib/catalog/store-data";
+import { SHOP_NAME } from "@/lib/config";
+import { loadImprint } from "@/lib/site/imprint";
+import { publicBaseUrl } from "@/lib/site/sitemap";
+import { storeJsonLd } from "@/lib/site/structured-data";
+
+// The words people search for (ADR 0047): what the models are and what they are for.
+export const metadata: Metadata = {
+  title: { absolute: `${SHOP_NAME} – Fahrzeugmodelle für die Modellbahn aus dem 3D-Druck` },
+  description:
+    "Handgefertigte Resin-Modelle in Kleinserie: Lkw, Autokrane, Pkw und Schienenfahrzeuge nach DDR-Vorbild für Modellbahn und Sammler.",
+};
 
 // What sets the workshop apart, from its own website (Über uns, Sonderanfertigung).
 const TRAITS = [
@@ -71,10 +83,16 @@ async function navigationOrNull(): Promise<NavigationOut | null> {
 export default async function HomePage() {
   // Rendered per request, so a newly published model shows up at once.
   await connection();
-  const [newest, navigation, fair] = await Promise.all([newestProducts(), navigationOrNull(), nextFair()]);
+  const [newest, navigation, fair, imprint] = await Promise.all([
+    newestProducts(),
+    navigationOrNull(),
+    nextFair(),
+    loadImprint(),
+  ]);
   const scaleNames = new Map((navigation?.scales ?? []).map((scale) => [scale.code, scale.name]));
   return (
     <>
+      <JsonLd data={storeJsonLd(imprint, publicBaseUrl(), SHOP_NAME)} />
       <ScrollFilm actions={<HomeActions />} />
 
       {fair ? <NextFair fair={fair} /> : null}
