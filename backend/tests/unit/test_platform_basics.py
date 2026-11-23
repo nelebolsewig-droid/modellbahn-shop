@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
+import httpx
 import pytest
 from pydantic import SecretStr, ValidationError
 
@@ -12,6 +13,7 @@ from modellbahn.platform.config import Environment, PaymentProvider, Settings
 from modellbahn.platform.errors import _field_error
 from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
+from modellbahn.platform.whatsapp import CallMeBotWhatsApp, WhatsAppRecipient, parse_recipients
 
 OWN_KEY = "GK0123456789abcdef01234567"
 
@@ -192,3 +194,28 @@ def test_logging_routes_uvicorn_through_one_handler() -> None:
     # The request middleware writes the access log; uvicorn's would duplicate it.
     assert not logging.getLogger("uvicorn.access").propagate
     configure_logging(environment=Environment.TEST, level="WARNING")
+
+
+class TestWhatsApp:
+    def test_recipients_from_the_setting(self) -> None:
+        assert parse_recipients(" 0170 / 123-456:abc , +49160 99:def,nur-nummer, ") == (
+            WhatsAppRecipient(phone="0170123456", api_key="abc"),
+            WhatsAppRecipient(phone="+4916099", api_key="def"),
+        )
+        assert parse_recipients("0049170:k")[0].phone == "+49170"
+
+    async def test_every_phone_gets_the_note_and_failures_do_not_raise(self) -> None:
+        seen: list[httpx.URL] = []
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            seen.append(request.url)
+            return httpx.Response(500 if request.url.params["phone"] == "+492" else 200)
+
+        bot = CallMeBotWhatsApp(
+            [WhatsAppRecipient("+492", "x"), WhatsAppRecipient("+491", "y")],
+            transport=httpx.MockTransport(handle),
+        )
+        await bot.send("Heute dran: 1 Paket packen")
+        assert [u.params["phone"] for u in seen] == ["+492", "+491"]
+        assert seen[1].params["text"] == "Heute dran: 1 Paket packen"
+        assert seen[1].params["apikey"] == "y"

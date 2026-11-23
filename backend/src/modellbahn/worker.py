@@ -67,6 +67,7 @@ from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.mail import Mailer, SmtpMailer
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher
 from modellbahn.platform.periodic import PeriodicJob, run_periodically
+from modellbahn.platform.whatsapp import CallMeBotWhatsApp
 
 # Named explicitly: under "python -m" this module is called __main__.
 _logger = structlog.get_logger("modellbahn.worker")
@@ -237,6 +238,11 @@ async def run_worker(
                 public_base_url=settings.public_base_url,
                 shop_name=settings.shop_name,
                 sender=settings.imprint.mail_footer(),
+                messenger=(
+                    CallMeBotWhatsApp(settings.digest_whatsapp_recipients)
+                    if settings.digest_whatsapp_recipients
+                    else None
+                ),
             ).send_if_due,
         ),
         PeriodicJob(
