@@ -1,5 +1,6 @@
 """Settings, clock, security primitives and error mapping."""
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
@@ -13,6 +14,7 @@ from modellbahn.platform.config import Environment, PaymentProvider, Settings
 from modellbahn.platform.errors import _field_error
 from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.security import Argon2PasswordHasher, generate_token, hash_token
+from modellbahn.platform.telegram import TelegramBot, parse_chat_ids
 from modellbahn.platform.whatsapp import CallMeBotWhatsApp, WhatsAppRecipient, parse_recipients
 
 OWN_KEY = "GK0123456789abcdef01234567"
@@ -219,3 +221,28 @@ class TestWhatsApp:
         assert [u.params["phone"] for u in seen] == ["+492", "+491"]
         assert seen[1].params["text"] == "Heute dran: 1 Paket packen"
         assert seen[1].params["apikey"] == "y"
+
+
+class TestTelegram:
+    def test_chats_from_the_setting(self) -> None:
+        assert parse_chat_ids(" -100123, 42,,-100123 ") == ("-100123", "42")
+
+    async def test_every_chat_gets_plain_text_and_failures_do_not_raise(self) -> None:
+        seen: list[tuple[str, dict[str, object]]] = []
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            seen.append((request.url.path, body))
+            return httpx.Response(403 if body["chat_id"] == "-1" else 200)
+
+        bot = TelegramBot("TOKEN", ["-1", "42"], transport=httpx.MockTransport(handle))
+        await bot.send("*Heute dran: 1 Paket packen*")
+        assert [b["chat_id"] for _, b in seen] == ["-1", "42"]
+        assert seen[1] == (
+            "/botTOKEN/sendMessage",
+            {
+                "chat_id": "42",
+                "text": "Heute dran: 1 Paket packen",
+                "disable_web_page_preview": True,
+            },
+        )

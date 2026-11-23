@@ -24,3 +24,9 @@ am liebsten per WhatsApp.
 CallMeBot ist inoffiziell und ohne Zusage. Die Nachricht enthält nur Zahlen und eine
 Bestellnummer, keine Kundendaten. Fällt der Dienst weg, lässt sich `Messenger` gegen
 einen anderen Anbieter tauschen, ohne die Morgenmail anzufassen.
+
+## Nachtrag 23.11.2026: Telegram
+CallMeBot nahm keine neuen Nutzer mehr an („bot is currently full“). Deshalb zusätzlich
+ein eigener Telegram-Bot (offizielle Bot-API, kostenlos): `MB_TELEGRAM_BOT_TOKEN` von
+@BotFather, `MB_DIGEST_TELEGRAM` mit den Chat-IDs (z. B. eine Gruppe fürs Team).
+Telegram bekommt reinen Text. Beide Wege können parallel laufen (`Broadcast`).

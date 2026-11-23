@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from modellbahn.platform.bank import BankAccount, bic_is_valid, iban_is_valid, normalise_iban
 from modellbahn.platform.imprint import Imprint
+from modellbahn.platform.telegram import parse_chat_ids
 from modellbahn.platform.whatsapp import WhatsAppRecipient, parse_recipients
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -156,6 +157,9 @@ class Settings(BaseSettings):
     """More addresses for the morning mail, comma-separated, beside MB_IMPRINT_EMAIL."""
     digest_whatsapp: SecretStr = SecretStr("")
     """The morning overview by WhatsApp (ADR 0045): ``+49170…:CALLMEBOT-KEY``, comma-separated."""
+    telegram_bot_token: SecretStr = SecretStr("")
+    digest_telegram: str = ""
+    """Telegram chat ids for the morning overview (ADR 0045), comma-separated."""
 
     log_level: LogLevel = "INFO"
 
@@ -479,6 +483,13 @@ class Settings(BaseSettings):
     def digest_whatsapp_recipients(self) -> tuple[WhatsAppRecipient, ...]:
         """Who gets the morning overview by WhatsApp, from MB_DIGEST_WHATSAPP."""
         return parse_recipients(self.digest_whatsapp.get_secret_value())
+
+    @property
+    def digest_telegram_chats(self) -> tuple[str, ...]:
+        """Chats for the morning overview; none without a bot token."""
+        if not self.telegram_bot_token.get_secret_value():
+            return ()
+        return parse_chat_ids(self.digest_telegram)
 
     @property
     def imprint(self) -> Imprint:

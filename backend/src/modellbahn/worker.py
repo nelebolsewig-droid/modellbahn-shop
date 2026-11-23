@@ -67,7 +67,8 @@ from modellbahn.platform.logging import configure_logging
 from modellbahn.platform.mail import Mailer, SmtpMailer
 from modellbahn.platform.outbox import HandlerRegistry, OutboxDispatcher
 from modellbahn.platform.periodic import PeriodicJob, run_periodically
-from modellbahn.platform.whatsapp import CallMeBotWhatsApp
+from modellbahn.platform.telegram import TelegramBot
+from modellbahn.platform.whatsapp import Broadcast, CallMeBotWhatsApp, Messenger
 
 # Named explicitly: under "python -m" this module is called __main__.
 _logger = structlog.get_logger("modellbahn.worker")
@@ -238,11 +239,7 @@ async def run_worker(
                 public_base_url=settings.public_base_url,
                 shop_name=settings.shop_name,
                 sender=settings.imprint.mail_footer(),
-                messenger=(
-                    CallMeBotWhatsApp(settings.digest_whatsapp_recipients)
-                    if settings.digest_whatsapp_recipients
-                    else None
-                ),
+                messenger=_digest_messenger(settings),
             ).send_if_due,
         ),
         PeriodicJob(
@@ -284,6 +281,16 @@ async def run_worker(
         await payment_gateway.aclose()
         await carrier.aclose()
         await engine.dispose()
+
+
+def _digest_messenger(settings: Settings) -> Messenger | None:
+    """Telegram and WhatsApp for the morning overview (ADR 0045), whichever is set."""
+    messengers: list[Messenger] = []
+    if chats := settings.digest_telegram_chats:
+        messengers.append(TelegramBot(settings.telegram_bot_token.get_secret_value(), chats))
+    if phones := settings.digest_whatsapp_recipients:
+        messengers.append(CallMeBotWhatsApp(phones))
+    return Broadcast(messengers) if messengers else None
 
 
 def _till_jobs(
