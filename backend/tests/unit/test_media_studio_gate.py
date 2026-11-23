@@ -62,6 +62,16 @@ def test_waits_while_memory_is_short() -> None:
     assert gate.wait() is None
 
 
+def test_a_photo_that_waited_long_enough_goes_ahead_without_the_memory() -> None:
+    host = Host(free_mb=600)
+    gate = host.gate(warmup=0)
+    assert gate.wait(waited=timedelta(minutes=19)) is not None
+    assert gate.wait(waited=timedelta(minutes=20)) is None
+    # The pause between photos still holds.
+    gate.done()
+    assert gate.wait(waited=timedelta(hours=1)) is not None
+
+
 def test_goes_ahead_where_the_host_does_not_tell_its_memory() -> None:
     assert Host(free_mb=None).gate(warmup=0).wait() is None
 

@@ -143,8 +143,11 @@ class Settings(BaseSettings):
     # host (a cut-out takes about 750 MB on top of the worker), not before the worker
     # has run for a while, and with a short pause after each photo. 0 switches a rule off.
     studio_min_free_mb: int = Field(default=1000, ge=0)
-    studio_warmup_seconds: float = Field(default=300.0, ge=0)
+    studio_warmup_seconds: float = Field(default=90.0, ge=0)
     studio_pause_seconds: float = Field(default=5.0, ge=0)
+    # After this long waiting for memory a photo goes through anyway; the worker's
+    # memory limit keeps a shortfall to the worker (ADR 0031).
+    studio_max_wait_seconds: float = Field(default=1200.0, ge=0)
 
     # Paid pieces without stock get their print plates queued by themselves (ADR 0034).
     autoplan: bool = True

@@ -7,7 +7,11 @@ keeps the studio waiting
 * for a while after the worker started (a roll-out builds images and starts every
   service at that moment),
 * for a pause after each photo, so other events get their turn and memory is returned,
-* and as long as the host has less free memory than a photo needs with a margin.
+* and as long as the host has less free memory than a photo needs with a margin, but
+  not for ever: a photo that has waited ``max_wait`` goes through anyway. A host that
+  never has the margin (other services keep it busy) would otherwise hold every photo
+  in "being processed" for good; the worker's memory limit keeps a shortfall to the
+  worker, and a run that is killed is not started a third time (``MAX_STUDIO_TRIES``).
 """
 
 import time
@@ -18,7 +22,7 @@ from typing import Final
 
 MEMINFO: Final = Path("/proc/meminfo")
 # How long a photo waits before memory is looked at again.
-MEMORY_RETRY: Final = timedelta(minutes=2)
+MEMORY_RETRY: Final = timedelta(seconds=30)
 
 
 def available_memory_mb(meminfo: Path = MEMINFO) -> int | None:
@@ -44,19 +48,23 @@ class MemoryStudioGate:
         min_free_mb: int,
         warmup: timedelta,
         pause: timedelta,
+        max_wait: timedelta = timedelta(minutes=20),
         available_mb: Callable[[], int | None] = available_memory_mb,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._min_free_mb = min_free_mb
         self._pause = pause.total_seconds()
+        self._max_wait = max_wait
         self._available_mb = available_mb
         self._monotonic = monotonic
         self._free_from = monotonic() + warmup.total_seconds()
 
-    def wait(self) -> tuple[timedelta, str] | None:
+    def wait(self, *, waited: timedelta = timedelta(0)) -> tuple[timedelta, str] | None:
         remaining = self._free_from - self._monotonic()
         if remaining > 0:
             return timedelta(seconds=remaining), "the photo studio pauses between photos"
+        if waited >= self._max_wait:
+            return None
         available = self._available_mb()
         if available is not None and available < self._min_free_mb:
             return (

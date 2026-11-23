@@ -24,6 +24,7 @@ from modellbahn.modules.media.domain.errors import (
 from modellbahn.modules.media.domain.events import AssetDeleted, AssetUploaded
 from modellbahn.modules.media.domain.model import (
     MAX_PROCESSING_ATTEMPTS,
+    MAX_STUDIO_TRIES,
     STALE_UPLOAD_AGE,
     UPLOAD_URL_LIFETIME,
     AssetStatus,
@@ -170,7 +171,7 @@ class TestProcessing:
             waits: tuple[timedelta, str] | None = (timedelta(minutes=2), "no memory")
             finished = 0
 
-            def wait(self) -> tuple[timedelta, str] | None:
+            def wait(self, *, waited: timedelta = timedelta(0)) -> tuple[timedelta, str] | None:
                 return self.waits
 
             def done(self) -> None:
@@ -211,7 +212,7 @@ class TestProcessing:
         clock: FixedClock,
     ) -> None:
         class OpenGate:
-            def wait(self) -> tuple[timedelta, str] | None:
+            def wait(self, *, waited: timedelta = timedelta(0)) -> tuple[timedelta, str] | None:
                 return None
 
             def done(self) -> None:
@@ -236,6 +237,52 @@ class TestProcessing:
         assert (await media.get(fresh.id)).status is AssetStatus.READY
         await handlers.process_upload(again)
         assert (await media.get(old.id)).status is AssetStatus.READY
+
+    async def test_a_studio_run_that_never_came_back_is_not_started_a_third_time(
+        self,
+        media: MediaService,
+        media_storage: InMemoryMediaStorage,
+        media_uow_factory: UnitOfWorkFactory,
+        image_processor: PillowImageProcessor,
+        clock: FixedClock,
+    ) -> None:
+        class OpenGate:
+            def wait(self, *, waited: timedelta = timedelta(0)) -> tuple[timedelta, str] | None:
+                return None
+
+            def done(self) -> None:
+                pass
+
+        seen: list[bool] = []
+
+        class Recorder:
+            def process(self, data: bytes, *, studio: bool = False) -> Any:
+                seen.append(studio)
+                return image_processor.process(data, studio=studio)
+
+        handlers = MediaProcessingHandlers(
+            uow_factory=media_uow_factory,
+            storage=media_storage,
+            processor=Recorder(),
+            clock=clock,
+            studio_gate=OpenGate(),
+        )
+        asset = await uploaded_image(media, media_storage)
+        # Two runs began and the worker was killed both times: nothing but the count is left.
+        for _ in range(MAX_STUDIO_TRIES):
+            async with media_uow_factory() as uow:
+                stored = await uow.assets.get(asset.id, for_update=True)
+                assert stored is not None
+                assert stored.begin_studio_run()
+                await uow.commit()
+
+        await handlers.process_upload(AssetUploaded(aggregate_id=asset.id, occurred_at=clock.now()))
+        assert seen == [False]
+        assert (await media.get(asset.id)).status is AssetStatus.READY
+        async with media_uow_factory() as uow:
+            done = await uow.assets.get(asset.id)
+            assert done is not None
+            assert done.studio_tries == 0
 
     async def test_a_repeated_delivery_changes_nothing(
         self,

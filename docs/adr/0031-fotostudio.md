@@ -71,7 +71,7 @@ Regeln:
   Arbeitsspeicher im Worker. Es läuft immer nur ein Foto zugleich durchs Freistellen.
 - **Schonung kleiner Server** (Nachtrag 18.11.2026: der Server mit 4 GB blieb beim
   Ausspielen stehen, als viele Fotos nacheinander umgerechnet wurden): Ein Foto fürs
-  Fotostudio beginnt erst, wenn der Worker fünf Minuten läuft, 20 Sekunden nach dem
+  Fotostudio beginnt erst, wenn der Worker fünf Minuten (seit 23.11.: 90 Sekunden) läuft, 20 Sekunden nach dem
   vorigen Foto und nur, wenn der Server noch 1800 MB frei hat (`MemAvailable`;
   `MB_STUDIO_WARMUP_SECONDS`, `MB_STUDIO_PAUSE_SECONDS`, `MB_STUDIO_MIN_FREE_MB`).
   Sonst wird das Ereignis zurückgestellt (`PostponedError`), ohne dass ein Versuch
@@ -84,6 +84,19 @@ Regeln:
 - **Neue Fotos zuerst:** Ein Foto, das neu gerechnet wird, zeigt so lange seine
   bisherigen Größen (`ImageView.is_ready`) und tritt zurück, solange ein frisch
   hochgeladenes Foto wartet, das noch nichts zu zeigen hat.
+- **Nichts hängt für immer** (Nachtrag 23.11.2026: Straßenbahn-Fotos standen über Nacht
+  auf „wird bearbeitet“). Zwei Wege führten dorthin, beide ohne Fehlermeldung:
+  1. Der Server hat dauerhaft weniger als `MB_STUDIO_MIN_FREE_MB` frei; das Foto wird
+     endlos zurückgestellt. Jetzt geht ein Foto nach `MB_STUDIO_MAX_WAIT_SECONDS`
+     (20 Minuten) Wartezeit trotzdem durch; das Speicherlimit des Workers fängt einen
+     Engpass ab.
+  2. Der Kernel beendet den Worker mitten im Foto (Speicherlimit). Die Transaktion der
+     Outbox rollt zurück, kein Versuch zählt, nach dem Neustart beginnt dasselbe Foto
+     von vorn. Jetzt zählt `media.assets.studio_tries` jeden Lauf, festgeschrieben vor
+     dem Lauf; nach zwei Läufen ohne Ergebnis wird das Foto ohne Fotostudio gerechnet
+     (`media.studio_skipped`). Haken „Fotostudio“ aus/an versucht es erneut.
+  Schneller: Anlauf nach dem Start 90 statt 300 Sekunden, Speicher wird alle 30 statt
+  120 Sekunden neu geprüft.
 
 ## Verworfen
 
