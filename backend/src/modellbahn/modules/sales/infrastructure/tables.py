@@ -111,6 +111,8 @@ orders = Table(
     Column("lead_time_max_weeks", SmallInteger),
     # When the first plate for one of its pieces went on a printer (ADR 0034).
     Column("making_started_at", DateTime(timezone=True)),
+    # When the staff pressed „Lackierung & Montage“ (ADR 0046).
+    Column("finishing_started_at", DateTime(timezone=True)),
     CheckConstraint("status IN ('pending_payment', 'paid', 'shipped', 'cancelled')", name="status"),
     CheckConstraint(
         "(lead_time_min_weeks IS NULL) = (lead_time_max_weeks IS NULL)", name="lead_time_pair"

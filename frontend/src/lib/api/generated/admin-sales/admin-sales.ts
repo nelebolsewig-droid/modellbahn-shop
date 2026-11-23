@@ -451,6 +451,79 @@ export const useCancelOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getCancelOrderMutationOptions(options), queryClient);
     }
+    export const getStartFinishingOrderUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/finishing`
+}
+
+/**
+ * @summary Note that a paid order's pieces go into painting and assembly (the customer gets an e-mail, once)
+ */
+export const startFinishingOrder = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<AdminOrderOut> => {
+
+  return apiFetch<AdminOrderOut>(getStartFinishingOrderUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartFinishingOrderMutationKey = () => ['startFinishingOrder'] as const;
+
+export const getStartFinishingOrderMutationOptions = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFinishingOrder>>, TError,StartFinishingOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startFinishingOrder>>, TError,StartFinishingOrderMutationVariables, TContext> => {
+
+const mutationKey = getStartFinishingOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startFinishingOrder>>, StartFinishingOrderMutationVariables> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  startFinishingOrder(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartFinishingOrderMutationResult = NonNullable<Awaited<ReturnType<typeof startFinishingOrder>>>
+
+    export type StartFinishingOrderMutationError = ErrorType<Problem | ValidationProblem>
+    export type StartFinishingOrderMutationVariables = {orderId: string}
+
+    /**
+ * @summary Note that a paid order's pieces go into painting and assembly (the customer gets an e-mail, once)
+ */
+export const useStartFinishingOrder = <TError = ErrorType<Problem | ValidationProblem>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFinishingOrder>>, TError,StartFinishingOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startFinishingOrder>>,
+        TError,
+        StartFinishingOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartFinishingOrderMutationOptions(options), queryClient);
+    }
     export const getGetInvoiceDocumentUrl = (orderId: string,
     invoiceId: string,) => {
 

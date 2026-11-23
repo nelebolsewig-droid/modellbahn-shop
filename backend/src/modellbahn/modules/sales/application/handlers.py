@@ -31,6 +31,7 @@ from modellbahn.modules.sales.domain.events import (
     BankTransferChosen,
     OrderCancelled,
     OrderDelayed,
+    OrderFinishingStarted,
     OrderMakingStarted,
     OrderPaid,
     OrderPlaced,
@@ -88,6 +89,7 @@ class SalesHandlers:
         registry.register(OrderDelayed, self.send_delay_notice)
         registry.register(PrintJobChanged, self.note_making_started)
         registry.register(OrderMakingStarted, self.send_making_notice)
+        registry.register(OrderFinishingStarted, self.send_finishing_notice)
 
     async def adopt_guest_orders(self, event: EmailVerified) -> None:
         """Guest orders with the now verified address join the customer's order history."""
@@ -221,6 +223,14 @@ class SalesHandlers:
         content = mails.making_mail(
             order, titles=titles, base_url=self._base_url, by_hand=event.by_hand
         )
+        await self._send(event, order, content)
+
+    async def send_finishing_notice(self, event: OrderFinishingStarted) -> None:
+        """Tell the customer their model is being painted and assembled now."""
+        order = await self._order(event)
+        if order is None or order.status is not OrderStatus.PAID:
+            return
+        content = mails.finishing_mail(order, base_url=self._base_url)
         await self._send(event, order, content)
 
     async def send_shipped_notice(self, event: OrderShipped) -> None:

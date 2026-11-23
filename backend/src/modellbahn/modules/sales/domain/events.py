@@ -68,6 +68,15 @@ class OrderDelayed(_OrderEvent):
 
 @domain_event
 @dataclass(frozen=True, kw_only=True)
+class OrderFinishingStarted(_OrderEvent):
+    """The staff pressed „Lackierung & Montage“ (ADR 0046): the customer hears so once."""
+
+    event_type: ClassVar[str] = "sales.order.finishing_started"
+    aggregate_type: ClassVar[str] = ORDER_AGGREGATE
+
+
+@domain_event
+@dataclass(frozen=True, kw_only=True)
 class OrderMakingStarted(_OrderEvent):
     """The first plate for a piece of this paid order is on the printer (ADR 0034): the
     customer hears so once, and the order page shows it."""
