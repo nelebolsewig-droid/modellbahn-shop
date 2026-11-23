@@ -224,6 +224,25 @@ class TestProcessor:
         assert isinstance(corner, tuple)
         assert all(abs(a - b) <= 6 for a, b in zip(corner, STAGE_GROUND, strict=True))
 
+    def test_a_picture_already_cut_out_gets_no_dark_box(self) -> None:
+        # A render on a transparent ground: its hidden pixels are black.
+        rgba = Image.new("RGBA", (1200, 900), (0, 0, 0, 0))
+        ImageDraw.Draw(rgba).rectangle((300, 300, 900, 600), fill=(*MODEL_COLOUR, 255))
+        buffer = io.BytesIO()
+        rgba.save(buffer, "PNG")
+        processor = PillowImageProcessor(studio=PhotoStudio(ColourSegmenter()))
+        result = processor.process(buffer.getvalue(), studio=True)
+        assert result.studio_applied
+        md = next(r for r in result.renditions if r.name == "md" and r.format.value == "webp")
+        staged = np.asarray(Image.open(io.BytesIO(md.data)).convert("RGBA"))
+        model = (staged[..., 3] > 200) & (staged[..., 0].astype(int) - staged[..., 2] > 60)
+        rows = np.flatnonzero(model.any(axis=1))
+        columns = np.flatnonzero(model.any(axis=0))
+        # Beside the model, above its floor line, the stage stays clear.
+        middle = (rows[0] + rows[-1]) // 2
+        above = staged[rows[0] : middle, : columns[0] - 20, 3]
+        assert int(above.max()) < 40
+
     def test_switched_off_or_without_studio_the_photo_stays_as_uploaded(self) -> None:
         data = self.jpeg(shot((230, 230, 230), (300, 300, 900, 600)))
         with_studio = PillowImageProcessor(studio=PhotoStudio(ColourSegmenter()))

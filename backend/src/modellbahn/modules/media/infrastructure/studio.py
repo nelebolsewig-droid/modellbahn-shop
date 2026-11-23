@@ -83,6 +83,9 @@ SHADOW_MAX: Final = 0.5
 FAINT_SHADOW: Final = 0.12
 MIN_SHADOW_AREA: Final = 0.03
 SOFT_SHADOW_OPACITY: Final = 0.4
+# How far above the floor line the soft shadow reaches behind the model. More shows as
+# a grey box beside a narrow body (a crane cab on a long frame).
+SOFT_SHADOW_RISE: Final = 0.06
 
 
 class Segmenter(Protocol):
@@ -520,7 +523,7 @@ def _soft_shadow(alpha: Image.Image, standline: int, model_size: int) -> FloatIm
     distance = np.arange(height, dtype=np.float32)[:, None] - floor_line[None, :]
     # Dark under the model up to its underside, running out softly below the floor line.
     under = np.where(distance <= 0, 1.0, np.exp(-0.5 * (distance / (model_size * 0.02)) ** 2))
-    under = under * (distance > -model_size * 0.3) * inside[None, :]
+    under = under * (distance > -model_size * SOFT_SHADOW_RISE) * inside[None, :]
     soft: FloatImage = (
         ndimage.gaussian_filter(under.astype(np.float32), model_size * 0.02) * SOFT_SHADOW_OPACITY
     )

@@ -68,7 +68,10 @@ class PillowImageProcessor:
         # The fingerprint is the original's: it finds the same shot again whatever the
         # studio made of it.
         phash = _difference_hash(image)
-        staged = self._studio.finish(image).image if studio and self._studio else None
+        # A picture already cut out (a render on a transparent ground) goes in on white,
+        # like a photo-box shot: its hidden pixels are black and would read as a dark
+        # backdrop with a huge shadow.
+        staged = self._studio.finish(_flattened(image)).image if studio and self._studio else None
         if staged is not None:
             image = staged
             width, height = image.size
