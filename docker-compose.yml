@@ -88,6 +88,13 @@ x-backend-env: &backend-env
   MB_DHL_PRINT_FORMAT:
   MB_DHL_DEFAULT_WEIGHT_G:
   MB_DHL_GOGREEN_PLUS:
+  # Workshop automation and the morning overview (ADR 0034, 0045)
+  MB_AUTOPLAN:
+  MB_SUMUP_TILL:
+  MB_DIGEST_EMAILS:
+  MB_DIGEST_WHATSAPP:
+  MB_TELEGRAM_BOT_TOKEN:
+  MB_DIGEST_TELEGRAM:
   MB_LOG_LEVEL:
 
 # api, worker and migrate run the same image; only the command differs.
