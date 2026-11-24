@@ -13,7 +13,7 @@ from modellbahn.main import create_app
 from modellbahn.modules.media.application.services import MediaService
 from modellbahn.platform.config import Settings
 from tests.api.helpers import assert_problem
-from tests.api.test_manufacturing_api import BASE, ok, part, plate, printer
+from tests.api.test_manufacturing_api import BASE, created, ok, part, plate, printer
 
 BRIDGE: Final = "/api/v1/webhooks/printer-bridge"
 KEY: Final = "werkstatt-schluessel"
@@ -91,17 +91,46 @@ class TestPrinterBridge:
             failed = await job(staff_client, second["number"])
             assert failed["status"] == "failed"
             assert failed["failure_reason"] == "Am Drucker abgebrochen: Folie gerissen"
-            # A file naming no part takes the next waiting plate.
-            (next_one,) = await send(bridge, seen("printing", task="t-2", file="test.ctb"))
-            assert next_one["job_number"] == first["number"]
+            # The other waiting plate stays where it is.
+            assert (await job(staff_client, first["number"]))["status"] == "queued"
 
-    async def test_without_plate_or_part_nothing_is_booked(
+    async def test_an_unknown_file_makes_its_part(
+        self, staff_client: AsyncClient, make_client: Any
+    ) -> None:
+        await printer(staff_client)
+        resin = await created(staff_client, "/materials", {"name": "Grau", "technology": "resin"})
+        async with make_client(csrf=False) as bridge:
+            report = {
+                **seen("printing", file="Wartburg 353 4x TT.ctb"),
+                "volume_ml": 62.287,
+                "layer_height_um": 50,
+            }
+            (started,) = await send(bridge, report)
+            assert started["outcome"] == "started"
+            plate_now = await job(staff_client, started["job_number"])
+            assert plate_now["lines"][0]["quantity"] == 4
+            (made,) = (await ok(staff_client.get(f"{BASE}/parts")))["items"]
+            assert made["part_number"] == "WARTBURG-353-TT"
+            assert made["name"] == "Wartburg 353 TT"
+            assert made["scale_code"] == "TT"
+            assert made["plate_minutes"] == 120
+            assert made["material_per_part"] == 15.57
+            assert made["layer_height_um"] == 50
+            assert made["material"]["id"] == resin["id"]
+            # The next print of the file finds the part again.
+            (again,) = await send(
+                bridge, seen("printing", task="t-2", file="wartburg_353_TT #2.ctb")
+            )
+            assert again["outcome"] == "started"
+            assert len((await ok(staff_client.get(f"{BASE}/parts")))["items"]) == 1
+
+    async def test_a_file_without_letters_books_nothing(
         self, staff_client: AsyncClient, make_client: Any
     ) -> None:
         await printer(staff_client)
         async with make_client(csrf=False) as bridge:
             results = await send(
-                bridge, seen("printing", file="probe.ctb"), {**seen("printing"), "code": "D09"}
+                bridge, seen("printing", file="#1.ctb"), {**seen("printing"), "code": "D09"}
             )
             assert [r["outcome"] for r in results] == ["unmatched", "unknown_printer"]
 

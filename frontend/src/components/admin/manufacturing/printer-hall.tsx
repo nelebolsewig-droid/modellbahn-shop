@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
@@ -22,8 +21,6 @@ import { GRID_SHEET, PrinterCard, printerHref } from "./printer-card";
 import { PrinterDialog } from "./printer-dialogs";
 import { PrinterGlyph } from "./printer-glyph";
 import { RECENT_JOBS, useHall, useJobs, useManufacturingRefresh, useNow } from "./use-manufacturing";
-
-const PARTS_PAGE = "/admin/fertigung/teile" as Route;
 
 /**
  * The printer hall: every printer with its lamp, its plate and its queue, the plates in
@@ -80,9 +77,6 @@ export function PrinterHall({ staffRole, onStreamClosed }: { staffRole: StaffRol
             }
           />
         ) : null}
-        <Button asChild size="sm" variant="ghost">
-          <Link href={PARTS_PAGE}>Teile &amp; Material</Link>
-        </Button>
       </div>
 
       {hall.isPending ? (
