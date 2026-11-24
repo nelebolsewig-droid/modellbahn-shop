@@ -90,6 +90,7 @@ x-backend-env: &backend-env
   MB_DHL_GOGREEN_PLUS:
   # Workshop automation and the morning overview (ADR 0034, 0045)
   MB_AUTOPLAN:
+  MB_PRINTER_BRIDGE_TOKEN:
   MB_SUMUP_TILL:
   MB_DIGEST_EMAILS:
   MB_DIGEST_WHATSAPP:

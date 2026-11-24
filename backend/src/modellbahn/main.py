@@ -62,9 +62,11 @@ from modellbahn.modules.inventory.infrastructure.mapping import (
 )
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.manufacturing.api import admin as manufacturing_admin
+from modellbahn.modules.manufacturing.api import bridge as manufacturing_bridge
 from modellbahn.modules.manufacturing.api.errors import (
     install_error_translations as install_manufacturing_error_translations,
 )
+from modellbahn.modules.manufacturing.application.bridge import PrinterBridgeService
 from modellbahn.modules.manufacturing.application.jobs import PrintJobService
 from modellbahn.modules.manufacturing.application.parts import (
     BomService,
@@ -351,6 +353,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(marketplace_admin.router)
     api.include_router(marketplace_webhooks.router)
     api.include_router(sales_webhooks.router)
+    api.include_router(manufacturing_bridge.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,
@@ -479,6 +482,7 @@ def _attach_manufacturing_services(
     app.state.part_service = PartService(uow_factory=uow_factory, clock=clock)
     app.state.bom_service = BomService(uow_factory=uow_factory, clock=clock)
     app.state.print_job_service = PrintJobService(uow_factory=uow_factory, clock=clock)
+    app.state.printer_bridge_service = PrinterBridgeService(uow_factory=uow_factory, clock=clock)
 
 
 app = create_app()
