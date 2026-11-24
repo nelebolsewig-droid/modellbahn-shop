@@ -124,3 +124,37 @@ class TestInvoices:
             401,
             "not_authenticated",
         )
+
+
+class TestDeliveryNotes:
+    """The delivery note for the parcel (ADR 0047): any time from payment on, no prices."""
+
+    async def test_staff_print_it_for_a_paid_and_a_shipped_order(
+        self,
+        client: AsyncClient,
+        staff_client: AsyncClient,
+        deliver: Deliver,
+        locations: LocationService,
+        units: UnitService,
+        painted: UUID,
+    ) -> None:
+        order = await shipped_order(client, staff_client, deliver, locations, units, painted)
+        note = await staff_client.get(f"{ADMIN_ORDERS}/{order['id']}/delivery-note.pdf")
+        assert note.status_code == 200, note.text
+        assert note.headers["content-type"] == "application/pdf"
+        assert note.content.startswith(b"%PDF")
+        assert 'filename="Lieferschein-MB-' in note.headers["content-disposition"]
+
+    async def test_not_for_an_unknown_order_nor_strangers(
+        self, client: AsyncClient, staff_client: AsyncClient
+    ) -> None:
+        assert_problem(
+            await staff_client.get(f"{ADMIN_ORDERS}/{uuid4()}/delivery-note.pdf"),
+            404,
+            "order_not_found",
+        )
+        assert_problem(
+            await client.get(f"{ADMIN_ORDERS}/{uuid4()}/delivery-note.pdf"),
+            401,
+            "not_authenticated",
+        )

@@ -47,6 +47,7 @@ import {
   getListOrdersQueryKey,
   getListWithdrawalsQueryKey,
   shipOrder,
+  getGetDeliveryNoteUrl,
   getGetInvoiceDocumentUrl,
   useGetShippingSetup,
   useGetOrder,
@@ -438,6 +439,7 @@ function ReadyToShip({ order, onShipped }: { order: AdminOrderOut; onShipped: (o
   const active = label.data ?? null;
   return (
     <div className="space-y-6">
+      <DeliveryNote order={order} />
       {booksLabels && setup.data ? (
         label.isError ? (
           <p className="text-small text-danger">{errorMessage(label.error)}</p>
@@ -469,12 +471,34 @@ function Shipped({ order }: { order: AdminOrderOut }) {
         <dt className="text-ink-secondary">Sendung</dt>
         <dd className={order.tracking_number ? "font-mono break-all" : undefined}>{order.tracking_number || "keine Nummer"}</dd>
       </dl>
-      {label.data ? (
-        <div className="mt-4">
-          <LabelReprint order={order} label={label.data} />
-        </div>
-      ) : null}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {label.data ? <LabelReprint order={order} label={label.data} /> : null}
+        <DeliveryNoteButton order={order} />
+      </div>
     </>
+  );
+}
+
+/** The delivery note on A4, without prices, to put into the parcel (ADR 0047). */
+function DeliveryNoteButton({ order }: { order: AdminOrderOut }) {
+  return (
+    <Button asChild size="sm" variant="secondary">
+      <a href={getGetDeliveryNoteUrl(order.id)} target="_blank" rel="noopener">
+        Lieferschein drucken
+      </a>
+    </Button>
+  );
+}
+
+function DeliveryNote({ order }: { order: AdminOrderOut }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3">
+      <div>
+        <p className="text-small font-medium">Lieferschein</p>
+        <p className="text-hint text-ink-tertiary">A4, ohne Preise. Ausdrucken, abhaken, ins Paket legen.</p>
+      </div>
+      <DeliveryNoteButton order={order} />
+    </div>
   );
 }
 

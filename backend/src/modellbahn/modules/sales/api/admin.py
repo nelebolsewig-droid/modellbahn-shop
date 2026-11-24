@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, Response, status
 from starlette.concurrency import run_in_threadpool
 
 from modellbahn.modules.sales.api.deps import (
+    DeliveryNoteServiceDep,
     InvoiceServiceDep,
     LabelServiceDep,
     OrderManager,
@@ -276,6 +277,24 @@ async def get_invoice_document(
 ) -> Response:
     invoice = await invoices.get(invoice_id, order_id=order_id)
     return pdf_response(invoice.document, invoice.filename)
+
+
+@router.get(
+    "/{order_id}/delivery-note.pdf",
+    operation_id="getDeliveryNote",
+    summary="The delivery note for the parcel, without prices (ADR 0047)",
+    description="Packers too: written anew on every call for a paid or shipped order.",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "The note."},
+        **problems({**STAFF_ACCESS, **ORDER_NOT_FOUND, **_STATE_CONFLICT}, unsafe=False),
+    },
+)
+async def get_delivery_note(
+    order_id: UUID, _: OrderViewer, notes: DeliveryNoteServiceDep
+) -> Response:
+    note = await notes.for_order(order_id)
+    return pdf_response(note.document, note.filename)
 
 
 shipping_router = APIRouter(prefix="/admin/shipping", tags=["admin-sales"])
