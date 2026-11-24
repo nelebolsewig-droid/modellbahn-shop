@@ -5,7 +5,8 @@ what it sees here: which file prints, how far, and whether a print finished or s
 From that the printer hall moves by itself:
 
 - a print starts → the plate waiting on that printer with the part of the file starts,
-  otherwise a waiting plate of that printer, otherwise a new plate for the part;
+  otherwise a new plate for the part; a file no part has made yet makes its part first,
+  and what the print tells (time, resin) fills what the part lacks (ADR 0048);
 - a print finished → the plate goes to post-processing (the good parts are still counted
   by hand when the plate is done, that books them into stock);
 - a print stopped → the plate failed.
@@ -15,8 +16,9 @@ printer's own id of a print (``task_id``) is booked once.
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from typing import Final
 
@@ -29,8 +31,15 @@ from modellbahn.modules.manufacturing.application.ports import (
 )
 from modellbahn.modules.manufacturing.domain.model import (
     JOB_NOTE_MAX_LENGTH,
+    LAYER_HEIGHT_UM_RANGE,
+    MATERIAL_PER_PART_MAX,
+    NOTES_MAX_LENGTH,
+    PART_NAME_MAX_LENGTH,
+    PART_NUMBER_MAX_LENGTH,
+    PARTS_PER_PLATE_MAX,
     PLATE_MINUTES_MAX,
     Part,
+    PartDetails,
     Printer,
     PrintJob,
     PrintJobStatus,
@@ -65,13 +74,16 @@ class PrinterReport:
     elapsed_seconds: int | None = None
     remaining_seconds: int | None = None
     error: str = ""
+    volume_ml: float | None = None
+    """Resin of the whole plate, if the bridge found the sliced file (ADR 0048)."""
+    layer_height_um: int | None = None
 
 
 class Outcome(StrEnum):
     UNKNOWN_PRINTER = "unknown_printer"
     NOT_IN_SERVICE = "not_in_service"
     UNMATCHED = "unmatched"
-    """A print with no plate waiting and a file that names no part: nothing booked."""
+    """A print whose file name gives no part (no letters or digits): nothing booked."""
     STARTED = "started"
     PRINTING = "printing"
     PRINTED = "printed"
@@ -184,7 +196,10 @@ class PrinterBridgeService:
     async def _plate_for(
         self, uow: ManufacturingUnitOfWork, printer: Printer, report: PrinterReport
     ) -> PrintJob | None:
-        """The waiting plate this print is, or a new one for the part the file names."""
+        """The waiting plate with the part the file names, or a new plate for it.
+
+        A file that names no part yet makes its part first (ADR 0048).
+        """
         parts = await uow.parts.search(
             scale_code=None,
             technology=printer.technology.value,
@@ -192,33 +207,132 @@ class PrinterBridgeService:
             include_archived=False,
             limit=PARTS_SEARCHED,
         )
-        part = match_part(report.slice_file, parts)
+        part = match_part(report.slice_file, parts) or await self._new_part(uow, printer, report)
+        if part is None:
+            return None
+        self._learn(part, report)
         queue = sorted(
             await uow.jobs.latest(
                 statuses=[PrintJobStatus.QUEUED],
                 printer_id=printer.id,
-                part_id=None,
+                part_id=part.id,
                 limit=PARTS_SEARCHED,
             ),
             key=lambda job: job.number,
         )
-        if part is not None:
-            with_part = [j for j in queue if any(ln.part_id == part.id for ln in j.lines)]
-            if with_part:
-                return with_part[0]
-            job, event = PrintJob.plan(
-                number=await uow.jobs.next_number(),
-                printer=printer,
-                lines=[(part, part.parts_per_plate)],
-                planned_minutes=None,
-                note=f"{NOTE_PREFIX}: {_file(report)}"[:JOB_NOTE_MAX_LENGTH],
-                staff_id=None,
-                now=self._clock.now(),
-            )
-            uow.jobs.add(job)
-            uow.publish(event)
-            return job
-        return queue[0] if queue else None
+        if queue:
+            return queue[0]
+        job, event = PrintJob.plan(
+            number=await uow.jobs.next_number(),
+            printer=printer,
+            lines=[(part, part.parts_per_plate)],
+            planned_minutes=None,
+            note=f"{NOTE_PREFIX}: {_file(report)}"[:JOB_NOTE_MAX_LENGTH],
+            staff_id=None,
+            now=self._clock.now(),
+        )
+        uow.jobs.add(job)
+        uow.publish(event)
+        return job
+
+    async def _new_part(
+        self, uow: ManufacturingUnitOfWork, printer: Printer, report: PrinterReport
+    ) -> Part | None:
+        """A part made from the file name: number and name from it, the printer's resin."""
+        stem = file_stem(report.slice_file)
+        count = parts_on_plate(stem)
+        stem = _COUNT.sub(" ", stem).strip(" _-.") or stem
+        base = part_number_from(stem)
+        if not base:
+            return None
+        scales = await uow.catalog.scale_names()
+        if not scales:
+            return None
+        number = base
+        suffix = 2
+        while await uow.parts.number_taken(number):
+            tail = f"-{suffix}"
+            number = base[: PART_NUMBER_MAX_LENGTH - len(tail)].rstrip("-") + tail
+            suffix += 1
+        materials = [
+            m for m in await uow.materials.all() if m.active and m.technology is printer.technology
+        ]
+        details = PartDetails(
+            part_number=number,
+            name=stem[:PART_NAME_MAX_LENGTH],
+            material_id=materials[0].id if materials else None,
+            parts_per_plate=count,
+            notes=f"Automatisch angelegt aus der Druckdatei „{_file(report)}“."[:NOTES_MAX_LENGTH],
+        ).checked()
+        part = Part.create(
+            details,
+            scale_code=scale_from(stem, scales),
+            technology=printer.technology,
+            material=materials[0] if materials else None,
+            now=self._clock.now(),
+        )
+        uow.parts.add(part)
+        return part
+
+    def _learn(self, part: Part, report: PrinterReport) -> None:
+        """What a part lacks and the print tells: its plate time, its resin per part."""
+        now = self._clock.now()
+        if part.plate_minutes is None and (minutes := _minutes(report)):
+            part.plate_minutes = minutes
+            part.updated_at = now
+        if part.material_per_part is None and report.volume_ml:
+            each = Decimal(str(report.volume_ml)) / part.parts_per_plate
+            if Decimal("0.01") <= each <= MATERIAL_PER_PART_MAX:
+                part.material_per_part = each.quantize(Decimal("0.01"))
+                part.updated_at = now
+        if part.layer_height_um is None and report.layer_height_um:
+            low, high = LAYER_HEIGHT_UM_RANGE
+            if low <= report.layer_height_um <= high:
+                part.layer_height_um = report.layer_height_um
+                part.updated_at = now
+
+
+_SLICE_SUFFIXES: Final = (".ctb", ".goo", ".pwmx", ".prz", ".jxs", ".cbddlp", ".photon")
+_COUNT: Final = re.compile(
+    r"(?:^|(?<=[^A-Z0-9]))(?:X\s?(\d{1,3})|(\d{1,3})\s?X)(?=[^A-Z0-9]|$)", re.IGNORECASE
+)
+
+
+def file_stem(slice_file: str) -> str:
+    """``BR_99_23-24_dummy.stl #4.ctb`` → ``BR_99_23-24_dummy``: the model, not the plate."""
+    name = slice_file.strip().replace("\\", "/").rsplit("/", 1)[-1]
+    lower = name.lower()
+    for suffix in _SLICE_SUFFIXES:
+        if lower.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    name = name.split("#", 1)[0].strip()
+    if name.lower().endswith((".stl", ".obj", ".3mf")):
+        name = name.rsplit(".", 1)[0]
+    return name.strip(" _-.")
+
+
+def part_number_from(stem: str) -> str:
+    """Letters and digits of the file name, joined by single hyphens, upper case."""
+    plain = stem.upper().replace("Ä", "AE").replace("Ö", "OE").replace("Ü", "UE").replace("ß", "SS")
+    number = "-".join(re.findall(r"[A-Z0-9]+", plain))
+    return number[:PART_NUMBER_MAX_LENGTH].rstrip("-")
+
+
+def parts_on_plate(stem: str) -> int:
+    """``x4`` or ``4x`` in the file name is the count on the plate; otherwise one."""
+    found = _COUNT.search(stem)
+    count = int(found.group(1) or found.group(2)) if found else 1
+    return min(max(count, 1), PARTS_PER_PLATE_MAX)
+
+
+def scale_from(stem: str, scales: Mapping[str, str]) -> str:
+    """The scale the file name names (``…_H0``); otherwise H0, the shop's usual one."""
+    tokens = set(re.findall(r"[A-Z0-9]+", stem.upper()))
+    named = [code for code in scales if code.upper() in tokens]
+    if named:
+        return max(named, key=len)
+    return "H0" if "H0" in scales else sorted(scales)[0]
 
 
 def _file(report: PrinterReport) -> str:

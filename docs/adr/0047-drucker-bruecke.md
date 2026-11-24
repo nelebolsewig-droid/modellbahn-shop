@@ -18,8 +18,8 @@ WebSocket (Port 3030) mit Datei, Schicht, Druckzeit und einer eigenen Kennung je
 - **Der Code im Stellwerk** (`D01`) ordnet den Drucker zu; die Brücke kennt Code → IP.
 - **Druck startet:** die wartende Platte des Druckers mit dem Teil, dessen Teilenummer im
   Dateinamen steht (`STW-ALT-DACH-H0 x4.ctb`), sonst eine neue Platte mit diesem Teil
-  (Stückzahl = Teile je Platte), sonst die älteste wartende Platte des Druckers. Ohne all
-  das wird nichts gebucht (`unmatched`). Die Druckdauer kommt vom Drucker.
+  (Stückzahl = Teile je Platte). Kennt das Stellwerk das Teil nicht, legt die Brücke es an
+  (ADR 0048). Die Druckdauer kommt vom Drucker.
 - **Druck fertig** → Nachbearbeitung. Die guten Teile zählt weiter ein Mensch beim
   Abschließen, denn erst das bucht sie ins Lager.
 - **Druck abgebrochen** → Platte fehlgeschlagen („Am Drucker abgebrochen“).

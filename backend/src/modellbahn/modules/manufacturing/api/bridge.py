@@ -38,6 +38,8 @@ class PrinterReportIn(BaseModel):
     elapsed_seconds: int | None = Field(default=None, ge=0)
     remaining_seconds: int | None = Field(default=None, ge=0)
     error: str = Field(default="", max_length=200)
+    volume_ml: float | None = Field(default=None, gt=0, le=100_000)
+    layer_height_um: int | None = Field(default=None, gt=0, le=1000)
 
 
 class BridgeReportIn(BaseModel):
@@ -81,6 +83,8 @@ async def report(body: BridgeReportIn, request: Request) -> BridgeReportOut:
                 elapsed_seconds=item.elapsed_seconds,
                 remaining_seconds=item.remaining_seconds,
                 error=item.error,
+                volume_ml=item.volume_ml,
+                layer_height_um=item.layer_height_um,
             )
             for item in body.printers
         ]

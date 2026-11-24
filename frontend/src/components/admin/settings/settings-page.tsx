@@ -30,6 +30,11 @@ const ENTRIES = [
     title: "Lieferzeit",
     text: "Wie lange das Nachfertigen dauert, für alle Modelle ohne eigene Lieferzeit. Ändern kann sie nur der Inhaber.",
   },
+  {
+    href: "/admin/fertigung/teile",
+    title: "Teile & Material",
+    text: "Druckteile, Resin und Stücklisten. Neue Teile legt die Drucker-Brücke beim ersten Druck selbst an.",
+  },
 ] as const satisfies readonly { href: Route; title: string; text: string }[];
 
 export function SettingsPage() {
