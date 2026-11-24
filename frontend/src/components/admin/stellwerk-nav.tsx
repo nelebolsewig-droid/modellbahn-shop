@@ -209,6 +209,7 @@ const GLYPHS: Readonly<Record<SectionKey | "more", string>> = {
   scan: "M3 7V3h4 M13 3h4v4 M17 13v4h-4 M7 17H3v-4 M6 10h8",
   models: "M4 3.5h12v13H4Z M7 7h6 M7 10h6 M7 13h3",
   fairs: "M3.5 5.5h13v11h-13Z M3.5 9h13 M7 3.5v4 M13 3.5v4",
+  newsletter: "M3 5.5h14v9H3Z M3 5.5l7 5.5 7-5.5",
   ebay: "M4 7.5h12l-1 9H5Z M7.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5",
   settings: "M4 6h12 M4 14h12 M7.5 4v4 M12.5 12v4",
   more: "M4.5 10h.01 M10 10h.01 M15.5 10h.01",

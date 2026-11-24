@@ -36,6 +36,9 @@ class OutgoingMail:
     text: str
     html: str
     attachments: Sequence[MailAttachment] = ()
+    unsubscribe_url: str | None = None
+    """For mails people asked for (a newsletter): sent as ``List-Unsubscribe`` with one
+    click (RFC 8058), so mail programs offer their own button to leave."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +62,26 @@ class MailRow:
 
 
 @dataclass(frozen=True, slots=True)
+class MailCard:
+    """A teaser with a photo, e.g. a model in a newsletter: the whole card links ``url``."""
+
+    title: str
+    url: str
+    text: str = ""
+    price: str = ""
+    image_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MailSection:
+    """A heading with cards, between the paragraphs and the call to action."""
+
+    heading: str
+    cards: Sequence[MailCard]
+    intro: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class MailContent:
     """What a mail says, independent of its layout. All texts are plain (unescaped).
 
@@ -71,6 +94,7 @@ class MailContent:
     action: MailAction | None = None
     closing: Sequence[str] = field(default_factory=tuple)
     rows: Sequence[MailRow] = field(default_factory=tuple)
+    sections: Sequence[MailSection] = field(default_factory=tuple)
 
 
 class Mailer(Protocol):
@@ -88,6 +112,7 @@ def compose(
     shop_name: str,
     sender: Sequence[str] = (),
     attachments: Sequence[MailAttachment] = (),
+    unsubscribe_url: str | None = None,
 ) -> OutgoingMail:
     """Render ``content`` in the shop's German layout.
 
@@ -100,6 +125,7 @@ def compose(
         text=_render_text(content, shop_name, sender),
         html=_render_html(content, shop_name, sender),
         attachments=tuple(attachments),
+        unsubscribe_url=unsubscribe_url,
     )
 
 
@@ -111,12 +137,73 @@ def _render_text(content: MailContent, shop_name: str, sender: Sequence[str]) ->
     blocks = [content.greeting, *content.paragraphs]
     if content.rows:
         blocks.append(_text_table(content.rows))
+    blocks.extend(_text_section(section) for section in content.sections)
     if content.action is not None:
         blocks.append(f"{content.action.label}:\n{content.action.url}")
     blocks.extend(content.closing)
     blocks.append(f"Viele Grüße\n{shop_name}")
     blocks.append("\n".join(["-- ", *sender, _FOOTER]))
     return "\n\n".join(blocks) + "\n"
+
+
+def _text_section(section: MailSection) -> str:
+    lines = [section.heading.upper(), "=" * len(section.heading)]
+    if section.intro:
+        lines += [section.intro]
+    for card in section.cards:
+        head = f"* {card.title}" + (f" ({card.price})" if card.price else "")
+        lines += ["", head]
+        if card.text:
+            lines.append(f"  {card.text}")
+        lines.append(f"  {card.url}")
+    return "\n".join(lines)
+
+
+def _html_section(section: MailSection) -> str:
+    parts = [
+        f'<h2 style="margin:28px 0 4px;font-size:19px;color:{_INK}">'
+        f"{html.escape(section.heading)}</h2>"
+        f'<div style="height:2px;width:40px;background:{_ACTION};margin:0 0 14px"></div>'
+    ]
+    if section.intro:
+        parts.append(
+            f'<p style="margin:0 0 14px;color:{_INK_SECONDARY}">{html.escape(section.intro)}</p>'
+        )
+    parts.extend(_html_card(card) for card in section.cards)
+    return "".join(parts)
+
+
+def _html_card(card: MailCard) -> str:
+    url = html.escape(card.url, quote=True)
+    image = (
+        f'<td width="112" style="width:112px;padding:0 16px 0 0;vertical-align:top">'
+        f'<a href="{url}"><img src="{html.escape(card.image_url, quote=True)}" width="112" '
+        f'height="112" alt="{html.escape(card.title, quote=True)}" style="display:block;'
+        f"width:112px;height:112px;border:0;background:{_CARD};"
+        'box-shadow:0 6px 14px rgba(38,33,30,0.18)"></a></td>'
+        if card.image_url
+        else ""
+    )
+    text = (
+        f'<p style="margin:4px 0 0;font-size:14px;color:{_INK_SECONDARY}">'
+        f"{html.escape(card.text)}</p>"
+        if card.text
+        else ""
+    )
+    price = (
+        f'<p style="margin:8px 0 0;font-weight:bold;color:{_ACTION}">{html.escape(card.price)}</p>'
+        if card.price
+        else ""
+    )
+    return (
+        '<table role="presentation" style="width:100%;border-collapse:separate;'
+        f'margin:0 0 12px;background:{_CARD};border-bottom:3px solid {_RULE}">'
+        f'<tr><td style="padding:14px"><table role="presentation" style="width:100%;'
+        f'border-collapse:collapse"><tr>{image}<td style="vertical-align:top">'
+        f'<a href="{url}" style="color:{_INK};font-weight:bold;font-size:16px;'
+        f'text-decoration:none">{html.escape(card.title)}</a>{text}{price}</td></tr></table>'
+        "</td></tr></table>"
+    )
 
 
 def _text_table(rows: Sequence[MailRow]) -> str:
@@ -157,6 +244,7 @@ _CANVAS: Final = "#faf6f0"
 _RULE: Final = "#ddd0be"
 _ACTION: Final = "#e8632b"
 _LOGO_RED: Final = "#cc0000"
+_CARD: Final = "#efe7dc"
 
 
 def _html_wordmark(shop_name: str) -> str:
@@ -186,6 +274,7 @@ def _render_html(content: MailContent, shop_name: str, sender: Sequence[str]) ->
     parts = [paragraph(content.greeting), *(paragraph(p) for p in content.paragraphs)]
     if content.rows:
         parts.append(_html_table(content.rows))
+    parts.extend(_html_section(section) for section in content.sections)
     if content.action is not None:
         url = html.escape(content.action.url, quote=True)
         label = html.escape(content.action.label)
@@ -239,6 +328,9 @@ class SmtpMailer:
         message["Subject"] = mail.subject
         message["Date"] = formatdate(usegmt=True)
         message["Message-ID"] = make_msgid(domain=self._sender_domain)
+        if mail.unsubscribe_url:
+            message["List-Unsubscribe"] = f"<{mail.unsubscribe_url}>"
+            message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
         message.set_content(mail.text)
         message.add_alternative(mail.html, subtype="html")
         for attachment in mail.attachments:

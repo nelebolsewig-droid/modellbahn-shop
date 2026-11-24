@@ -4953,6 +4953,147 @@
         "title": "NavigationScaleOut",
         "type": "object"
       },
+      "NewsletterChoiceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "subscribed": {
+            "description": "True asks for the newsletter (confirmation by mail), false leaves it.",
+            "title": "Subscribed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "subscribed"
+        ],
+        "title": "NewsletterChoiceIn",
+        "type": "object"
+      },
+      "NewsletterOverviewOut": {
+        "properties": {
+          "confirmed": {
+            "description": "Readers who confirmed.",
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "issue_days": {
+            "description": "Days of the month an issue goes out.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Issue Days",
+            "type": "array"
+          },
+          "next_issue": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The next issue day; it goes out only if there are new models.",
+            "title": "Next Issue"
+          },
+          "pending": {
+            "description": "Asked, not confirmed yet; deleted after two weeks.",
+            "title": "Pending",
+            "type": "integer"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/PastIssueOut"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "waiting": {
+            "description": "Models new since the last issue.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Waiting",
+            "type": "array"
+          }
+        },
+        "required": [
+          "confirmed",
+          "pending",
+          "issue_days",
+          "next_issue",
+          "waiting",
+          "recent"
+        ],
+        "title": "NewsletterOverviewOut",
+        "type": "object"
+      },
+      "NewsletterPreviewOut": {
+        "properties": {
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "sample_owns": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model the sample reader is assumed to own, for the suggestions.",
+            "title": "Sample Owns"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "html",
+          "sample_owns"
+        ],
+        "title": "NewsletterPreviewOut",
+        "type": "object"
+      },
+      "NewsletterStatusOut": {
+        "properties": {
+          "status": {
+            "description": "``pending``: the confirmation link was mailed (or follows the verification of the address) and not followed yet.",
+            "enum": [
+              "none",
+              "pending",
+              "confirmed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "NewsletterStatusOut",
+        "type": "object"
+      },
+      "NewsletterTokenIn": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "NewsletterTokenIn",
+        "type": "object"
+      },
       "OrderLineOut": {
         "properties": {
           "finish_code": {
@@ -6276,6 +6417,36 @@
           "new_password"
         ],
         "title": "PasswordResetConfirmIn",
+        "type": "object"
+      },
+      "PastIssueOut": {
+        "properties": {
+          "issue_date": {
+            "format": "date",
+            "title": "Issue Date",
+            "type": "string"
+          },
+          "new_models": {
+            "title": "New Models",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "sent": {
+            "description": "Readers the issue went to.",
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "issue_date",
+          "new_models",
+          "sent"
+        ],
+        "title": "PastIssueOut",
         "type": "object"
       },
       "PaymentIn": {
@@ -8891,6 +9062,12 @@
             "format": "email",
             "title": "Email",
             "type": "string"
+          },
+          "newsletter": {
+            "default": false,
+            "description": "Asked for the newsletter: a confirmation mail follows the verification.",
+            "title": "Newsletter",
+            "type": "boolean"
           },
           "password": {
             "maxLength": 256,
@@ -24265,6 +24442,118 @@
         ]
       }
     },
+    "/api/v1/admin/newsletter": {
+      "get": {
+        "operationId": "getNewsletterOverview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "Readers, the next issue and the past ones",
+        "tags": [
+          "admin-newsletter"
+        ]
+      }
+    },
+    "/api/v1/admin/newsletter/preview": {
+      "get": {
+        "operationId": "previewNewsletter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `insufficient_role`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "staffSession": []
+          }
+        ],
+        "summary": "The next issue as a sample reader would get it",
+        "tags": [
+          "admin-newsletter"
+        ]
+      }
+    },
     "/api/v1/admin/orders": {
       "get": {
         "operationId": "listOrders",
@@ -29601,6 +29890,136 @@
         ]
       }
     },
+    "/api/v1/store/account/newsletter": {
+      "get": {
+        "operationId": "getNewsletter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "Does the logged-in customer get the newsletter?",
+        "tags": [
+          "store-newsletter"
+        ]
+      },
+      "put": {
+        "operationId": "setNewsletter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewsletterChoiceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized. Problem codes: `not_authenticated`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "security": [
+          {
+            "customerSession": []
+          }
+        ],
+        "summary": "Ask for the newsletter (double opt-in) or leave it",
+        "tags": [
+          "store-newsletter"
+        ]
+      }
+    },
     "/api/v1/store/account/orders": {
       "get": {
         "operationId": "listMyOrders",
@@ -31001,6 +31420,164 @@
         ]
       }
     },
+    "/api/v1/store/newsletter/confirmations": {
+      "post": {
+        "operationId": "confirmNewsletter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewsletterTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Bad Request. Problem codes: `newsletter_token_invalid`."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "Confirm the newsletter with the link from the mail",
+        "tags": [
+          "store-newsletter"
+        ]
+      }
+    },
+    "/api/v1/store/newsletter/unsubscriptions": {
+      "post": {
+        "operationId": "unsubscribeNewsletter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewsletterTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "Leave the newsletter with the link from any issue",
+        "tags": [
+          "store-newsletter"
+        ]
+      }
+    },
     "/api/v1/store/orders/{public_token}": {
       "get": {
         "operationId": "getOrderByToken",
@@ -31876,6 +32453,84 @@
         ]
       }
     },
+    "/api/v1/webhooks/newsletter/unsubscribe": {
+      "post": {
+        "description": "The mail program posts ``List-Unsubscribe=One-Click`` as a form; the token in the\naddress is all that counts.",
+        "operationId": "unsubscribeNewsletterOneClick",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden. Problem codes: `csrf_header_missing`."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type. Problem codes: `unsupported_media_type`."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Content. Problem codes: `validation_failed`."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests. Problem codes: `too_many_requests`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable. Problem codes: `database_unavailable`."
+          }
+        },
+        "summary": "Leave the newsletter from the mail program's own button (RFC 8058)",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "description": "The process is up and serving requests. Does not touch the database.",
@@ -31953,6 +32608,10 @@
       "name": "store-site"
     },
     {
+      "description": "The newsletter of customer accounts: the switch and the mail links.",
+      "name": "store-newsletter"
+    },
+    {
       "description": "Staff login for the admin area.",
       "name": "admin-auth"
     },
@@ -31975,6 +32634,10 @@
     {
       "description": "Fairs and the fair news.",
       "name": "admin-site"
+    },
+    {
+      "description": "The newsletter: readers, issues, preview.",
+      "name": "admin-newsletter"
     },
     {
       "description": "Printers and their state, parts, bills of materials, print jobs.",

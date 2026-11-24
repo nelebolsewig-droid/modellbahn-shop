@@ -58,7 +58,7 @@ class TestUnitOfWork:
         assert row["event_type"] == "identity.customer.registered"
         assert row["aggregate_type"] == "identity.account"
         assert row["aggregate_id"] == account.id
-        assert row["payload"] == {"display_name": "Erika"}
+        assert row["payload"] == {"display_name": "Erika", "newsletter": False}
         assert row["status"] == "pending"
         assert row["attempts"] == 0
 

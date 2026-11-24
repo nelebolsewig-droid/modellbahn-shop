@@ -165,7 +165,13 @@ class Account:
 
     @classmethod
     def register_customer(
-        cls, *, email: str, display_name: str, password_hash: str, now: datetime
+        cls,
+        *,
+        email: str,
+        display_name: str,
+        password_hash: str,
+        now: datetime,
+        newsletter: bool = False,
     ) -> tuple["Account", CustomerRegistered]:
         account = cls._new(
             kind=AccountKind.CUSTOMER,
@@ -176,7 +182,10 @@ class Account:
             now=now,
         )
         event = CustomerRegistered(
-            aggregate_id=account.id, occurred_at=now, display_name=account.display_name
+            aggregate_id=account.id,
+            occurred_at=now,
+            display_name=account.display_name,
+            newsletter=newsletter,
         )
         return account, event
 

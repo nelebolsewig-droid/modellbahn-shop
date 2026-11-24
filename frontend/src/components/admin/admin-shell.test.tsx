@@ -59,7 +59,7 @@ describe("AdminShell", () => {
     expect(linkNames(header)).toEqual(["Heute", "Bestellungen", "Lager", "Fertigung"]);
     expect(within(header).getByRole("link", { name: "Lager" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByRole("link", { name: "Scannen" })[0]).toHaveAttribute("href", "/admin/scanner");
-    for (const hidden of ["Modelle", "Messen", "eBay", "Einstellungen"]) {
+    for (const hidden of ["Modelle", "Messen", "Newsletter", "eBay", "Einstellungen"]) {
       expect(screen.queryByRole("link", { name: hidden })).not.toBeInTheDocument();
     }
     expect(linkNames(bar)).toEqual(["Bestellungen", "Scannen", "Lager"]);
@@ -86,7 +86,7 @@ describe("AdminShell", () => {
   it("shows owner and staff every place on the rail and lights up Einstellungen on the categories", async () => {
     const { header } = await openShell("staff", "/admin/einstellungen/kategorien");
 
-    expect(linkNames(header)).toEqual(["Heute", "Bestellungen", "Verkäufe", "Modelle", "Lager", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+    expect(linkNames(header)).toEqual(["Heute", "Bestellungen", "Verkäufe", "Modelle", "Lager", "Fertigung", "Messen", "Newsletter", "eBay", "Einstellungen"]);
     expect(within(header).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("aria-current", "page");
     expect(within(header).getByRole("link", { name: "Modelle" })).not.toHaveAttribute("aria-current");
   });
@@ -101,7 +101,7 @@ describe("AdminShell", () => {
     await user.click(within(bar).getByRole("button", { name: "Mehr" }));
 
     const sheet = screen.getByRole("dialog", { name: "Mehr" });
-    expect(linkNames(sheet)).toEqual(["Heute", "Verkäufe", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+    expect(linkNames(sheet)).toEqual(["Heute", "Verkäufe", "Fertigung", "Messen", "Newsletter", "eBay", "Einstellungen"]);
     expect(within(sheet).getByRole("link", { name: "Einstellungen" })).toHaveAttribute("href", "/admin/einstellungen");
 
     await user.keyboard("{Escape}");
