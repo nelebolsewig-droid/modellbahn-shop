@@ -30,3 +30,9 @@ CallMeBot nahm keine neuen Nutzer mehr an („bot is currently full“). Deshalb
 ein eigener Telegram-Bot (offizielle Bot-API, kostenlos): `MB_TELEGRAM_BOT_TOKEN` von
 @BotFather, `MB_DIGEST_TELEGRAM` mit den Chat-IDs (z. B. eine Gruppe fürs Team).
 Telegram bekommt reinen Text. Beide Wege können parallel laufen (`Broadcast`).
+
+## Nachtrag 24.11.2026: Einstellungen kamen nicht im Container an
+`docker-compose.yml` reicht die `MB_*`-Variablen einzeln weiter. `MB_DIGEST_EMAILS`,
+`MB_TELEGRAM_BOT_TOKEN` und `MB_DIGEST_TELEGRAM` fehlten dort, deshalb blieben Mail-Empfänger
+und Telegram trotz `.env` leer. Jetzt eingetragen; ein Test prüft, dass jede Einstellung
+weitergereicht wird.
