@@ -1,4 +1,4 @@
-# ADR 0047: Drucker-Brücke: die Drucker füllen die Fertigung selbst
+# ADR 0049: Drucker-Brücke: die Drucker füllen die Fertigung selbst
 
 Status: angenommen · 24.11.2026 · ergänzt ADR 0017 (Fertigung) und ADR 0034 (Automation)
 
@@ -19,7 +19,7 @@ WebSocket (Port 3030) mit Datei, Schicht, Druckzeit und einer eigenen Kennung je
 - **Druck startet:** die wartende Platte des Druckers mit dem Teil, dessen Teilenummer im
   Dateinamen steht (`STW-ALT-DACH-H0 x4.ctb`), sonst eine neue Platte mit diesem Teil
   (Stückzahl = Teile je Platte). Kennt das Stellwerk das Teil nicht, legt die Brücke es an
-  (ADR 0048). Die Druckdauer kommt vom Drucker.
+  (ADR 0050). Die Druckdauer kommt vom Drucker.
 - **Druck fertig** → Nachbearbeitung. Die guten Teile zählt weiter ein Mensch beim
   Abschließen, denn erst das bucht sie ins Lager.
 - **Druck abgebrochen** → Platte fehlgeschlagen („Am Drucker abgebrochen“).

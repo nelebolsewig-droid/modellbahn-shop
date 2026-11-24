@@ -1,4 +1,4 @@
-# Drucker-Brücke einrichten (ADR 0047)
+# Drucker-Brücke einrichten (ADR 0049)
 
 Die Brücke meldet, was die Drucker tun, an die Fertigung im Stellwerk. Sie läuft auf einem
 Rechner, der im Werkstatt-WLAN ist und anbleibt (Mac oder Raspberry Pi).

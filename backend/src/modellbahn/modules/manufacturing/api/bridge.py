@@ -1,4 +1,4 @@
-"""The printer bridge reports what the printers do (ADR 0047).
+"""The printer bridge reports what the printers do (ADR 0049).
 
 ``POST /api/v1/webhooks/printer-bridge`` with ``Authorization: Bearer <MB_PRINTER_BRIDGE_TOKEN>``.
 No cookie and no CSRF header: the bridge is a program, not a browser (``csrf_guard`` lets

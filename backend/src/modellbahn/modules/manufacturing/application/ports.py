@@ -131,7 +131,7 @@ class PrintJobRepository(Protocol):
     async def queued_count(self, printer_id: UUID) -> int: ...
 
     async def by_task_id(self, task_id: str) -> PrintJob | None:
-        """The job booked for a print the printer bridge reported (ADR 0047), if any."""
+        """The job booked for a print the printer bridge reported (ADR 0049), if any."""
         ...
 
     async def latest(

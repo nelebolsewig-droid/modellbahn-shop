@@ -638,9 +638,9 @@ class PrintJob:
     updated_at: datetime
     lines: list[PrintJobLine] = field(default_factory=list)
     slice_file: str = ""
-    """The file the printer prints, as the printer bridge reported it (ADR 0047)."""
+    """The file the printer prints, as the printer bridge reported it (ADR 0049)."""
     printer_task_id: str | None = None
-    """The printer's own id of this print, so a print is never booked twice (ADR 0047)."""
+    """The printer's own id of this print, so a print is never booked twice (ADR 0049)."""
 
     @classmethod
     def plan(
