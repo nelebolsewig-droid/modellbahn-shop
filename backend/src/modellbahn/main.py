@@ -111,6 +111,7 @@ from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.delivery_notes import DeliveryNoteService
 from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
@@ -118,7 +119,9 @@ from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import Carrier, PaymentGateway
 from modellbahn.modules.sales.application.report import SalesReportService
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
+from modellbahn.modules.sales.domain.delivery_notes import Sender
 from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
+from modellbahn.modules.sales.infrastructure.delivery_notes import ReportLabDeliveryNoteRenderer
 from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer, issuer_of
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
@@ -438,6 +441,12 @@ def _attach_sales_services(
         clock=clock,
         renderer=ReportLabInvoiceRenderer(shop_name=settings.shop_name),
         issuer=issuer_of(settings),
+    )
+    app.state.delivery_note_service = DeliveryNoteService(
+        uow_factory=uow_factory,
+        clock=clock,
+        renderer=ReportLabDeliveryNoteRenderer(shop_name=settings.shop_name),
+        sender=Sender.of(settings.imprint, website=settings.public_base_url),
     )
     app.state.payment_service = PaymentService(
         uow_factory=uow_factory, clock=clock, gateway=gateway
