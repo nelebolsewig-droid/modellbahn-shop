@@ -481,6 +481,19 @@ EXPECTED_OPERATIONS = {
         "cancelPrintJob",
         "admin-manufacturing",
     ),
+    ("GET", "/api/v1/store/account/newsletter"): ("getNewsletter", "store-newsletter"),
+    ("PUT", "/api/v1/store/account/newsletter"): ("setNewsletter", "store-newsletter"),
+    ("POST", "/api/v1/store/newsletter/confirmations"): ("confirmNewsletter", "store-newsletter"),
+    ("POST", "/api/v1/store/newsletter/unsubscriptions"): (
+        "unsubscribeNewsletter",
+        "store-newsletter",
+    ),
+    ("POST", "/api/v1/webhooks/newsletter/unsubscribe"): (
+        "unsubscribeNewsletterOneClick",
+        "webhooks",
+    ),
+    ("GET", "/api/v1/admin/newsletter"): ("getNewsletterOverview", "admin-newsletter"),
+    ("GET", "/api/v1/admin/newsletter/preview"): ("previewNewsletter", "admin-newsletter"),
     ("GET", "/healthz"): ("getHealth", "system"),
     ("GET", "/readyz"): ("getReadiness", "system"),
 }

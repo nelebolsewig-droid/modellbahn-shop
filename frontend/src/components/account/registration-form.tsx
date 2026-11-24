@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { TextLink } from "@/components/ui/text-link";
 import { useRegisterCustomer } from "@/lib/api/generated/store-account/store-account";
+import { SHOP_NAME } from "@/lib/config";
 import { useApiForm } from "@/lib/forms/use-api-form";
 import { PASSWORD_MIN_LENGTH, registrationSchema } from "@/lib/validation/account";
 
@@ -28,7 +29,12 @@ export function RegistrationForm({ preset, submitLabel = "Konto anlegen" }: Regi
   const [sentTo, setSentTo] = useState<string | null>(null);
   const { form, onSubmit, formError } = useApiForm({
     schema: registrationSchema,
-    defaultValues: { display_name: preset?.display_name ?? "", email: preset?.email ?? "", password: "" },
+    defaultValues: {
+      display_name: preset?.display_name ?? "",
+      email: preset?.email ?? "",
+      password: "",
+      newsletter: false,
+    },
     async submit(values) {
       await registration.mutateAsync({ data: values });
       setSentTo(values.email);
@@ -103,6 +109,19 @@ export function RegistrationForm({ preset, submitLabel = "Konto anlegen" }: Regi
             <PasswordInput {...control} {...register("password")} autoComplete="new-password" />
           )}
         </FormField>
+        <label className="flex items-start gap-3 text-small leading-6">
+          <input
+            type="checkbox"
+            {...register("newsletter")}
+            className="mt-1 size-4 shrink-0 accent-[var(--selected)]"
+          />
+          <span>
+            Ja, schickt mir den Newsletter von <span className="whitespace-nowrap">{SHOP_NAME}</span>: ein- bis
+            zweimal im Monat die neuen Modelle und Empfehlungen passend zu meinen Käufen. Freiwillig; ich bestätige
+            ihn per E-Mail und kann ihn jederzeit mit einem Klick abbestellen. Mehr dazu im{" "}
+            <TextLink href="/datenschutz">Datenschutz</TextLink>.
+          </span>
+        </label>
         <SubmitButton pending={isSubmitting} pendingLabel="Wird gesendet …" className="w-full">
           {submitLabel}
         </SubmitButton>

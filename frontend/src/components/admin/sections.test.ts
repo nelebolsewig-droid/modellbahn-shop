@@ -21,11 +21,20 @@ describe("Stellwerk sections", () => {
         "Lager",
         "Fertigung",
         "Messen",
+        "Newsletter",
         "eBay",
         "Einstellungen",
       ]);
       expect(labels(barSections(role))).toEqual(["Modelle", "Bestellungen", "Scannen", "Lager"]);
-      expect(labels(moreSections(role))).toEqual(["Heute", "Verkäufe", "Fertigung", "Messen", "eBay", "Einstellungen"]);
+      expect(labels(moreSections(role))).toEqual([
+        "Heute",
+        "Verkäufe",
+        "Fertigung",
+        "Messen",
+        "Newsletter",
+        "eBay",
+        "Einstellungen",
+      ]);
     }
   });
 
@@ -44,6 +53,7 @@ describe("Stellwerk sections", () => {
     ["/admin/einstellungen/ebay", "settings"],
     ["/admin/ebay", "ebay"],
     ["/admin/messen", "fairs"],
+    ["/admin/newsletter", "newsletter"],
     ["/admin/anmelden", null],
   ] as const)("files %s under %s", (pathname, key) => {
     expect(activeSection(pathname)).toBe(key);

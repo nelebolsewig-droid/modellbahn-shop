@@ -66,6 +66,15 @@ from modellbahn.modules.media.application.services import (
 )
 from modellbahn.modules.media.infrastructure.imaging import PillowImageProcessor
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
+from modellbahn.modules.newsletter.application.handlers import NewsletterHandlers
+from modellbahn.modules.newsletter.application.issues import IssueService, IssueWriter
+from modellbahn.modules.newsletter.application.ports import (
+    UnitOfWorkFactory as NewsletterUnitOfWorkFactory,
+)
+from modellbahn.modules.newsletter.application.subscriptions import (
+    SubscriptionService as NewsletterSubscriptionService,
+)
+from modellbahn.modules.newsletter.infrastructure.repositories import newsletter_uow_factory
 from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
@@ -228,6 +237,9 @@ WRITABLE_TABLES = (
     "marketplace.listings",
     "marketplace.category_map",
     "marketplace.ebay_account",
+    "newsletter.deliveries",
+    "newsletter.issues",
+    "newsletter.subscriptions",
     "site.visit_marks",
     "site.visit_days",
     "site.mailings",
@@ -542,6 +554,52 @@ def site_handlers(
 
 
 @pytest.fixture
+def newsletter_uow(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> NewsletterUnitOfWorkFactory:
+    return newsletter_uow_factory(session_factory, public_base_url=f"{PUBLIC_BASE_URL}/medien")
+
+
+@pytest.fixture
+def newsletter(
+    newsletter_uow: NewsletterUnitOfWorkFactory, clock: FixedClock
+) -> NewsletterSubscriptionService:
+    return NewsletterSubscriptionService(uow_factory=newsletter_uow, clock=clock)
+
+
+@pytest.fixture
+def issue_writer() -> IssueWriter:
+    return IssueWriter(public_base_url=PUBLIC_BASE_URL, shop_name=SHOP_NAME, sender=IMPRINT_FOOTER)
+
+
+@pytest.fixture
+def issues(
+    newsletter_uow: NewsletterUnitOfWorkFactory, clock: FixedClock, issue_writer: IssueWriter
+) -> IssueService:
+    return IssueService(
+        uow_factory=newsletter_uow, clock=clock, issue_days=(1, 15), writer=issue_writer
+    )
+
+
+@pytest.fixture
+def newsletter_handlers(
+    newsletter_uow: NewsletterUnitOfWorkFactory,
+    mailer: InMemoryMailer,
+    clock: FixedClock,
+    issue_writer: IssueWriter,
+) -> NewsletterHandlers:
+    return NewsletterHandlers(
+        uow_factory=newsletter_uow,
+        mailer=mailer,
+        clock=clock,
+        public_base_url=PUBLIC_BASE_URL,
+        shop_name=SHOP_NAME,
+        sender=IMPRINT_FOOTER,
+        writer=issue_writer,
+    )
+
+
+@pytest.fixture
 def manufacturing_uow(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> ManufacturingUnitOfWorkFactory:
@@ -610,6 +668,7 @@ def deliver(
     sales_handlers: SalesHandlers,
     invoices: InvoiceService,
     site_handlers: SiteHandlers,
+    newsletter_handlers: NewsletterHandlers,
     allocation: AllocationService,
     part_store: PartStoreService,
     sales_uow: SalesUnitOfWorkFactory,
@@ -626,6 +685,7 @@ def deliver(
     invoices.register(handlers)
     WithdrawalAutomation(orders=orders).register(handlers)
     site_handlers.register(handlers)
+    newsletter_handlers.register(handlers)
     InventoryHandlers(allocation=allocation, parts=part_store).register(handlers)
     ManufacturingHandlers(planner=planner).register(handlers)
     MarketplaceIntake(uow_factory=sales_uow, clock=clock).register(handlers)

@@ -21,6 +21,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { href: "/admin/fertigung", label: "Fertigung", hint: "Drucker, Druckplatten und was zu fertigen ist", words: "drucker druckerhalle 3d druck werkstatt platte" },
   { href: "/admin/fertigung/teile", label: "Teile und Stücklisten", hint: "Woraus ein Modell besteht", words: "teile stückliste bauteile bom" },
   { href: "/admin/messen", label: "Messen", hint: "Verkauf am Stand", words: "messe markt stand kasse", officeOnly: true },
+  { href: "/admin/newsletter", label: "Newsletter", hint: "Wer ihn bekommt, wann der nächste kommt", words: "newsletter rundbrief mail empfehlungen abonnenten", officeOnly: true },
   { href: "/admin/ebay", label: "eBay", hint: "Angebote und Bestellungen von eBay", words: "marktplatz angebote", officeOnly: true },
   { href: "/admin/einstellungen", label: "Einstellungen", hint: "Was selten geändert wird", words: "konfiguration setup", officeOnly: true },
   { href: "/admin/einstellungen/kategorien", label: "Kategorien", hint: "Wie der Katalog geordnet ist", words: "kategorie ordnung", officeOnly: true },

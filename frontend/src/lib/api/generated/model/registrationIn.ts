@@ -19,6 +19,8 @@ export interface RegistrationIn {
      */
   display_name: string;
   email: string;
+  /** Asked for the newsletter: a confirmation mail follows the verification. */
+  newsletter?: boolean;
   /**
      * @minLength 10
      * @maxLength 256

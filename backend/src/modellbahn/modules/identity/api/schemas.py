@@ -33,6 +33,10 @@ class RegistrationIn(_Request):
     email: EmailStr
     password: NewPassword
     display_name: DisplayName
+    newsletter: bool = Field(
+        default=False,
+        description="Asked for the newsletter: a confirmation mail follows the verification.",
+    )
 
 
 class EmailIn(_Request):

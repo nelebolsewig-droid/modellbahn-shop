@@ -74,6 +74,8 @@ export const PROBLEM_MESSAGES: Messages = {
   fair_already_announced: "Diese Messe wurde schon angekündigt. Jede Messe geht nur einmal hinaus.",
   fair_news_token_invalid:
     "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt. Melde dich auf der Terminseite einfach noch einmal an.",
+  newsletter_token_invalid:
+    "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt. Unter „Mein Konto“ kannst du den Newsletter neu bestellen.",
   precondition_failed:
     "Jemand hat das Modell inzwischen geändert. Lade den aktuellen Stand und übernimm deine Änderung dann erneut.",
   precondition_required: "Die Änderung braucht den gelesenen Stand. Bitte lade die Seite neu.",

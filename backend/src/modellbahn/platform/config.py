@@ -6,7 +6,7 @@ import re
 from email.utils import parseaddr
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal, Self
+from typing import Final, Literal, Self
 
 from argon2 import DEFAULT_MEMORY_COST, DEFAULT_PARALLELISM, DEFAULT_TIME_COST
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
@@ -82,6 +82,9 @@ class PaymentProvider(StrEnum):
     """SumUp Online: the customer pays on SumUp's page (card, Apple Pay, Google Pay)."""
     OFF = "off"
     """No provider: the shop takes no orders."""
+
+
+_LAST_DAY_OF_MONTH: Final = 31
 
 
 class Settings(BaseSettings):
@@ -181,6 +184,10 @@ class Settings(BaseSettings):
 
     fair_news_rate_limit: int = Field(default=10, ge=0)
     fair_news_rate_window_seconds: float = Field(default=600.0, gt=0)
+
+    # The newsletter for customer accounts (ADR 0049): days of the month an issue goes
+    # out if there are new models ("1,15"); empty sends none.
+    newsletter_days: str = "1,15"
 
     # eBay (ADR 0014). Sandbox and production use the keys of eBay's developer account:
     # the app's client id and secret, and the RuName that names the shop's callback.
@@ -471,6 +478,19 @@ class Settings(BaseSettings):
     def shop_name(self) -> str:
         """Display name of the shop, taken from the sender of outgoing e-mails."""
         return parseaddr(self.smtp_from)[0] or _DEFAULT_SHOP_NAME
+
+    @property
+    def media_absolute_base_url(self) -> str:
+        """Where the photos are, with the host: mails cannot use a path of the shop."""
+        if self.media_public_base_url.startswith("/"):
+            return f"{self.public_base_url}{self.media_public_base_url}"
+        return self.media_public_base_url
+
+    @property
+    def newsletter_issue_days(self) -> tuple[int, ...]:
+        """MB_NEWSLETTER_DAYS as days of the month (1 to 31); anything else is ignored."""
+        days = {int(part) for part in self.newsletter_days.split(",") if part.strip().isdigit()}
+        return tuple(sorted(day for day in days if 1 <= day <= _LAST_DAY_OF_MONTH))
 
     @property
     def digest_recipients(self) -> tuple[str, ...]:
