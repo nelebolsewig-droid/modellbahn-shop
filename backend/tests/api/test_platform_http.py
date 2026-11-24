@@ -243,6 +243,10 @@ EXPECTED_OPERATIONS = {
         "getInvoiceDocument",
         "admin-sales",
     ),
+    ("GET", "/api/v1/admin/orders/{order_id}/delivery-note.pdf"): (
+        "getDeliveryNote",
+        "admin-sales",
+    ),
     ("PUT", "/api/v1/admin/orders/{order_id}/repayment"): ("setRepaymentAccount", "admin-sales"),
     ("POST", "/api/v1/admin/orders/{order_id}/repayment/done"): ("markRepaid", "admin-sales"),
     ("GET", "/api/v1/admin/orders/{order_id}/repayment/girocode.svg"): (
