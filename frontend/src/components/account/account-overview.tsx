@@ -84,7 +84,7 @@ function AccountDetails({ account, onLoggedOut, onDeleted }: AccountDetailsProps
 
         <SettingsSection
           title="Newsletter"
-          description="Ein- bis zweimal im Monat: die neuen Modelle aus der Werkstatt und Empfehlungen passend zu dem, was du schon gekauft hast. Abbestellen geht jederzeit mit einem Klick."
+          description="Einmal im Monat: die neuen Modelle aus der Werkstatt und Empfehlungen passend zu dem, was du schon gekauft hast. Abbestellen geht jederzeit mit einem Klick."
         >
           <NewsletterSettings emailVerified={account.email_verified} />
         </SettingsSection>

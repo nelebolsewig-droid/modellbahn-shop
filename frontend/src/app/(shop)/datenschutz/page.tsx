@@ -174,7 +174,7 @@ export default async function PrivacyPage() {
               Den Newsletter gibt es nur mit Kundenkonto. Bestellst du ihn bei der Registrierung oder unter „Mein
               Konto“, speichern wir, wann du das getan hast und welchen Einwilligungstext du gesehen hast. Er kommt erst,
               wenn du den Link in unserer Bestätigungsmail anklickst (Double-Opt-in); unbestätigte Anfragen löschen wir
-              nach zwei Wochen. Wir schicken ihn an die Adresse deines Kundenkontos, ein- bis zweimal im Monat.
+              nach zwei Wochen. Wir schicken ihn an die Adresse deines Kundenkontos, einmal im Monat.
             </p>
             <p>
               Damit die Empfehlungen zu dir passen, wählen wir sie anhand der Modelle und Maßstäbe aus, die du über dein

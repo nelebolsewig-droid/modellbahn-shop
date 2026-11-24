@@ -15,7 +15,7 @@ type Action = "confirm" | "unsubscribe";
 
 const TEXT = {
   confirm: {
-    explanation: "Ein Klick noch, dann bekommst du ein- bis zweimal im Monat die neuen Modelle aus der Werkstatt.",
+    explanation: "Ein Klick noch, dann bekommst du einmal im Monat die neuen Modelle aus der Werkstatt.",
     button: "Newsletter bestätigen",
     pending: "Wird bestätigt …",
     doneTitle: "Du bist dabei",

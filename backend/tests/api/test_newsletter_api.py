@@ -60,7 +60,7 @@ class TestStellwerk:
         overview = await staff_client.get("/api/v1/admin/newsletter")
         assert overview.status_code == 200, overview.text
         body = overview.json()
-        assert (body["confirmed"], body["pending"], body["issue_days"]) == (0, 0, [1, 15])
+        assert (body["confirmed"], body["pending"], body["issue_days"]) == (0, 0, [1])
         assert body["recent"] == []
         preview = await staff_client.get("/api/v1/admin/newsletter/preview")
         assert preview.status_code == 200

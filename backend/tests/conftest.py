@@ -577,7 +577,7 @@ def issues(
     newsletter_uow: NewsletterUnitOfWorkFactory, clock: FixedClock, issue_writer: IssueWriter
 ) -> IssueService:
     return IssueService(
-        uow_factory=newsletter_uow, clock=clock, issue_days=(1, 15), writer=issue_writer
+        uow_factory=newsletter_uow, clock=clock, issue_days=(1,), writer=issue_writer
     )
 
 

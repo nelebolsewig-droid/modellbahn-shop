@@ -186,8 +186,8 @@ class Settings(BaseSettings):
     fair_news_rate_window_seconds: float = Field(default=600.0, gt=0)
 
     # The newsletter for customer accounts (ADR 0049): days of the month an issue goes
-    # out if there are new models ("1,15"); empty sends none.
-    newsletter_days: str = "1,15"
+    # out if there are new models ("1" = monthly, "1,15" = twice); empty sends none.
+    newsletter_days: str = "1"
 
     # eBay (ADR 0014). Sandbox and production use the keys of eBay's developer account:
     # the app's client id and secret, and the RuName that names the shop's callback.

@@ -244,7 +244,7 @@ class TestIssues:
         overview = await issues.overview()
         assert overview.waiting == ["IFA W50"]
         assert overview.next_issue is not None
-        assert overview.next_issue.day == 15
+        assert (overview.next_issue.month, overview.next_issue.day) == (1, 1)
 
     async def test_the_preview(
         self,

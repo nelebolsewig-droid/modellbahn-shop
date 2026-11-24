@@ -31,7 +31,7 @@ def confirmation_mail(
         subject=f"Bitte bestätige den Newsletter von {shop_name}",
         greeting=f"Hallo {display_name},",
         paragraphs=(
-            f"du möchtest den Newsletter von {shop_name} bekommen: ein- bis zweimal im Monat "
+            f"du möchtest den Newsletter von {shop_name} bekommen: einmal im Monat "
             "die neuen Modelle und was zu deiner Sammlung passt. Bitte bestätige das mit dem "
             "Knopf; erst dann schicken wir dir den Newsletter.",
         ),

@@ -116,8 +116,7 @@ export function RegistrationForm({ preset, submitLabel = "Konto anlegen" }: Regi
             className="mt-1 size-4 shrink-0 accent-[var(--selected)]"
           />
           <span>
-            Ja, schickt mir den Newsletter von <span className="whitespace-nowrap">{SHOP_NAME}</span>: ein- bis
-            zweimal im Monat die neuen Modelle und Empfehlungen passend zu meinen Käufen. Freiwillig; ich bestätige
+            Ja, schickt mir den Newsletter von <span className="whitespace-nowrap">{SHOP_NAME}</span>: einmal im Monat die neuen Modelle und Empfehlungen passend zu meinen Käufen. Freiwillig; ich bestätige
             ihn per E-Mail und kann ihn jederzeit mit einem Klick abbestellen. Mehr dazu im{" "}
             <TextLink href="/datenschutz">Datenschutz</TextLink>.
           </span>
