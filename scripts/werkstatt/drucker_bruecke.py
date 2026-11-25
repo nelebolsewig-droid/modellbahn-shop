@@ -117,7 +117,7 @@ def _seconds(current: Any, total: Any) -> tuple[int, int | None]:
 def _layer_height(filename: str) -> int | None:
     """Chitubox names a plate ``Modell.stl_#17_0.040_4.000_2026_11_25_10_53.ctb``:
     the first number after the plate is the layer height in millimetres."""
-    found = re.search(r"#\d+_(0\.\d{2,3})_", filename)
+    found = re.search(r"(?:#\d+|\.stl)_(0\.\d{2,3})_\d", filename, re.IGNORECASE)
     return round(float(found.group(1)) * 1000) if found else None
 
 
