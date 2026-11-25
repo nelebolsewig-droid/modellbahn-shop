@@ -9,6 +9,8 @@ export const SITEMAP_PAGES = [
   "/",
   "/katalog",
   "/so-entsteht-ein-modell",
+  "/der-weg-zum-perfekten-modell",
+  "/in-planung",
   "/sonderanfertigung",
   "/termine",
   "/ueber-uns",

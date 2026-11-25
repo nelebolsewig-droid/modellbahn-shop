@@ -27,7 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
 
-from modellbahn.modules.catalog.domain.model import MediaRole, ProductStatus
+from modellbahn.modules.catalog.domain.model import MediaRole, ProductLabel, ProductStatus
 from modellbahn.modules.media.contracts.images import IMAGE_KIND, IMAGE_REFERENCE
 from modellbahn.platform.db import StrEnumType, metadata
 
@@ -111,6 +111,8 @@ products = Table(
     Column("description", Text, nullable=False, server_default=text("''")),
     Column("prototype", Text, nullable=False, server_default=text("''")),
     Column("primary_category_id", Uuid, ForeignKey(categories.c.id, ondelete="RESTRICT")),
+    # adp itself or a partner label (Vehicle World, MilMod); a filter in the shop.
+    Column("label", StrEnumType(ProductLabel), nullable=False, server_default=text("'adp'")),
     Column("status", StrEnumType(ProductStatus), nullable=False),
     Column("published_at", DateTime(timezone=True)),
     Column("archived_at", DateTime(timezone=True)),
@@ -119,6 +121,7 @@ products = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("version", Integer, nullable=False, server_default=text("1")),
     CheckConstraint("status IN ('draft', 'active', 'archived')", name="status"),
+    CheckConstraint("label IN ('adp', 'vehicle-world', 'milmod')", name="label"),
     CheckConstraint("char_length(name) BETWEEN 1 AND 120", name="name_length"),
     CheckConstraint("slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'", name="slug_format"),
     # A product in the shop has a category; one that was published keeps its date.

@@ -144,9 +144,12 @@ function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactN
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-start gap-5">
-        <span className="relative block size-24 shrink-0 overflow-hidden rounded-md bg-stage sm:size-28">
+        {/* Big enough to see the model being edited; whole, not cropped. */}
+        <span className="relative block size-36 shrink-0 overflow-hidden rounded-md bg-stage sm:size-56">
           {picture ? (
-            <ResponsivePicture image={picture} alt="" sizes="112px" variant="thumb" fit="cover" />
+            <span className="absolute inset-2">
+              <ResponsivePicture image={picture} alt="" sizes="(min-width: 640px) 224px, 144px" />
+            </span>
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-hint text-ink-tertiary">ohne Foto</span>
           )}

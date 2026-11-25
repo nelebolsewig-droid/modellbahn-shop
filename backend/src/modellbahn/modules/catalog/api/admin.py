@@ -375,6 +375,7 @@ async def update_product(
         summary=_given(body, "summary"),
         description=_given(body, "description"),
         prototype=_given(body, "prototype"),
+        label=_given(body, "label"),
         primary_category_id=_given(body, "primary_category_id", nullable=True),
         epoch_codes=_given(body, "epoch_codes"),
     )

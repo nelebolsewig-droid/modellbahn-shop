@@ -217,6 +217,19 @@ class SqlProductRepository:
                     product_epochs.c.epoch_code == query.epoch_code,
                 )
             )
+        if query.finish_code is not None:
+            # Offered as a kit or as a finished model (in the scale, if one is given).
+            in_finish = exists().where(
+                product_scales.c.product_id == products.c.id,
+                variants.c.product_scale_id == product_scales.c.id,
+                variants.c.finish_code == query.finish_code,
+                variants.c.active.is_(True),
+            )
+            if query.scale_code is not None:
+                in_finish = in_finish.where(product_scales.c.scale_code == query.scale_code)
+            statement = statement.where(in_finish)
+        if query.label is not None:
+            statement = statement.where(products.c.label == query.label)
         if query.text:
             statement = statement.where(
                 products.c.search_vector.op("@@")(func.websearch_to_tsquery("german", query.text))

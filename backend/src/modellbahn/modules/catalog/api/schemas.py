@@ -39,6 +39,7 @@ from modellbahn.modules.catalog.domain.model import (
     GalleryEntry,
     MediaRole,
     ProductionSettings,
+    ProductLabel,
     ProductScale,
     ProductStatus,
     Scale,
@@ -381,6 +382,7 @@ class ProductOut(BaseModel):
     summary: str
     description: str
     prototype: str
+    label: ProductLabel
     primary_category_id: UUID | None
     status: ProductStatus
     published_at: datetime | None
@@ -405,6 +407,7 @@ class ProductOut(BaseModel):
             summary=product.summary,
             description=product.description,
             prototype=product.prototype,
+            label=product.label,
             primary_category_id=product.primary_category_id,
             status=product.status,
             published_at=product.published_at,
@@ -523,6 +526,7 @@ class ProductPatchIn(_Request):
     summary: Annotated[str, Field(max_length=SUMMARY_MAX_LENGTH)] | None = None
     description: Annotated[str, Field(max_length=DESCRIPTION_MAX_LENGTH)] | None = None
     prototype: Annotated[str, Field(max_length=PROTOTYPE_MAX_LENGTH)] | None = None
+    label: ProductLabel | None = None
     primary_category_id: UUID | None = None
     epoch_codes: Annotated[list[str], Field(max_length=10)] | None = None
 
@@ -678,6 +682,7 @@ class StoreProductCardOut(BaseModel):
     number: int
     name: str
     summary: str
+    label: ProductLabel
     # Scales with at least one variant for sale, in display order.
     scale_codes: list[str]
     price_from_cents: int | None
@@ -700,6 +705,7 @@ class StoreProductPageOut(BaseModel):
                     number=product.number,
                     name=product.name,
                     summary=product.summary,
+                    label=product.label,
                     scale_codes=[code for code in scale_order if code in on_sale],
                     price_from_cents=_price_from(product.variants),
                     image=None if card.main_image is None else ImageOut.from_view(card.main_image),

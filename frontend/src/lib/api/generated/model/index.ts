@@ -209,6 +209,7 @@ export * from './problemFieldError';
 export * from './productCreateIn';
 export * from './productionIn';
 export * from './productionOut';
+export * from './productLabel';
 export * from './productListItemOut';
 export * from './productOut';
 export * from './productPageOut';
