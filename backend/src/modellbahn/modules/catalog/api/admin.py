@@ -407,7 +407,7 @@ async def update_product(
     ),
 )
 async def delete_product(
-    product_id: UUID, _: CatalogEditor, service: CatalogServiceDep, if_match: IfMatch = None
+    product_id: UUID, _: CatalogOwner, service: CatalogServiceDep, if_match: IfMatch = None
 ) -> None:
     await service.delete_product(
         product_id, expected_version=expected_version(if_match, required=False)
