@@ -298,6 +298,10 @@ _COUNT: Final = re.compile(
 )
 
 
+_CHITUBOX_TAIL: Final = re.compile(r"[_ ]0\.\d{2,3}_\d+(?:\.\d+)?(?:_\d{2,4}){5}$")
+"""Layer height, exposure, date and time Chitubox appends to a plate's name."""
+
+
 def file_stem(slice_file: str) -> str:
     """``BR_99_23-24_dummy.stl #4.ctb`` → ``BR_99_23-24_dummy``: the model, not the plate."""
     name = slice_file.strip().replace("\\", "/").rsplit("/", 1)[-1]
@@ -307,8 +311,9 @@ def file_stem(slice_file: str) -> str:
             name = name[: -len(suffix)]
             break
     name = name.split("#", 1)[0].strip()
-    if name.lower().endswith((".stl", ".obj", ".3mf")):
-        name = name.rsplit(".", 1)[0]
+    # Chitubox: ``v10c_tür_32.stl_0.040_4.000_2026_11_25_11_01``: the model ends at .stl.
+    name = re.split(r"\.(?:stl|obj|3mf)(?![A-Za-z0-9])", name, maxsplit=1, flags=re.IGNORECASE)[0]
+    name = _CHITUBOX_TAIL.sub("", name)
     return name.strip(" _-.")
 
 
