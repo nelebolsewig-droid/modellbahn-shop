@@ -11689,6 +11689,10 @@
             ],
             "title": "Price From Cents"
           },
+          "price_varies": {
+            "title": "Price Varies",
+            "type": "boolean"
+          },
           "scale_codes": {
             "items": {
               "type": "string"
@@ -11714,6 +11718,7 @@
           "scale_codes",
           "finish_codes",
           "price_from_cents",
+          "price_varies",
           "image"
         ],
         "title": "StoreProductCardOut",

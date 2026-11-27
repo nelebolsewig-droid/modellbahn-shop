@@ -275,6 +275,11 @@ class TestPublishing:
         assert card["finish_codes"] == ["unpainted", "painted"]
         (in_h0,) = (await client.get(f"{SHOP}/products", params={"scale": "H0"})).json()["items"]
         assert in_h0["price_from_cents"] == 3490
+        assert in_h0["price_varies"] is True  # kit 34,90 €, finished model 79,90 €
+        (finished,) = (
+            await client.get(f"{SHOP}/products", params={"scale": "H0", "finish": "painted"})
+        ).json()["items"]
+        assert (finished["price_from_cents"], finished["price_varies"]) == (7990, False)
         assert card["price_from_cents"] == 3490
         assert card["image"]["lqip"].startswith("data:image/webp")
 
