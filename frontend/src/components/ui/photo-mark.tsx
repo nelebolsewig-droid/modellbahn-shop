@@ -15,8 +15,8 @@ type PhotoMarkProps = {
   size?: "small" | "default";
 };
 
-/** A small edged card with the hard shadow of the house, like a label on a box. */
-const TAG = "pointer-events-none absolute flex items-center border border-ink bg-surface shadow-[2px_2px_0_var(--ink)] select-none";
+/** Plain lettering on the light stage, no frame. */
+const TAG = "pointer-events-none absolute flex items-center select-none";
 
 /**
  * The tags on a model photo: the wordmark top left, what the model is sold as bottom
@@ -25,14 +25,13 @@ const TAG = "pointer-events-none absolute flex items-center border border-ink bg
  */
 export function PhotoMark({ finishes, size = "default" }: PhotoMarkProps) {
   const small = size === "small";
-  const pad = small ? "px-2 py-1" : "px-3 py-1.5";
   return (
     <>
-      <div className={cn(TAG, pad, small ? "top-3 left-3" : "top-3 left-3 sm:top-4 sm:left-4")}>
+      <div className={cn(TAG, small ? "top-4 left-4" : "top-4 left-4 sm:top-6 sm:left-6")}>
         <Wordmark name="adp-Modelle" className={small ? "text-[0.8125rem]" : "text-[0.9375rem]"} />
       </div>
       {finishes.length > 0 ? (
-        <div className={cn(TAG, pad, small ? "right-3 bottom-3" : "right-3 bottom-3 sm:right-4 sm:bottom-4")}>
+        <div className={cn(TAG, small ? "right-4 bottom-4" : "right-4 bottom-4 sm:right-6 sm:bottom-6")}>
           <span
             className={cn(
               "font-semibold tracking-[0.06em] text-ink uppercase",
