@@ -273,6 +273,8 @@ class TestPublishing:
         assert card["slug"] == "stellwerk-altenau"
         assert card["scale_codes"] == ["H0"]
         assert card["finish_codes"] == ["unpainted", "painted"]
+        (in_h0,) = (await client.get(f"{SHOP}/products", params={"scale": "H0"})).json()["items"]
+        assert in_h0["price_from_cents"] == 3490
         assert card["price_from_cents"] == 3490
         assert card["image"]["lqip"].startswith("data:image/webp")
 

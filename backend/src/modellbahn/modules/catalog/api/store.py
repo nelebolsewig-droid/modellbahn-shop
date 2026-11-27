@@ -76,6 +76,7 @@ async def list_products(
         page,
         scale_order=[s.code for s in references.scales],
         finish_order=[f.code for f in references.finishes],
+        scale_code=scale,
     )
 
 

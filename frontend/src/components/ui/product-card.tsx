@@ -54,7 +54,7 @@ export function ProductCard({
         )}
       </div>
       {/* The name has the whole width; scales and price share the line below. */}
-      <h3 className="mt-4 text-[1.125rem] leading-6 font-normal tracking-[-0.01em] hyphens-auto break-words group-hover:underline group-hover:underline-offset-4">
+      <h3 className="mt-4 text-[1.25rem] leading-7 font-bold tracking-[-0.01em] text-ink hyphens-auto break-words group-hover:underline group-hover:underline-offset-4">
         {name}
       </h3>
       <div className="mt-1 flex items-baseline justify-between gap-4">

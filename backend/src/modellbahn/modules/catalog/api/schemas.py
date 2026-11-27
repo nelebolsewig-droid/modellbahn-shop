@@ -692,13 +692,26 @@ class StoreProductPageOut(BaseModel):
 
     @classmethod
     def from_page(
-        cls, page: ProductPage, *, scale_order: list[str], finish_order: list[str]
+        cls,
+        page: ProductPage,
+        *,
+        scale_order: list[str],
+        finish_order: list[str],
+        scale_code: str | None = None,
     ) -> Self:
+        """Cards of a page; with a scale, price and finishes are those of that scale."""
         items: list[StoreProductCardOut] = []
         for card in page.items:
             product = card.product
             on_sale = {s.scale_code for s in product.scales if any(v.active for v in s.variants)}
-            finishes = {v.finish_code for v in product.variants if v.active}
+            # In a scale's catalogue the card shows what that scale costs, not a cheaper one.
+            variants = [
+                v
+                for s in product.scales
+                if scale_code is None or s.scale_code == scale_code
+                for v in s.variants
+            ] or product.variants
+            finishes = {v.finish_code for v in variants if v.active}
             items.append(
                 StoreProductCardOut(
                     slug=product.slug,
@@ -707,7 +720,7 @@ class StoreProductPageOut(BaseModel):
                     summary=product.summary,
                     scale_codes=[code for code in scale_order if code in on_sale],
                     finish_codes=[code for code in finish_order if code in finishes],
-                    price_from_cents=_price_from(product.variants),
+                    price_from_cents=_price_from(variants),
                     image=None if card.main_image is None else ImageOut.from_view(card.main_image),
                 )
             )
