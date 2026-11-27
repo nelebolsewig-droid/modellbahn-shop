@@ -213,9 +213,28 @@ function PillFilter({ location, name, title, options }: PillFilterProps) {
   );
 }
 
-/** Kit or finished model. */
-export function FinishFilter({ location }: { location: CatalogLocation }) {
-  return <PillFilter location={location} name="ausfuehrung" title="Ausführung" options={FINISH_FILTERS} />;
+/**
+ * Kit or finished model, right below the scale and in its look: the second choice a
+ * customer makes. "Beides" shows both, which is where every scale starts.
+ */
+export function FinishSwitch({ location }: { location: CatalogLocation }) {
+  const choices = [{ param: undefined, label: "Beides" }, ...FINISH_FILTERS];
+  return (
+    <nav aria-label="Ausführung wählen">
+      <ul className="flex flex-wrap gap-2">
+        {choices.map((choice) => (
+          <li key={choice.label}>
+            <FilterLink
+              href={catalogPath({ ...location, ausfuehrung: choice.param, weiter: undefined })}
+              active={location.ausfuehrung === choice.param}
+            >
+              {choice.label}
+            </FilterLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
 }
 
 /** adp's own models or a partner label. */
