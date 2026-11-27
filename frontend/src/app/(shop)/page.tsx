@@ -18,6 +18,7 @@ import type {
 } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { loadNavigation } from "@/lib/catalog/store-data";
+import { finishName } from "@/components/ui/photo-mark";
 
 // What sets the workshop apart, from its own website (Über uns, Sonderanfertigung).
 const TRAITS = [
@@ -103,6 +104,7 @@ export default async function HomePage() {
                     scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                     priceFromCents={item.price_from_cents}
                     image={item.image}
+                    finishes={item.finish_codes.map(finishName)}
                     label={item.label}
                   />
                 </li>

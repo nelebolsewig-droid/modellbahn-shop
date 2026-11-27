@@ -15,6 +15,7 @@ import type { ImageOut } from './imageOut';
 import type { ProductLabel } from './productLabel';
 
 export interface StoreProductCardOut {
+  finish_codes: string[];
   image: ImageOut | null;
   label: ProductLabel;
   name: string;
