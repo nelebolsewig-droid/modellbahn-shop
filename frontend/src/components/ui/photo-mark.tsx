@@ -2,10 +2,7 @@ import { Wordmark } from "@/components/site/wordmark";
 import { cn } from "@/lib/utils";
 
 /** The names of the finishes as the shop says them; an unknown code is shown as it is. */
-const FINISH_NAMES: Record<string, string> = {
-  unpainted: "Bausatz",
-  painted: "Fertigmodell",
-};
+const FINISH_NAMES: Record<string, string> = { unpainted: "Bausatz", painted: "Fertigmodell" };
 
 /** "unpainted" → "Bausatz". */
 export function finishName(code: string): string {
@@ -16,39 +13,26 @@ type PhotoMarkProps = {
   /** What the model is sold as, by name ("Bausatz", "Fertigmodell"); both when it comes as both. */
   finishes: readonly string[];
   size?: "small" | "default";
-  className?: string;
 };
 
+/** A small edged card with the hard shadow of the house, like a label on a box. */
+const TAG = "pointer-events-none absolute flex items-center border border-ink bg-surface shadow-[2px_2px_0_var(--ink)] select-none";
+
 /**
- * The tag in the bottom right corner of a model photo: the wordmark and what the model
- * is sold as. A small edged card with the hard shadow of the house, so it stands on the
- * light stage like a label on a box. It lies over the photo, so every photo carries it,
- * new ones too, and the photo itself stays clean (for eBay, Google and the newsletter).
+ * The tags on a model photo: the wordmark top left, what the model is sold as bottom
+ * right. They lie over the photo, so every photo carries them, new ones too, and the
+ * photo itself stays clean (for eBay, Google and the newsletter).
  */
-export function PhotoMark({
-  finishes,
-  size = "default",
-  className,
-}: PhotoMarkProps) {
+export function PhotoMark({ finishes, size = "default" }: PhotoMarkProps) {
   const small = size === "small";
+  const pad = small ? "px-2 py-1" : "px-3 py-1.5";
   return (
-    <div
-      className={cn(
-        "pointer-events-none absolute right-3 bottom-3 flex items-center border border-ink bg-surface",
-        "shadow-[2px_2px_0_var(--ink)] select-none",
-        small
-          ? "gap-2 px-2 py-1"
-          : "gap-2.5 px-3 py-1.5 sm:right-4 sm:bottom-4",
-        className,
-      )}
-    >
-      <Wordmark
-        name="adp-Modelle"
-        className={small ? "text-[0.8125rem]" : "text-[0.9375rem]"}
-      />
+    <>
+      <div className={cn(TAG, pad, small ? "top-3 left-3" : "top-3 left-3 sm:top-4 sm:left-4")}>
+        <Wordmark name="adp-Modelle" className={small ? "text-[0.8125rem]" : "text-[0.9375rem]"} />
+      </div>
       {finishes.length > 0 ? (
-        <>
-          <span aria-hidden="true" className="h-3.5 w-px bg-line-strong" />
+        <div className={cn(TAG, pad, small ? "right-3 bottom-3" : "right-3 bottom-3 sm:right-4 sm:bottom-4")}>
           <span
             className={cn(
               "font-semibold tracking-[0.06em] text-ink uppercase",
@@ -57,8 +41,8 @@ export function PhotoMark({
           >
             {finishes.join(" · ")}
           </span>
-        </>
+        </div>
       ) : null}
-    </div>
+    </>
   );
 }
