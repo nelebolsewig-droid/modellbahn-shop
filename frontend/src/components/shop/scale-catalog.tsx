@@ -7,7 +7,7 @@ import {
   CatalogSort,
   CategoryTree,
   EpochFilter,
-  FinishFilter,
+  FinishSwitch,
   LabelFilter,
   ScaleSwitch,
   categoryTrail,
@@ -128,8 +128,9 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
           longestMillimetres={Math.max(...navigation.scales.map((s) => millimetresPerMetre(s.ratio_denominator)))}
         />
       </header>
-      <div className="mt-8">
+      <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3">
         <ScaleSwitch location={location} scales={navigation.scales} categories={navigation.categories} />
+        <FinishSwitch location={location} />
       </div>
 
       <div className="mt-10 grid gap-10 lg:mt-12 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-14">
@@ -235,7 +236,6 @@ function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
           Suchen
         </Button>
       </form>
-      <FinishFilter location={location} />
       <LabelFilter location={location} />
       <CategoryTree location={location} categories={navigation.categories} />
       <EpochFilter location={location} epochs={navigation.epochs} />
