@@ -130,7 +130,13 @@ def discover(timeout: float = 3.0, target: str = "255.255.255.255") -> list[dict
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.settimeout(0.5)
-        sock.sendto(b"M99999", (target, DISCOVERY_PORT))
+        try:
+            sock.sendto(b"M99999", (target, DISCOVERY_PORT))
+        except OSError as error:
+            # e.g. "No route to host" while the WLAN is not up yet or macOS has not
+            # allowed this program into the local network: try again later.
+            log.warning("Suche an %s geht nicht: %s", target, error)
+            return []
         end = time.monotonic() + timeout
         while time.monotonic() < end:
             try:
