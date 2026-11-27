@@ -12,9 +12,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ImageOut } from './imageOut';
+import type { ProductLabel } from './productLabel';
 
 export interface StoreProductCardOut {
   image: ImageOut | null;
+  label: ProductLabel;
   name: string;
   number: number;
   price_from_cents: number | null;

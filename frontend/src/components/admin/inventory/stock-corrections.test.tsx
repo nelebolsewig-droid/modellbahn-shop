@@ -196,6 +196,7 @@ describe("Ausführung ändern", () => {
     summary: "",
     description: "",
     prototype: "",
+    label: "adp",
     primary_category_id: null,
     epoch_codes: [],
     scales: [

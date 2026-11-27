@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { labelName } from "@/lib/catalog/filters";
 import { formatPrice } from "@/lib/catalog/format";
 
 import { ResponsivePicture, type PictureImage } from "./responsive-picture";
@@ -14,6 +15,8 @@ type ProductCardProps = {
   scales: readonly string[];
   priceFromCents: number | null;
   image: PictureImage | null;
+  /** The label it is sold under; a partner label (not adp) is shown on the photo. */
+  label?: string;
   /** The first cards of a page are above the fold. */
   priority?: boolean;
 };
@@ -26,8 +29,10 @@ export function ProductCard({
   scales,
   priceFromCents,
   image,
+  label,
   priority = false,
 }: ProductCardProps) {
+  const partner = label && label !== "adp" ? labelName(label) : null;
   return (
     <Link href={href} className="group block rounded-md">
       <div className="relative aspect-square rounded-md bg-stage transition-colors duration-150 group-hover:bg-sunken">
@@ -45,6 +50,11 @@ export function ProductCard({
             Foto folgt
           </p>
         )}
+        {partner ? (
+          <span className="absolute top-3 left-3 border border-line-strong bg-surface px-2 py-1 label-caps text-ink-secondary">
+            {partner}
+          </span>
+        ) : null}
       </div>
       {/* The name has the whole width; scales and price share the line below. */}
       <h3 className="mt-4 text-[1.125rem] leading-6 font-normal tracking-[-0.01em] hyphens-auto break-words group-hover:underline group-hover:underline-offset-4">

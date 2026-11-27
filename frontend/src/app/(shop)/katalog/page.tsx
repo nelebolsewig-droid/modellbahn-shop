@@ -171,6 +171,7 @@ async function SearchResults({
               scales={item.scale_codes.map((code) => names.get(code) ?? code)}
               priceFromCents={item.price_from_cents}
               image={item.image}
+              label={item.label}
               priority={index < 3}
             />
           </li>

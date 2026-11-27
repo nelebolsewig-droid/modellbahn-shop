@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
 import { NextFair } from "@/components/site/next-fair";
+import { SloganBand } from "@/components/site/slogan-band";
 import { ScrollFilm } from "@/components/site/scroll-film/scroll-film";
 import { ProductCard } from "@/components/ui/product-card";
 import { MakingOfTeaser } from "@/components/workshop/making-of-teaser";
@@ -77,6 +78,8 @@ export default async function HomePage() {
     <>
       <ScrollFilm actions={<HomeActions />} />
 
+      <SloganBand />
+
       {fair ? <NextFair fair={fair} /> : null}
 
       {newest.length > 0 ? (
@@ -100,6 +103,7 @@ export default async function HomePage() {
                     scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                     priceFromCents={item.price_from_cents}
                     image={item.image}
+                    label={item.label}
                   />
                 </li>
               ))}

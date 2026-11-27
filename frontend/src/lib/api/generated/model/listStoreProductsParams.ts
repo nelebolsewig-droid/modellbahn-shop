@@ -12,6 +12,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListStoreProductsSort } from './listStoreProductsSort';
+import type { ProductLabel } from './productLabel';
 
 export type ListStoreProductsParams = {
 /**
@@ -26,6 +27,14 @@ scale?: string | null;
  * Epoch code, e.g. III.
  */
 epoch?: string | null;
+/**
+ * Finish code: unpainted (kit) or painted (finished).
+ */
+finish?: string | null;
+/**
+ * adp or a partner label.
+ */
+label?: ProductLabel | null;
 /**
  * German full-text search.
  */
