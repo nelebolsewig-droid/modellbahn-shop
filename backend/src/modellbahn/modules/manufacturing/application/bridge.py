@@ -1,4 +1,4 @@
-"""The printer bridge (ADR 0047): the printers report themselves, nobody types a plate in.
+"""The printer bridge (ADR 0049): the printers report themselves, nobody types a plate in.
 
 A small program in the workshop reads every resin printer over the network and sends
 what it sees here: which file prints, how far, and whether a print finished or stopped.
@@ -6,7 +6,7 @@ From that the printer hall moves by itself:
 
 - a print starts → the plate waiting on that printer with the part of the file starts,
   otherwise a new plate for the part; a file no part has made yet makes its part first,
-  and what the print tells (time, resin) fills what the part lacks (ADR 0048);
+  and what the print tells (time, resin) fills what the part lacks (ADR 0050);
 - a print finished → the plate goes to post-processing (the good parts are still counted
   by hand when the plate is done, that books them into stock);
 - a print stopped → the plate failed.
@@ -75,7 +75,7 @@ class PrinterReport:
     remaining_seconds: int | None = None
     error: str = ""
     volume_ml: float | None = None
-    """Resin of the whole plate, if the bridge found the sliced file (ADR 0048)."""
+    """Resin of the whole plate, if the bridge found the sliced file (ADR 0050)."""
     layer_height_um: int | None = None
 
 
@@ -198,7 +198,7 @@ class PrinterBridgeService:
     ) -> PrintJob | None:
         """The waiting plate with the part the file names, or a new plate for it.
 
-        A file that names no part yet makes its part first (ADR 0048).
+        A file that names no part yet makes its part first (ADR 0050).
         """
         parts = await uow.parts.search(
             scale_code=None,

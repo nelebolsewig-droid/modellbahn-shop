@@ -3,7 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["websockets>=13"]
 # ///
-"""Drucker-Brücke: meldet, was die Resin-Drucker tun, an die Fertigung im Stellwerk (ADR 0047).
+"""Drucker-Brücke: meldet, was die Resin-Drucker tun, an die Fertigung im Stellwerk (ADR 0049).
 
 Läuft auf einem Rechner im Werkstatt-WLAN (Mac oder Raspberry Pi). Die Elegoo-Drucker
 (Saturn 3 Ultra, Saturn 4 Ultra …) sprechen im Netz SDCP: Suche per UDP an Port 3000,

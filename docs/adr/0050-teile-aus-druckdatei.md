@@ -1,6 +1,6 @@
-# ADR 0048: Teile entstehen aus der Druckdatei
+# ADR 0050: Teile entstehen aus der Druckdatei
 
-Status: angenommen · 24.11.2026 · ergänzt ADR 0017 und ADR 0047
+Status: angenommen · 24.11.2026 · ergänzt ADR 0017 und ADR 0049
 
 ## Kontext
 Teile und Material von Hand anzulegen war dem Team zu aufwendig; die Seite blieb leer.

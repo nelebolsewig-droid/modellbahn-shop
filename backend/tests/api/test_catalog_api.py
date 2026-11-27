@@ -312,6 +312,20 @@ class TestPublishing:
         assert deleted.status_code == 204, deleted.text
         assert (await staff_client.get(f"{PRODUCTS}/{product['id']}")).status_code == 404
 
+    async def test_only_an_owner_deletes_a_model(
+        self, make_client: ClientFactory, identity: IdentityService
+    ) -> None:
+        await identity.create_staff(
+            email="anna@example.com", display_name="Anna", role=StaffRole.STAFF, password=PASSWORD
+        )
+        async with make_client() as client:
+            await staff_login(client, "anna@example.com")
+            assert_problem(
+                await client.delete(f"{PRODUCTS}/00000000-0000-0000-0000-000000000000"),
+                403,
+                "insufficient_role",
+            )
+
 
 class TestCategoriesAndLists:
     async def test_categories(self, staff_client: AsyncClient, client: AsyncClient) -> None:
