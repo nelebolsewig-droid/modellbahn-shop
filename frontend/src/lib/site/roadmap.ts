@@ -40,4 +40,11 @@ export type RoadmapEntry = {
 };
 
 /** Planned models, most advanced first. Empty: the page invites suggestions instead. */
-export const ROADMAP: readonly RoadmapEntry[] = [];
+export const ROADMAP: readonly RoadmapEntry[] = [
+  {
+    name: "Eisenbahndrehkran EDK 6",
+    scales: ["H0"],
+    stage: "probedruck",
+    note: "Der Kran aus unserer Explosionszeichnung: Ausleger, Seilklappe und Drehgestelle mit echten Radsätzen.",
+  },
+];
