@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { ProductBomPanel } from "@/components/admin/manufacturing/bom-panel";
 import { ProductEbayPanel } from "@/components/admin/marketplace/product-ebay-panel";
+import { useIsOwner } from "@/components/admin/marketplace/use-ebay";
 import { Panel } from "@/components/admin/panel";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -144,9 +145,12 @@ function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactN
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-start gap-5">
-        <span className="relative block size-24 shrink-0 overflow-hidden rounded-md bg-stage sm:size-28">
+        {/* Big enough to see the model being edited; whole, not cropped. */}
+        <span className="relative block size-36 shrink-0 overflow-hidden rounded-md bg-stage sm:size-56">
           {picture ? (
-            <ResponsivePicture image={picture} alt="" sizes="112px" variant="thumb" fit="cover" />
+            <span className="absolute inset-2">
+              <ResponsivePicture image={picture} alt="" sizes="(min-width: 640px) 224px, 144px" />
+            </span>
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-hint text-ink-tertiary">ohne Foto</span>
           )}
@@ -182,6 +186,7 @@ function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactN
 }
 
 function PublishPanel({ product }: { product: ProductOut }) {
+  const isOwner = useIsOwner();
   const queryClient = useQueryClient();
   const command = useProductCommand(product.id);
   const blockers = new Set(product.publish_blockers);
@@ -239,7 +244,7 @@ function PublishPanel({ product }: { product: ProductOut }) {
             </Button>
           </>
         )}
-        <DeleteProduct product={product} />
+        {isOwner ? <DeleteProduct product={product} /> : null}
       </div>
       {blockers.size > 0 && product.status !== "active" ? (
         <p className="mt-3 text-hint text-ink-tertiary">Veröffentlichen geht, sobald alle Punkte erfüllt sind.</p>

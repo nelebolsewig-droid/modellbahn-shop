@@ -7,6 +7,8 @@ const WORKSHOP = [
   { href: "/termine", label: "Termine" },
   { href: "/ueber-uns", label: "Über uns" },
   { href: "/so-entsteht-ein-modell", label: "So entsteht ein Modell" },
+  { href: "/der-weg-zum-perfekten-modell", label: "Bauanleitung" },
+  { href: "/in-planung", label: "In Planung" },
   { href: "/sonderanfertigung", label: "Sonderanfertigung" },
 ] as const satisfies readonly FooterLink[];
 
@@ -26,7 +28,10 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-small text-ink-tertiary sm:px-8 lg:grid-cols-[minmax(14rem,1fr)_auto] lg:items-center">
-        <p>{SHOP_NAME} · Fahrzeugmodelle in Handarbeit, seit 1992</p>
+        <div>
+          <p>{SHOP_NAME} · Fahrzeugmodelle in Handarbeit, seit 1992</p>
+          <p className="mt-1 font-medium text-ink-secondary">Modellbau ist mehr als ein Hobby – Baue, was du liebst.</p>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-10">
           <FooterLinks label="Werkstatt" links={WORKSHOP} />
           <FooterLinks label="Service und Rechtliches" links={LINKS} />

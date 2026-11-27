@@ -268,7 +268,7 @@ print_jobs = Table(
         unique=True,
         postgresql_where=text("status = 'printing'"),
     ),
-    # A print the printer bridge reported is booked once (ADR 0047).
+    # A print the printer bridge reported is booked once (ADR 0049).
     Index(
         "print_jobs_printer_task_idx",
         "printer_task_id",

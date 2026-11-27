@@ -6,7 +6,7 @@ so two people editing the same product cannot overwrite each other unnoticed.
 """
 
 from collections.abc import Awaitable, Callable, Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Final
 from uuid import UUID
@@ -51,6 +51,7 @@ from modellbahn.modules.catalog.domain.model import (
     Maybe,
     Product,
     ProductionSettings,
+    ProductLabel,
     ProductScale,
     ProductStatus,
     Scale,
@@ -436,6 +437,7 @@ class CatalogService:
         summary: Maybe[str] = UNSET,
         description: Maybe[str] = UNSET,
         prototype: Maybe[str] = UNSET,
+        label: Maybe[ProductLabel] = UNSET,
         primary_category_id: Maybe[UUID | None] = UNSET,
         epoch_codes: Maybe[list[str]] = UNSET,
     ) -> ProductDetails:
@@ -462,6 +464,7 @@ class CatalogService:
                 summary=summary,
                 description=description,
                 prototype=prototype,
+                label=label,
                 primary_category_id=primary_category_id,
                 epoch_codes=epoch_codes,
                 now=now,
@@ -733,6 +736,8 @@ class CatalogService:
         category_slug: str | None = None,
         scale_code: str | None = None,
         epoch_code: str | None = None,
+        finish_code: str | None = None,
+        label: ProductLabel | None = None,
         text: str | None = None,
         order: ProductOrder = ProductOrder.PUBLISHED,
         cursor: str | None = None,
@@ -759,6 +764,8 @@ class CatalogService:
                 references.scale(scale_code, field="scale")
             if epoch_code is not None:
                 references.check_epochs([epoch_code], field="epoch")
+            if finish_code is not None and finish_code not in {f.code for f in references.finishes}:
+                raise UnknownReferenceError("finish", finish_code)
             query = ProductQuery(
                 order=order,
                 limit=min(limit, STORE_PAGE_MAX),
@@ -766,6 +773,8 @@ class CatalogService:
                 category_ids=category_ids,
                 scale_code=scale_code,
                 epoch_code=epoch_code,
+                finish_code=finish_code,
+                label=None if label is None else str(label),
                 text=text or None,
                 after=None if cursor is None else decode_cursor(cursor),
             )
@@ -910,18 +919,7 @@ async def _details(uow: CatalogUnitOfWork, product: Product) -> ProductDetails:
 
 async def _page(uow: CatalogUnitOfWork, query: ProductQuery) -> ProductPage:
     # One more than asked for tells whether another page follows.
-    found = await uow.products.search(
-        ProductQuery(
-            order=query.order,
-            limit=query.limit + 1,
-            statuses=query.statuses,
-            category_ids=query.category_ids,
-            scale_code=query.scale_code,
-            epoch_code=query.epoch_code,
-            text=query.text,
-            after=query.after,
-        )
-    )
+    found = await uow.products.search(replace(query, limit=query.limit + 1))
     page, more = found[: query.limit], len(found) > query.limit
     mains = {p.id: p.main_image for p in page}
     images = await uow.images.load([m.asset_id for m in mains.values() if m is not None])

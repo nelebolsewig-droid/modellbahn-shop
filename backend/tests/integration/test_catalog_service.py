@@ -34,6 +34,7 @@ from modellbahn.modules.catalog.domain.model import (
     Dimensions,
     GalleryEntry,
     MediaRole,
+    ProductLabel,
     ProductStatus,
     ean13_check_digit,
 )
@@ -455,6 +456,18 @@ class TestShop:
             await catalog.store_products(category_slug="gibt-es-nicht")
         with pytest.raises(UnknownReferenceError):
             await catalog.store_products(scale_code="QQ")
+        # Kit or finished model, and the label (every product starts as adp's own).
+        assert await names(finish_code="unpainted") == []
+        assert await names(finish_code="painted", scale_code="H0") == ["Stellwerk Altenau"]
+        assert await names(finish_code="painted", scale_code="TT") == []
+        assert await names(label="adp") == ["Bahnsteiglampen", "Stellwerk Altenau"]
+        await catalog.change_product(
+            lamps.product.id, expected_version=None, label=ProductLabel.MILMOD
+        )
+        assert await names(label="milmod") == ["Bahnsteiglampen"]
+        assert await names(label="vehicle-world") == []
+        with pytest.raises(UnknownReferenceError):
+            await catalog.store_products(finish_code="lackiert")
 
     async def test_navigation_counts_what_the_shop_shows(
         self,

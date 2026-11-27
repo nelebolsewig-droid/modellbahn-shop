@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { labelName } from "@/lib/catalog/filters";
 import { formatPrice } from "@/lib/catalog/format";
 
 import { PhotoMark } from "./photo-mark";
@@ -17,6 +18,8 @@ type ProductCardProps = {
   image: PictureImage | null;
   /** What the model is sold as, by name ("Bausatz", "Fertigmodell"), shown on the photo. */
   finishes?: readonly string[];
+  /** The label it is sold under; a partner label (not adp) is shown on the photo. */
+  label?: string;
   /** The first cards of a page are above the fold. */
   priority?: boolean;
 };
@@ -30,8 +33,10 @@ export function ProductCard({
   priceFromCents,
   image,
   finishes = [],
+  label,
   priority = false,
 }: ProductCardProps) {
+  const partner = label && label !== "adp" ? labelName(label) : null;
   return (
     <Link href={href} className="group block rounded-md">
       <div className="relative aspect-square rounded-md bg-stage transition-colors duration-150 group-hover:bg-sunken">
@@ -45,7 +50,7 @@ export function ProductCard({
                 priority={priority}
               />
             </div>
-            <PhotoMark finishes={finishes} size="small" />
+            <PhotoMark finishes={finishes} partner={partner} size="small" />
           </>
         ) : (
           <p className="absolute inset-0 flex items-center justify-center label-caps text-ink-tertiary">

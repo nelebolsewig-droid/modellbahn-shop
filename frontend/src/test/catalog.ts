@@ -38,6 +38,7 @@ export function productOut(overrides: Partial<ProductOut> = {}, variants: Varian
     summary: "",
     description: "",
     prototype: "",
+    label: "adp",
     primary_category_id: null,
     epoch_codes: [],
     scales: [{ id: "s1", scale_code: "H0", length_mm: null, width_mm: null, height_mm: null, weight_g: null, variants }],

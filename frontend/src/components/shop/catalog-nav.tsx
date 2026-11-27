@@ -7,6 +7,7 @@ import type {
   NavigationCategoryOut,
   NavigationScaleOut,
 } from "@/lib/api/generated/model";
+import { FINISH_FILTERS, LABEL_FILTERS } from "@/lib/catalog/filters";
 import { branchCount, catalogPath, scaleLabel, type CatalogLocation } from "@/lib/catalog/scales";
 import { cn } from "@/lib/utils";
 
@@ -179,6 +180,49 @@ export function EpochFilter({ location, epochs }: { location: CatalogLocation; e
   );
 }
 
+type PillFilterProps = {
+  location: CatalogLocation;
+  name: "ausfuehrung" | "label";
+  title: string;
+  options: readonly { param: string; label: string }[];
+};
+
+/** One choice as pills, like the epoch; "Alle" lifts the filter. */
+function PillFilter({ location, name, title, options }: PillFilterProps) {
+  return (
+    <nav aria-label={title}>
+      <p className="label-caps text-ink-tertiary">{title}</p>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        <li>
+          <FilterLink href={catalogPath({ ...location, [name]: undefined, weiter: undefined })} active={!location[name]}>
+            Alle
+          </FilterLink>
+        </li>
+        {options.map((option) => (
+          <li key={option.param}>
+            <FilterLink
+              href={catalogPath({ ...location, [name]: option.param, weiter: undefined })}
+              active={location[name] === option.param}
+            >
+              {option.label}
+            </FilterLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Kit or finished model. */
+export function FinishFilter({ location }: { location: CatalogLocation }) {
+  return <PillFilter location={location} name="ausfuehrung" title="Ausführung" options={FINISH_FILTERS} />;
+}
+
+/** adp's own models or a partner label. */
+export function LabelFilter({ location }: { location: CatalogLocation }) {
+  return <PillFilter location={location} name="label" title="Label" options={LABEL_FILTERS} />;
+}
+
 /** The order of the list as a row of links; choosing one starts at the first page again. */
 export function CatalogSort({ location, className }: { location: CatalogLocation; className?: string }) {
   const current = sortFor(location.sortierung);
@@ -233,6 +277,8 @@ export function ScaleSwitch({ location, scales, categories }: ScaleSwitchProps) 
                 href={catalogPath({
                   scale: scale.code,
                   category: keeps ? location.category : undefined,
+                  ausfuehrung: location.ausfuehrung,
+                  label: location.label,
                   epoche: location.epoche,
                   sortierung: location.sortierung,
                 })}

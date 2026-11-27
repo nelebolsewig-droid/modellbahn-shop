@@ -173,6 +173,7 @@ async function SearchResults({
               priceFromCents={item.price_from_cents}
               image={item.image}
               finishes={item.finish_codes.map(finishName)}
+              label={item.label}
               priority={index < 3}
             />
           </li>

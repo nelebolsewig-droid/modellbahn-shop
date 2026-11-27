@@ -12,6 +12,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GalleryItemOut } from './galleryItemOut';
+import type { ProductLabel } from './productLabel';
 import type { ProductScaleOut } from './productScaleOut';
 import type { ProductStatus } from './productStatus';
 import type { PublishBlocker } from './publishBlocker';
@@ -25,6 +26,7 @@ export interface ProductOut {
   description: string;
   epoch_codes: string[];
   id: string;
+  label: ProductLabel;
   media: GalleryItemOut[];
   name: string;
   number: number;

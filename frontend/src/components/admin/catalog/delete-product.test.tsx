@@ -25,6 +25,7 @@ function product(overrides: Partial<ProductOut>): ProductOut {
     summary: "",
     description: "",
     prototype: "",
+    label: "adp",
     primary_category_id: "c1",
     epoch_codes: [],
     scales: [],

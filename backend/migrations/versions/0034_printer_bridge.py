@@ -1,4 +1,4 @@
-"""Print jobs remember what the printer bridge reported (ADR 0047).
+"""Print jobs remember what the printer bridge reported (ADR 0049).
 
 Written by hand like the migrations before.
 

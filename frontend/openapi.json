@@ -8007,6 +8007,16 @@
         "title": "ProductCreateIn",
         "type": "object"
       },
+      "ProductLabel": {
+        "description": "The line a product is sold under: the workshop's own or a partner label.",
+        "enum": [
+          "adp",
+          "vehicle-world",
+          "milmod"
+        ],
+        "title": "ProductLabel",
+        "type": "string"
+      },
       "ProductListItemOut": {
         "properties": {
           "id": {
@@ -8131,6 +8141,9 @@
             "title": "Id",
             "type": "string"
           },
+          "label": {
+            "$ref": "#/components/schemas/ProductLabel"
+          },
           "media": {
             "items": {
               "$ref": "#/components/schemas/GalleryItemOut"
@@ -8217,6 +8230,7 @@
           "summary",
           "description",
           "prototype",
+          "label",
           "primary_category_id",
           "status",
           "published_at",
@@ -8290,6 +8304,16 @@
               }
             ],
             "title": "Epoch Codes"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "anyOf": [
@@ -11643,6 +11667,9 @@
               }
             ]
           },
+          "label": {
+            "$ref": "#/components/schemas/ProductLabel"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -11683,6 +11710,7 @@
           "number",
           "name",
           "summary",
+          "label",
           "scale_codes",
           "finish_codes",
           "price_from_cents",
@@ -32093,6 +32121,43 @@
               ],
               "description": "Epoch code, e.g. III.",
               "title": "Epoch"
+            }
+          },
+          {
+            "description": "Finish code: unpainted (kit) or painted (finished).",
+            "in": "query",
+            "name": "finish",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Finish code: unpainted (kit) or painted (finished).",
+              "title": "Finish"
+            }
+          },
+          {
+            "description": "adp or a partner label.",
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProductLabel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "adp or a partner label.",
+              "title": "Label"
             }
           },
           {
