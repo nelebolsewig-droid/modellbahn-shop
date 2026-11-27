@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { ConnectionLamp } from "@/components/admin/connection-lamp";
 import { ProductBomPanel } from "@/components/admin/manufacturing/bom-panel";
 import { ProductEbayPanel } from "@/components/admin/marketplace/product-ebay-panel";
+import { useIsOwner } from "@/components/admin/marketplace/use-ebay";
 import { Panel } from "@/components/admin/panel";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -182,6 +183,7 @@ function EditorHeader({ product, stream }: { product: ProductOut; stream: ReactN
 }
 
 function PublishPanel({ product }: { product: ProductOut }) {
+  const isOwner = useIsOwner();
   const queryClient = useQueryClient();
   const command = useProductCommand(product.id);
   const blockers = new Set(product.publish_blockers);
@@ -239,7 +241,7 @@ function PublishPanel({ product }: { product: ProductOut }) {
             </Button>
           </>
         )}
-        <DeleteProduct product={product} />
+        {isOwner ? <DeleteProduct product={product} /> : null}
       </div>
       {blockers.size > 0 && product.status !== "active" ? (
         <p className="mt-3 text-hint text-ink-tertiary">Veröffentlichen geht, sobald alle Punkte erfüllt sind.</p>
