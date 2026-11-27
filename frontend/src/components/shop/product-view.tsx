@@ -95,7 +95,12 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
     <>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
       {/* A new selection starts the stage at its best matching photo. */}
-      <ProductStage key={`${selection.scale}-${selection.finish}-${selection.color}`} items={items} aspect="4/5" />
+      <ProductStage
+        key={`${selection.scale}-${selection.finish}-${selection.color}`}
+        items={items}
+        aspect="4/5"
+        finishes={finishes.map((f) => f.name)}
+      />
 
       <div className="lg:sticky lg:top-8">
         <p className="font-mono text-hint text-ink-tertiary">{formatProductNumber(product.number)}</p>

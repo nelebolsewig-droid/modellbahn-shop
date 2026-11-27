@@ -63,7 +63,13 @@ const PASSWORD_EQUALS_EMAIL = "Das Passwort darf nicht deine E-Mail-Adresse sein
 const differsFromEmail = (password: string, address: string): boolean =>
   password.toLocaleLowerCase("de") !== address.toLocaleLowerCase("de");
 
-const registrationFields = z.object({ display_name: displayName, email, password: newPassword });
+const registrationFields = z.object({
+  display_name: displayName,
+  email,
+  password: newPassword,
+  /** Asked for the newsletter; the confirmation mail follows the verification. */
+  newsletter: z.boolean().optional(),
+});
 const credentialFields = registrationFields.pick({ email: true, password: true });
 
 export const registrationSchema = registrationFields.refine(

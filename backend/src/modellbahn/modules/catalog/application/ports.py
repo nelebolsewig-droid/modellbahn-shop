@@ -55,6 +55,8 @@ class ProductQuery:
     category_ids: frozenset[UUID] | None = None
     scale_code: str | None = None
     epoch_code: str | None = None
+    finish_code: str | None = None
+    label: str | None = None
     text: str | None = None
     after: ProductCursor | None = None
 

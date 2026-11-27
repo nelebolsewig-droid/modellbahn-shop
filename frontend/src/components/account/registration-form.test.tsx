@@ -98,7 +98,24 @@ describe("RegistrationForm", () => {
       display_name: "Erika Mustermann",
       email: "erika@example.de",
       password: "Rangierlok fährt um sechs",
+      newsletter: false,
     });
+  });
+
+  it("asks for the newsletter only when the box is ticked", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "pending_verification" }, 202));
+    const { user, name, email, password, submit } = setup();
+    const newsletter = screen.getByRole("checkbox", { name: /Newsletter/ });
+    expect(newsletter).not.toBeChecked();
+    await user.type(name, "Erika");
+    await user.type(email, "erika@example.de");
+    await user.type(password, "Rangierlok fährt um sechs");
+    await user.click(newsletter);
+    await user.click(submit);
+
+    await screen.findByRole("status");
+    const [, init] = fetchMock.mock.lastCall ?? [];
+    expect(JSON.parse(String(init?.body))).toMatchObject({ newsletter: true });
   });
 
   it("shows the backend's field errors in German at the field", async () => {
@@ -153,6 +170,7 @@ describe("RegistrationForm with name and address from a guest order", () => {
       display_name: "Erika Muster",
       email: "erika@example.de",
       password: "Ein ganzer Satz zum Merken",
+      newsletter: false,
     });
     expect(await screen.findByText("Bitte schau in dein Postfach")).toBeInTheDocument();
   });

@@ -24,6 +24,9 @@ class CustomerRegistered(DomainEvent):
     audience: ClassVar[frozenset[str]] = STAFF_AUDIENCE
 
     display_name: str
+    newsletter: bool = False
+    """The customer asked for the newsletter when registering (the newsletter module
+    sends the confirmation once the address is verified)."""
 
     def public_payload(self) -> JsonObject:
         return {"account_id": str(self.aggregate_id), "display_name": self.display_name}

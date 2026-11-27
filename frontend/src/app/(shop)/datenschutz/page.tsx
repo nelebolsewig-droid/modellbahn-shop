@@ -169,7 +169,26 @@ export default async function PrivacyPage() {
             </p>
           </LegalSection>
 
-          <LegalSection id="anfragen" mark="8" title="Anfragen">
+          <LegalSection id="newsletter" mark="8" title="Newsletter">
+            <p>
+              Den Newsletter gibt es nur mit Kundenkonto. Bestellst du ihn bei der Registrierung oder unter „Mein
+              Konto“, speichern wir, wann du das getan hast und welchen Einwilligungstext du gesehen hast. Er kommt erst,
+              wenn du den Link in unserer Bestätigungsmail anklickst (Double-Opt-in); unbestätigte Anfragen löschen wir
+              nach zwei Wochen. Wir schicken ihn an die Adresse deines Kundenkontos, einmal im Monat.
+            </p>
+            <p>
+              Damit die Empfehlungen zu dir passen, wählen wir sie anhand der Modelle und Maßstäbe aus, die du über dein
+              Kundenkonto gekauft hast. Das geschieht automatisch beim Versand; ein Profil legen wir dafür nicht an, und
+              wir messen weder, ob du die Mail öffnest, noch worauf du klickst.
+            </p>
+            <p>
+              Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du kannst sie jederzeit widerrufen: mit
+              dem Link in jeder Ausgabe, mit dem Abmelde-Knopf deines E-Mail-Programms oder unter „Mein Konto“. Wir
+              löschen die Anmeldung dann sofort; dein Kundenkonto bleibt bestehen.
+            </p>
+          </LegalSection>
+
+          <LegalSection id="anfragen" mark="9" title="Anfragen">
             <p>
               Schreibst du uns oder rufst uns an, etwa wegen einer Sonderanfertigung, verarbeiten wir deine Angaben, um
               deine Anfrage zu beantworten (Art. 6 Abs. 1 lit. b und f DSGVO), und löschen sie, wenn sie erledigt ist
@@ -177,14 +196,14 @@ export default async function PrivacyPage() {
             </p>
           </LegalSection>
 
-          <LegalSection id="links" mark="9" title="Links zu anderen Seiten">
+          <LegalSection id="links" mark="10" title="Links zu anderen Seiten">
             <p>
               Die Links „Route planen“ (OpenStreetMap) und zu den Websites der Messen öffnen diese Seiten erst auf deinen
               Klick; vorher geht nichts an sie.
             </p>
           </LegalSection>
 
-          <LegalSection id="rechte" mark="10" title="Deine Rechte">
+          <LegalSection id="rechte" mark="11" title="Deine Rechte">
             <p>
               Du hast das Recht auf Auskunft über deine Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art.
               17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Einer Verarbeitung aus

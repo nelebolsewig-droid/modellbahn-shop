@@ -67,7 +67,10 @@ async def register_customer(
     """
     with password_field("password"):
         await service.register_customer(
-            email=body.email, password=body.password, display_name=body.display_name
+            email=body.email,
+            password=body.password,
+            display_name=body.display_name,
+            newsletter=body.newsletter,
         )
     return RegistrationAcceptedOut()
 

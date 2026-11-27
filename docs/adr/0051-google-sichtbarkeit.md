@@ -1,4 +1,4 @@
-# ADR 0047: Sichtbarkeit bei Google (strukturierte Daten, Produkt-Feed)
+# ADR 0051: Sichtbarkeit bei Google (strukturierte Daten, Produkt-Feed)
 
 Status: angenommen · 23.11.2026 · ergänzt ADR 0036 (sitemap.xml, robots.txt)
 

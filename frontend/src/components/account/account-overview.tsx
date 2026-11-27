@@ -10,6 +10,7 @@ import { CustomerGate } from "./customer-gate";
 import { DeleteAccount } from "./delete-account";
 import { DisplayNameForm } from "./display-name-form";
 import { LogoutButton } from "./logout-button";
+import { NewsletterSettings } from "./newsletter-settings";
 import { SettingsSection } from "./settings-section";
 
 /** "Mein Konto": the customer's data and settings, as far as the API confirms a session. */
@@ -79,6 +80,13 @@ function AccountDetails({ account, onLoggedOut, onDeleted }: AccountDetailsProps
               await changePassword.mutateAsync({ data: values });
             }}
           />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Newsletter"
+          description="Einmal im Monat: die neuen Modelle aus der Werkstatt und Empfehlungen passend zu dem, was du schon gekauft hast. Abbestellen geht jederzeit mit einem Klick."
+        >
+          <NewsletterSettings emailVerified={account.email_verified} />
         </SettingsSection>
 
         <SettingsSection

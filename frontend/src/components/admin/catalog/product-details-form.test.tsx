@@ -15,6 +15,7 @@ const PRODUCT: ProductOut = {
   summary: "",
   description: "",
   prototype: "",
+  label: "adp",
   primary_category_id: null,
   status: "draft",
   published_at: null,

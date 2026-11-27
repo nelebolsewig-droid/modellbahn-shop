@@ -83,6 +83,14 @@ class ProductStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class ProductLabel(StrEnum):
+    """The line a product is sold under: the workshop's own or a partner label."""
+
+    ADP = "adp"
+    VEHICLE_WORLD = "vehicle-world"
+    MILMOD = "milmod"
+
+
 class MediaRole(StrEnum):
     """What a gallery image shows."""
 
@@ -502,6 +510,7 @@ class Product:
     scales: list[ProductScale] = field(default_factory=list)
     epochs: list[ProductEpoch] = field(default_factory=list)
     media: list[ProductMedia] = field(default_factory=list)
+    label: ProductLabel = ProductLabel.ADP
     # Maintained by the persistence layer for optimistic locking.
     version: int = 1
 
@@ -586,6 +595,7 @@ class Product:
         summary: Maybe[str] = UNSET,
         description: Maybe[str] = UNSET,
         prototype: Maybe[str] = UNSET,
+        label: Maybe[ProductLabel] = UNSET,
         primary_category_id: Maybe[UUID | None] = UNSET,
         epoch_codes: Maybe[list[str]] = UNSET,
         now: datetime,
@@ -609,6 +619,8 @@ class Product:
             self.prototype = single_line(
                 prototype, field="prototype", max_length=PROTOTYPE_MAX_LENGTH, required=False
             )
+        if label is not UNSET:
+            self.label = ProductLabel(label)
         if primary_category_id is not UNSET:
             self.primary_category_id = primary_category_id
         if epoch_codes is not UNSET:

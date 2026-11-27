@@ -272,6 +272,9 @@ class TestPublishing:
         (card,) = listing.json()["items"]
         assert card["slug"] == "stellwerk-altenau"
         assert card["scale_codes"] == ["H0"]
+        assert card["finish_codes"] == ["unpainted", "painted"]
+        (in_h0,) = (await client.get(f"{SHOP}/products", params={"scale": "H0"})).json()["items"]
+        assert in_h0["price_from_cents"] == 3490
         assert card["price_from_cents"] == 3490
         assert card["image"]["lqip"].startswith("data:image/webp")
 
@@ -311,6 +314,20 @@ class TestPublishing:
         deleted = await staff_client.delete(f"{PRODUCTS}/{product['id']}")
         assert deleted.status_code == 204, deleted.text
         assert (await staff_client.get(f"{PRODUCTS}/{product['id']}")).status_code == 404
+
+    async def test_only_an_owner_deletes_a_model(
+        self, make_client: ClientFactory, identity: IdentityService
+    ) -> None:
+        await identity.create_staff(
+            email="anna@example.com", display_name="Anna", role=StaffRole.STAFF, password=PASSWORD
+        )
+        async with make_client() as client:
+            await staff_login(client, "anna@example.com")
+            assert_problem(
+                await client.delete(f"{PRODUCTS}/00000000-0000-0000-0000-000000000000"),
+                403,
+                "insufficient_role",
+            )
 
 
 class TestCategoriesAndLists:

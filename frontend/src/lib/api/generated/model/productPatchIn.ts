@@ -11,6 +11,7 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductLabel } from './productLabel';
 
 /**
  * Only the fields sent are changed; ``primary_category_id: null`` removes the category.
@@ -18,6 +19,7 @@
 export interface ProductPatchIn {
   description?: string | null;
   epoch_codes?: string[] | null;
+  label?: ProductLabel | null;
   name?: string | null;
   primary_category_id?: string | null;
   prototype?: string | null;

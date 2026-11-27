@@ -72,7 +72,9 @@ class IdentityService:
 
     # --- Registration and verification -----------------------------------------------
 
-    async def register_customer(self, *, email: str, password: str, display_name: str) -> None:
+    async def register_customer(
+        self, *, email: str, password: str, display_name: str, newsletter: bool = False
+    ) -> None:
         """Create a customer account, or tell the owner of the address by mail.
 
         The caller cannot tell the two outcomes apart; both end in an e-mail.
@@ -82,12 +84,14 @@ class IdentityService:
         # Hash even when the address is taken, so both answers take equally long.
         password_hash = await self._hasher.hash(password)
         try:
-            await self._register_customer(email, display_name, password_hash)
+            await self._register_customer(email, display_name, password_hash, newsletter)
         except UniqueViolationError:
             # A concurrent registration with the same address won; now it exists.
-            await self._register_customer(email, display_name, password_hash)
+            await self._register_customer(email, display_name, password_hash, newsletter)
 
-    async def _register_customer(self, email: str, display_name: str, password_hash: str) -> None:
+    async def _register_customer(
+        self, email: str, display_name: str, password_hash: str, newsletter: bool
+    ) -> None:
         async with self._uow() as uow:
             now = self._clock.now()
             existing = await uow.accounts.get_by_email(AccountKind.CUSTOMER, email)
@@ -96,7 +100,11 @@ class IdentityService:
                     uow.publish(existing.note_registration_attempt(now))
             else:
                 account, registered = Account.register_customer(
-                    email=email, display_name=display_name, password_hash=password_hash, now=now
+                    email=email,
+                    display_name=display_name,
+                    password_hash=password_hash,
+                    now=now,
+                    newsletter=newsletter,
                 )
                 uow.accounts.add(account)
                 uow.publish(registered)

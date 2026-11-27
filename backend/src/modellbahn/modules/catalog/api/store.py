@@ -11,6 +11,7 @@ from modellbahn.modules.catalog.api.schemas import (
     StoreProductPageOut,
 )
 from modellbahn.modules.catalog.application.ports import ProductOrder
+from modellbahn.modules.catalog.domain.model import ProductLabel
 from modellbahn.platform.errors import problems
 
 router = APIRouter(prefix="/store", tags=["store-catalog"])
@@ -54,6 +55,11 @@ async def list_products(
         str | None, Query(max_length=10, description="Scale code, e.g. H0 or 124 (1:24).")
     ] = None,
     epoch: Annotated[str | None, Query(max_length=10, description="Epoch code, e.g. III.")] = None,
+    finish: Annotated[
+        str | None,
+        Query(max_length=20, description="Finish code: unpainted (kit) or painted (finished)."),
+    ] = None,
+    label: Annotated[ProductLabel | None, Query(description="adp or a partner label.")] = None,
     q: Annotated[str | None, Query(max_length=200, description="German full-text search.")] = None,
     sort: Annotated[
         StoreSort, Query(description="Newest first (default), by price or by name.")
@@ -65,6 +71,8 @@ async def list_products(
         category_slug=category,
         scale_code=scale,
         epoch_code=epoch,
+        finish_code=finish,
+        label=label,
         text=q,
         order=_STORE_ORDERS[sort],
         cursor=cursor,
@@ -72,7 +80,12 @@ async def list_products(
     )
     references = await service.references()
     response.headers["Cache-Control"] = STORE_CACHE_CONTROL
-    return StoreProductPageOut.from_page(page, scale_order=[s.code for s in references.scales])
+    return StoreProductPageOut.from_page(
+        page,
+        scale_order=[s.code for s in references.scales],
+        finish_order=[f.code for f in references.finishes],
+        scale_code=scale,
+    )
 
 
 @router.get(

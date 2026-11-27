@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateProduct } from "@/lib/api/generated/admin-catalog/admin-catalog";
 import type { CategoryOut, EpochOut, ProductOut, ProductPatchIn } from "@/lib/api/generated/model";
+import { LABEL_FILTERS } from "@/lib/catalog/filters";
 import { ifMatch } from "@/lib/catalog/versions";
 import { applyProblemToForm } from "@/lib/forms/apply-problem";
 import { productDetailsSchema, type ProductDetailsValues } from "@/lib/validation/catalog";
@@ -27,6 +28,7 @@ function valuesOf(product: ProductOut): ProductDetailsValues {
     summary: product.summary,
     description: product.description,
     prototype_note: product.prototype,
+    label: product.label,
     primary_category_id: product.primary_category_id ?? "",
     epoch_codes: product.epoch_codes,
   };
@@ -91,6 +93,7 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
     if (dirtyFields.summary) patch.summary = values.summary;
     if (dirtyFields.description) patch.description = values.description;
     if (dirtyFields.prototype_note) patch.prototype = values.prototype_note;
+    if (dirtyFields.label) patch.label = values.label;
     if (dirtyFields.primary_category_id) patch.primary_category_id = values.primary_category_id || null;
     if (dirtyFields.epoch_codes) patch.epoch_codes = values.epoch_codes;
     try {
@@ -98,7 +101,7 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
       form.reset(valuesOf(saved));
     } catch (error) {
       applyProblemToForm(error, form.setError, {
-        fields: ["name", "slug", "summary", "description", "prototype_note", "primary_category_id", "epoch_codes"],
+        fields: ["name", "slug", "summary", "description", "prototype_note", "label", "primary_category_id", "epoch_codes"],
         codeFields: { slug_taken: "slug", slug_locked: "slug" },
       });
     }
@@ -134,6 +137,17 @@ export function ProductDetailsForm({ product, categories, epochs }: ProductDetai
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField label="Vorbild" hint="z. B. Altenau (Harz), Deutsche Reichsbahn" error={errors.prototype_note?.message}>
             {(field) => <Input {...field} {...register("prototype_note")} />}
+          </FormField>
+          <FormField label="Label" hint="Unter welchem Label das Modell im Shop steht." error={errors.label?.message}>
+            {(field) => (
+              <Select {...field} {...register("label")}>
+                {LABEL_FILTERS.map((entry) => (
+                  <option key={entry.param} value={entry.param}>
+                    {entry.label}
+                  </option>
+                ))}
+              </Select>
+            )}
           </FormField>
           <FormField label="Kategorie" error={errors.primary_category_id?.message}>
             {(field) => (

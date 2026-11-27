@@ -3,17 +3,28 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { CatalogSort, CategoryTree, EpochFilter, ScaleSwitch, categoryTrail, sortFor } from "@/components/shop/catalog-nav";
+import {
+  CatalogSort,
+  CategoryTree,
+  EpochFilter,
+  FinishFilter,
+  LabelFilter,
+  ScaleSwitch,
+  categoryTrail,
+  sortFor,
+} from "@/components/shop/catalog-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductCard } from "@/components/ui/product-card";
 import { ScaleRule } from "@/components/ui/scale-rule";
 import type { NavigationOut, StoreProductPageOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
+import { FINISH_FILTERS, finishFor, labelFor, labelName } from "@/lib/catalog/filters";
 import { catalogPath, findScale, millimetresPerMetre, scaleLabel, scaleSlug, type CatalogLocation } from "@/lib/catalog/scales";
 import { RememberScale } from "@/lib/catalog/last-scale";
 import { loadNavigation } from "@/lib/catalog/store-data";
 import { firstParam } from "@/lib/search-params";
+import { finishName } from "@/components/ui/photo-mark";
 
 const PAGE_SIZE = "24";
 
@@ -36,6 +47,8 @@ export function resolveLocation(
   const location: CatalogLocation = {
     scale: scale.code,
     category: category?.slug,
+    ausfuehrung: finishFor(firstParam(params.ausfuehrung)) ? firstParam(params.ausfuehrung) : undefined,
+    label: labelFor(firstParam(params.label)),
     epoche: firstParam(params.epoche) || undefined,
     suche: firstParam(params.suche)?.trim() || undefined,
     sortierung: firstParam(params.sortierung) || undefined,
@@ -64,6 +77,8 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
     scale: scale.code,
     category: category?.slug,
     epoch: location.epoche,
+    finish: finishFor(location.ausfuehrung),
+    label: location.label,
     q: location.suche,
     sort: sortFor(location.sortierung),
     cursor: firstParam(searchParams.weiter) || undefined,
@@ -72,7 +87,9 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
   const items = page?.items ?? [];
   const trail = categoryTrail(navigation.categories, category?.slug);
   const scaleNames = new Map(navigation.scales.map((s) => [s.code, s.name]));
-  const filtered = Boolean(location.suche || location.epoche || location.category);
+  const filtered = Boolean(
+    location.suche || location.epoche || location.category || location.ausfuehrung || location.label,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 lg:py-16">
@@ -123,7 +140,13 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
             <span>
               <span className="block label-caps text-ink-tertiary">Filter</span>
               <span className="mt-1 block text-small font-medium">
-                {[category?.name ?? "Alle Kategorien", location.epoche && `Epoche ${location.epoche}`, location.suche && `„${location.suche}“`]
+                {[
+                  category?.name ?? "Alle Kategorien",
+                  FINISH_FILTERS.find((entry) => entry.param === location.ausfuehrung)?.label,
+                  location.label && labelName(location.label),
+                  location.epoche && `Epoche ${location.epoche}`,
+                  location.suche && `„${location.suche}“`,
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </span>
@@ -167,6 +190,8 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
                       scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                       priceFromCents={item.price_from_cents}
                       image={item.image}
+                      finishes={item.finish_codes.map(finishName)}
+                      label={item.label}
                       priority={index < 3}
                     />
                   </li>
@@ -195,7 +220,7 @@ type FiltersProps = {
   inputId: string;
 };
 
-/** Search within the scale, the category tree and the epochs. */
+/** Search within the scale, kit or finished model, label, the category tree and the epochs. */
 function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
   return (
     <>
@@ -203,6 +228,8 @@ function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
         <label htmlFor={inputId} className="label-caps text-ink-tertiary">
           Suche in {scaleName}
         </label>
+        {location.ausfuehrung ? <input type="hidden" name="ausfuehrung" value={location.ausfuehrung} /> : null}
+        {location.label ? <input type="hidden" name="label" value={location.label} /> : null}
         {location.epoche ? <input type="hidden" name="epoche" value={location.epoche} /> : null}
         {location.sortierung ? <input type="hidden" name="sortierung" value={location.sortierung} /> : null}
         <Input id={inputId} name="suche" type="search" defaultValue={location.suche} placeholder="z. B. Feuerwehr" />
@@ -210,6 +237,8 @@ function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
           Suchen
         </Button>
       </form>
+      <FinishFilter location={location} />
+      <LabelFilter location={location} />
       <CategoryTree location={location} categories={navigation.categories} />
       <EpochFilter location={location} epochs={navigation.epochs} />
     </>

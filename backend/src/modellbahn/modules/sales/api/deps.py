@@ -18,6 +18,7 @@ from modellbahn.modules.identity.contracts.auth import (
 from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
+from modellbahn.modules.sales.application.delivery_notes import DeliveryNoteService
 from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
@@ -87,6 +88,13 @@ def get_invoice_service(request: Request) -> InvoiceService:
 
 
 InvoiceServiceDep = Annotated[InvoiceService, Depends(get_invoice_service)]
+
+
+def get_delivery_note_service(request: Request) -> DeliveryNoteService:
+    return app_state(request, "delivery_note_service", DeliveryNoteService)
+
+
+DeliveryNoteServiceDep = Annotated[DeliveryNoteService, Depends(get_delivery_note_service)]
 
 
 def get_sales_report_service(request: Request) -> SalesReportService:

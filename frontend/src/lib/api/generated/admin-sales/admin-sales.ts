@@ -451,7 +451,108 @@ export const useCancelOrder = <TError = ErrorType<Problem | ValidationProblem>,
       > => {
       return useMutation(getCancelOrderMutationOptions(options), queryClient);
     }
-    export const getStartFinishingOrderUrl = (orderId: string,) => {
+    export const getGetDeliveryNoteUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${orderId}/delivery-note.pdf`
+}
+
+/**
+ * Packers too: written anew on every call for a paid or shipped order.
+ * @summary The delivery note for the parcel, without prices (ADR 0047)
+ */
+export const getDeliveryNote = async (orderId: string, options?: Parameters<typeof apiFetch>[1]): Promise<Blob> => {
+
+  return apiFetch<Blob>(getGetDeliveryNoteUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryNoteQueryKey = (orderId: string,) => {
+    return [
+    `/api/v1/admin/orders/${orderId}/delivery-note.pdf`
+    ] as const;
+    }
+
+
+export const getGetDeliveryNoteQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryNote>>, TError = ErrorType<Problem | ValidationProblem>>(orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryNoteQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryNote>>> = ({ signal }) => getDeliveryNote(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDeliveryNoteQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryNote>>>
+export type GetDeliveryNoteQueryError = ErrorType<Problem | ValidationProblem>
+
+
+export function useGetDeliveryNote<TData = Awaited<ReturnType<typeof getDeliveryNote>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDeliveryNote>>,
+          TError,
+          Awaited<ReturnType<typeof getDeliveryNote>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDeliveryNote<TData = Awaited<ReturnType<typeof getDeliveryNote>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDeliveryNote>>,
+          TError,
+          Awaited<ReturnType<typeof getDeliveryNote>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDeliveryNote<TData = Awaited<ReturnType<typeof getDeliveryNote>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The delivery note for the parcel, without prices (ADR 0047)
+ */
+
+export function useGetDeliveryNote<TData = Awaited<ReturnType<typeof getDeliveryNote>>, TError = ErrorType<Problem | ValidationProblem>>(
+ orderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDeliveryNote>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDeliveryNoteQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getStartFinishingOrderUrl = (orderId: string,) => {
 
 
 

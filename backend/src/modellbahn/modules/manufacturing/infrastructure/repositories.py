@@ -268,6 +268,10 @@ class SqlPrintJobRepository:
         )
         return int(await self._session.scalar(statement) or 0)
 
+    async def by_task_id(self, task_id: str) -> PrintJob | None:
+        statement = select(PrintJob).where(print_jobs.c.printer_task_id == task_id)
+        return (await self._session.scalars(statement)).one_or_none()
+
     async def latest(
         self,
         *,

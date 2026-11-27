@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import { AccountLink } from "./account-link";
 import { Wordmark } from "./wordmark";
 
-// On very narrow phones only the catalogue fits beside the wordmark; "Termine" is also in the footer.
+// On phones only the catalogue fits beside the wordmark, cart and account (at 390 px "Termine"
+// pushed the header past the screen); "Termine" is also in the footer.
 const SECTIONS = [
   { href: "/katalog", label: "Modelle", narrow: true },
   { href: "/termine", label: "Termine", narrow: false },
@@ -28,7 +29,7 @@ export function SiteHeader() {
             {SECTIONS.map((section) => {
               const className = cn(
                 "px-1 py-1 text-small font-medium text-ink-secondary hover:text-ink sm:px-2 sm:text-[0.9375rem]",
-                !section.narrow && "max-[23.5rem]:hidden",
+                !section.narrow && "max-sm:hidden",
               );
               // The catalogue opens in the scale browsed last.
               return section.href === "/katalog" ? (

@@ -42,6 +42,15 @@ from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfW
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
 from modellbahn.modules.media.infrastructure.studio import default_studio
 from modellbahn.modules.media.infrastructure.studio_gate import MemoryStudioGate
+from modellbahn.modules.newsletter.application.handlers import NewsletterHandlers
+from modellbahn.modules.newsletter.application.issues import IssueService, IssueWriter
+from modellbahn.modules.newsletter.application.subscriptions import (
+    SubscriptionService as NewsletterSubscriptionService,
+)
+from modellbahn.modules.newsletter.infrastructure.mapping import (
+    start_mappers as start_newsletter_mappers,
+)
+from modellbahn.modules.newsletter.infrastructure.repositories import newsletter_uow_factory
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.digest import MorningDigest
 from modellbahn.modules.sales.application.handlers import SalesHandlers
@@ -88,6 +97,7 @@ TILL_FETCH_INTERVAL: Final = timedelta(minutes=1)
 AUTOPLAN_INTERVAL: Final = timedelta(hours=1)
 # How often the worker asks whether this morning's mail „Heute dran“ is due.
 MORNING_DIGEST_CHECK_INTERVAL: Final = timedelta(minutes=10)
+NEWSLETTER_CHECK_INTERVAL: Final = timedelta(hours=1)
 # The marketplace's events stay readable with MB_EBAY_MODE=off (the setting may change).
 FORWARDED_EVENT_MODULES: Final = (catalog_events, marketplace_events, manufacturing_events)
 
@@ -161,6 +171,7 @@ async def run_worker(
         parts=PartStoreService(uow_factory=inventory_uow, clock=clock),
     ).register(handlers)
     jobs: list[PeriodicJob] = [
+        *_newsletter(settings, session_factory, clock, mailer, handlers),
         *_automation(settings, session_factory, clock, handlers),
         *_till_jobs(settings, inventory_uow, clock),
     ]
@@ -281,6 +292,50 @@ async def run_worker(
         await payment_gateway.aclose()
         await carrier.aclose()
         await engine.dispose()
+
+
+def _newsletter(
+    settings: Settings,
+    session_factory: async_sessionmaker[AsyncSession],
+    clock: Clock,
+    mailer: Mailer,
+    handlers: HandlerRegistry,
+) -> list[PeriodicJob]:
+    """The newsletter (ADR 0049): its handlers, and the jobs that release the issues on
+    the issue days (if there are new models) and forget unconfirmed requests."""
+    start_newsletter_mappers()
+    uow = newsletter_uow_factory(session_factory, public_base_url=settings.media_absolute_base_url)
+    writer = IssueWriter(
+        public_base_url=settings.public_base_url,
+        shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
+    )
+    NewsletterHandlers(
+        uow_factory=uow,
+        mailer=mailer,
+        clock=clock,
+        public_base_url=settings.public_base_url,
+        shop_name=settings.shop_name,
+        sender=settings.imprint.mail_footer(),
+        writer=writer,
+    ).register(handlers)
+    return [
+        PeriodicJob(
+            name="newsletter.purge_pending",
+            interval=PENDING_SUBSCRIPTION_SWEEP_INTERVAL,
+            run=NewsletterSubscriptionService(uow_factory=uow, clock=clock).purge_pending,
+        ),
+        PeriodicJob(
+            name="newsletter.release_if_due",
+            interval=NEWSLETTER_CHECK_INTERVAL,
+            run=IssueService(
+                uow_factory=uow,
+                clock=clock,
+                issue_days=settings.newsletter_issue_days,
+                writer=writer,
+            ).release_if_due,
+        ),
+    ]
 
 
 def _digest_messenger(settings: Settings) -> Messenger | None:

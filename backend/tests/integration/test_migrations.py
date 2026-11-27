@@ -32,6 +32,7 @@ SCHEMAS = (
     "site",
     "marketplace",
     "manufacturing",
+    "newsletter",
 )
 
 
@@ -107,6 +108,9 @@ def test_upgrade_downgrade_upgrade(scratch_database_url: str) -> None:
         "site.mailings",
         "site.visit_days",
         "site.visit_marks",
+        "newsletter.subscriptions",
+        "newsletter.issues",
+        "newsletter.deliveries",
         "marketplace.ebay_account",
         "marketplace.category_map",
         "marketplace.listings",

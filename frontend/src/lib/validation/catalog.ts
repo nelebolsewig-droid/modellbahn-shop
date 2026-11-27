@@ -29,6 +29,7 @@ export const productDetailsSchema = z.object({
     .regex(SLUG_PATTERN, "Nur Kleinbuchstaben, Ziffern und einzelne Bindestriche, z. B. stellwerk-altenau."),
   summary: bounded(280, "Der Kurztext darf höchstens 280 Zeichen lang sein."),
   description: bounded(10_000, "Die Beschreibung darf höchstens 10.000 Zeichen lang sein."),
+  label: z.enum(["adp", "vehicle-world", "milmod"]),
   // Not "prototype": form libraries refuse that name to prevent prototype pollution.
   prototype_note: bounded(200, "Das Vorbild darf höchstens 200 Zeichen lang sein."),
   // "" stands for "no category" in the select.

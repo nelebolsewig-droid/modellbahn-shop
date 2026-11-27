@@ -35,6 +35,10 @@ export type CatalogLocation = {
   scale: string;
   /** A category's slug; its subcategories are included. */
   category?: string;
+  /** "bausatz" or "fertigmodell" (see catalog/filters). */
+  ausfuehrung?: string;
+  /** "adp", "vehicle-world" or "milmod". */
+  label?: string;
   epoche?: string;
   suche?: string;
   sortierung?: string;
@@ -42,7 +46,7 @@ export type CatalogLocation = {
   weiter?: string;
 };
 
-const QUERY_ORDER = ["epoche", "suche", "sortierung", "weiter"] as const;
+const QUERY_ORDER = ["ausfuehrung", "label", "epoche", "suche", "sortierung", "weiter"] as const;
 
 /** The address of a list: /katalog/h0/lkw?epoche=III. Empty filters are left out. */
 export function catalogPath(location: CatalogLocation): Route {

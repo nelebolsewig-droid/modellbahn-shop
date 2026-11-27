@@ -3,7 +3,7 @@ import { fetchStore } from "@/lib/api/server";
 import { catalogPath, scaleLabel } from "@/lib/catalog/scales";
 
 /*
- * Search engine data (ADR 0047): schema.org JSON-LD for product pages and the shop,
+ * Search engine data (ADR 0051): schema.org JSON-LD for product pages and the shop,
  * and the rows of the Google Merchant Center feed. Pure functions; the pages fetch.
  */
 

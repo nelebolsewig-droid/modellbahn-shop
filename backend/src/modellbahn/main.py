@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, FastAPI
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from modellbahn import __version__
 from modellbahn.modules.catalog.api import admin as catalog_admin
@@ -62,9 +62,11 @@ from modellbahn.modules.inventory.infrastructure.mapping import (
 )
 from modellbahn.modules.inventory.infrastructure.repositories import inventory_uow_factory
 from modellbahn.modules.manufacturing.api import admin as manufacturing_admin
+from modellbahn.modules.manufacturing.api import bridge as manufacturing_bridge
 from modellbahn.modules.manufacturing.api.errors import (
     install_error_translations as install_manufacturing_error_translations,
 )
+from modellbahn.modules.manufacturing.application.bridge import PrinterBridgeService
 from modellbahn.modules.manufacturing.application.jobs import PrintJobService
 from modellbahn.modules.manufacturing.application.parts import (
     BomService,
@@ -99,6 +101,20 @@ from modellbahn.modules.media.application.services import MediaService
 from modellbahn.modules.media.infrastructure.mapping import start_mappers as start_media_mappers
 from modellbahn.modules.media.infrastructure.repositories import SqlMediaUnitOfWork
 from modellbahn.modules.media.infrastructure.storage import S3MediaStorage
+from modellbahn.modules.newsletter.api import admin as newsletter_admin
+from modellbahn.modules.newsletter.api import store as newsletter_store
+from modellbahn.modules.newsletter.api.deps import NEWSLETTER_RATE_LIMITER
+from modellbahn.modules.newsletter.api.errors import (
+    install_error_translations as install_newsletter_error_translations,
+)
+from modellbahn.modules.newsletter.application.issues import IssueService, IssueWriter
+from modellbahn.modules.newsletter.application.subscriptions import (
+    SubscriptionService as NewsletterSubscriptionService,
+)
+from modellbahn.modules.newsletter.infrastructure.mapping import (
+    start_mappers as start_newsletter_mappers,
+)
+from modellbahn.modules.newsletter.infrastructure.repositories import newsletter_uow_factory
 from modellbahn.modules.sales.api import account as sales_account
 from modellbahn.modules.sales.api import admin as sales_admin
 from modellbahn.modules.sales.api import store as sales_store
@@ -111,6 +127,7 @@ from modellbahn.modules.sales.application.addresses import AddressService
 from modellbahn.modules.sales.application.cart import CartService
 from modellbahn.modules.sales.application.checkout import CheckoutService
 from modellbahn.modules.sales.application.common import UnitOfWorkFactory
+from modellbahn.modules.sales.application.delivery_notes import DeliveryNoteService
 from modellbahn.modules.sales.application.invoices import InvoiceService
 from modellbahn.modules.sales.application.labels import ShippingLabelService
 from modellbahn.modules.sales.application.orders import OrderService
@@ -118,7 +135,9 @@ from modellbahn.modules.sales.application.payments import PaymentService
 from modellbahn.modules.sales.application.ports import Carrier, PaymentGateway
 from modellbahn.modules.sales.application.report import SalesReportService
 from modellbahn.modules.sales.application.withdrawals import WithdrawalService
+from modellbahn.modules.sales.domain.delivery_notes import Sender
 from modellbahn.modules.sales.infrastructure.carriers import build_carrier, shipper_of
+from modellbahn.modules.sales.infrastructure.delivery_notes import ReportLabDeliveryNoteRenderer
 from modellbahn.modules.sales.infrastructure.invoices import ReportLabInvoiceRenderer, issuer_of
 from modellbahn.modules.sales.infrastructure.mapping import start_mappers as start_sales_mappers
 from modellbahn.modules.sales.infrastructure.payments import build_payment_gateway
@@ -171,6 +190,10 @@ _TAGS: Final = [
         "name": "store-site",
         "description": "Fairs, their calendar, the fair news by e-mail and the imprint.",
     },
+    {
+        "name": "store-newsletter",
+        "description": "The newsletter of customer accounts: the switch and the mail links.",
+    },
     {"name": "admin-auth", "description": "Staff login for the admin area."},
     {"name": "admin-catalog", "description": "Products, scales, variants, galleries."},
     {"name": "admin-media", "description": "Product photos: uploads, processing, sizes."},
@@ -180,6 +203,7 @@ _TAGS: Final = [
         "description": "Locations, units, scans, picking and labels of the workshop.",
     },
     {"name": "admin-site", "description": "Fairs and the fair news."},
+    {"name": "admin-newsletter", "description": "The newsletter: readers, issues, preview."},
     {
         "name": "admin-manufacturing",
         "description": "Printers and their state, parts, bills of materials, print jobs.",
@@ -287,6 +311,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         site_uow_factory(session_factory, public_base_url=settings.media_public_base_url),
         clock,
     )
+    _attach_newsletter_services(app, settings, session_factory, clock)
     app.state.imprint = settings.imprint
     setattr(app.state, MARKETPLACE_STATE, marketplace)
     setattr(
@@ -306,6 +331,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         install_sales_error_translations,
         install_inventory_error_translations,
         install_site_error_translations,
+        install_newsletter_error_translations,
         install_marketplace_error_translations,
         install_manufacturing_error_translations,
     ):
@@ -326,6 +352,7 @@ def _start_mappers() -> None:
     start_inventory_mappers()
     start_site_mappers()
     start_manufacturing_mappers()
+    start_newsletter_mappers()
 
 
 def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
@@ -337,6 +364,7 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(sales_account.router)
     api.include_router(inventory_store.router)
     api.include_router(site_store.router)
+    api.include_router(newsletter_store.router)
     api.include_router(identity_admin.router)
     api.include_router(catalog_admin.router)
     api.include_router(media_admin.router)
@@ -348,9 +376,12 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     api.include_router(inventory_admin.router)
     api.include_router(manufacturing_admin.router)
     api.include_router(site_admin.router)
+    api.include_router(newsletter_admin.router)
     api.include_router(marketplace_admin.router)
     api.include_router(marketplace_webhooks.router)
     api.include_router(sales_webhooks.router)
+    api.include_router(newsletter_store.webhooks_router)
+    api.include_router(manufacturing_bridge.router)
     api.include_router(
         create_event_stream_router(
             hub=hub,
@@ -368,6 +399,28 @@ def _api_router(hub: RealtimeHub, engine: AsyncEngine) -> APIRouter:
     return api
 
 
+def _attach_newsletter_services(
+    app: FastAPI,
+    settings: Settings,
+    session_factory: async_sessionmaker[AsyncSession],
+    clock: Clock,
+) -> None:
+    uow = newsletter_uow_factory(session_factory, public_base_url=settings.media_absolute_base_url)
+    app.state.newsletter_subscription_service = NewsletterSubscriptionService(
+        uow_factory=uow, clock=clock
+    )
+    app.state.newsletter_issue_service = IssueService(
+        uow_factory=uow,
+        clock=clock,
+        issue_days=settings.newsletter_issue_days,
+        writer=IssueWriter(
+            public_base_url=settings.public_base_url,
+            shop_name=settings.shop_name,
+            sender=settings.imprint.mail_footer(),
+        ),
+    )
+
+
 def _attach_site_services(app: FastAPI, site_uow: SiteUnitOfWorkFactory, clock: Clock) -> None:
     app.state.fair_service = FairService(uow_factory=site_uow, clock=clock)
     app.state.subscription_service = SubscriptionService(uow_factory=site_uow, clock=clock)
@@ -380,6 +433,14 @@ def _attach_rate_limiters(app: FastAPI, settings: Settings) -> None:
         AUTH_RATE_LIMITER,
         RateLimiter(
             limit=settings.auth_rate_limit, window_seconds=settings.auth_rate_window_seconds
+        ),
+    )
+    setattr(
+        app.state,
+        NEWSLETTER_RATE_LIMITER,
+        RateLimiter(
+            limit=settings.fair_news_rate_limit,
+            window_seconds=settings.fair_news_rate_window_seconds,
         ),
     )
     setattr(
@@ -439,6 +500,12 @@ def _attach_sales_services(
         renderer=ReportLabInvoiceRenderer(shop_name=settings.shop_name),
         issuer=issuer_of(settings),
     )
+    app.state.delivery_note_service = DeliveryNoteService(
+        uow_factory=uow_factory,
+        clock=clock,
+        renderer=ReportLabDeliveryNoteRenderer(shop_name=settings.shop_name),
+        sender=Sender.of(settings.imprint, website=settings.public_base_url),
+    )
     app.state.payment_service = PaymentService(
         uow_factory=uow_factory, clock=clock, gateway=gateway
     )
@@ -479,6 +546,7 @@ def _attach_manufacturing_services(
     app.state.part_service = PartService(uow_factory=uow_factory, clock=clock)
     app.state.bom_service = BomService(uow_factory=uow_factory, clock=clock)
     app.state.print_job_service = PrintJobService(uow_factory=uow_factory, clock=clock)
+    app.state.printer_bridge_service = PrinterBridgeService(uow_factory=uow_factory, clock=clock)
 
 
 app = create_app()

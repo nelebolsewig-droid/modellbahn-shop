@@ -232,6 +232,8 @@ print_jobs = Table(
     Column("finished_at", DateTime(timezone=True)),
     Column("finished_by", Uuid, ForeignKey(ACCOUNT_REFERENCE, ondelete="RESTRICT")),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("slice_file", Text, nullable=False, server_default=text("''")),
+    Column("printer_task_id", Text),
     ForeignKeyConstraint(
         ["printer_id", "technology"],
         [printers.c.id, printers.c.technology],
@@ -265,6 +267,13 @@ print_jobs = Table(
         "printer_id",
         unique=True,
         postgresql_where=text("status = 'printing'"),
+    ),
+    # A print the printer bridge reported is booked once (ADR 0049).
+    Index(
+        "print_jobs_printer_task_idx",
+        "printer_task_id",
+        unique=True,
+        postgresql_where=text("printer_task_id IS NOT NULL"),
     ),
     # The queues of the printer hall.
     Index(

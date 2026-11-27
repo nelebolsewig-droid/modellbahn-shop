@@ -6,6 +6,7 @@ import { ScaleGates } from "@/components/shop/scale-gates";
 import { HomeActions } from "@/components/site/home-actions";
 import { JsonLd } from "@/components/site/json-ld";
 import { NextFair } from "@/components/site/next-fair";
+import { SloganBand } from "@/components/site/slogan-band";
 import { ScrollFilm } from "@/components/site/scroll-film/scroll-film";
 import { ProductCard } from "@/components/ui/product-card";
 import { MakingOfTeaser } from "@/components/workshop/making-of-teaser";
@@ -18,12 +19,13 @@ import type {
 } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
 import { loadNavigation } from "@/lib/catalog/store-data";
+import { finishName } from "@/components/ui/photo-mark";
 import { SHOP_NAME } from "@/lib/config";
 import { loadImprint } from "@/lib/site/imprint";
 import { publicBaseUrl } from "@/lib/site/sitemap";
 import { storeJsonLd } from "@/lib/site/structured-data";
 
-// The words people search for (ADR 0047): what the models are and what they are for.
+// The words people search for (ADR 0051): what the models are and what they are for.
 export const metadata: Metadata = {
   title: { absolute: `${SHOP_NAME} – Fahrzeugmodelle für die Modellbahn aus dem 3D-Druck` },
   description:
@@ -95,6 +97,8 @@ export default async function HomePage() {
       <JsonLd data={storeJsonLd(imprint, publicBaseUrl(), SHOP_NAME)} />
       <ScrollFilm actions={<HomeActions />} />
 
+      <SloganBand />
+
       {fair ? <NextFair fair={fair} /> : null}
 
       {newest.length > 0 ? (
@@ -118,6 +122,8 @@ export default async function HomePage() {
                     scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                     priceFromCents={item.price_from_cents}
                     image={item.image}
+                    finishes={item.finish_codes.map(finishName)}
+                    label={item.label}
                   />
                 </li>
               ))}

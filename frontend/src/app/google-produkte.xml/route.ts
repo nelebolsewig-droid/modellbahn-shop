@@ -10,7 +10,7 @@ import { feedItems, feedXml, loadAvailability } from "@/lib/site/structured-data
 const MAX_PAGES = 50;
 
 /**
- * /google-produkte.xml: the product feed for Google Merchant Center (ADR 0047), one row
+ * /google-produkte.xml: the product feed for Google Merchant Center (ADR 0051), one row
  * per variant, fresh on every request. Merchant Center fetches it once a day.
  */
 export async function GET(): Promise<Response> {
