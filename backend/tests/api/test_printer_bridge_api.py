@@ -1,4 +1,4 @@
-"""The printer bridge (ADR 0047): the printers move the plates in the hall by themselves."""
+"""The printer bridge (ADR 0049): the printers move the plates in the hall by themselves."""
 
 from collections.abc import AsyncIterator
 from typing import Any, Final

@@ -157,7 +157,7 @@ class Settings(BaseSettings):
     # Paid pieces without stock get their print plates queued by themselves (ADR 0034).
     autoplan: bool = True
     printer_bridge_token: SecretStr = SecretStr("")
-    """The printer bridge's key (ADR 0047); empty switches the bridge's endpoint off."""
+    """The printer bridge's key (ADR 0049); empty switches the bridge's endpoint off."""
     digest_emails: str = ""
     """More addresses for the morning mail, comma-separated, beside MB_IMPRINT_EMAIL."""
     digest_whatsapp: SecretStr = SecretStr("")
