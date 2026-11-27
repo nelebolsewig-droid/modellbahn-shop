@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { PhotoMark } from "./photo-mark";
 import { ResponsivePicture, type PictureImage } from "./responsive-picture";
 
 export type StageItem = { key: string; image: PictureImage; alt: string };
@@ -20,6 +21,8 @@ type ProductStageProps = {
   aspect?: keyof typeof ASPECTS;
   /** Layout width of the stage, for the browser's choice of size. */
   sizes?: string;
+  /** What the model is sold as, by name; with it, the photo carries the tag of the house. */
+  finishes?: readonly string[];
   className?: string;
 };
 
@@ -32,6 +35,7 @@ export function ProductStage({
   items,
   aspect = "4/5",
   sizes = "(min-width: 1024px) 50vw, 100vw",
+  finishes,
   className,
 }: ProductStageProps) {
   const [index, setIndex] = useState(0);
@@ -52,6 +56,7 @@ export function ProductStage({
             </p>
           </div>
         )}
+        {current && finishes ? <PhotoMark finishes={finishes} /> : null}
       </div>
       {items.length > 1 ? (
         <ul aria-label="Fotos" className="mt-4 flex flex-wrap gap-3">

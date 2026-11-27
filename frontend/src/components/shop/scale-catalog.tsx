@@ -14,6 +14,7 @@ import { catalogPath, findScale, millimetresPerMetre, scaleLabel, scaleSlug, typ
 import { RememberScale } from "@/lib/catalog/last-scale";
 import { loadNavigation } from "@/lib/catalog/store-data";
 import { firstParam } from "@/lib/search-params";
+import { finishName } from "@/components/ui/photo-mark";
 
 const PAGE_SIZE = "24";
 
@@ -167,6 +168,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
                       scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                       priceFromCents={item.price_from_cents}
                       image={item.image}
+                      finishes={item.finish_codes.map(finishName)}
                       priority={index < 3}
                     />
                   </li>

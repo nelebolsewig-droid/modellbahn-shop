@@ -14,6 +14,7 @@
 import type { ImageOut } from './imageOut';
 
 export interface StoreProductCardOut {
+  finish_codes: string[];
   image: ImageOut | null;
   name: string;
   number: number;

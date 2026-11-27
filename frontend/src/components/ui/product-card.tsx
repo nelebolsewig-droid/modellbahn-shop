@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { formatPrice } from "@/lib/catalog/format";
 
+import { PhotoMark } from "./photo-mark";
 import { ResponsivePicture, type PictureImage } from "./responsive-picture";
 import { SpecLine } from "./spec-line";
 
@@ -14,6 +15,8 @@ type ProductCardProps = {
   scales: readonly string[];
   priceFromCents: number | null;
   image: PictureImage | null;
+  /** What the model is sold as, by name ("Bausatz", "Fertigmodell"), shown on the photo. */
+  finishes?: readonly string[];
   /** The first cards of a page are above the fold. */
   priority?: boolean;
 };
@@ -26,20 +29,24 @@ export function ProductCard({
   scales,
   priceFromCents,
   image,
+  finishes = [],
   priority = false,
 }: ProductCardProps) {
   return (
     <Link href={href} className="group block rounded-md">
       <div className="relative aspect-square rounded-md bg-stage transition-colors duration-150 group-hover:bg-sunken">
         {image ? (
-          <div className="absolute inset-6">
-            <ResponsivePicture
-              image={image}
-              alt=""
-              sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-              priority={priority}
-            />
-          </div>
+          <>
+            <div className="absolute inset-6">
+              <ResponsivePicture
+                image={image}
+                alt=""
+                sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                priority={priority}
+              />
+            </div>
+            <PhotoMark finishes={finishes} size="small" />
+          </>
         ) : (
           <p className="absolute inset-0 flex items-center justify-center label-caps text-ink-tertiary">
             Foto folgt

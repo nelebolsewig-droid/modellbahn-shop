@@ -11626,6 +11626,13 @@
       },
       "StoreProductCardOut": {
         "properties": {
+          "finish_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Finish Codes",
+            "type": "array"
+          },
           "image": {
             "anyOf": [
               {
@@ -11677,6 +11684,7 @@
           "name",
           "summary",
           "scale_codes",
+          "finish_codes",
           "price_from_cents",
           "image"
         ],

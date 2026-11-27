@@ -272,6 +272,7 @@ class TestPublishing:
         (card,) = listing.json()["items"]
         assert card["slug"] == "stellwerk-altenau"
         assert card["scale_codes"] == ["H0"]
+        assert card["finish_codes"] == ["unpainted", "painted"]
         assert card["price_from_cents"] == 3490
         assert card["image"]["lqip"].startswith("data:image/webp")
 

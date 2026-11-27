@@ -14,6 +14,7 @@ import { busiestScale, catalogPath, findScale } from "@/lib/catalog/scales";
 import { loadNavigation } from "@/lib/catalog/store-data";
 import { firstParam } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
+import { finishName } from "@/components/ui/photo-mark";
 
 export const metadata: Metadata = {
   title: "Modelle",
@@ -171,6 +172,7 @@ async function SearchResults({
               scales={item.scale_codes.map((code) => names.get(code) ?? code)}
               priceFromCents={item.price_from_cents}
               image={item.image}
+              finishes={item.finish_codes.map(finishName)}
               priority={index < 3}
             />
           </li>

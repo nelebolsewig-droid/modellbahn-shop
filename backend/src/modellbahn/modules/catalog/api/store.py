@@ -72,7 +72,11 @@ async def list_products(
     )
     references = await service.references()
     response.headers["Cache-Control"] = STORE_CACHE_CONTROL
-    return StoreProductPageOut.from_page(page, scale_order=[s.code for s in references.scales])
+    return StoreProductPageOut.from_page(
+        page,
+        scale_order=[s.code for s in references.scales],
+        finish_order=[f.code for f in references.finishes],
+    )
 
 
 @router.get(
