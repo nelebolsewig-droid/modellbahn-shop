@@ -121,6 +121,7 @@ export default async function HomePage() {
                     summary={item.summary}
                     scales={item.scale_codes.map((code) => scaleNames.get(code) ?? code)}
                     priceFromCents={item.price_from_cents}
+                    priceVaries={item.price_varies}
                     image={item.image}
                     finishes={item.finish_codes.map(finishName)}
                     label={item.label}

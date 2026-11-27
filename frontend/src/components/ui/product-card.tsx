@@ -15,6 +15,8 @@ type ProductCardProps = {
   /** Scales for sale, by name, e.g. ["H0", "1:24"]. */
   scales: readonly string[];
   priceFromCents: number | null;
+  /** Several prices behind it (kit and finished model, other scales): "ab" before the price. */
+  priceVaries?: boolean;
   image: PictureImage | null;
   /** What the model is sold as, by name ("Bausatz", "Fertigmodell"), shown on the photo. */
   finishes?: readonly string[];
@@ -31,6 +33,7 @@ export function ProductCard({
   summary,
   scales,
   priceFromCents,
+  priceVaries = true,
   image,
   finishes = [],
   label,
@@ -65,7 +68,9 @@ export function ProductCard({
       <div className="mt-1 flex items-baseline justify-between gap-4">
         {scales.length > 0 ? <SpecLine values={scales} size="small" /> : <span />}
         {priceFromCents !== null ? (
-          <p className="shrink-0 text-small text-ink-secondary tabular-nums">ab {formatPrice(priceFromCents)}</p>
+          <p className="shrink-0 text-small text-ink-secondary tabular-nums">
+            {priceVaries ? `ab ${formatPrice(priceFromCents)}` : formatPrice(priceFromCents)}
+          </p>
         ) : null}
       </div>
       {summary ? <p className="mt-2 line-clamp-2 text-small text-ink-tertiary">{summary}</p> : null}

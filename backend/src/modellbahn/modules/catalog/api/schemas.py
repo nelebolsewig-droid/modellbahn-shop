@@ -688,6 +688,8 @@ class StoreProductCardOut(BaseModel):
     # Finishes for sale (kit, finished model), in display order; shown on the photo.
     finish_codes: list[str]
     price_from_cents: int | None
+    # False when every variant left after the filters costs the same: no "ab" before it.
+    price_varies: bool
     image: ImageOut | None
 
 
@@ -703,8 +705,9 @@ class StoreProductPageOut(BaseModel):
         scale_order: list[str],
         finish_order: list[str],
         scale_code: str | None = None,
+        finish_code: str | None = None,
     ) -> Self:
-        """Cards of a page; with a scale, price and finishes are those of that scale."""
+        """Cards of a page; with a scale (and finish), the price is that of the choice."""
         items: list[StoreProductCardOut] = []
         for card in page.items:
             product = card.product
@@ -717,6 +720,8 @@ class StoreProductPageOut(BaseModel):
                 for v in s.variants
             ] or product.variants
             finishes = {v.finish_code for v in variants if v.active}
+            priced = [v for v in variants if finish_code is None or v.finish_code == finish_code]
+            prices = {v.price_cents for v in priced or variants if v.active}
             items.append(
                 StoreProductCardOut(
                     slug=product.slug,
@@ -726,7 +731,8 @@ class StoreProductPageOut(BaseModel):
                     label=product.label,
                     scale_codes=[code for code in scale_order if code in on_sale],
                     finish_codes=[code for code in finish_order if code in finishes],
-                    price_from_cents=_price_from(variants),
+                    price_from_cents=min(prices, default=None),
+                    price_varies=len(prices) > 1,
                     image=None if card.main_image is None else ImageOut.from_view(card.main_image),
                 )
             )

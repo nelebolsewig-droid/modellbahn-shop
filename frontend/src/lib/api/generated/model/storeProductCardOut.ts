@@ -21,6 +21,7 @@ export interface StoreProductCardOut {
   name: string;
   number: number;
   price_from_cents: number | null;
+  price_varies: boolean;
   scale_codes: string[];
   slug: string;
   summary: string;

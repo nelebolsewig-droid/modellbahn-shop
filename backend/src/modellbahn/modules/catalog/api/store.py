@@ -85,6 +85,7 @@ async def list_products(
         scale_order=[s.code for s in references.scales],
         finish_order=[f.code for f in references.finishes],
         scale_code=scale,
+        finish_code=finish,
     )
 
 
