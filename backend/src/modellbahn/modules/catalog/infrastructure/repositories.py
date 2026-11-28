@@ -200,6 +200,10 @@ class SqlProductRepository:
             statement = statement.where(products.c.status.in_(sorted(query.statuses)))
         if query.category_ids is not None:
             statement = statement.where(products.c.primary_category_id.in_(query.category_ids))
+        if query.excluded_category_ids:
+            statement = statement.where(
+                products.c.primary_category_id.not_in(query.excluded_category_ids)
+            )
         if query.scale_code is not None:
             # Offered in the scale: at least one active variant in it.
             statement = statement.where(

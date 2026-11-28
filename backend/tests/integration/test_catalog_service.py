@@ -468,6 +468,12 @@ class TestShop:
         assert await names(label="vehicle-world") == []
         with pytest.raises(UnknownReferenceError):
             await catalog.store_products(finish_code="lackiert")
+        # A branch left out (the decals beside the models); an unknown slug leaves out nothing.
+        assert await names(exclude_category_slug="zubehoer") == ["Stellwerk Altenau"]
+        assert await names(exclude_category_slug="gibt-es-nicht") == [
+            "Bahnsteiglampen",
+            "Stellwerk Altenau",
+        ]
 
     async def test_navigation_counts_what_the_shop_shows(
         self,

@@ -32091,6 +32091,25 @@
             }
           },
           {
+            "description": "Category slug left out with its subcategories.",
+            "in": "query",
+            "name": "exclude_category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Category slug left out with its subcategories.",
+              "title": "Exclude Category"
+            }
+          },
+          {
             "description": "Scale code, e.g. H0 or 124 (1:24).",
             "in": "query",
             "name": "scale",

@@ -132,7 +132,7 @@ export default function GuidePage() {
               <Link href="/katalog">Zu den Bausätzen</Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/in-planung">Was ist in Planung?</Link>
+              <Link href="/projekte">Unsere Projekte</Link>
             </Button>
           </div>
         </div>

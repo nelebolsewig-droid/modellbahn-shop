@@ -19,6 +19,7 @@ import { ProductCard } from "@/components/ui/product-card";
 import { ScaleRule } from "@/components/ui/scale-rule";
 import type { NavigationOut, StoreProductPageOut } from "@/lib/api/generated/model";
 import { fetchStore } from "@/lib/api/server";
+import { DECALS_SLUG, categoriesOf } from "@/lib/catalog/decals";
 import { FINISH_FILTERS, finishFor, labelFor, labelName } from "@/lib/catalog/filters";
 import { catalogPath, findScale, millimetresPerMetre, scaleLabel, scaleSlug, type CatalogLocation } from "@/lib/catalog/scales";
 import { RememberScale } from "@/lib/catalog/last-scale";
@@ -73,9 +74,14 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
     notFound();
   }
   const { scale, category, location } = resolved;
+  const fullTrail = categoryTrail(navigation.categories, category?.slug);
+  // Decals stand beside the models: each side lists and filters only its own branch.
+  const decals = fullTrail[0]?.slug === DECALS_SLUG;
+  const side = { ...navigation, categories: categoriesOf(navigation.categories, decals) };
   const page = await fetchStore<StoreProductPageOut>("/products", {
     scale: scale.code,
     category: category?.slug,
+    exclude_category: decals ? undefined : DECALS_SLUG,
     epoch: location.epoche,
     finish: finishFor(location.ausfuehrung),
     label: location.label,
@@ -85,7 +91,8 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
     limit: PAGE_SIZE,
   });
   const items = page?.items ?? [];
-  const trail = categoryTrail(navigation.categories, category?.slug);
+  const trail = decals ? fullTrail.slice(1) : fullTrail;
+  const thing = decals ? "Decals" : "Modelle";
   const scaleNames = new Map(navigation.scales.map((s) => [s.code, s.name]));
   const filtered = Boolean(
     location.suche || location.epoche || location.category || location.ausfuehrung || location.label,
@@ -97,13 +104,16 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
       <nav aria-label="Brotkrumen">
         <ol className="flex flex-wrap items-center gap-2 text-hint text-ink-tertiary">
           <li>
-            <Link href="/katalog" className="hover:text-ink">
-              Modelle
+            <Link href={decals ? "/decals" : "/katalog"} className="hover:text-ink">
+              {thing}
             </Link>
           </li>
           <li className="flex items-center gap-2">
             <span aria-hidden="true">/</span>
-            <Link href={catalogPath({ scale: scale.code })} className="hover:text-ink">
+            <Link
+              href={catalogPath({ scale: scale.code, category: decals ? DECALS_SLUG : undefined })}
+              className="hover:text-ink"
+            >
               {scaleLabel(scale)}
             </Link>
           </li>
@@ -121,7 +131,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
       <header className="mt-8 grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <div>
           <p className="label-caps text-ink-tertiary">Maßstab {scaleLabel(scale)}</p>
-          <h1 className="mt-4 text-title hyphens-auto break-words sm:text-display">{category ? category.name : `Alle Modelle in ${scale.name}`}</h1>
+          <h1 className="mt-4 text-title hyphens-auto break-words sm:text-display">{category && trail.length > 0 ? category.name : `Alle ${thing} in ${scale.name}`}</h1>
         </div>
         {/* Against the largest scale of the shop, so the tape shows how big this one is. */}
         <ScaleRule
@@ -130,8 +140,8 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
         />
       </header>
       <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3">
-        <ScaleSwitch location={location} scales={navigation.scales} categories={navigation.categories} />
-        <FinishSwitch location={location} />
+        <ScaleSwitch location={location} scales={navigation.scales} categories={side.categories} />
+        {decals ? null : <FinishSwitch location={location} />}
       </div>
 
       <div className="mt-10 grid gap-10 lg:mt-12 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-14">
@@ -157,25 +167,28 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
             </span>
           </summary>
           <div className="space-y-10 border-t border-line px-5 py-6">
-            <Filters navigation={navigation} location={location} scaleName={scale.name} inputId="suche-mobil" />
+            <Filters navigation={side} decals={decals} location={location} scaleName={scale.name} inputId="suche-mobil" />
           </div>
         </details>
         <aside className="hidden space-y-10 lg:block">
-          <Filters navigation={navigation} location={location} scaleName={scale.name} inputId="suche" />
+          <Filters navigation={side} decals={decals} location={location} scaleName={scale.name} inputId="suche" />
         </aside>
 
-        <section aria-label="Modelle">
+        <section aria-label={thing}>
           {items.length > 0 ? <CatalogSort location={location} className="mb-8 lg:justify-end" /> : null}
           {items.length === 0 ? (
             <EmptyState title={filtered ? "Nichts gefunden" : "Kommt bald"}>
               <p>
                 {filtered
-                  ? `Zu dieser Auswahl gibt es in ${scale.name} noch kein Modell.`
-                  : `Die ersten Modelle in ${scale.name} werden gerade fotografiert.`}
+                  ? `Zu dieser Auswahl gibt es in ${scale.name} noch ${decals ? "keine Decals" : "kein Modell"}.`
+                  : `Die ersten ${thing} in ${scale.name} werden gerade fotografiert.`}
               </p>
               {filtered ? (
-                <Link href={catalogPath({ scale: scale.code })} className="mt-4 inline-block text-accent underline-offset-4 hover:underline">
-                  Alle Modelle in {scale.name}
+                <Link
+                  href={catalogPath({ scale: scale.code, category: decals ? DECALS_SLUG : undefined })}
+                  className="mt-4 inline-block text-accent underline-offset-4 hover:underline"
+                >
+                  Alle {thing} in {scale.name}
                 </Link>
               ) : null}
             </EmptyState>
@@ -202,7 +215,7 @@ export async function ScaleCatalog({ scaleSlug: scaleParam, categorySlug, search
               {page?.next_cursor ? (
                 <div className="mt-14 flex justify-center">
                   <Button asChild variant="secondary">
-                    <Link href={catalogPath({ ...location, weiter: page.next_cursor })}>Weitere Modelle</Link>
+                    <Link href={catalogPath({ ...location, weiter: page.next_cursor })}>Weitere {thing}</Link>
                   </Button>
                 </div>
               ) : null}
@@ -218,12 +231,14 @@ type FiltersProps = {
   navigation: NavigationOut;
   location: CatalogLocation;
   scaleName: string;
+  /** The decals side: search hints for decals. */
+  decals: boolean;
   /** The page shows the filters twice (folded on phones), each with its own field id. */
   inputId: string;
 };
 
 /** Search within the scale, kit or finished model, label, the category tree and the epochs. */
-function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
+function Filters({ navigation, location, scaleName, decals, inputId }: FiltersProps) {
   return (
     <>
       <form action={catalogPath({ scale: location.scale, category: location.category })} role="search" className="space-y-3">
@@ -234,7 +249,7 @@ function Filters({ navigation, location, scaleName, inputId }: FiltersProps) {
         {location.label ? <input type="hidden" name="label" value={location.label} /> : null}
         {location.epoche ? <input type="hidden" name="epoche" value={location.epoche} /> : null}
         {location.sortierung ? <input type="hidden" name="sortierung" value={location.sortierung} /> : null}
-        <Input id={inputId} name="suche" type="search" defaultValue={location.suche} placeholder="z. B. Feuerwehr" />
+        <Input id={inputId} name="suche" type="search" defaultValue={location.suche} placeholder={decals ? "z. B. Beschriftung" : "z. B. Feuerwehr"} />
         <Button type="submit" variant="secondary" size="sm">
           Suchen
         </Button>
