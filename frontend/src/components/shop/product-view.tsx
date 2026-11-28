@@ -25,6 +25,17 @@ import {
 import { scaleLabel } from "@/lib/catalog/scales";
 import { cn } from "@/lib/utils";
 
+/** The price on a scale's tile: that of the chosen finish, else the lowest, "ab" only if prices differ. */
+function scaleNote(scale: StoreScaleOut, selection: Selection): string {
+  const chosen = variantFor(scale, selection.finish, selection.color);
+  if (chosen && chosen.finish_code === selection.finish) {
+    return formatPrice(chosen.price_cents);
+  }
+  const prices = scale.variants.map((v) => v.price_cents);
+  const lowest = Math.min(...prices);
+  return prices.some((cents) => cents !== lowest) ? `ab ${formatPrice(lowest)}` : formatPrice(lowest);
+}
+
 /** The chosen scale, finish and colour ("" for a kit or a model in one colour). */
 type Selection = { scale: string; finish: string; color: string };
 
@@ -138,7 +149,7 @@ export function ProductView({ product, initialScale }: ProductViewProps) {
                       ...(option.name === option.ratio ? [] : [option.ratio]),
                       option.track_gauge_mm === null ? "ohne Gleis" : `Gleis ${formatMillimetres(option.track_gauge_mm)}`,
                     ]}
-                    note={`ab ${formatPrice(Math.min(...option.variants.map((v) => v.price_cents)))}`}
+                    note={scaleNote(option, selection)}
                   />
                 ))}
               </RadioGroup>

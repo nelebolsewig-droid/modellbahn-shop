@@ -157,7 +157,8 @@ describe("ProductView", () => {
 
     await user.click(within(colors).getByRole("radio", { name: "Blau" }));
     expect(screen.getByText("MB-000042-H0-F2")).toBeInTheDocument();
-    expect(screen.getByText(/84,90/)).toBeInTheDocument();
+    // The price, and the scale tile with the price of exactly this choice (no "ab").
+    expect(screen.getAllByText(/84,90/)).toHaveLength(2);
     expect(screen.getByText("Fertigmodell, Blau")).toBeInTheDocument();
     // The stage opens on the photo of the blue model.
     expect(screen.getAllByRole("img")[0]).toHaveAttribute("alt", "Foto d");
