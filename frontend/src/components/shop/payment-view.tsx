@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { BankTransferDetails } from "@/components/shop/bank-transfer-details";
+import { PaymentBadges } from "@/components/shop/payment-badges";
 import { Alert, Callout } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PendingNotice } from "@/components/ui/pending-notice";
@@ -243,8 +244,8 @@ function SumUpSheet({ order, token, statusHref, offersTransfer }: ChoiceProps) {
         >
           <ChoiceItem
             value="provider"
-            label="Karte, Apple Pay oder Google Pay"
-            description="Sofort bezahlt, auf der sicheren Seite von SumUp."
+            label="Sofort bezahlen"
+            description="Karte, PayPal, Apple Pay oder Google Pay, auf der sicheren Seite von SumUp."
           />
           <ChoiceItem
             value="bank_transfer"
@@ -253,10 +254,11 @@ function SumUpSheet({ order, token, statusHref, offersTransfer }: ChoiceProps) {
           />
         </RadioGroup>
       ) : null}
+      {way === "bank_transfer" ? null : <PaymentBadges className="mb-4" />}
       <p className="text-small text-ink-secondary">
         {way === "bank_transfer"
           ? "Du bekommst gleich unsere Bankverbindung, die Bestellnummer als Verwendungszweck und einen GiroCode für deine Banking-App, auch per E-Mail."
-          : "Du bezahlst auf der sicheren Seite von SumUp, unserem Zahlungsdienst: mit Kredit- oder Debitkarte, je nach Gerät auch mit Apple Pay oder Google Pay. Danach kommst du hierher zurück."}
+          : "Du bezahlst auf der sicheren Seite von SumUp, unserem Zahlungsdienst: mit Kredit- oder Debitkarte, PayPal und je nach Gerät auch mit Apple Pay oder Google Pay. Danach kommst du hierher zurück."}
       </p>
       <div role="alert" className="not-empty:mt-6">
         {expired && !pay.isError ? (

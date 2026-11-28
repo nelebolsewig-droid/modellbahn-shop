@@ -126,7 +126,7 @@ export default async function TermsPage() {
           <LegalSection id="zahlung" mark="§ 7" title="Zahlung">
             <p>
               (1) Du bezahlst direkt nach der Bestellung über unseren Zahlungsdienst SumUp, mit Kredit- oder Debitkarte,
-              je nach Gerät auch mit Apple Pay oder Google Pay. Die Zahlungsdaten gibst du auf der Seite von SumUp ein;
+              PayPal und je nach Gerät auch mit Apple Pay oder Google Pay. Die Zahlungsdaten gibst du auf der Seite von SumUp ein;
               wir erhalten sie nicht. Bieten wir es auf der Bezahlseite an, kannst du stattdessen per Vorkasse bezahlen:
               Du überweist den Betrag mit der Bestellnummer als Verwendungszweck auf unser Konto, das wir dir auf der
               Bezahlseite und per E-Mail nennen.
