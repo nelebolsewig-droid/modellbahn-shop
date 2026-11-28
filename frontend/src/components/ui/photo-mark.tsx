@@ -2,7 +2,7 @@ import { Wordmark } from "@/components/site/wordmark";
 import { cn } from "@/lib/utils";
 
 /** The names of the finishes as the shop says them; an unknown code is shown as it is. */
-const FINISH_NAMES: Record<string, string> = { unpainted: "Bausatz", painted: "Fertigmodell" };
+const FINISH_NAMES: Record<string, string> = { unpainted: "Bausatz", painted: "Fertigmodell", decal: "Decal" };
 
 /** "unpainted" → "Bausatz". */
 export function finishName(code: string): string {

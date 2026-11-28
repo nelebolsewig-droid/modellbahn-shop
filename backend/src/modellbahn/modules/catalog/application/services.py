@@ -734,6 +734,7 @@ class CatalogService:
         self,
         *,
         category_slug: str | None = None,
+        exclude_category_slug: str | None = None,
         scale_code: str | None = None,
         epoch_code: str | None = None,
         finish_code: str | None = None,
@@ -746,7 +747,8 @@ class CatalogService:
         """Products in the shop, newest first unless ``order`` says otherwise.
 
         A category includes its subcategories; a scale or an epoch narrows the list to
-        products offered in it.
+        products offered in it. ``exclude_category_slug`` leaves out a whole branch (the
+        decals, from the models); an unknown slug leaves out nothing.
         """
         if order is ProductOrder.CREATED:
             msg = "the shop lists by publication, price or name"
@@ -759,6 +761,12 @@ class CatalogService:
                 if root is None:
                     raise CategoryNotFoundError
                 category_ids = _subtree(everything, root.id)
+            excluded_ids: frozenset[UUID] | None = None
+            if exclude_category_slug is not None:
+                everything = await uow.categories.all()
+                left_out = next((c for c in everything if c.slug == exclude_category_slug), None)
+                if left_out is not None:
+                    excluded_ids = _subtree(everything, left_out.id)
             references = await _references(uow)
             if scale_code is not None:
                 references.scale(scale_code, field="scale")
@@ -771,6 +779,7 @@ class CatalogService:
                 limit=min(limit, STORE_PAGE_MAX),
                 statuses=frozenset({ProductStatus.ACTIVE}),
                 category_ids=category_ids,
+                excluded_category_ids=excluded_ids,
                 scale_code=scale_code,
                 epoch_code=epoch_code,
                 finish_code=finish_code,

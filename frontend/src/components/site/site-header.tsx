@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CartLink } from "@/components/shop/cart-link";
 import { CatalogLink } from "@/components/shop/catalog-link";
+import { DecalsLink } from "@/components/shop/decals-link";
 import { SHOP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,8 @@ import { Wordmark } from "./wordmark";
 // pushed the header past the screen); "Termine" is also in the footer.
 const SECTIONS = [
   { href: "/katalog", label: "Modelle", narrow: true },
+  { href: "/decals", label: "Decals", narrow: true },
+  { href: "/projekte", label: "Projekte", narrow: false },
   { href: "/termine", label: "Termine", narrow: false },
 ] as const satisfies readonly { href: Route; label: string; narrow: boolean }[];
 
@@ -36,6 +39,10 @@ export function SiteHeader() {
                 <CatalogLink key={section.href} className={className}>
                   {section.label}
                 </CatalogLink>
+              ) : section.href === "/decals" ? (
+                <DecalsLink key={section.href} className={className}>
+                  {section.label}
+                </DecalsLink>
               ) : (
                 <Link key={section.href} href={section.href} className={className}>
                   {section.label}

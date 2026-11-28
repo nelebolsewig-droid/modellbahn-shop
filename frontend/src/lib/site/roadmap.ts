@@ -1,6 +1,6 @@
 /*
  * "Was ist in Planung": models the workshop is working on, as the shop shows them on
- * /in-planung. Edited here; a new entry goes live with the next deploy.
+ * /projekte. Edited here; a new entry goes live with the next deploy.
  */
 
 export type RoadmapStage = "idee" | "konstruktion" | "probedruck" | "bald";

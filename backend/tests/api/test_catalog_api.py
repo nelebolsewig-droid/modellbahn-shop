@@ -299,7 +299,7 @@ class TestPublishing:
         (item,) = page["gallery"]
         assert item["alt_text"] == "Front"
         assert {r["format"] for r in item["image"]["renditions"]} == {"webp", "avif"}
-        assert [f["name"] for f in page["finishes"]] == ["Bausatz", "Fertigmodell"]
+        assert [f["name"] for f in page["finishes"]] == ["Bausatz", "Fertigmodell", "Decal"]
 
         assert_problem(
             await staff_client.patch(
@@ -391,6 +391,7 @@ class TestCategoriesAndLists:
             ("B", True),
             ("F", True),
             ("G", False),
+            ("D", True),
         ]
 
     @pytest.mark.parametrize(

@@ -14,7 +14,7 @@ export function SloganBand() {
           <Link href="/der-weg-zum-perfekten-modell" className="text-accent hover:underline">
             Der Weg zum perfekten Modell →
           </Link>
-          <Link href="/in-planung" className="text-ink-secondary hover:text-ink hover:underline">
+          <Link href="/projekte" className="text-ink-secondary hover:text-ink hover:underline">
             Was ist in Planung? →
           </Link>
         </div>

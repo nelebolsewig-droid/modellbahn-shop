@@ -8,7 +8,7 @@ const WORKSHOP = [
   { href: "/ueber-uns", label: "Über uns" },
   { href: "/so-entsteht-ein-modell", label: "So entsteht ein Modell" },
   { href: "/der-weg-zum-perfekten-modell", label: "Bauanleitung" },
-  { href: "/in-planung", label: "In Planung" },
+  { href: "/projekte", label: "Projekte" },
   { href: "/sonderanfertigung", label: "Sonderanfertigung" },
 ] as const satisfies readonly FooterLink[];
 

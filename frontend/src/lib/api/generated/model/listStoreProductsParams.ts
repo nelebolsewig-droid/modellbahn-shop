@@ -20,6 +20,10 @@ export type ListStoreProductsParams = {
  */
 category?: string | null;
 /**
+ * Category slug left out with its subcategories.
+ */
+exclude_category?: string | null;
+/**
  * Scale code, e.g. H0 or 124 (1:24).
  */
 scale?: string | null;

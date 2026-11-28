@@ -51,6 +51,10 @@ async def list_products(
         str | None,
         Query(max_length=80, description="Category slug; includes its subcategories."),
     ] = None,
+    exclude_category: Annotated[
+        str | None,
+        Query(max_length=80, description="Category slug left out with its subcategories."),
+    ] = None,
     scale: Annotated[
         str | None, Query(max_length=10, description="Scale code, e.g. H0 or 124 (1:24).")
     ] = None,
@@ -69,6 +73,7 @@ async def list_products(
 ) -> StoreProductPageOut:
     page = await service.store_products(
         category_slug=category,
+        exclude_category_slug=exclude_category,
         scale_code=scale,
         epoch_code=epoch,
         finish_code=finish,

@@ -53,6 +53,8 @@ class ProductQuery:
     limit: int
     statuses: frozenset[ProductStatus] | None = None
     category_ids: frozenset[UUID] | None = None
+    # A branch left out, e.g. the decals from the models.
+    excluded_category_ids: frozenset[UUID] | None = None
     scale_code: str | None = None
     epoch_code: str | None = None
     finish_code: str | None = None
